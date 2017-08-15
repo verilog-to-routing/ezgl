@@ -27,5 +27,5 @@ target_include_directories(
 
 target_link_libraries(
   ${PROJECT_NAME}
-  PUBLIC GTK2_LIBRARIES
+  PUBLIC ${GTK2_LIBRARIES}
 )
