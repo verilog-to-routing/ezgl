@@ -11,10 +11,13 @@ project(
 # we rely on GTK2 for the GUI, so make sure the system has it
 find_package(GTK2 REQUIRED)
 
+# create a library that can be linked by executables
 add_library(
   ${PROJECT_NAME}
   include/ezgl/ezgl.hpp
+  include/ezgl/window.hpp
   src/ezgl.cpp
+  src/window.cpp
 )
 
 target_include_directories(
