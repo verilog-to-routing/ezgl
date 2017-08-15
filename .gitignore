@@ -33,3 +33,6 @@
 
 # Build Directories
 cmake-build*
+
+# Vim
+.swp
