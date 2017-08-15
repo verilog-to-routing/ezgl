@@ -10,6 +10,8 @@ class application;
 application create_application(int argc, char **argv);
 
 class application {
+public:
+  int run();
 private:
   friend application create_application(int, char **);
 
