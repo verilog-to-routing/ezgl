@@ -11,6 +11,9 @@ project(
 # we rely on GTK2 for the GUI, so make sure the system has it
 find_package(GTK2 REQUIRED)
 
+# include the configuration/compile time options for this library
+include(options.cmake)
+
 # create a library that can be linked by executables
 add_library(
   ${PROJECT_NAME}
@@ -29,3 +32,7 @@ target_link_libraries(
   ${PROJECT_NAME}
   PUBLIC ${GTK2_LIBRARIES}
 )
+
+if(EZGL_BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()
