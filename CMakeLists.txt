@@ -18,14 +18,15 @@ include(options.cmake)
 add_library(
   ${PROJECT_NAME}
   include/ezgl/ezgl.hpp
-  include/ezgl/window.hpp
+  include/ezgl/application.hpp
   src/ezgl.cpp
-  src/window.cpp
+  src/application.cpp
 )
 
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC include
+  PUBLIC ${GTK2_INCLUDE_DIRS}
 )
 
 target_link_libraries(

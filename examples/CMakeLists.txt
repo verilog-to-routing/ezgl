@@ -5,4 +5,4 @@ project(
   VERSION 0.0.1
 )
 
-add_subdirectory(basic-window)
+add_subdirectory(basic-application)

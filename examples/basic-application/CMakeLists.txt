@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
 
 project(
-  basic-window
+  basic-application
   VERSION 0.0.1
   LANGUAGES CXX
 )
 
-add_executable(${PROJECT_NAME} basic_window.cpp)
+add_executable(${PROJECT_NAME} basic_application.cpp)
 
 target_link_libraries(
   ${PROJECT_NAME}
