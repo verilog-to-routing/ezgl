@@ -12,6 +12,8 @@ application create_application(int argc, char **argv)
 
 application::application() : m_window(gtk_window_new(GTK_WINDOW_TOPLEVEL))
 {
+  // quit the main event loop when the window is destroyed
+  g_signal_connect(m_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 }
 
 int application::run()
