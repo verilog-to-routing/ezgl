@@ -2,16 +2,18 @@
 
 namespace ezgl {
 
-application create_application(int argc, char **argv)
+application create_application(int argc, char **argv, std::string const &title)
 {
   // initialize gtk - will abort application if it fails
   gtk_init(&argc, &argv);
 
-  return application();
+  return application(title);
 }
 
-application::application() : m_window(gtk_window_new(GTK_WINDOW_TOPLEVEL))
+application::application(const std::string &title) : m_window(gtk_window_new(GTK_WINDOW_TOPLEVEL))
 {
+  gtk_window_set_title(GTK_WINDOW(m_window), title.c_str());
+
   // quit the main event loop when the window is destroyed
   g_signal_connect(m_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 }
