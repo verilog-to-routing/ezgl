@@ -13,7 +13,7 @@ class application {
 private:
   friend application create_application(int, char **);
 
-  application() = default;
+  application();
 
   GtkWidget *m_window;
 };

@@ -9,4 +9,8 @@ application create_application(int argc, char **argv)
 
   return application();
 }
+
+application::application() : m_window(gtk_window_new(GTK_WINDOW_TOPLEVEL))
+{
+}
 }
