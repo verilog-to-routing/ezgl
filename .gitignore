@@ -36,3 +36,6 @@ cmake-build*
 
 # Vim
 .swp
+
+# IDE Files and Folders
+.idea
