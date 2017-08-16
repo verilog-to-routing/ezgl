@@ -7,7 +7,5 @@ int main(int argc, char ** argv)
 
   ezgl::application application(settings);
 
-  application.run(argc, argv);
-
-  return 0;
+  return application.run(argc, argv);
 }
