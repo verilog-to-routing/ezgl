@@ -8,8 +8,9 @@ project(
   LANGUAGES CXX
 )
 
-# we rely on GTK2 for the GUI, so make sure the system has it
-find_package(GTK2 REQUIRED)
+# we rely on GTK3 for the GUI, so make sure the system has it
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 
 # include the configuration/compile time options for this library
 include(options.cmake)
@@ -26,12 +27,12 @@ add_library(
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC include
-  PUBLIC ${GTK2_INCLUDE_DIRS}
+  PUBLIC ${GTK3_INCLUDE_DIRS}
 )
 
 target_link_libraries(
   ${PROJECT_NAME}
-  PUBLIC ${GTK2_LIBRARIES}
+  PUBLIC ${GTK3_LIBRARIES}
 )
 
 if(EZGL_BUILD_EXAMPLES)
