@@ -7,12 +7,49 @@
 
 namespace ezgl {
 
+/**
+ * Represents the core application.
+ */
 class application {
 public:
+  /**
+   * Create an application.
+   */
   application();
 
+  /**
+   * Destructor.
+   */
   ~application();
 
+  /**
+   * Copies are disabled - there should be only one application object.
+   */
+  application(application const &) = delete;
+
+  /**
+   * Copies are disabled - there should be only one application object.
+   */
+  application &operator=(application const &) = delete;
+
+  /**
+   * Ownership of an application is transferrable.
+   */
+  application(application &&) = default;
+
+  /**
+   * Ownership of an application is transferrable.
+   */
+  application &operator=(application &&) = default;
+
+  /**
+   * Run the application.
+   *
+   * @param argc The number of arguments.
+   * @param argv An array of the arguments.
+   *
+   * @return The exit status.
+   */
   int run(int argc, char **argv);
 
 private:
