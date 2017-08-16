@@ -18,8 +18,6 @@ application::application()
 
 int application::run(int argc, char **argv)
 {
-  g_application_run(G_APPLICATION(m_application), argc, argv);
-
-  return 0;
+  return g_application_run(G_APPLICATION(m_application), argc, argv);
 }
 }
