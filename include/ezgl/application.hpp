@@ -7,6 +7,9 @@
 
 #include <gtk/gtk.h>
 
+/**
+ * An easy to use library for creating a graphical user interface.
+ */
 namespace ezgl {
 
 /**
