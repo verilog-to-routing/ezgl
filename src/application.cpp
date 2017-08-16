@@ -34,8 +34,6 @@ gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer us
     ezgl_app->m_settings.graphics.draw_callback(graphics{cairo}, width, height);
   }
 
-  cairo_fill(cairo);
-
   return FALSE; // propogate the event further
 }
 
