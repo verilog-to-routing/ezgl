@@ -7,20 +7,14 @@
 
 namespace ezgl {
 
-class application;
-
-application create_application(int argc, char **argv, std::string const &title);
-
 class application {
 public:
-  int run();
+  application();
+
+  int run(int argc, char **argv);
 
 private:
-  friend application create_application(int, char **, std::string const &title);
-
-  application(std::string const &title);
-
-  GtkWidget *m_window;
+  GtkApplication *m_application;
 };
 }
 

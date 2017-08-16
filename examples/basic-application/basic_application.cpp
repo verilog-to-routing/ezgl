@@ -2,9 +2,9 @@
 
 int main(int argc, char ** argv)
 {
-  ezgl::application application = ezgl::create_application(argc, argv, "Basic Application");
+  ezgl::application application;
 
-  application.run();
+  application.run(argc, argv);
 
   return 0;
 }
