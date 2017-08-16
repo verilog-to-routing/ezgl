@@ -12,6 +12,7 @@ void application::activate(GtkApplication *app, gpointer user_data)
 
 application::application()
     : m_application(gtk_application_new("com.github.mariobadr.ezgl.app", G_APPLICATION_FLAGS_NONE))
+    , m_window(nullptr)
 {
   g_signal_connect(m_application, "activate", G_CALLBACK(activate), this);
 }
@@ -25,5 +26,4 @@ int application::run(int argc, char **argv)
 {
   return g_application_run(G_APPLICATION(m_application), argc, argv);
 }
-
 }
