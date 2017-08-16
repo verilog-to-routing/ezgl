@@ -18,11 +18,9 @@ include(options.cmake)
 # create a library that can be linked by executables
 add_library(
   ${PROJECT_NAME}
-  include/ezgl/ezgl.hpp
   include/ezgl/application.hpp
   include/ezgl/graphics.hpp
   include/ezgl/settings.hpp
-  src/ezgl.cpp
   src/application.cpp
   src/graphics.cpp
 )
