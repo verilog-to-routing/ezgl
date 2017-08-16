@@ -35,6 +35,10 @@ struct window_settings {
  */
 using draw_callback_fn = void (*)(graphics g, int width, int height);
 
+inline void draw_nothing(graphics, int, int)
+{
+}
+
 /**
  * Settings to configure how graphics are drawn.
  */
@@ -42,7 +46,7 @@ struct graphics_settings {
   /**
    * The function to call on draw events.
    */
-  draw_callback_fn draw_callback = nullptr;
+  draw_callback_fn draw_callback = draw_nothing;
 };
 
 /**
