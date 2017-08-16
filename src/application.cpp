@@ -30,7 +30,7 @@ application::~application()
 
 int application::run(int argc, char **argv)
 {
-  // see:
+  // see: https://developer.gnome.org/gio/unstable/GApplication.html#g-application-run
   return g_application_run(G_APPLICATION(m_application), argc, argv);
 }
 }
