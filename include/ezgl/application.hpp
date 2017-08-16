@@ -14,7 +14,11 @@ public:
   int run(int argc, char **argv);
 
 private:
+  static void activate(GtkApplication *app, gpointer user_data);
+
   GtkApplication *m_application;
+
+  GtkWidget *m_window;
 };
 }
 
