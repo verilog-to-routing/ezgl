@@ -35,6 +35,12 @@ target_link_libraries(
   PUBLIC ${GTK3_LIBRARIES}
 )
 
+set_target_properties(
+  ${PROJECT_NAME} PROPERTIES
+  CXX_STANDARD 11
+  CXX_STANDARD_REQUIRED ON
+)
+
 if(EZGL_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
