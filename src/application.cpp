@@ -20,16 +20,22 @@ void application::activate(GtkApplication *app, gpointer user_data)
   gtk_widget_show_all(ezgl_app->m_window);
 }
 
-gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cr, gpointer)
+gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer user_data)
 {
+  auto ezgl_app = static_cast<ezgl::application *>(user_data);
+
   auto context = gtk_widget_get_style_context(widget);
   auto const width = gtk_widget_get_allocated_width(widget);
   auto const height = gtk_widget_get_allocated_height(widget);
 
-  gtk_render_background(context, cr, 0, 0, width, height);
-  cairo_arc(cr, width / 2.0, height / 2.0, MIN(width, height) / 2.0, 0, 2 * G_PI);
+  gtk_render_background(context, cairo, 0, 0, width, height);
 
-  cairo_fill(cr);
+  if(ezgl_app->m_settings.graphics.draw_callback != nullptr) {
+    ezgl_app->m_settings.graphics.draw_callback(cairo, width, height);
+  }
+
+  cairo_fill(cairo);
+
   return FALSE; // propogate the event further
 }
 

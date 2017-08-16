@@ -57,16 +57,22 @@ public:
   int run(int argc, char **argv);
 
 private:
+  // called when GTK activates our application for the first time
   static void activate(GtkApplication *app, gpointer user_data);
 
-  static gboolean draw_canvas(GtkWidget *widget, cairo_t *cr, gpointer data);
+  // called when m_canvas needs to be redrawn
+  static gboolean draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer data);
 
+  // the configured settings
   settings m_settings;
 
+  // the GTK application
   GtkApplication *m_application;
 
+  // each ezgl application contains only one window
   GtkWidget *m_window;
 
+  // each ezgl application has one drawable canvas
   GtkWidget *m_canvas;
 };
 }
