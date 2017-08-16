@@ -11,6 +11,8 @@ class application {
 public:
   application();
 
+  ~application();
+
   int run(int argc, char **argv);
 
 private:
