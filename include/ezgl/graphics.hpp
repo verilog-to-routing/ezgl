@@ -10,6 +10,16 @@ struct point {
   double y;
 };
 
+struct colour {
+  double red;
+  double green;
+  double blue;
+};
+
+static constexpr auto red = colour{255, 0, 0};
+static constexpr auto green = colour{0, 255, 0};
+static constexpr auto blue = colour{0, 0, 255};
+
 /**
  * A thin wrapper around a cairo graphics state.
  */
@@ -21,6 +31,14 @@ public:
    * @param cairo The cairo graphics state.
    */
   explicit graphics(cairo_t *cairo);
+
+  /**
+   * Change the colour for subsequent draw calls.
+   *
+   * @param new_colour The new colour to use.
+   * @param alpha The transparency level (0 is fully transparent, 1 is opaque).
+   */
+  void set_colour(colour new_colour, double alpha);
 
   /**
    * Draw a line.

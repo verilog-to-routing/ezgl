@@ -6,6 +6,11 @@ graphics::graphics(cairo_t *cairo) : m_cairo(cairo)
 {
 }
 
+void graphics::set_colour(colour c, double alpha)
+{
+  cairo_set_source_rgba(m_cairo, c.red, c.green, c.blue, alpha);
+}
+
 void graphics::draw_line(point start, point end)
 {
   cairo_move_to(m_cairo, start.x, start.y);

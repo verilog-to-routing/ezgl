@@ -2,16 +2,23 @@
 
 void draw_screen(ezgl::graphics g, int width, int height)
 {
-  // draws a line through the drawable area
+  // draws a blue line through the drawable area
+  g.set_colour(ezgl::blue, 1.0);
   g.draw_line({0, 0}, {width, height});
+
+  // change the next draw calls to use the colour red
+  g.set_colour(ezgl::red, 1.0);
 
   // draw rectangle outlines...
   g.draw_rectangle({100, 100}, {400, 300}); // from one point to another
   g.draw_rectangle({10, 10}, 50, 50);       // from one point with a width and height
 
+  // change the next draw calls to use green with half transparency
+  g.set_colour(ezgl::green, 0.5);
+
   // draw filled in rectangles...
   g.fill_rectangle({500, 50}, {600, 300}); // from one point to another
-  g.fill_rectangle({10, 400}, 50, 50);     // from one point with a width and height
+  g.fill_rectangle({500, 50}, 50, 50);     // from one point with a width and height
 }
 
 int main(int argc, char **argv)
