@@ -1,9 +1,17 @@
 #include <ezgl/application.hpp>
 
-void my_draw(cairo_t *cairo, int width, int height)
+void draw_screen(ezgl::graphics g, int width, int height)
 {
-  // draw a circle around the screen
-  cairo_arc(cairo, width / 2.0, height / 2.0, MIN(width, height) / 2.0, 0, 2 * G_PI);
+  // draws a line through the drawable area
+  g.draw_line({0, 0}, {width, height});
+
+  // draw rectangle outlines...
+  g.draw_rectangle({100, 100}, {400, 300}); // from one point to another
+  g.draw_rectangle({10, 10}, 50, 50);       // from one point with a width and height
+
+  // draw filled in rectangles...
+  g.fill_rectangle({500, 50}, {600, 300}); // from one point to another
+  g.fill_rectangle({10, 400}, 50, 50);     // from one point with a width and height
 }
 
 int main(int argc, char **argv)
@@ -13,9 +21,11 @@ int main(int argc, char **argv)
   // customize the string to display in the title of the window
   settings.window.title = "Basic Application Example";
   // specify the callback to use to draw in the window
-  settings.graphics.draw_callback = my_draw;
+  settings.graphics.draw_callback = draw_screen;
 
+  // create the application based on the above settings
   ezgl::application application(settings);
 
+  // run the application until the user quits
   return application.run(argc, argv);
 }

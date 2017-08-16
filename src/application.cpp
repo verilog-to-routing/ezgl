@@ -31,7 +31,7 @@ gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer us
   gtk_render_background(context, cairo, 0, 0, width, height);
 
   if(ezgl_app->m_settings.graphics.draw_callback != nullptr) {
-    ezgl_app->m_settings.graphics.draw_callback(cairo, width, height);
+    ezgl_app->m_settings.graphics.draw_callback(graphics{cairo}, width, height);
   }
 
   cairo_fill(cairo);

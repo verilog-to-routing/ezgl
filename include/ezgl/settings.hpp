@@ -1,8 +1,9 @@
 #ifndef EZGL_SETTINGS_HPP
 #define EZGL_SETTINGS_HPP
 
+#include <ezgl/graphics.hpp>
+
 #include <string>
-#include <cairo.h>
 
 namespace ezgl {
 
@@ -27,24 +28,17 @@ struct window_settings {
 };
 
 /**
- * Graphics backends supported by ezgl.
- */
-enum class graphics_backend { cairo };
-
-/**
  * The prototype of a function to be called on draw events.
+ *
+ * The ezgl::graphics object provides drawing functionality.
+ * The width and height provide the dimensions of the drawable area.
  */
-using draw_callback_fn = void (*)(cairo_t *cairo, int width, int height);
+using draw_callback_fn = void (*)(graphics g, int width, int height);
 
 /**
  * Settings to configure how graphics are drawn.
  */
 struct graphics_settings {
-  /**
-   * The graphics backend to use.
-   */
-  graphics_backend backend = graphics_backend::cairo;
-
   /**
    * The function to call on draw events.
    */
