@@ -59,11 +59,15 @@ public:
 private:
   static void activate(GtkApplication *app, gpointer user_data);
 
+  static gboolean draw_canvas(GtkWidget *widget, cairo_t *cr, gpointer data);
+
   settings m_settings;
 
   GtkApplication *m_application;
 
   GtkWidget *m_window;
+
+  GtkWidget *m_canvas;
 };
 }
 
