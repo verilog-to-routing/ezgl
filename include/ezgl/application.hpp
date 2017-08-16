@@ -1,6 +1,8 @@
 #ifndef EZGL_APPLICATION_HPP
 #define EZGL_APPLICATION_HPP
 
+#include <ezgl/settings.hpp>
+
 #include <string>
 
 #include <gtk/gtk.h>
@@ -14,8 +16,10 @@ class application {
 public:
   /**
    * Create an application.
+   *
+   * @param s The settings to use for this application.
    */
-  application();
+  explicit application(settings s);
 
   /**
    * Destructor.
@@ -54,6 +58,8 @@ public:
 
 private:
   static void activate(GtkApplication *app, gpointer user_data);
+
+  settings m_settings;
 
   GtkApplication *m_application;
 
