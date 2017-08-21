@@ -1,6 +1,8 @@
 #ifndef EZGL_GRAPHICS_HPP
 #define EZGL_GRAPHICS_HPP
 
+#include <ezgl/colour.hpp>
+
 #include <cairo.h>
 
 namespace ezgl {
@@ -9,16 +11,6 @@ struct point {
   double x;
   double y;
 };
-
-struct colour {
-  double red;
-  double green;
-  double blue;
-};
-
-static constexpr auto red = colour{255, 0, 0};
-static constexpr auto green = colour{0, 255, 0};
-static constexpr auto blue = colour{0, 0, 255};
 
 /**
  * A thin wrapper around a cairo graphics state.
