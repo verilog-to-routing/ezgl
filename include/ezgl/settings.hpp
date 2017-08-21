@@ -47,6 +47,11 @@ struct graphics_settings {
    * The function to call on draw events.
    */
   draw_callback_fn draw_callback = draw_nothing;
+
+  /**
+   * The background colour of the window.
+   */
+  colour background = white;
 };
 
 /**

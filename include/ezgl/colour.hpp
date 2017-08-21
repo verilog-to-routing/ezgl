@@ -13,9 +13,14 @@ struct colour {
 };
 
 /**
- * The colour red.
+ * The colour black.
  */
-static constexpr auto red = colour{255, 0, 0};
+static constexpr auto black = colour{0, 0, 0};
+
+/**
+ * The colour blue.
+ */
+static constexpr auto blue = colour{0, 0, 255};
 
 /**
  * The colour green.
@@ -23,9 +28,16 @@ static constexpr auto red = colour{255, 0, 0};
 static constexpr auto green = colour{0, 255, 0};
 
 /**
- * The colour blue.
+ * The colour red.
  */
-static constexpr auto blue = colour{0, 0, 255};
+static constexpr auto red = colour{255, 0, 0};
+
+/**
+ * The colour white.
+ */
+static constexpr auto white = colour{255, 255, 255};
+
+
 }
 
 #endif //EZGL_COLOUR_HPP

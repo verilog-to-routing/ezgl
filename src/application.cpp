@@ -23,14 +23,19 @@ void application::activate(GtkApplication *app, gpointer user_data)
 gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer user_data)
 {
   auto ezgl_app = static_cast<ezgl::application *>(user_data);
+  auto &ezgl_settings = ezgl_app->m_settings;
 
-  auto context = gtk_widget_get_style_context(widget);
   auto const width = gtk_widget_get_allocated_width(widget);
   auto const height = gtk_widget_get_allocated_height(widget);
 
-  gtk_render_background(context, cairo, 0, 0, width, height);
+  graphics g(cairo);
 
-  ezgl_app->m_settings.graphics.draw_callback(graphics{cairo}, width, height);
+  // draw the background with the configured colour
+  g.set_colour(ezgl_settings.graphics.background, 1);
+  cairo_paint(cairo);
+
+  // do any additional drawing
+  ezgl_settings.graphics.draw_callback(g, width, height);
 
   return FALSE; // propogate the event further
 }
