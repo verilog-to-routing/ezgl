@@ -14,7 +14,7 @@ void draw_screen(ezgl::graphics g, int width, int height)
   g.draw_rectangle({10, 10}, 50, 50);       // from one point with a width and height
 
   // change the next draw calls to use green with half transparency
-  g.set_colour(ezgl::GREEN);
+  g.set_colour(ezgl::colour{0, 1, 0, 0.5});
 
   // draw filled in rectangles...
   g.fill_rectangle({500, 50}, {600, 300}); // from one point to another
