@@ -51,7 +51,7 @@ struct graphics_settings {
   /**
    * The background colour of the window.
    */
-  colour background = white;
+  colour background = WHITE;
 };
 
 /**

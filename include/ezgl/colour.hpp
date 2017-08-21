@@ -31,27 +31,27 @@ struct colour {
 /**
  * The colour black.
  */
-static constexpr auto black = colour{0, 0, 0, 1};
+static constexpr auto BLACK = colour{0, 0, 0, 1};
 
 /**
  * The colour blue.
  */
-static constexpr auto blue = colour{0, 0, 1, 1};
+static constexpr auto BLUE = colour{0, 0, 1, 1};
 
 /**
  * The colour green.
  */
-static constexpr auto green = colour{0, 1, 0, 1};
+static constexpr auto GREEN = colour{0, 1, 0, 1};
 
 /**
  * The colour red.
  */
-static constexpr auto red = colour{1, 0, 0, 1};
+static constexpr auto RED = colour{1, 0, 0, 1};
 
 /**
  * The colour white.
  */
-static constexpr auto white = colour{1, 1, 1, 1};
+static constexpr auto WHITE = colour{1, 1, 1, 1};
 }
 
 #endif //EZGL_COLOUR_HPP
