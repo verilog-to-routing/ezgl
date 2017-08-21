@@ -2,15 +2,11 @@
 #define EZGL_GRAPHICS_HPP
 
 #include <ezgl/colour.hpp>
+#include <ezgl/geometry.hpp>
 
 #include <cairo.h>
 
 namespace ezgl {
-
-struct point {
-  double x;
-  double y;
-};
 
 /**
  * A thin wrapper around a cairo graphics state.

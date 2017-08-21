@@ -20,6 +20,7 @@ add_library(
   ${PROJECT_NAME}
   include/ezgl/application.hpp
   include/ezgl/colour.hpp
+  include/ezgl/geometry.hpp
   include/ezgl/graphics.hpp
   include/ezgl/settings.hpp
   src/application.cpp
