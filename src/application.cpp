@@ -31,7 +31,7 @@ gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer us
   graphics g(cairo);
 
   // draw the background with the configured colour
-  g.set_colour(ezgl_settings.graphics.background, 1);
+  g.set_colour(ezgl_settings.graphics.background);
   cairo_paint(cairo);
 
   // do any additional drawing

@@ -26,7 +26,7 @@ public:
    * @param new_colour The new colour to use.
    * @param alpha The transparency level (0 is fully transparent, 1 is opaque).
    */
-  void set_colour(colour new_colour, double alpha);
+  void set_colour(colour new_colour);
 
   /**
    * Draw a line.
