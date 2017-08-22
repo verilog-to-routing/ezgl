@@ -6,6 +6,8 @@
 
 #include <cairo.h>
 
+#include <string>
+
 namespace ezgl {
 
 /**
@@ -69,6 +71,14 @@ public:
    * @param height How high the rectangle is, in pixels.
    */
   void fill_rectangle(point start, double width, double height);
+
+  /**
+   * Draw text centred around a point.
+   *
+   * @param centre The centre of the text, in pixels.
+   * @param text The text to draw.
+   */
+  void draw_text(point centre, std::string const &text);
 
 private:
   cairo_t *m_cairo;
