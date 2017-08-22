@@ -2,8 +2,8 @@
 #define EZGL_GRAPHICS_HPP
 
 #include <ezgl/colour.hpp>
-#include <ezgl/font.hpp>
 #include <ezgl/geometry.hpp>
+#include <ezgl/style.hpp>
 
 #include <cairo.h>
 
@@ -79,14 +79,14 @@ public:
    * @param new_format The new font face format.
    * @param new_size The new size.
    */
-  void format_font(font_face const &new_format, double new_size);
+  void format_font(font_style const &new_format, double new_size);
 
   /**
    * Format the font with a new font face.
    *
    * @param new_format The new font face format.
    */
-  void format_font_face(font_face const &new_format);
+  void format_font_style(font_style const &new_format);
 
   /**
    * Change the size of the font.

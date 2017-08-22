@@ -22,7 +22,7 @@ enum class font_weight : int { normal, bold };
 /**
  * Specifies the format of a font (other than its size);
  */
-struct font_face {
+struct font_style {
   /**
    * Constructor.
    *
@@ -30,7 +30,7 @@ struct font_face {
    * @param s The slant of the font.
    * @param w The weight of the font.
    */
-  font_face(std::string f, font_slant s, font_weight w) : family(std::move(f)), slant(s), weight(w)
+  font_style(std::string f, font_slant s, font_weight w) : family(std::move(f)), slant(s), weight(w)
   {
   }
 

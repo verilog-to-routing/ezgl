@@ -63,13 +63,13 @@ void graphics::draw_text(point centre, std::string const &text)
   cairo_show_text(m_cairo, text.c_str());
 }
 
-void graphics::format_font(font_face const &new_format, double new_size)
+void graphics::format_font(font_style const &new_format, double new_size)
 {
-  format_font_face(new_format);
+  format_font_style(new_format);
   format_font_size(new_size);
 }
 
-void graphics::format_font_face(const font_face &new_format)
+void graphics::format_font_style(const font_style &new_format)
 {
   cairo_select_font_face(m_cairo, new_format.family.c_str(),
       static_cast<cairo_font_slant_t>(new_format.slant),
