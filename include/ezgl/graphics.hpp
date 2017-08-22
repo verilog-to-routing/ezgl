@@ -104,6 +104,8 @@ public:
   void draw_text(point centre, std::string const &text);
 
 private:
+  void draw_rectangle_path(point start, point end);
+
   cairo_t *m_cairo;
 };
 }
