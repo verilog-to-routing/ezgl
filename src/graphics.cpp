@@ -78,4 +78,22 @@ void graphics::draw_text(point centre, std::string const &text)
   cairo_move_to(m_cairo, centre.x, centre.y);
   cairo_show_text(m_cairo, text.c_str());
 }
+
+void graphics::format_font(font_face const &new_format, double new_size)
+{
+  format_font_face(new_format);
+  format_font_size(new_size);
+}
+
+void graphics::format_font_face(const font_face &new_format)
+{
+  cairo_select_font_face(m_cairo, new_format.family.c_str(),
+      static_cast<cairo_font_slant_t>(new_format.slant),
+      static_cast<cairo_font_weight_t>(new_format.weight));
+}
+
+void graphics::format_font_size(double new_size)
+{
+  cairo_set_font_size(m_cairo, new_size);
+}
 }

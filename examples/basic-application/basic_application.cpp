@@ -13,6 +13,7 @@ void draw_screen(ezgl::graphics g, int width, int height)
   g.draw_rectangle({100, 100}, {400, 300}); // from one point to another
   g.draw_rectangle({10, 10}, 50, 50);       // from one point with a width and height
 
+  g.format_font(ezgl::font_face("monospace", ezgl::font_slant::oblique, ezgl::font_weight::normal), 24);
   g.draw_text({100,100}, "Hello World!");
 
   // change the next draw calls to use green with half transparency

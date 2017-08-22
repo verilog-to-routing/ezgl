@@ -2,6 +2,7 @@
 #define EZGL_GRAPHICS_HPP
 
 #include <ezgl/colour.hpp>
+#include <ezgl/font.hpp>
 #include <ezgl/geometry.hpp>
 
 #include <cairo.h>
@@ -71,6 +72,28 @@ public:
    * @param height How high the rectangle is, in pixels.
    */
   void fill_rectangle(point start, double width, double height);
+
+  /**
+   * Format the font with a new font face and size.
+   *
+   * @param new_format The new font face format.
+   * @param new_size The new size.
+   */
+  void format_font(font_face const &new_format, double new_size);
+
+  /**
+   * Format the font with a new font face.
+   *
+   * @param new_format The new font face format.
+   */
+  void format_font_face(font_face const &new_format);
+
+  /**
+   * Change the size of the font.
+   *
+   * @param new_size The new size.
+   */
+  void format_font_size(double new_size);
 
   /**
    * Draw text centred around a point.
