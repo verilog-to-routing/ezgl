@@ -1,7 +1,22 @@
+/**
+ * @file
+ *
+ * This example shows you how to create a basic application using the library.
+ */
+
 #include <ezgl/application.hpp>
 
 #include <iostream>
 
+/**
+ * Draws different graphics to the screen.
+ *
+ * This function is called by the event loop very frequently and should finish quickly.
+ *
+ * @param g The graphics object used to draw onto the screen.
+ * @param width The width of the screen.
+ * @param height The height of the screen.
+ */
 void draw_screen(ezgl::graphics g, int width, int height)
 {
   // draws a blue line through the drawable area
@@ -27,17 +42,27 @@ void draw_screen(ezgl::graphics g, int width, int height)
   g.fill_rectangle({500, 50}, 50, 50);     // from one point with a width and height
 }
 
+/**
+ * Reacts to events where the user has pressed a key on the keyboard.
+ *
+ * @param event The keyboard event.
+ */
 void press_key(GdkEventKey *event)
 {
   // see: https://developer.gnome.org/gdk3/stable/gdk3-Keyboard-Handling.html
   std::cout << gdk_keyval_name(event->keyval) << " was pressed.\n";
 }
 
-void mouse_move(GdkEventMotion *event)
-{
-  std::cout << event->x << ", " << event->y << "\n";
-}
-
+/**
+ * The start point of the program.
+ *
+ * This function initializes an ezgl application and runs it.
+ *
+ * @param argc The number of arguments provided.
+ * @param argv The arguments as an array of c-strings.
+ *
+ * @return the exit status of the application run.
+ */
 int main(int argc, char **argv)
 {
   // ezgl applications require a settings object
@@ -50,8 +75,6 @@ int main(int argc, char **argv)
   settings.graphics.draw_callback = draw_screen;
   // specify the callback to use when a key is pressed
   settings.input.key_press_callback = press_key;
-  // specify the callback to use when a mouse is moved
-  settings.input.mouse_move_callback = mouse_move;
 
   // create the application based on the above settings
   ezgl::application application(settings);
