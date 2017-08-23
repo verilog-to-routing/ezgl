@@ -3,6 +3,8 @@
 
 #include <ezgl/graphics.hpp>
 
+#include <gdk/gdk.h>
+
 #include <string>
 
 namespace ezgl {
@@ -55,11 +57,28 @@ struct graphics_settings {
 };
 
 /**
+ * The prototype of a function to be called when a key is pressed.
+ */
+using key_press_callback_fn = void (*)(GdkEventKey *event);
+
+inline void no_reaction(GdkEventKey *)
+{
+}
+
+/**
+ * Settings to configure how to respond to input.
+ */
+struct input_settings {
+  key_press_callback_fn key_press_callback = no_reaction;
+};
+
+/**
  * A bundle of all ezgl settings.
  */
 struct settings {
   window_settings window;
   graphics_settings graphics;
+  input_settings input;
 };
 }
 

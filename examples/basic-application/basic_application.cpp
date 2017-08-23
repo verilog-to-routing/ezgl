@@ -1,5 +1,7 @@
 #include <ezgl/application.hpp>
 
+#include <iostream>
+
 void draw_screen(ezgl::graphics g, int width, int height)
 {
   // draws a blue line through the drawable area
@@ -15,14 +17,27 @@ void draw_screen(ezgl::graphics g, int width, int height)
 
   // draw 3/4 transparent blue text
   g.set_colour(ezgl::BLUE, 0.6);
-  g.format_font(ezgl::font_style("monospace", ezgl::font_slant::oblique, ezgl::font_weight::normal), 24);
-  g.draw_text({100,100}, "Hello World!");
+  g.format_font(
+      ezgl::font_style("monospace", ezgl::font_slant::oblique, ezgl::font_weight::normal), 24);
+  g.draw_text({100, 100}, "Hello World!");
 
   // change the next draw calls to use green with half transparency
   g.set_colour(0, 1, 0, 0.5);
   // draw filled in rectangles...
   g.fill_rectangle({500, 50}, {600, 300}); // from one point to another
   g.fill_rectangle({500, 50}, 50, 50);     // from one point with a width and height
+}
+
+void press_key(GdkEventKey *event)
+{
+  switch(event->keyval) {
+  case GDK_KEY_a:
+    std::cout << "lower case 'a' was pressed.\n";
+    break;
+  default:
+    std::cout << event->keyval << " was pressed.\n";
+    break;
+  }
 }
 
 int main(int argc, char **argv)
@@ -35,6 +50,8 @@ int main(int argc, char **argv)
   settings.graphics.background = ezgl::BLACK;
   // specify the callback to use to draw in the window
   settings.graphics.draw_callback = draw_screen;
+  // specify the callback to use when a key is pressed
+  settings.input.key_press_callback = press_key;
 
   // create the application based on the above settings
   ezgl::application application(settings);

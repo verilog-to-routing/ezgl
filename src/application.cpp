@@ -11,11 +11,12 @@ void application::activate(GtkApplication *app, gpointer user_data)
   gtk_window_set_title(GTK_WINDOW(ezgl_app->m_window), ezgl_app->m_settings.window.title.c_str());
   gtk_window_set_default_size(GTK_WINDOW(ezgl_app->m_window), ezgl_app->m_settings.window.width,
       ezgl_app->m_settings.window.height);
+  g_signal_connect(ezgl_app->m_window, "key_press_event", G_CALLBACK(press_key), user_data);
 
   ezgl_app->m_canvas = gtk_drawing_area_new();
   gtk_widget_set_size_request(ezgl_app->m_canvas, 600, 400);
   gtk_container_add(GTK_CONTAINER(ezgl_app->m_window), ezgl_app->m_canvas);
-  g_signal_connect(G_OBJECT(ezgl_app->m_canvas), "draw", G_CALLBACK(draw_canvas), user_data);
+  g_signal_connect(ezgl_app->m_canvas, "draw", G_CALLBACK(draw_canvas), user_data);
 
   gtk_widget_show_all(ezgl_app->m_window);
 }
@@ -38,6 +39,16 @@ gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer us
   ezgl_settings.graphics.draw_callback(g, width, height);
 
   return FALSE; // propogate the event further
+}
+
+gboolean application::press_key(GtkWidget *, GdkEventKey *event, gpointer user_data)
+{
+  auto ezgl_app = static_cast<ezgl::application *>(user_data);
+  auto &ezgl_settings = ezgl_app->m_settings;
+
+  ezgl_settings.input.key_press_callback(event);
+
+  return FALSE; // propogate event further
 }
 
 application::application(settings s)

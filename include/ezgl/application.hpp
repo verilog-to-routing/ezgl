@@ -66,6 +66,9 @@ private:
   // called when m_canvas needs to be redrawn
   static gboolean draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer data);
 
+  // called when a key was pressed
+  static gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
+
   // the configured settings
   settings m_settings;
 
