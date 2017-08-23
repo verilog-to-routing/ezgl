@@ -78,6 +78,7 @@ inline void no_reaction(GdkEventMotion *)
  * Settings to configure how to respond to input.
  */
 struct input_settings {
+  bool track_mouse_motion = false;
   key_press_callback_fn key_press_callback = no_reaction;
   mouse_move_callback_fn mouse_move_callback = no_reaction;
 };

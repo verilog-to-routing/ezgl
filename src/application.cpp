@@ -2,16 +2,18 @@
 
 namespace ezgl {
 
-void initialize_window(GtkApplication *gtk_app, GtkWidget *&window, window_settings const &settings)
+void initialize_window(GtkApplication *gtk_app, GtkWidget *&window, settings const &s)
 {
   window = gtk_application_window_new(gtk_app);
 
   // setup the window
-  gtk_window_set_title(GTK_WINDOW(window), settings.title.c_str());
-  gtk_window_set_default_size(GTK_WINDOW(window), settings.width, settings.height);
+  gtk_window_set_title(GTK_WINDOW(window), s.window.title.c_str());
+  gtk_window_set_default_size(GTK_WINDOW(window), s.window.width, s.window.height);
 
-  // enable the tracking of specific window events
-  gtk_widget_add_events(window, GDK_POINTER_MOTION_MASK);
+  if(s.input.track_mouse_motion) {
+    // enable the tracking of specific window events
+    gtk_widget_add_events(window, GDK_POINTER_MOTION_MASK);
+  }
 }
 
 void initialize_canvas(GtkWidget *&window, GtkWidget *&canvas, graphics_settings const &settings)
@@ -27,7 +29,7 @@ void application::activate(GtkApplication *gtk_app, gpointer user_data)
   auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
 
-  initialize_window(gtk_app, ezgl_app->m_window, settings.window);
+  initialize_window(gtk_app, ezgl_app->m_window, settings);
   initialize_canvas(ezgl_app->m_window, ezgl_app->m_canvas, settings.graphics);
 
   // connect to input events from the keyboard and mouse

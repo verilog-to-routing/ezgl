@@ -13,6 +13,8 @@ int main(int argc, char **argv)
   ezgl::settings settings;
   // customize the string to display in the title of the window
   settings.window.title = "Input Mouse Motion Example";
+  // enable the tracking of mouse movement
+  settings.input.track_mouse_motion = true;
   // specify the callback to use when a mouse is moved
   settings.input.mouse_move_callback = mouse_move;
 
