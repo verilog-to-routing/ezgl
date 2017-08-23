@@ -61,13 +61,15 @@ public:
 
 private:
   // called when GTK activates our application for the first time
-  static void activate(GtkApplication *app, gpointer user_data);
+  static void activate(GtkApplication *gtk_app, gpointer user_data);
 
   // called when m_canvas needs to be redrawn
   static gboolean draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer data);
 
   // called when a key was pressed
   static gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
+
+  static gboolean move_mouse(GtkWidget *widget, GdkEventMotion *event, gpointer data);
 
   // the configured settings
   settings m_settings;

@@ -34,6 +34,11 @@ void press_key(GdkEventKey *event)
   std::cout << gdk_keyval_name(event->keyval) << " was pressed.\n";
 }
 
+void mouse_move(GdkEventMotion *event)
+{
+  std::cout << event->x << ", " << event->y << "\n";
+}
+
 int main(int argc, char **argv)
 {
   // ezgl applications require a settings object
@@ -46,6 +51,8 @@ int main(int argc, char **argv)
   settings.graphics.draw_callback = draw_screen;
   // specify the callback to use when a key is pressed
   settings.input.key_press_callback = press_key;
+  // specify the callback to use when a mouse is moved
+  settings.input.mouse_move_callback = mouse_move;
 
   // create the application based on the above settings
   ezgl::application application(settings);

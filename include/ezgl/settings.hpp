@@ -66,10 +66,20 @@ inline void no_reaction(GdkEventKey *)
 }
 
 /**
+ * The prototype of a function to be called when the mouse has moved.
+ */
+using mouse_move_callback_fn = void (*)(GdkEventMotion *event);
+
+inline void no_reaction(GdkEventMotion *)
+{
+}
+
+/**
  * Settings to configure how to respond to input.
  */
 struct input_settings {
   key_press_callback_fn key_press_callback = no_reaction;
+  mouse_move_callback_fn mouse_move_callback = no_reaction;
 };
 
 /**
