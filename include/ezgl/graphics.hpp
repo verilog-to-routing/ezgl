@@ -91,26 +91,31 @@ public:
   void fill_rectangle(point start, double width, double height);
 
   /**
-   * Format the font with a new font face and size.
+   * Change the font.
    *
-   * @param new_format The new font face format.
-   * @param new_size The new size.
+   * @param new_size The new size text should be drawn at.
    */
-  void format_font(font_style const &new_format, double new_size);
+  void format_font(double new_size);
 
   /**
-   * Format the font with a new font face.
+   * Change the font.
    *
-   * @param new_format The new font face format.
+   * @param family The font family to use (e.g., serif)
+   * @param slant The slant to use (e.g., italic)
+   * @param weight The weight of the font (e.g., bold)
    */
-  void format_font_style(font_style const &new_format);
+  void format_font(std::string const &family, font_slant slant, font_weight weight);
 
   /**
-   * Change the size of the font.
+   * Change the font.
    *
-   * @param new_size The new size.
+   * @param family The font family to use (e.g., serif)
+   * @param slant The slant to use (e.g., italic)
+   * @param weight The weight of the font (e.g., bold)
+   * @param size The new size text should be drawn at.
    */
-  void format_font_size(double new_size);
+  void
+  format_font(std::string const &family, font_slant slant, font_weight weight, double new_size);
 
   /**
    * Draw text centred around a point.

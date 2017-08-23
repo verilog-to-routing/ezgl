@@ -17,8 +17,7 @@ void draw_screen(ezgl::graphics g, int width, int height)
 
   // draw 3/4 transparent blue text
   g.set_colour(ezgl::BLUE, 0.6);
-  g.format_font(
-      ezgl::font_style("monospace", ezgl::font_slant::oblique, ezgl::font_weight::normal), 24);
+  g.format_font("monospace", ezgl::font_slant::oblique, ezgl::font_weight::normal, 24);
   g.draw_text({100, 100}, "Hello World!");
 
   // change the next draw calls to use green with half transparency

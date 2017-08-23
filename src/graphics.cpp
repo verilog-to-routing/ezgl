@@ -73,22 +73,24 @@ void graphics::draw_text(point centre, std::string const &text)
   cairo_show_text(m_cairo, text.c_str());
 }
 
-void graphics::format_font(font_style const &new_format, double new_size)
-{
-  format_font_style(new_format);
-  format_font_size(new_size);
-}
-
-void graphics::format_font_style(const font_style &new_format)
-{
-  cairo_select_font_face(m_cairo, new_format.family.c_str(),
-      static_cast<cairo_font_slant_t>(new_format.slant),
-      static_cast<cairo_font_weight_t>(new_format.weight));
-}
-
-void graphics::format_font_size(double new_size)
+void graphics::format_font(double new_size)
 {
   cairo_set_font_size(m_cairo, new_size);
+}
+
+void graphics::format_font(std::string const &family, font_slant slant, font_weight weight)
+{
+  cairo_select_font_face(m_cairo, family.c_str(), static_cast<cairo_font_slant_t>(slant),
+      static_cast<cairo_font_weight_t>(weight));
+}
+
+void graphics::format_font(std::string const &family,
+    font_slant slant,
+    font_weight weight,
+    double new_size)
+{
+  format_font(new_size);
+  format_font(family, slant, weight);
 }
 
 void graphics::draw_rectangle_path(point start, point end)
