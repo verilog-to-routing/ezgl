@@ -30,6 +30,7 @@ void draw_screen(ezgl::graphics g, int width, int height)
 
 void press_key(GdkEventKey *event)
 {
+  // see: https://developer.gnome.org/gdk3/stable/gdk3-Keyboard-Handling.html
   std::cout << gdk_keyval_name(event->keyval) << " was pressed.\n";
 }
 
