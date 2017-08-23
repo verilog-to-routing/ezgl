@@ -34,9 +34,24 @@ static constexpr auto BLACK = colour{0, 0, 0};
 static constexpr auto BLUE = colour{0, 0, 1};
 
 /**
+ * A blueish greyish colour.
+ */
+static constexpr auto BLUE_GREY = colour{102.0 / 255.0, 153.0 / 255.0, 204.0 / 255.0};
+
+/**
+ * A dark grey.
+ */
+static constexpr auto DARK_GREY = colour{169.0 / 255.0, 169.0 / 255.0, 169.0 / 255.0};
+
+/**
  * The colour green.
  */
 static constexpr auto GREEN = colour{0, 1, 0};
+
+/**
+ * A light grey.
+ */
+static constexpr auto LIGHT_GREY = colour{211.0 / 255.0, 211.0 / 255.0, 211.0 / 255.0};
 
 /**
  * The colour red.

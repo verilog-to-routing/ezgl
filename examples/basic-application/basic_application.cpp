@@ -45,7 +45,7 @@ int main(int argc, char **argv)
   // customize the string to display in the title of the window
   settings.window.title = "Basic Application Example";
   // specify the background colour of the drawable area
-  settings.graphics.background = ezgl::BLACK;
+  settings.graphics.background = ezgl::BLUE_GREY;
   // specify the callback to use to draw in the window
   settings.graphics.draw_callback = draw_screen;
   // specify the callback to use when a key is pressed
