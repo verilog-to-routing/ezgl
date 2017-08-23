@@ -27,9 +27,26 @@ public:
    * Change the colour for subsequent draw calls.
    *
    * @param new_colour The new colour to use.
-   * @param alpha The transparency level (0 is fully transparent, 1 is opaque).
    */
   void set_colour(colour new_colour);
+
+  /**
+   * Change the colour for subsequent draw calls.
+   *
+   * @param new_colour The new colour to use.
+   * @param alpha The transparency level (0 is fully transparent, 1 is opaque).
+   */
+  void set_colour(colour new_colour, double alpha);
+
+  /**
+   * Change the colour for subsequent draw calls.
+   *
+   * @param red The amount of red to use, between 0.0 and 1.0.
+   * @param green The amount of green to use, between 0.0 and 1.0.
+   * @param blue The amount of blue to use, between 0.0 and 1.0.
+   * @param alpha The transparency level (0 is fully transparent, 1 is opaque).
+   */
+  void set_colour(double red, double green, double blue, double alpha);
 
   /**
    * Draw a line.

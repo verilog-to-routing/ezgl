@@ -8,7 +8,17 @@ graphics::graphics(cairo_t *cairo) : m_cairo(cairo)
 
 void graphics::set_colour(colour c)
 {
-  cairo_set_source_rgba(m_cairo, c.red, c.green, c.blue, c.alpha);
+  set_colour(c.red, c.green, c.blue, 1);
+}
+
+void graphics::set_colour(colour c, double alpha)
+{
+  set_colour(c.red, c.green, c.blue, alpha);
+}
+
+void graphics::set_colour(double red, double green, double blue, double alpha)
+{
+  cairo_set_source_rgba(m_cairo, red, green, blue, alpha);
 }
 
 void graphics::draw_line(point start, point end)
