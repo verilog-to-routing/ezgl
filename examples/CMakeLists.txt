@@ -6,3 +6,6 @@ project(
 )
 
 add_subdirectory(basic-application)
+add_subdirectory(draw-shapes)
+add_subdirectory(input-key-press)
+add_subdirectory(input-mouse-motion)
