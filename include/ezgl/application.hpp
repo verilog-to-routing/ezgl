@@ -71,6 +71,8 @@ private:
 
   static gboolean move_mouse(GtkWidget *widget, GdkEventMotion *event, gpointer data);
 
+  static gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
+
   // the configured settings
   settings m_settings;
 

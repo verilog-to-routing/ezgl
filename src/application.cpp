@@ -35,6 +35,8 @@ void application::activate(GtkApplication *gtk_app, gpointer user_data)
   // connect to input events from the keyboard and mouse
   g_signal_connect(ezgl_app->m_window, "key_press_event", G_CALLBACK(press_key), user_data);
   g_signal_connect(ezgl_app->m_window, "motion_notify_event", G_CALLBACK(move_mouse), user_data);
+  g_signal_connect(ezgl_app->m_window, "button_press_event", G_CALLBACK(click_mouse), user_data);
+  g_signal_connect(ezgl_app->m_window, "button_release_event", G_CALLBACK(click_mouse), user_data);
   // connect to draw events for the canvas
   g_signal_connect(ezgl_app->m_canvas, "draw", G_CALLBACK(draw_canvas), user_data);
 
@@ -79,6 +81,16 @@ gboolean application::move_mouse(GtkWidget *widget, GdkEventMotion *event, gpoin
   settings.input.mouse_move_callback(event);
 
   return FALSE; // propagate event
+}
+
+gboolean application::click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer user_data)
+{
+  auto ezgl_app = static_cast<application *>(user_data);
+  auto const &settings = ezgl_app->m_settings;
+
+  settings.input.mouse_click_callback(event);
+
+  return FALSE; // proagate event
 }
 
 application::application(settings s)
