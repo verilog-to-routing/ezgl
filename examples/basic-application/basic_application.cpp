@@ -30,14 +30,7 @@ void draw_screen(ezgl::graphics g, int width, int height)
 
 void press_key(GdkEventKey *event)
 {
-  switch(event->keyval) {
-  case GDK_KEY_a:
-    std::cout << "lower case 'a' was pressed.\n";
-    break;
-  default:
-    std::cout << event->keyval << " was pressed.\n";
-    break;
-  }
+  std::cout << gdk_keyval_name(event->keyval) << " was pressed.\n";
 }
 
 int main(int argc, char **argv)
