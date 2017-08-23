@@ -2,9 +2,10 @@
 
 namespace ezgl {
 
+
 void application::activate(GtkApplication *gtk_app, gpointer user_data)
 {
-  auto ezgl_app = static_cast<ezgl::application *>(user_data);
+  auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
 
   ezgl_app->m_window = gtk_application_window_new(gtk_app);
@@ -34,7 +35,7 @@ void application::activate(GtkApplication *gtk_app, gpointer user_data)
 
 gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer user_data)
 {
-  auto ezgl_app = static_cast<ezgl::application *>(user_data);
+  auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
 
   auto const width = gtk_widget_get_allocated_width(widget);
@@ -54,7 +55,7 @@ gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer us
 
 gboolean application::press_key(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 {
-  auto ezgl_app = static_cast<ezgl::application *>(user_data);
+  auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
 
   settings.input.key_press_callback(event);
@@ -64,7 +65,7 @@ gboolean application::press_key(GtkWidget *widget, GdkEventKey *event, gpointer 
 
 gboolean application::move_mouse(GtkWidget *widget, GdkEventMotion *event, gpointer user_data)
 {
-  auto ezgl_app = static_cast<ezgl::application *>(user_data);
+  auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
 
   settings.input.mouse_move_callback(event);
