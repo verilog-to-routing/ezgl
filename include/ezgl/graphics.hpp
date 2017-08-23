@@ -112,7 +112,7 @@ public:
    * @param family The font family to use (e.g., serif)
    * @param slant The slant to use (e.g., italic)
    * @param weight The weight of the font (e.g., bold)
-   * @param size The new size text should be drawn at.
+   * @param new_size The new size text should be drawn at.
    */
   void
   format_font(std::string const &family, font_slant slant, font_weight weight, double new_size);

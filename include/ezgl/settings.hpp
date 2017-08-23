@@ -37,6 +37,9 @@ struct window_settings {
  */
 using draw_callback_fn = void (*)(graphics g, int width, int height);
 
+/**
+ * Draw nothing on draw events.
+ */
 inline void draw_nothing(graphics, int, int)
 {
 }
@@ -61,7 +64,10 @@ struct graphics_settings {
  */
 using key_press_callback_fn = void (*)(GdkEventKey *event);
 
-inline void no_reaction(GdkEventKey *)
+/**
+ * Ignore keyboard presses.
+ */
+inline void ignore(GdkEventKey *)
 {
 }
 
@@ -70,7 +76,10 @@ inline void no_reaction(GdkEventKey *)
  */
 using mouse_move_callback_fn = void (*)(GdkEventMotion *event);
 
-inline void no_reaction(GdkEventMotion *)
+/**
+ * Ignore mouse motion.
+ */
+inline void ignore(GdkEventMotion *)
 {
 }
 
@@ -79,7 +88,10 @@ inline void no_reaction(GdkEventMotion *)
  */
 using mouse_click_callback_fn = void (*)(GdkEventButton *event);
 
-inline void no_reaction(GdkEventButton *)
+/**
+ * Ignore mouse clicks.
+ */
+inline void ignore(GdkEventButton *)
 {
 }
 
@@ -88,9 +100,9 @@ inline void no_reaction(GdkEventButton *)
  */
 struct input_settings {
   bool track_mouse_motion = false;
-  key_press_callback_fn key_press_callback = no_reaction;
-  mouse_move_callback_fn mouse_move_callback = no_reaction;
-  mouse_click_callback_fn  mouse_click_callback = no_reaction;
+  key_press_callback_fn key_press_callback = ignore;
+  mouse_move_callback_fn mouse_move_callback = ignore;
+  mouse_click_callback_fn  mouse_click_callback = ignore;
 };
 
 /**

@@ -4,7 +4,7 @@
 namespace ezgl {
 
 /**
- * Represents a colour as a mixture or red, green, and blue as well as the colour's transparency.
+ * Represents a colour as a mixture or red, green, and blue.
  */
 struct colour {
   /**

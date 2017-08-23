@@ -46,3 +46,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 if(EZGL_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
+
+if(EZGL_BUILD_DOCS)
+  add_subdirectory(doc)
+endif()
