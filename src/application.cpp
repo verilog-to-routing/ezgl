@@ -2,31 +2,37 @@
 
 namespace ezgl {
 
+void initialize_window(GtkApplication *gtk_app, GtkWidget *&window, window_settings const &settings)
+{
+  window = gtk_application_window_new(gtk_app);
+
+  // setup the window
+  gtk_window_set_title(GTK_WINDOW(window), settings.title.c_str());
+  gtk_window_set_default_size(GTK_WINDOW(window), settings.width, settings.height);
+
+  // enable the tracking of specific window events
+  gtk_widget_add_events(window, GDK_POINTER_MOTION_MASK);
+}
+
+void initialize_canvas(GtkWidget *&window, GtkWidget *&canvas, graphics_settings const &settings)
+{
+  // create the drawing area
+  canvas = gtk_drawing_area_new();
+  gtk_widget_set_size_request(canvas, 600, 400); // TODO: fix width and height
+  gtk_container_add(GTK_CONTAINER(window), canvas);
+}
 
 void application::activate(GtkApplication *gtk_app, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
 
-  ezgl_app->m_window = gtk_application_window_new(gtk_app);
-
-  // setup the window
-  gtk_window_set_title(GTK_WINDOW(ezgl_app->m_window), ezgl_app->m_settings.window.title.c_str());
-  gtk_window_set_default_size(
-      GTK_WINDOW(ezgl_app->m_window), settings.window.width, settings.window.height);
-
-  // enable the tracking of specific window events
-  gtk_widget_add_events(ezgl_app->m_window, GDK_POINTER_MOTION_MASK);
+  initialize_window(gtk_app, ezgl_app->m_window, settings.window);
+  initialize_canvas(ezgl_app->m_window, ezgl_app->m_canvas, settings.graphics);
 
   // connect to input events from the keyboard and mouse
   g_signal_connect(ezgl_app->m_window, "key_press_event", G_CALLBACK(press_key), user_data);
   g_signal_connect(ezgl_app->m_window, "motion_notify_event", G_CALLBACK(move_mouse), user_data);
-
-  // create the drawing area
-  ezgl_app->m_canvas = gtk_drawing_area_new();
-  gtk_widget_set_size_request(ezgl_app->m_canvas, 600, 400); // TODO: fix width and height
-  gtk_container_add(GTK_CONTAINER(ezgl_app->m_window), ezgl_app->m_canvas);
-
   // connect to draw events for the canvas
   g_signal_connect(ezgl_app->m_canvas, "draw", G_CALLBACK(draw_canvas), user_data);
 
