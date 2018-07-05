@@ -1,5 +1,5 @@
-#ifndef EZGL_SETTINGS_HPP
-#define EZGL_SETTINGS_HPP
+#ifndef EZGL_CALLBACKS_HPP
+#define EZGL_CALLBACKS_HPP
 
 #include <ezgl/graphics.hpp>
 
@@ -63,4 +63,4 @@ inline void ignore(GdkEventButton *)
 
 }
 
-#endif //EZGL_SETTINGS_HPP
+#endif //EZGL_CALLBACKS_HPP

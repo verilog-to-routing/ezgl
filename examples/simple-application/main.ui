@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<interface>
+    <!-- IMPORTANT: EZGL applications must have a GtkWindow with the id MainWindow. -->
+    <object id="MainWindow" class="GtkWindow">
+        <!-- A GtkWindow can be customized with many properties.
+        To see all of them, check out Property Details at https://developer.gnome.org/gtk3/stable/GtkWindow.html -->
+
+        <!-- Give the window a title. -->
+        <property name="title">EZGL Example Application</property>
+
+        <!-- True to make the window visible on launch, false otherwise. -->
+        <property name="visible">True</property>
+
+        <!-- The width of the window when it is initially created. -->
+        <property name="default-width">800</property>
+        <!-- The height of the window when it is initially created. -->
+        <property name="default-height">600</property>
+
+        <!-- IMPORTANT: EZGL Applications must have a GtkDrawingArea with the id MainCanvas as a child of MainWindow -->
+        <child>
+            <object id="MainCanvas" class="GtkDrawingArea">
+                <!-- True to make the canvas visible on launch, false otherwise. -->
+                <property name="visible">True</property>
+            </object>
+        </child>
+    </object>
+</interface>

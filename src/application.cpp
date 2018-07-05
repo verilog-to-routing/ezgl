@@ -2,68 +2,56 @@
 
 namespace ezgl {
 
-void initialize_window(GtkApplication *gtk_app, GtkWidget *&window, settings const &s)
+void application::startup(GtkApplication *, gpointer user_data)
 {
-  window = gtk_application_window_new(gtk_app);
+  // "path" to the resource that contains an XML description of the UI
+  static constexpr auto EZGL_MAIN_UI_RESOURCE = "/edu/toronto/eecg/ece297/cd000/main.ui";
 
-  // setup the window
-  gtk_window_set_title(GTK_WINDOW(window), s.window.title.c_str());
-  gtk_window_set_default_size(GTK_WINDOW(window), s.window.width, s.window.height);
+  auto ezgl_app = static_cast<application *>(user_data);
 
-  if(s.input.track_mouse_motion) {
-    // enable the tracking of specific window events
-    gtk_widget_add_events(window, GDK_POINTER_MOTION_MASK);
+  // build the main user interface from the XML resource
+  GError *error = nullptr;
+  if(gtk_builder_add_from_resource(ezgl_app->m_builder, EZGL_MAIN_UI_RESOURCE, &error) == 0) {
+    g_printerr("Error: %s\n", error->message);
+
+    exit(EXIT_FAILURE);
   }
+
+  // store pointers to the required GTK objects (MainWindow and MainCanvas)
+  ezgl_app->m_window = GTK_WIDGET(gtk_builder_get_object(ezgl_app->m_builder, "MainWindow"));
+  ezgl_app->m_canvas = GTK_WIDGET(gtk_builder_get_object(ezgl_app->m_builder, "MainCanvas"));
+
+  // enable the tracking of mouse movement in the MainWindow
+  gtk_widget_add_events(ezgl_app->m_window, GDK_POINTER_MOTION_MASK);
 }
 
-void initialize_canvas(GtkWidget *&window, GtkWidget *&canvas, graphics_settings const &settings)
-{
-  // create the drawing area
-  canvas = gtk_drawing_area_new();
-  gtk_widget_set_size_request(canvas, 600, 400); // TODO: fix width and height
-  gtk_container_add(GTK_CONTAINER(window), canvas);
-}
-
-void application::startup(GtkApplication *gtk_app, gpointer user_data)
-{
-  auto ezgl_app = static_cast<application *>(user_data);
-  auto const &settings = ezgl_app->m_settings;
-
-  initialize_window(gtk_app, ezgl_app->m_window, settings);
-  initialize_canvas(ezgl_app->m_window, ezgl_app->m_canvas, settings.graphics);
-}
-
-void application::activate(GtkApplication *gtk_app, gpointer user_data)
+void application::activate(GtkApplication *, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
+
+  // add the window to the application
+  gtk_application_add_window(ezgl_app->m_application, GTK_WINDOW(ezgl_app->m_window));
 
   // connect to input events from the keyboard and mouse
   g_signal_connect(ezgl_app->m_window, "key_press_event", G_CALLBACK(press_key), user_data);
   g_signal_connect(ezgl_app->m_window, "motion_notify_event", G_CALLBACK(move_mouse), user_data);
   g_signal_connect(ezgl_app->m_window, "button_press_event", G_CALLBACK(click_mouse), user_data);
   g_signal_connect(ezgl_app->m_window, "button_release_event", G_CALLBACK(click_mouse), user_data);
+
   // connect to draw events for the canvas
   g_signal_connect(ezgl_app->m_canvas, "draw", G_CALLBACK(draw_canvas), user_data);
-
-  gtk_widget_show_all(ezgl_app->m_window);
 }
 
 gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
-  auto const &settings = ezgl_app->m_settings;
 
+  graphics g(cairo);
   auto const width = gtk_widget_get_allocated_width(widget);
   auto const height = gtk_widget_get_allocated_height(widget);
 
-  graphics g(cairo);
-
-  // draw the background with the configured colour
-  g.set_colour(settings.graphics.background);
-  cairo_paint(cairo);
-
   // do any additional drawing
-  settings.graphics.draw_callback(g, width, height);
+  ezgl_app->m_callbacks.render(g, width, height);
 
   return FALSE; // propagate event
 }
@@ -71,9 +59,7 @@ gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer us
 gboolean application::press_key(GtkWidget *, GdkEventKey *event, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
-  auto const &settings = ezgl_app->m_settings;
-
-  settings.input.key_press_callback(event);
+  ezgl_app->m_callbacks.handle_key_press(event);
 
   return FALSE; // propagate event
 }
@@ -81,9 +67,7 @@ gboolean application::press_key(GtkWidget *, GdkEventKey *event, gpointer user_d
 gboolean application::move_mouse(GtkWidget *, GdkEventMotion *event, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
-  auto const &settings = ezgl_app->m_settings;
-
-  settings.input.mouse_move_callback(event);
+  ezgl_app->m_callbacks.handle_mouse_move(event);
 
   return FALSE; // propagate event
 }
@@ -91,16 +75,14 @@ gboolean application::move_mouse(GtkWidget *, GdkEventMotion *event, gpointer us
 gboolean application::click_mouse(GtkWidget *, GdkEventButton *event, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
-  auto const &settings = ezgl_app->m_settings;
-
-  settings.input.mouse_click_callback(event);
+  ezgl_app->m_callbacks.handle_mouse_click(event);
 
   return FALSE; // propagate event
 }
 
-application::application(settings s)
-    : m_settings(std::move(s))
-    , m_application(gtk_application_new("com.github.mariobadr.ezgl.app", G_APPLICATION_FLAGS_NONE))
+application::application()
+    : m_application(gtk_application_new("com.github.mariobadr.ezgl.app", G_APPLICATION_FLAGS_NONE))
+    , m_builder(gtk_builder_new())
     , m_window(nullptr)
     , m_canvas(nullptr)
 {
@@ -113,6 +95,26 @@ application::application(settings s)
 application::~application()
 {
   g_object_unref(m_application);
+}
+
+void application::set_callback(draw_callback_fn function_pointer)
+{
+  m_callbacks.render = function_pointer;
+}
+
+void application::set_callback(key_press_callback_fn function_pointer)
+{
+  m_callbacks.handle_key_press = function_pointer;
+}
+
+void application::set_callback(mouse_move_callback_fn function_pointer)
+{
+  m_callbacks.handle_mouse_move = function_pointer;
+}
+
+void application::set_callback(mouse_click_callback_fn function_pointer)
+{
+  m_callbacks.handle_mouse_click = function_pointer;
 }
 
 int application::run(int argc, char **argv)

@@ -26,7 +26,7 @@ add_library(
   include/ezgl/colour.hpp
   include/ezgl/geometry.hpp
   include/ezgl/graphics.hpp
-  include/ezgl/settings.hpp
+  include/ezgl/callbacks.hpp
   include/ezgl/style.hpp
   src/application.cpp
   src/graphics.cpp
