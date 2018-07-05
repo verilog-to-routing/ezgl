@@ -5,7 +5,7 @@ namespace ezgl {
 void application::startup(GtkApplication *, gpointer user_data)
 {
   // "path" to the resource that contains an XML description of the UI
-  static constexpr auto EZGL_MAIN_UI_RESOURCE = "/edu/toronto/eecg/ece297/cd000/main.ui";
+  static constexpr auto EZGL_MAIN_UI_RESOURCE = "/edu/toronto/eecg/ezgl/ece297/cd000/main.ui";
 
   auto ezgl_app = static_cast<application *>(user_data);
 
@@ -92,7 +92,7 @@ gboolean application::click_mouse(GtkWidget *, GdkEventButton *event, gpointer u
 }
 
 application::application()
-    : m_application(gtk_application_new("com.github.mariobadr.ezgl.app", G_APPLICATION_FLAGS_NONE))
+    : m_application(gtk_application_new("edu.toronto.eecg.ezgl.app", G_APPLICATION_FLAGS_NONE))
     , m_builder(gtk_builder_new())
     , m_window(nullptr)
     , m_canvas(nullptr)
