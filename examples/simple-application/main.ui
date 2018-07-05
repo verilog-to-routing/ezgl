@@ -17,12 +17,34 @@
         <!-- The height of the window when it is initially created. -->
         <property name="default-height">600</property>
 
-        <!-- IMPORTANT: EZGL Applications must have a GtkDrawingArea with the id MainCanvas as a child of MainWindow -->
+        <!-- A GtkWindow can only have one child, so we need to use GtkGrid or GtkBox to manage multiple children. -->
         <child>
-            <object id="MainCanvas" class="GtkDrawingArea">
-                <!-- True to make the canvas visible on launch, false otherwise. -->
+            <object class="GtkGrid" id="OuterGrid">
                 <property name="visible">True</property>
+
+                <!-- IMPORTANT: EZGL Applications must have a GtkDrawingArea with the id MainCanvas. -->
+                <child>
+                    <object id="MainCanvas" class="GtkDrawingArea">
+                        <property name="visible">True</property>
+
+                        <!-- Expand the size of the canvas to match what the GtkGrid gives us. -->
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                    </object>
+                </child>
+                <child>
+                    <object id="MyButton" class="GtkButton">
+                        <property name="label" translatable="yes">Hello, World!</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="use_action_appearance">False</property>
+                    </object>
+                </child>
             </object>
         </child>
+
+
     </object>
 </interface>
