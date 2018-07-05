@@ -60,6 +60,8 @@ public:
   int run(int argc, char **argv);
 
 private:
+  static void startup(GtkApplication *gtk_app, gpointer user_data);
+
   // called when GTK activates our application for the first time
   static void activate(GtkApplication *gtk_app, gpointer user_data);
 

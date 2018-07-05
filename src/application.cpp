@@ -24,13 +24,18 @@ void initialize_canvas(GtkWidget *&window, GtkWidget *&canvas, graphics_settings
   gtk_container_add(GTK_CONTAINER(window), canvas);
 }
 
-void application::activate(GtkApplication *gtk_app, gpointer user_data)
+void application::startup(GtkApplication *gtk_app, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
 
   initialize_window(gtk_app, ezgl_app->m_window, settings);
   initialize_canvas(ezgl_app->m_window, ezgl_app->m_canvas, settings.graphics);
+}
+
+void application::activate(GtkApplication *gtk_app, gpointer user_data)
+{
+  auto ezgl_app = static_cast<application *>(user_data);
 
   // connect to input events from the keyboard and mouse
   g_signal_connect(ezgl_app->m_window, "key_press_event", G_CALLBACK(press_key), user_data);
@@ -99,8 +104,9 @@ application::application(settings s)
     , m_window(nullptr)
     , m_canvas(nullptr)
 {
-  // connect the static function application::activate to the activate callback
+  // connect our static functions application::{startup, activate} to their callbacks
   // we also pass 'this' object as the userdata so that we can use it in our static function
+  g_signal_connect(m_application, "startup", G_CALLBACK(startup), this);
   g_signal_connect(m_application, "activate", G_CALLBACK(activate), this);
 }
 
