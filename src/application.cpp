@@ -19,10 +19,21 @@ void application::startup(GtkApplication *, gpointer user_data)
 
   // store pointers to the required GTK objects (MainWindow and MainCanvas)
   ezgl_app->m_window = GTK_WIDGET(gtk_builder_get_object(ezgl_app->m_builder, "MainWindow"));
-  ezgl_app->m_canvas = GTK_WIDGET(gtk_builder_get_object(ezgl_app->m_builder, "MainCanvas"));
+  if(ezgl_app->m_window == nullptr) {
+    g_printerr("Error: main.ui is missing a MainWindow.");
+
+    exit(EXIT_FAILURE);
+  }
 
   // enable the tracking of mouse movement in the MainWindow
   gtk_widget_add_events(ezgl_app->m_window, GDK_POINTER_MOTION_MASK);
+
+  ezgl_app->m_canvas = GTK_WIDGET(gtk_builder_get_object(ezgl_app->m_builder, "MainCanvas"));
+  if(ezgl_app->m_canvas == nullptr) {
+    g_printerr("Error: main.ui is missing a MainCanvas.");
+
+    exit(EXIT_FAILURE);
+  }
 }
 
 void application::activate(GtkApplication *, gpointer user_data)
