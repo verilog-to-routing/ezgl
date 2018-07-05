@@ -12,6 +12,10 @@ project(
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 
+# we also rely on glib to compile the GTK resource files
+# a set of macros has been developed by Makman2 on GitHub to help with this
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gcr-cmake/macros)
+
 # include the configuration/compile time options for this library
 include(options.cmake)
 
