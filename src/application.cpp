@@ -63,7 +63,7 @@ gboolean application::draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer us
   return FALSE; // propagate event
 }
 
-gboolean application::press_key(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+gboolean application::press_key(GtkWidget *, GdkEventKey *event, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
@@ -73,7 +73,7 @@ gboolean application::press_key(GtkWidget *widget, GdkEventKey *event, gpointer 
   return FALSE; // propagate event
 }
 
-gboolean application::move_mouse(GtkWidget *widget, GdkEventMotion *event, gpointer user_data)
+gboolean application::move_mouse(GtkWidget *, GdkEventMotion *event, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
@@ -83,14 +83,14 @@ gboolean application::move_mouse(GtkWidget *widget, GdkEventMotion *event, gpoin
   return FALSE; // propagate event
 }
 
-gboolean application::click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer user_data)
+gboolean application::click_mouse(GtkWidget *, GdkEventButton *event, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   auto const &settings = ezgl_app->m_settings;
 
   settings.input.mouse_click_callback(event);
 
-  return FALSE; // proagate event
+  return FALSE; // propagate event
 }
 
 application::application(settings s)
