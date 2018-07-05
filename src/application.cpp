@@ -99,6 +99,8 @@ application::application(settings s)
     , m_window(nullptr)
     , m_canvas(nullptr)
 {
+  // connect the static function application::activate to the activate callback
+  // we also pass 'this' object as the userdata so that we can use it in our static function
   g_signal_connect(m_application, "activate", G_CALLBACK(activate), this);
 }
 
