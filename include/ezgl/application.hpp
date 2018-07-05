@@ -70,6 +70,19 @@ public:
   void set_callback(mouse_click_callback_fn function_pointer);
 
   /**
+   * Retrieve a GLib Object.
+   *
+   * This is useful for retrieving GUI elements specified in your XML file(s).
+   *
+   * You should only call this function after the application has been run, otherwise the GUI elements will have not
+   * been created yet.
+   *
+   * @param name The ID of the object.
+   * @return The object with the ID, or NULL if it could not be found.
+   */
+  GObject *get_object(gchar const *name);
+
+  /**
    * Run the application.
    *
    * @param argc The number of arguments.

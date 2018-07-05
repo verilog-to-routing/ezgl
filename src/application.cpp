@@ -133,4 +133,9 @@ int application::run(int argc, char **argv)
   // see: https://developer.gnome.org/gio/unstable/GApplication.html#g-application-run
   return g_application_run(G_APPLICATION(m_application), argc, argv);
 }
+
+GObject *application::get_object(gchar const *name)
+{
+  return gtk_builder_get_object(m_builder, name);
+}
 }
