@@ -96,7 +96,7 @@ void setup_callbacks(ezgl::application *application)
 
   // Get a pointer to the MainCanvas GUI object by using its name.
   GObject *canvas = application->get_object("MainCanvas");
-  
+
   // Connect our draw_canvas function to the MainCanvas so we can draw graphics.
   g_signal_connect(canvas, "draw", G_CALLBACK(draw_canvas), nullptr);
 }
@@ -117,7 +117,7 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
     std::cout << "User released mouse button at " << event->x << ", " << event->y << "\n";
   }
 
-  return FALSE; // propagate the event
+  return TRUE; // consume the event
 }
 
 gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer)
