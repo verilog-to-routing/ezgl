@@ -1,7 +1,7 @@
 /**
  * @file
  *
- * This example shows you how to create an XML-Based application using the library.
+ * This example shows you how to create an application using the EZGL library.
  */
 
 #include <ezgl/application.hpp>
@@ -10,11 +10,10 @@
 #include <iostream>
 
 /**
- * React to a keyboard press event.
+ * React to a <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-key-press-event">keyboard
+ * press event</a>.
  *
- * See: https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-key-press-event
- *
- * @param widget The GUI object where this event came from.
+ * @param widget The GUI widget where this event came from.
  * @param event The keyboard event.
  * @param data A pointer to any user-specified data you passed in.
  *
@@ -23,11 +22,10 @@
 gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
 
 /**
- * React to mouse click event.
+ * React to <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-button-press-event">mouse click
+ * event</a>
  *
- * See: https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-button-press-event
- *
- * @param widget The GUI object where this event came from.
+ * @param widget The GUI widget where this event came from.
  * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
@@ -36,12 +34,11 @@ gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
 gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 
 /**
- * React to requests from GTK to render graphics.
+ * React to <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-draw">requests from GTK</a> to
+ * render graphics.
  *
- * See: https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-draw
- *
- * @param widget The GUI object where this event came from.
- * @param cairo
+ * @param widget The GUI widget where this event came from.
+ * @param cairo The current state of the rendering device.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
@@ -49,7 +46,7 @@ gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 gboolean draw_canvas(GtkWidget *widget , cairo_t *cairo, gpointer data);
 
 /**
- * Connect the functions above to events from different GUI objects.
+ * Connect the press_key(), click_mouse(), and draw_canvas() functions to signals emitted by different GUI objects.
  *
  * @param application The application gives access to the GUI objects.
  */

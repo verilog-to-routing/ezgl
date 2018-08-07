@@ -5,22 +5,24 @@ namespace ezgl {
 
 /**
  * Represents a colour as a mixture or red, green, and blue.
+ *
+ * By default, this struct will initialize to black.
  */
 struct colour {
   /**
    * A red component of the colour, between 0.0 and 1.0.
    */
-  double red;
+  double red = 0.0;
 
   /**
    * The green component of the colour, between 0.0 and 1.0.
    */
-  double green;
+  double green = 0.0;
 
   /**
    * The blue component of the colour, between 0.0 and 1.0.
    */
-  double blue;
+  double blue = 0.0;
 };
 
 /**

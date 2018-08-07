@@ -63,9 +63,9 @@ application::~application()
   g_object_unref(m_application);
 }
 
-void application::register_callbacks_with(setup_callbacks_fn function_pointer)
+void application::register_callbacks_with(setup_callbacks_fn fn)
 {
-  m_register_callbacks = function_pointer;
+  m_register_callbacks = fn;
 }
 
 GObject *application::get_object(gchar const *name) const

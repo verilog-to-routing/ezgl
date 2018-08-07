@@ -4,7 +4,7 @@
 namespace ezgl {
 
 /**
- * Represents a point in Cartesian coordinates.
+ * Represents a two-dimensional point in Cartesian coordinates.
  */
 struct point {
   /**
