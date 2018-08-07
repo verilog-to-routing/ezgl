@@ -1,8 +1,6 @@
 #ifndef EZGL_APPLICATION_HPP
 #define EZGL_APPLICATION_HPP
 
-#include <ezgl/callbacks.hpp>
-
 #include <string>
 
 #include <gtk/gtk.h>

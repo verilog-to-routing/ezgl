@@ -5,6 +5,7 @@
  */
 
 #include <ezgl/application.hpp>
+#include <ezgl/graphics.hpp>
 
 #include <iostream>
 
