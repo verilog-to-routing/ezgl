@@ -37,6 +37,11 @@ void application::activate(GtkApplication *, gpointer user_data)
   if(ezgl_app->m_register_callbacks != nullptr) {
     ezgl_app->m_register_callbacks(ezgl_app);
   }
+
+  // Retrieve the drawing area from the GTK Builder.
+  GObject *canvas = gtk_builder_get_object(ezgl_app->m_builder, ezgl_app->m_canvas_id.c_str());
+  // Enable mouse events for the drawing area.
+  gtk_widget_add_events(GTK_WIDGET(canvas), GDK_BUTTON_PRESS_MASK);
 }
 
 application::application(char const *main_ui_resource, char const *window_id, char const *canvas_id)
