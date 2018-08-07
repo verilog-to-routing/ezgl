@@ -10,6 +10,13 @@ namespace ezgl {
  */
 struct colour {
   /**
+   * Create a colour.
+   */
+  constexpr colour(double r, double g, double b) noexcept : red(r), green(g), blue(b)
+  {
+  }
+
+  /**
    * A red component of the colour, between 0.0 and 1.0.
    */
   double red = 0.0;
