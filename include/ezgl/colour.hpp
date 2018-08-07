@@ -1,76 +1,68 @@
 #ifndef EZGL_COLOUR_HPP
 #define EZGL_COLOUR_HPP
 
+#include <cstdint>
+
 namespace ezgl {
 
 /**
- * Represents a colour as a mixture or red, green, and blue.
+ * Represents a colour as a mixture or red, green, and blue as well as the transparency level.
  *
- * By default, this struct will initialize to black.
+ * Each colour channel and transparency level is an 8-bit value, ranging from 0-255.
  */
 struct colour {
   /**
    * Create a colour.
+   *
+   * @param r The amount of red.
+   * @param g The amount of green.
+   * @param b The amount of blue.
+   * @param a The level of transparency.
    */
-  constexpr colour(double r, double g, double b) noexcept : red(r), green(g), blue(b)
+  constexpr colour(std::uint_fast8_t r,
+      std::uint_fast8_t g,
+      std::uint_fast8_t b,
+      std::uint_fast8_t a = 255) noexcept
+      : red(r), green(g), blue(b), alpha(a)
   {
   }
 
   /**
    * A red component of the colour, between 0.0 and 1.0.
    */
-  double red = 0.0;
+  std::uint_fast8_t red;
 
   /**
    * The green component of the colour, between 0.0 and 1.0.
    */
-  double green = 0.0;
+  std::uint_fast8_t green;
 
   /**
    * The blue component of the colour, between 0.0 and 1.0.
    */
-  double blue = 0.0;
+  std::uint_fast8_t blue;
+
+  /**
+   * The amount of transparency.
+   */
+  std::uint_fast8_t alpha;
+
+  /**
+   * Test for equality.
+   */
+  bool operator==(const colour &rhs) const
+  {
+    return red == rhs.red && green == rhs.green && blue == rhs.blue && alpha == rhs.alpha;
+  }
+
+  /**
+   * Test for inequality.
+   */
+  bool operator!=(const colour &rhs) const
+  {
+    return !(rhs == *this);
+  }
 };
-
-/**
- * The colour black.
- */
-static constexpr auto BLACK = colour{0, 0, 0};
-
-/**
- * The colour blue.
- */
-static constexpr auto BLUE = colour{0, 0, 1};
-
-/**
- * A blueish greyish colour.
- */
-static constexpr auto BLUE_GREY = colour{102.0 / 255.0, 153.0 / 255.0, 204.0 / 255.0};
-
-/**
- * A dark grey.
- */
-static constexpr auto DARK_GREY = colour{169.0 / 255.0, 169.0 / 255.0, 169.0 / 255.0};
-
-/**
- * The colour green.
- */
-static constexpr auto GREEN = colour{0, 1, 0};
-
-/**
- * A light grey.
- */
-static constexpr auto LIGHT_GREY = colour{211.0 / 255.0, 211.0 / 255.0, 211.0 / 255.0};
-
-/**
- * The colour red.
- */
-static constexpr auto RED = colour{1, 0, 0};
-
-/**
- * The colour white.
- */
-static constexpr auto WHITE = colour{1, 1, 1};
 }
 
 #endif //EZGL_COLOUR_HPP

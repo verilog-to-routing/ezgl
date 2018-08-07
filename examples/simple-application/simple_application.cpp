@@ -124,7 +124,7 @@ gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer)
   ezgl::graphics g(cairo);
 
   // Change the next draw calls to use the colour red.
-  g.set_colour(ezgl::RED);
+  g.set_colour(ezgl::colour{255, 0, 0});
 
   // Draw rectangle outlines...
   g.draw_rectangle({100, 100}, {400, 300}); // from one point to another
@@ -134,12 +134,12 @@ gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer)
   g.fill_poly({{500, 400}, {440, 480}, {560, 480}});
 
   // Draw semi-transparent blue text.
-  g.set_colour(ezgl::BLUE, 0.6);
+  g.set_colour(ezgl::colour{0, 0, 255, 153});
   g.format_font("monospace", ezgl::font_slant::oblique, ezgl::font_weight::normal, 24);
   g.draw_text({100, 100}, "Hello World!");
 
   // Change the next draw calls to use green with half transparency.
-  g.set_colour(0, 1, 0, 0.5);
+  g.set_colour(0, 255, 0, 128);
   // Draw filled in rectangles...
   g.fill_rectangle({500, 50}, {600, 300}); // from one point to another
   g.fill_rectangle({500, 50}, 50, 50);     // from one point with a width and height
