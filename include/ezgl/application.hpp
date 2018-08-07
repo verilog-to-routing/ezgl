@@ -25,9 +25,10 @@ public:
    * Create an application.
    *
    * @param main_ui_resource The resource that describes the GUI in XML.
-   * @param window_id The name of the main window the in XML-defined file.
+   * @param window_id The name of the main window the in XML file.
+   * @param canvas_id The name of the main drawing area in the XML file.
    */
-  explicit application(char const *main_ui_resource, char const *window_id);
+  application(char const *main_ui_resource, char const *window_id, char const *canvas_id);
 
   /**
    * Destructor.
@@ -94,6 +95,9 @@ private:
 
   // The ID of the main window to add to our GTK application.
   std::string m_window_id;
+
+  // The ID of the main canvas in our GTK application.
+  std::string m_canvas_id;
 
   // The function to call when the application is starting up.
   setup_callbacks_fn m_register_callbacks;

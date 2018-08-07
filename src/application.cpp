@@ -39,11 +39,12 @@ void application::activate(GtkApplication *, gpointer user_data)
   }
 }
 
-application::application(char const *main_ui_resource, char const *window_id)
+application::application(char const *main_ui_resource, char const *window_id, char const *canvas_id)
     : m_application(gtk_application_new("edu.toronto.eecg.ezgl.app", G_APPLICATION_FLAGS_NONE))
     , m_builder(gtk_builder_new())
     , m_main_ui(main_ui_resource)
     , m_window_id(window_id)
+    , m_canvas_id(canvas_id)
     , m_register_callbacks(nullptr)
 {
   // connect our static functions application::{startup, activate} to their callbacks

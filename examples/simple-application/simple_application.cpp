@@ -71,8 +71,9 @@ int main(int argc, char **argv)
   char const *main_ui = "/edu/toronto/eecg/ezgl/ece297/cd000/main.ui";
 
   // Create our EZGL application.
-  // Note: the "main.ui" file has a GtkWindow called "MainWindow"
-  ezgl::application application(main_ui, "MainWindow");
+  // Note: the "main.ui" file has a GtkWindow called "MainWindow" and
+  // a GtkDrawingArea called "MainCanvas".
+  ezgl::application application(main_ui, "MainWindow", "MainCanvas");
 
   // Tell the EZGL application which function to call when it is time
   // to connect GUI objects to our own custom callbacks.
