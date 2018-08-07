@@ -43,7 +43,7 @@ gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean draw_canvas(GtkWidget *widget , cairo_t *cairo, gpointer data);
+gboolean draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer data);
 
 /**
  * Connect the press_key(), click_mouse(), and draw_canvas() functions to signals emitted by different GUI objects.
@@ -129,6 +129,9 @@ gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer)
   // Draw rectangle outlines...
   g.draw_rectangle({100, 100}, {400, 300}); // from one point to another
   g.draw_rectangle({10, 10}, 50, 50);       // from one point with a width and height
+
+  // Draw a triangle.
+  g.fill_poly({{500, 400}, {440, 480}, {560, 480}});
 
   // Draw semi-transparent blue text.
   g.set_colour(ezgl::BLUE, 0.6);

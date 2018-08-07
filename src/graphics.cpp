@@ -1,5 +1,7 @@
 #include "ezgl/graphics.hpp"
 
+#include <cassert>
+
 namespace ezgl {
 
 graphics::graphics(cairo_t *cairo) : m_cairo(cairo)
@@ -54,6 +56,20 @@ void graphics::fill_rectangle(point start, double width, double height)
 {
   draw_rectangle_path(start, {start.x + width, start.y + height});
 
+  cairo_fill(m_cairo);
+}
+
+void graphics::fill_poly(std::vector<point> points)
+{
+  assert(points.size() > 1);
+
+  cairo_move_to(m_cairo, points[0].x, points[0].y);
+
+  for(std::size_t i = 1; i < points.size(); ++i) {
+    cairo_line_to(m_cairo, points[i].x, points[i].y);
+  }
+
+  cairo_close_path(m_cairo);
   cairo_fill(m_cairo);
 }
 

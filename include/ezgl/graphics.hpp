@@ -8,6 +8,7 @@
 #include <cairo.h>
 
 #include <string>
+#include <vector>
 
 namespace ezgl {
 
@@ -89,6 +90,13 @@ public:
    * @param height How high the rectangle is, in pixels.
    */
   void fill_rectangle(point start, double width, double height);
+
+  /**
+   * Draw a filled polygon.
+   *
+   * @param points The points to draw. The first and last points are connected to close the polygon.
+   */
+  void fill_poly(std::vector<point> points);
 
   /**
    * Change the font.
