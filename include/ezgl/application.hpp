@@ -12,6 +12,11 @@ namespace ezgl {
 
 class application;
 
+/**
+ * The signature of a function that registers callbacks with an application.
+ *
+ * @see application::register_callbacks_with.
+ */
 using setup_callbacks_fn = void (*)(application *app);
 
 /**

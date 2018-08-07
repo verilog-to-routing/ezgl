@@ -33,7 +33,7 @@ gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer);
+gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 
 /**
  * React to requests from GTK to render graphics.
@@ -46,7 +46,7 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer);
+gboolean draw_canvas(GtkWidget *widget , cairo_t *cairo, gpointer data);
 
 /**
  * Connect the functions above to events from different GUI objects.
