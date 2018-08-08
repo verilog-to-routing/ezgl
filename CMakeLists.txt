@@ -24,9 +24,9 @@ add_library(
   ${PROJECT_NAME}
   include/ezgl/application.hpp
   include/ezgl/colour.hpp
-  include/ezgl/geometry.hpp
   include/ezgl/graphics.hpp
-  include/ezgl/style.hpp
+  include/ezgl/point.hpp
+  include/ezgl/rectangle.hpp
   src/application.cpp
   src/graphics.cpp
 )

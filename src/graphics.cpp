@@ -21,73 +21,32 @@ void graphics::set_colour(uint_fast8_t red,
   cairo_set_source_rgba(m_cairo, red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0);
 }
 
-void graphics::draw_line(point start, point end)
+void graphics::set_line_cap(line_cap cap)
 {
-  cairo_move_to(m_cairo, start.x, start.y);
-  cairo_line_to(m_cairo, end.x, end.y);
-
-  cairo_stroke(m_cairo);
+  auto cairo_cap = static_cast<cairo_line_cap_t>(cap);
+  cairo_set_line_cap(m_cairo, cairo_cap);
 }
 
-void graphics::draw_rectangle(point start, point end)
+void graphics::set_line_dash(line_dash dash)
 {
-  draw_rectangle_path(start, end);
+  if(dash == line_dash::none) {
+    int num_dashes = 0; // disables dashing
 
-  cairo_stroke(m_cairo);
-}
+    cairo_set_dash(m_cairo, nullptr, num_dashes, 0);
+  } else if(dash == line_dash::asymmetric_5_3) {
+    static double dashes[] = {5.0, 3.0};
+    int num_dashes = 2; // asymmetric dashing
 
-void graphics::draw_rectangle(point start, double width, double height)
-{
-  draw_rectangle_path(start, {start.x + width, start.y + height});
-
-  cairo_stroke(m_cairo);
-}
-
-void graphics::fill_rectangle(point start, point end)
-{
-  draw_rectangle_path(start, end);
-
-  cairo_fill(m_cairo);
-}
-
-void graphics::fill_rectangle(point start, double width, double height)
-{
-  draw_rectangle_path(start, {start.x + width, start.y + height});
-
-  cairo_fill(m_cairo);
-}
-
-void graphics::fill_poly(std::vector<point> points)
-{
-  assert(points.size() > 1);
-
-  cairo_move_to(m_cairo, points[0].x, points[0].y);
-
-  for(std::size_t i = 1; i < points.size(); ++i) {
-    cairo_line_to(m_cairo, points[i].x, points[i].y);
+    cairo_set_dash(m_cairo, dashes, num_dashes, 0);
   }
-
-  cairo_close_path(m_cairo);
-  cairo_fill(m_cairo);
 }
 
-void graphics::draw_text(point centre, std::string const &text)
+void graphics::set_line_width(int width)
 {
-  cairo_text_extents_t text_extents{};
-  cairo_text_extents(m_cairo, text.c_str(), &text_extents);
-
-  cairo_font_extents_t font_extents{};
-  cairo_font_extents(m_cairo, &font_extents);
-
-  // see: https://www.cairographics.org/tutorial/#L1understandingtext
-  centre.x = centre.x - text_extents.x_bearing - (text_extents.width / 2);
-  centre.y = centre.y - font_extents.descent + (font_extents.height / 2);
-
-  cairo_move_to(m_cairo, centre.x, centre.y);
-  cairo_show_text(m_cairo, text.c_str());
+  cairo_set_line_width(m_cairo, width);
 }
 
-void graphics::format_font(double new_size)
+void graphics::set_font_size(double new_size)
 {
   cairo_set_font_size(m_cairo, new_size);
 }
@@ -103,16 +62,90 @@ void graphics::format_font(std::string const &family,
     font_weight weight,
     double new_size)
 {
-  format_font(new_size);
+  set_font_size(new_size);
   format_font(family, slant, weight);
 }
 
-void graphics::draw_rectangle_path(point start, point end)
+void graphics::draw_line(point2d start, point2d end)
 {
-  cairo_move_to(m_cairo, start.x, start.y);
-  cairo_line_to(m_cairo, start.x, end.y);
-  cairo_line_to(m_cairo, end.x, end.y);
-  cairo_line_to(m_cairo, end.x, start.y);
+  cairo_move_to(m_cairo, start.x(), start.y());
+  cairo_line_to(m_cairo, end.x(), end.y());
+
+  cairo_stroke(m_cairo);
+}
+
+void graphics::draw_rectangle(point2d start, point2d end)
+{
+  draw_rectangle_path(start, end);
+  cairo_stroke(m_cairo);
+}
+
+void graphics::draw_rectangle(point2d start, double width, double height)
+{
+  draw_rectangle_path(start, {start.x() + width, start.y() + height});
+  cairo_stroke(m_cairo);
+}
+
+void graphics::draw_rectangle(rectangle const &r)
+{
+  draw_rectangle_path({r.left(), r.bottom()}, {r.right(), r.top()});
+  cairo_stroke(m_cairo);
+}
+
+void graphics::fill_rectangle(point2d start, point2d end)
+{
+  draw_rectangle_path(start, end);
+  cairo_fill(m_cairo);
+}
+
+void graphics::fill_rectangle(point2d start, double width, double height)
+{
+  draw_rectangle_path(start, {start.x() + width, start.y() + height});
+  cairo_fill(m_cairo);
+}
+
+void graphics::fill_rectangle(rectangle const &r)
+{
+  draw_rectangle_path({r.left(), r.bottom()}, {r.right(), r.top()});
+  cairo_fill(m_cairo);
+}
+
+void graphics::fill_poly(std::vector<point2d> const &points)
+{
+  assert(points.size() > 1);
+
+  cairo_move_to(m_cairo, points[0].x(), points[0].y());
+
+  for(std::size_t i = 1; i < points.size(); ++i) {
+    cairo_line_to(m_cairo, points[i].x(), points[i].y());
+  }
+
+  cairo_close_path(m_cairo);
+  cairo_fill(m_cairo);
+}
+
+void graphics::draw_text(point2d centre, std::string const &text)
+{
+  cairo_text_extents_t text_extents{};
+  cairo_text_extents(m_cairo, text.c_str(), &text_extents);
+
+  cairo_font_extents_t font_extents{};
+  cairo_font_extents(m_cairo, &font_extents);
+
+  // see: https://www.cairographics.org/tutorial/#L1understandingtext
+  centre = {centre.x() - text_extents.x_bearing - (text_extents.width / 2),
+      centre.y() - font_extents.descent + (font_extents.height / 2)};
+
+  cairo_move_to(m_cairo, centre.x(), centre.y());
+  cairo_show_text(m_cairo, text.c_str());
+}
+
+void graphics::draw_rectangle_path(point2d start, point2d end)
+{
+  cairo_move_to(m_cairo, start.x(), start.y());
+  cairo_line_to(m_cairo, start.x(), end.y());
+  cairo_line_to(m_cairo, end.x(), end.y());
+  cairo_line_to(m_cairo, end.x(), start.y());
 
   cairo_close_path(m_cairo);
 }
