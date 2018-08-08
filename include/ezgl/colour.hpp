@@ -28,22 +28,22 @@ struct colour {
   }
 
   /**
-   * A red component of the colour, between 0.0 and 1.0.
+   * A red component of the colour, between 0 and 255.
    */
   std::uint_fast8_t red;
 
   /**
-   * The green component of the colour, between 0.0 and 1.0.
+   * The green component of the colour, between 0 and 255.
    */
   std::uint_fast8_t green;
 
   /**
-   * The blue component of the colour, between 0.0 and 1.0.
+   * The blue component of the colour, between 0 and 255.
    */
   std::uint_fast8_t blue;
 
   /**
-   * The amount of transparency.
+   * The amount of transparency, between 0 and 255.
    */
   std::uint_fast8_t alpha;
 
