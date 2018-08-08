@@ -32,6 +32,8 @@ void application::activate(GtkApplication *, gpointer user_data)
 
   if(ezgl_app->m_register_callbacks != nullptr) {
     ezgl_app->m_register_callbacks(ezgl_app);
+  } else {
+    g_warning("No user-defined callbacks have been registered.");
   }
 
   // Retrieve the drawing area from the GTK Builder.
