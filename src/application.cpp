@@ -19,6 +19,8 @@ void application::startup(GtkApplication *, gpointer user_data)
     g_error("XML resource does not contain a GTK window with the name %s.",
         ezgl_app->m_window_id.c_str());
   }
+
+  g_info("application::startup successful.");
 }
 
 void application::activate(GtkApplication *, gpointer user_data)
@@ -40,6 +42,8 @@ void application::activate(GtkApplication *, gpointer user_data)
   GObject *canvas = gtk_builder_get_object(ezgl_app->m_builder, ezgl_app->m_canvas_id.c_str());
   // Enable mouse events for the drawing area.
   gtk_widget_add_events(GTK_WIDGET(canvas), GDK_BUTTON_PRESS_MASK);
+
+  g_info("application::activate successful.");
 }
 
 application::application(char const *main_ui_resource, char const *window_id, char const *canvas_id)
@@ -73,6 +77,8 @@ GObject *application::get_object(gchar const *name) const
 
 int application::run(int argc, char **argv)
 {
+  g_info("The event loop is now starting.");
+
   // see: https://developer.gnome.org/gio/unstable/GApplication.html#g-application-run
   return g_application_run(G_APPLICATION(m_application), argc, argv);
 }
