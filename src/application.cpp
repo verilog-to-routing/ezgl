@@ -10,18 +10,14 @@ void application::startup(GtkApplication *, gpointer user_data)
   // Build the main user interface from the XML resource.
   GError *error = nullptr;
   if(gtk_builder_add_from_resource(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
-    g_printerr("Error: %s\n", error->message);
-
-    exit(EXIT_FAILURE);
+    g_error("%s.", error->message);
   }
 
   // Make sure that the window_id given exists in the GTK Builder.
   GObject *window = gtk_builder_get_object(ezgl_app->m_builder, ezgl_app->m_window_id.c_str());
   if(window == nullptr) {
-    g_printerr("Error: main.ui is missing a window.");
-    g_printerr("Error: The expected window ID was %s", ezgl_app->m_window_id.c_str());
-
-    exit(EXIT_FAILURE);
+    g_error("XML resource does not contain a GTK window with the name %s.",
+        ezgl_app->m_window_id.c_str());
   }
 }
 
