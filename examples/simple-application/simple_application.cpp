@@ -138,6 +138,11 @@ gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer)
   g.format_font("monospace", ezgl::font_slant::oblique, ezgl::font_weight::normal, 24);
   g.draw_text({100, 100}, "Hello World!");
 
+  g.set_line_cap(ezgl::line_cap::butt);
+  g.set_line_dash(ezgl::line_dash::asymmetric_5_3);
+  g.set_line_width(5);
+  g.draw_line({128, 128}, {256, 256});
+
   // Change the next draw calls to use green with half transparency.
   g.set_colour(0, 255, 0, 128);
   // Draw filled in rectangles...
