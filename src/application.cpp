@@ -5,6 +5,8 @@ namespace ezgl {
 void application::startup(GtkApplication *, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
+  g_return_if_fail(ezgl_app != nullptr);
+
   char const *main_ui_resource = ezgl_app->m_main_ui.c_str();
 
   // Build the main user interface from the XML resource.
@@ -19,6 +21,7 @@ void application::startup(GtkApplication *, gpointer user_data)
 void application::activate(GtkApplication *, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
+  g_return_if_fail(ezgl_app != nullptr);
 
   // The main parent window needs to be explicitly added to our GTK application.
   GObject *window = ezgl_app->get_object(ezgl_app->m_window_id.c_str());
@@ -70,9 +73,7 @@ GObject *application::get_object(gchar const *name) const
 {
   // Getting an object from the GTK builder does not increase its reference count.
   GObject *object = gtk_builder_get_object(m_builder, name);
-  if(object == nullptr) {
-    g_error("Could not find a GUI object with the name %s.", name);
-  }
+  g_return_val_if_fail(object != nullptr, nullptr);
 
   return object;
 }
