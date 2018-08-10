@@ -33,6 +33,7 @@ void application::activate(GtkApplication *, gpointer user_data)
   // GtkDrawingArea objects need mouse button button presses enabled explicitly.
   GObject *canvas = ezgl_app->get_object(ezgl_app->m_canvas_id.c_str());
   gtk_widget_add_events(GTK_WIDGET(canvas), GDK_BUTTON_PRESS_MASK);
+  gtk_widget_add_events(GTK_WIDGET(canvas), GDK_BUTTON_RELEASE_MASK);
 
   g_info("application::activate successful.");
 }

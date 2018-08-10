@@ -96,8 +96,10 @@ void setup_callbacks(ezgl::application *application)
 
   // Connect our draw_canvas function to the MainCanvas so we can draw graphics.
   g_signal_connect(canvas, "draw", G_CALLBACK(draw_canvas), nullptr);
-  // Connect our click_mouse function to mouse clicks in the MainWindow.
+
+  // Connect our click_mouse function to mouse presses and releases in the MainWindow.
   g_signal_connect(canvas, "button_press_event", G_CALLBACK(click_mouse), nullptr);
+  g_signal_connect(canvas, "button_release_event", G_CALLBACK(click_mouse), nullptr);
 }
 
 gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
