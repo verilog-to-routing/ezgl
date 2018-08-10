@@ -15,6 +15,9 @@ void application::startup(GtkApplication *, gpointer user_data)
     g_error("%s.", error->message);
   }
 
+  GObject *drawing_area = ezgl_app->get_object(ezgl_app->m_canvas.id());
+  ezgl_app->m_canvas.initialize(GTK_WIDGET(drawing_area));
+
   g_info("application::startup successful.");
 }
 
@@ -33,20 +36,15 @@ void application::activate(GtkApplication *, gpointer user_data)
     g_warning("No user-defined callbacks have been registered.");
   }
 
-  // GtkDrawingArea objects need mouse button button presses enabled explicitly.
-  GObject *canvas = ezgl_app->get_object(ezgl_app->m_canvas_id.c_str());
-  gtk_widget_add_events(GTK_WIDGET(canvas), GDK_BUTTON_PRESS_MASK);
-  gtk_widget_add_events(GTK_WIDGET(canvas), GDK_BUTTON_RELEASE_MASK);
-
   g_info("application::activate successful.");
 }
 
 application::application(char const *main_ui_resource, char const *window_id, char const *canvas_id)
-    : m_application(gtk_application_new("edu.toronto.eecg.ezgl.app", G_APPLICATION_FLAGS_NONE))
-    , m_builder(gtk_builder_new())
-    , m_main_ui(main_ui_resource)
+    : m_main_ui(main_ui_resource)
     , m_window_id(window_id)
-    , m_canvas_id(canvas_id)
+    , m_canvas(canvas_id)
+    , m_application(gtk_application_new("edu.toronto.eecg.ezgl.app", G_APPLICATION_FLAGS_NONE))
+    , m_builder(gtk_builder_new())
     , m_register_callbacks(nullptr)
 {
   // Connect our static functions application::{startup, activate} to their callbacks. We pass 'this' as the userdata

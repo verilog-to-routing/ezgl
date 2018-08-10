@@ -1,6 +1,8 @@
 #ifndef EZGL_APPLICATION_HPP
 #define EZGL_APPLICATION_HPP
 
+#include <ezgl/canvas.hpp>
+
 #include <string>
 
 #include <gtk/gtk.h>
@@ -107,20 +109,19 @@ public:
   int run(int argc, char **argv);
 
 private:
-  // The GTK application.
-  GtkApplication *m_application;
-
-  // The GUI builder that parses an XML user interface.
-  GtkBuilder *m_builder;
-
   // The package path to the XML file that describes the UI.
   std::string m_main_ui;
 
   // The ID of the main window to add to our GTK application.
   std::string m_window_id;
 
-  // The ID of the main canvas in our GTK application.
-  std::string m_canvas_id;
+  canvas m_canvas;
+
+  // The GTK application.
+  GtkApplication *m_application;
+
+  // The GUI builder that parses an XML user interface.
+  GtkBuilder *m_builder;
 
   // The function to call when the application is starting up.
   setup_callbacks_fn m_register_callbacks;
