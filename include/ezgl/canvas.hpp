@@ -24,14 +24,28 @@ public:
    */
   canvas(std::string canvas_id, draw_canvas_fn draw_callback);
 
-  void initialize(GtkWidget *drawing_area);
-
-  void redraw();
-
+  /**
+   * Get the name (identifier) of the canvas.
+   */
   char const *id() const
   {
     return m_canvas_id.c_str();
   }
+
+  /**
+   * Get the width of the canvas in pixels.
+   */
+  int width() const;
+
+  /**
+   * Get the height of the canvas in pixels.
+   */
+  int height() const;
+
+  void initialize(GtkWidget *drawing_area);
+
+  void redraw();
+
 
 private:
   std::string m_canvas_id;

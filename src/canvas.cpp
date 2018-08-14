@@ -54,6 +54,16 @@ canvas::canvas(std::string canvas_id, draw_canvas_fn draw_callback)
 {
 }
 
+int canvas::width() const
+{
+  return cairo_image_surface_get_width(m_surface);
+}
+
+int canvas::height() const
+{
+  return cairo_image_surface_get_height(m_surface);
+}
+
 void canvas::initialize(GtkWidget *drawing_area)
 {
   g_return_if_fail(drawing_area != nullptr);
