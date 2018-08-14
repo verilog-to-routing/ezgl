@@ -3,8 +3,9 @@
 
 #include <ezgl/canvas.hpp>
 
+#include <map>
+#include <memory>
 #include <string>
-#include <vector>
 
 #include <gtk/gtk.h>
 
@@ -91,7 +92,26 @@ public:
    */
   application &operator=(application &&) = default;
 
-  void add_canvas(char const *canvas_id, draw_canvas_fn draw_callback);
+  /**
+   * Retrieve a pointer to a canvas that was previously added to the application.
+   *
+   * @param canvas_id The key used when the canvas was added.
+   *
+   * @return A non-owning pointer, or nullptr if not found.
+   */
+  canvas *get_canvas(std::string const &canvas_id);
+
+  /**
+   * Add a canvas to the application.
+   *
+   * If the canvas has already been added, it will not be overwritten and a warning will be displayed.
+   *
+   * @param canvas_id The id of the GtkDrawingArea in the XML file.
+   * @param draw_callback The function to call that draws to this canvas.
+   *
+   * @return A pointer to the newly created cavas.
+   */
+  canvas *add_canvas(std::string const &canvas_id, draw_canvas_fn draw_callback);
 
   /**
    * Retrieve a GLib Object (i.e., a GObject).
@@ -139,7 +159,7 @@ private:
   // The function to call when the application is starting up.
   connect_g_objects_fn m_register_callbacks;
 
-  std::vector<canvas> m_canvases;
+  std::map<std::string, std::unique_ptr<canvas>> m_canvases;
 
 private:
   // Called when our GtkApplication is initialized for the first time.

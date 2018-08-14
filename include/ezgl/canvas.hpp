@@ -22,7 +22,7 @@ public:
    *
    * @param canvas_id The name of the main drawing area in the XML file.
    */
-  canvas(char const *canvas_id, draw_canvas_fn draw_callback);
+  canvas(std::string canvas_id, draw_canvas_fn draw_callback);
 
   void initialize(GtkWidget *drawing_area);
 

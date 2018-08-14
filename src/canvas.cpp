@@ -49,8 +49,8 @@ gboolean canvas::draw_surface(GtkWidget *, cairo_t *context, gpointer data)
   return FALSE;
 }
 
-canvas::canvas(char const *canvas_id, draw_canvas_fn draw_callback)
-    : m_canvas_id(canvas_id), m_draw_callback(draw_callback)
+canvas::canvas(std::string canvas_id, draw_canvas_fn draw_callback)
+    : m_canvas_id(std::move(canvas_id)), m_draw_callback(draw_callback)
 {
 }
 

@@ -15,9 +15,9 @@ void application::startup(GtkApplication *, gpointer user_data)
     g_error("%s.", error->message);
   }
 
-  for(auto &c : ezgl_app->m_canvases) {
-    GObject *drawing_area = ezgl_app->get_object(c.id());
-    c.initialize(GTK_WIDGET(drawing_area));
+  for(auto &c_pair : ezgl_app->m_canvases) {
+    GObject *drawing_area = ezgl_app->get_object(c_pair.second->id());
+    c_pair.second->initialize(GTK_WIDGET(drawing_area));
   }
 
   g_info("application::startup successful.");
@@ -63,9 +63,34 @@ application::~application()
   g_object_unref(m_application);
 }
 
-void application::add_canvas(char const *canvas_id, draw_canvas_fn draw_callback)
+canvas *application::get_canvas(const std::string &canvas_id)
 {
-  m_canvases.emplace_back(canvas_id, draw_callback);
+  auto it = m_canvases.find(canvas_id);
+  if(it != m_canvases.end()) {
+    return it->second.get();
+  }
+
+  g_warning("Could not find canvas with name %s.", canvas_id.c_str());
+  return nullptr;
+}
+
+canvas *application::add_canvas(std::string const &canvas_id, draw_canvas_fn draw_callback)
+{
+  if(draw_callback == nullptr) {
+    // A NULL draw callback means the canvas will never render anything to the screen.
+    g_warning("Canvas %s's draw callback is NULL.", canvas_id.c_str());
+  }
+
+  auto it = m_canvases.emplace(canvas_id, std::make_unique<canvas>(canvas_id, draw_callback));
+
+  if(!it.second) {
+    // std::map's emplace does not insert the value when the key is already present.
+    g_warning("Duplicate key (%s) ignored in application::add_canvas.", canvas_id.c_str());
+  } else {
+    g_info("The %s canvas has been added to the application.", canvas_id.c_str());
+  }
+
+  return it.first->second.get();
 }
 
 GObject *application::get_object(gchar const *name) const
