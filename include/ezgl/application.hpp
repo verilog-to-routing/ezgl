@@ -99,7 +99,7 @@ public:
    *
    * @return A non-owning pointer, or nullptr if not found.
    */
-  canvas *get_canvas(std::string const &canvas_id);
+  canvas *get_canvas(std::string const &canvas_id) const;
 
   /**
    * Add a canvas to the application.

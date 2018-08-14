@@ -63,7 +63,7 @@ application::~application()
   g_object_unref(m_application);
 }
 
-canvas *application::get_canvas(const std::string &canvas_id)
+canvas *application::get_canvas(const std::string &canvas_id) const
 {
   auto it = m_canvases.find(canvas_id);
   if(it != m_canvases.end()) {
