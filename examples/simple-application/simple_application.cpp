@@ -33,17 +33,7 @@ gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
  */
 gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 
-/**
- * React to <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-draw">requests from GTK</a> to
- * render graphics.
- *
- * @param widget The GUI widget where this event came from.
- * @param cairo The current state of the rendering device.
- * @param data A pointer to any user-specified data you passed in.
- *
- * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
- */
-gboolean draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer data);
+void draw_screen(cairo_t *cairo);
 
 /**
  * Connect the press_key(), click_mouse(), and draw_canvas() functions to signals emitted by different GUI objects.
@@ -64,18 +54,23 @@ void setup_callbacks(ezgl::application *application);
  */
 int main(int argc, char **argv)
 {
+  ezgl::application::settings settings;
+
   // Path to the resource that contains an XML description of the UI.
   // Note: this is not a file path, it is a resource path.
-  char const *main_ui = "/edu/toronto/eecg/ezgl/ece297/cd000/main.ui";
+  settings.main_ui_resource = "/edu/toronto/eecg/ezgl/ece297/cd000/main.ui";
 
-  // Create our EZGL application.
-  // Note: the "main.ui" file has a GtkWindow called "MainWindow" and
-  // a GtkDrawingArea called "MainCanvas".
-  ezgl::application application(main_ui, "MainWindow", "MainCanvas");
+  // Note: the "main.ui" file has a GtkWindow called "MainWindow".
+  settings.window_identifier = "MainWindow";
 
   // Tell the EZGL application which function to call when it is time
   // to connect GUI objects to our own custom callbacks.
-  application.register_callbacks_with(setup_callbacks);
+  settings.setup_callbacks = setup_callbacks;
+
+  // Create our EZGL application.
+  ezgl::application application(settings);
+
+  application.add_canvas("MainCanvas", draw_screen);
 
   // Run the application until the user quits.
   // This hands over all control to the GTK runtime---after this point
@@ -93,9 +88,6 @@ void setup_callbacks(ezgl::application *application)
 
   // Get a pointer to the MainCanvas GUI object by using its name.
   GObject *main_canvas = application->get_object("MainCanvas");
-
-  // Connect our draw_canvas function to the MainCanvas so we can draw graphics.
-  g_signal_connect(main_canvas, "draw", G_CALLBACK(draw_canvas), nullptr);
 
   // Connect our click_mouse function to mouse presses and releases in the MainWindow.
   g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(click_mouse), nullptr);
@@ -121,7 +113,7 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
   return TRUE; // consume the event
 }
 
-gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer)
+void draw_screen(cairo_t *cairo)
 {
   ezgl::graphics g(cairo);
 
@@ -150,6 +142,4 @@ gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer)
   // Draw filled in rectangles...
   g.fill_rectangle({500, 50}, {600, 300}); // from one point to another
   g.fill_rectangle({500, 50}, 50, 50);     // from one point with a width and height
-
-  return FALSE; // propagate event
 }

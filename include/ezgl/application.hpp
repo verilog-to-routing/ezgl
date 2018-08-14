@@ -4,6 +4,7 @@
 #include <ezgl/canvas.hpp>
 
 #include <string>
+#include <vector>
 
 #include <gtk/gtk.h>
 
@@ -15,11 +16,11 @@ namespace ezgl {
 class application;
 
 /**
- * The signature of a function that registers callbacks with an application.
+ * The signature of a function that connects GObject to functions via signals.
  *
  * @see application::register_callbacks_with, application::get_object.
  */
-using setup_callbacks_fn = void (*)(application *app);
+using connect_g_objects_fn = void (*)(application *app);
 
 /**
  * Represents the core application.
@@ -29,16 +30,41 @@ using setup_callbacks_fn = void (*)(application *app);
 class application {
 public:
   /**
+   * Configuration settings for the applicaton.
+   *
+   * The GUI will be built from the XML description given by main_ui_resource.
+   * The XML file must contain a GtkWindow with the name in window_identifier.
+   */
+  struct settings {
+    /**
+     * The resource path that contains the XML file, which describes the GUI.
+     */
+    std::string main_ui_resource;
+
+    /**
+     * The name of the main window in the XML file.
+     */
+    std::string window_identifier;
+
+    /**
+     * Specficy the function that will connect GUI objects to user-defined callbacks.
+     *
+     * GUI objects (i.e., a GObject) can be retrieved from this application object. These objects can then be connected
+     * to specific events using g_signal_connect. A list of signals that can be used to make these connections can be
+     * found <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget.signals">here</a>.
+     *
+     * @see application::get_object
+     */
+    connect_g_objects_fn setup_callbacks = nullptr;
+  };
+
+public:
+  /**
    * Create an application.
    *
-   * The GUI will be built from the XML description given. This XML file must contain a GtkWindow with the name
-   * window_id and a GtkDrawingArea with the name canvas_id.
-   *
-   * @param main_ui_resource The resource that describes the GUI in XML.
-   * @param window_id The name of the main window the in XML file.
-   * @param canvas_id The name of the main drawing area in the XML file.
+   * @param s The preconfigured settings.
    */
-  application(char const *main_ui_resource, char const *window_id, char const *canvas_id);
+  explicit application(application::settings s);
 
   /**
    * Destructor.
@@ -65,18 +91,7 @@ public:
    */
   application &operator=(application &&) = default;
 
-  /**
-   * Specficy the function that will connect GUI objects to user-defined callbacks.
-   *
-   * GUI objects (i.e., a GObject) can be retrieved from this application object. These objects can then be connected
-   * to specific events using g_signal_connect. A list of signals that can be used to make these connections can be
-   * found <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget.signals">here</a>.
-   *
-   * @param fn A pointer to a function that will be called once during initialization.
-   *
-   * @see application::get_object
-   */
-  void register_callbacks_with(setup_callbacks_fn fn);
+  void add_canvas(char const *canvas_id, draw_canvas_fn draw_callback);
 
   /**
    * Retrieve a GLib Object (i.e., a GObject).
@@ -115,8 +130,6 @@ private:
   // The ID of the main window to add to our GTK application.
   std::string m_window_id;
 
-  canvas m_canvas;
-
   // The GTK application.
   GtkApplication *m_application;
 
@@ -124,7 +137,9 @@ private:
   GtkBuilder *m_builder;
 
   // The function to call when the application is starting up.
-  setup_callbacks_fn m_register_callbacks;
+  connect_g_objects_fn m_register_callbacks;
+
+  std::vector<canvas> m_canvases;
 
 private:
   // Called when our GtkApplication is initialized for the first time.

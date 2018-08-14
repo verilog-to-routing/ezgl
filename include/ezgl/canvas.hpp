@@ -1,12 +1,19 @@
 #ifndef EZGL_CANVAS_HPP
 #define EZGL_CANVAS_HPP
 
+#include <ezgl/rectangle.hpp>
+
 #include <cairo.h>
 #include <gtk/gtk.h>
 
 #include <string>
 
 namespace ezgl {
+
+/**
+ * The signature of a function that draws to the canvas.
+ */
+using draw_canvas_fn = void (*)(cairo_t *);
 
 class canvas {
 public:
@@ -15,9 +22,11 @@ public:
    *
    * @param canvas_id The name of the main drawing area in the XML file.
    */
-  explicit canvas(char const *canvas_id);
+  canvas(char const *canvas_id, draw_canvas_fn draw_callback);
 
   void initialize(GtkWidget *drawing_area);
+
+  void redraw();
 
   char const *id() const
   {
@@ -26,6 +35,8 @@ public:
 
 private:
   std::string m_canvas_id;
+
+  draw_canvas_fn m_draw_callback;
 
   // A non-owning pointer to the drawing area inside a GTK window.
   GtkWidget *m_drawing_area = nullptr;

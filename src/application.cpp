@@ -15,8 +15,10 @@ void application::startup(GtkApplication *, gpointer user_data)
     g_error("%s.", error->message);
   }
 
-  GObject *drawing_area = ezgl_app->get_object(ezgl_app->m_canvas.id());
-  ezgl_app->m_canvas.initialize(GTK_WIDGET(drawing_area));
+  for(auto &c : ezgl_app->m_canvases) {
+    GObject *drawing_area = ezgl_app->get_object(c.id());
+    c.initialize(GTK_WIDGET(drawing_area));
+  }
 
   g_info("application::startup successful.");
 }
@@ -39,13 +41,12 @@ void application::activate(GtkApplication *, gpointer user_data)
   g_info("application::activate successful.");
 }
 
-application::application(char const *main_ui_resource, char const *window_id, char const *canvas_id)
-    : m_main_ui(main_ui_resource)
-    , m_window_id(window_id)
-    , m_canvas(canvas_id)
+application::application(application::settings s)
+    : m_main_ui(s.main_ui_resource)
+    , m_window_id(s.window_identifier)
     , m_application(gtk_application_new("edu.toronto.eecg.ezgl.app", G_APPLICATION_FLAGS_NONE))
     , m_builder(gtk_builder_new())
-    , m_register_callbacks(nullptr)
+    , m_register_callbacks(s.setup_callbacks)
 {
   // Connect our static functions application::{startup, activate} to their callbacks. We pass 'this' as the userdata
   // so that we can use it in our static functions.
@@ -62,9 +63,9 @@ application::~application()
   g_object_unref(m_application);
 }
 
-void application::register_callbacks_with(setup_callbacks_fn fn)
+void application::add_canvas(char const *canvas_id, draw_canvas_fn draw_callback)
 {
-  m_register_callbacks = fn;
+  m_canvases.emplace_back(canvas_id, draw_callback);
 }
 
 GObject *application::get_object(gchar const *name) const
