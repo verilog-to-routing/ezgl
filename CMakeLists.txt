@@ -46,7 +46,7 @@ target_link_libraries(
 
 # add_compile_options does not seem to be working on the UG machines,
 # and we cannot set target properties in version 3.0.2
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 if(EZGL_BUILD_EXAMPLES)
   add_subdirectory(examples)
