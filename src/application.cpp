@@ -83,8 +83,10 @@ canvas *application::add_canvas(std::string const &canvas_id,
     g_warning("Canvas %s's draw callback is NULL.", canvas_id.c_str());
   }
 
-  auto it = m_canvases.emplace(
-      canvas_id, std::make_unique<canvas>(canvas_id, draw_callback, std::move(coordinate_system)));
+  // Can't use make_unique with protected constructor without fancy code that will confuse students, so we use new
+  // instead.
+  std::unique_ptr<canvas> canvas_ptr(new canvas(canvas_id, draw_callback, coordinate_system));
+  auto it = m_canvases.emplace(canvas_id, std::move(canvas_ptr));
 
   if(!it.second) {
     // std::map's emplace does not insert the value when the key is already present.

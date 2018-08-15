@@ -19,13 +19,6 @@ using draw_canvas_fn = void (*)(cairo_t *);
 class canvas {
 public:
   /**
-   * Create a canvas that can be drawn to.
-   *
-   * @param canvas_id The name of the main drawing area in the XML file.
-   */
-  canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system);
-
-  /**
    * Destructor.
    */
   ~canvas();
@@ -51,6 +44,14 @@ public:
   void redraw();
 
 protected:
+  // Only the ezgl::application can create and initialize a canvas object.
+  friend class application;
+
+  /**
+   * Create a canvas that can be drawn to.
+   */
+  canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system);
+
   /**
    * Lazy initialization of the canvas class.
    *
@@ -73,8 +74,6 @@ private:
   camera m_camera;
 
 private:
-  friend class application;
-
   // Called each time our drawing area widget has changed (e.g., in size).
   static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *event, gpointer data);
 
