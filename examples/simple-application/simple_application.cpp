@@ -116,28 +116,33 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
 void draw_screen(ezgl::graphics &g)
 {
   // Change the next draw calls to use the colour red.
-  g.set_colour(ezgl::colour{255, 0, 0});
+  g.set_colour(ezgl::RED);
 
-  // Draw rectangle outlines...
-  g.draw_rectangle({100, 100}, {400, 300}); // from one point to another
-  g.draw_rectangle({10, 10}, 50, 50);       // from one point with a width and height
+  // Draw rectangle functions.
+  g.draw_rectangle({100, 100}, {400, 300});
+  g.draw_rectangle({10, 10}, 50, 50);
+  g.draw_rectangle({{1000, 1000}, {1100, 1150}});
 
-  // Draw a triangle.
+  // Draw a filled, green triangle.
+  g.set_colour(ezgl::GREEN);
   g.fill_poly({{500, 400}, {440, 480}, {560, 480}});
 
-  // Draw semi-transparent blue text.
-  g.set_colour(ezgl::colour{0, 0, 255, 153});
-  g.format_font("monospace", ezgl::font_slant::oblique, ezgl::font_weight::normal, 24);
+  // Draw blue text.
+  g.set_colour(ezgl::BLUE);
+  g.format_font("monospace", ezgl::font_slant::normal, ezgl::font_weight::normal, 24);
   g.draw_text({100, 100}, "Hello World!");
+
+  // Draw a thick, dashed semi-transparent line.
+  g.set_colour(ezgl::DARK_GREEN, 64);
 
   g.set_line_cap(ezgl::line_cap::butt);
   g.set_line_dash(ezgl::line_dash::asymmetric_5_3);
   g.set_line_width(5);
-  g.draw_line({128, 128}, {256, 256});
 
-  // Change the next draw calls to use green with half transparency.
-  g.set_colour(0, 255, 0, 128);
+  g.draw_line({0, 0}, {1100, 1150});
+
   // Draw filled in rectangles...
+  g.set_colour(ezgl::DARK_SLATE_BLUE, 128);
   g.fill_rectangle({500, 50}, {600, 300}); // from one point to another
   g.fill_rectangle({500, 50}, 50, 50);     // from one point with a width and height
 }
