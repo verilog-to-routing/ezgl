@@ -26,16 +26,6 @@ public:
   canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system);
 
   /**
-   * Lazy initialization of the canvas class.
-   *
-   * This function is required because GTK will not send activate/startup signals to an ezgl::application until control
-   * of the program has been reliquished. The GUI is not built until ezgl::application receives an activate signal.
-   *
-   * @param drawing_area
-   */
-  void initialize(GtkWidget *drawing_area);
-
-  /**
    * Destructor.
    */
   ~canvas();
@@ -60,6 +50,15 @@ public:
 
   void redraw();
 
+protected:
+  /**
+   * Lazy initialization of the canvas class.
+   *
+   * This function is required because GTK will not send activate/startup signals to an ezgl::application until control
+   * of the program has been reliquished. The GUI is not built until ezgl::application receives an activate signal.
+   */
+  void initialize(GtkWidget *drawing_area);
+
 private:
   std::string m_canvas_id;
 
@@ -74,6 +73,8 @@ private:
   camera m_camera;
 
 private:
+  friend class application;
+
   // Called each time our drawing area widget has changed (e.g., in size).
   static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *event, gpointer data);
 
