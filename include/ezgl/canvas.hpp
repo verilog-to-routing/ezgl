@@ -1,6 +1,7 @@
 #ifndef EZGL_CANVAS_HPP
 #define EZGL_CANVAS_HPP
 
+#include <ezgl/camera.hpp>
 #include <ezgl/rectangle.hpp>
 
 #include <cairo.h>
@@ -25,6 +26,16 @@ public:
   canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system);
 
   /**
+   * Lazy initialization of the canvas class.
+   *
+   * This function is required because GTK will not send activate/startup signals to an ezgl::application until control
+   * of the program has been reliquished. The GUI is not built until ezgl::application receives an activate signal.
+   *
+   * @param drawing_area
+   */
+  void initialize(GtkWidget *drawing_area);
+
+  /**
    * Destructor.
    */
   ~canvas();
@@ -47,8 +58,6 @@ public:
    */
   int height() const;
 
-  void initialize(GtkWidget *drawing_area);
-
   void redraw();
 
 private:
@@ -62,7 +71,7 @@ private:
   // The off-screen surface that can be drawn to.
   cairo_surface_t *m_surface = nullptr;
 
-  rectangle m_coordinate_system;
+  camera m_camera;
 
 private:
   // Called each time our drawing area widget has changed (e.g., in size).

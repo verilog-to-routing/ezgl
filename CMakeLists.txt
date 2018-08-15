@@ -23,12 +23,14 @@ include(options.cmake)
 add_library(
   ${PROJECT_NAME}
   include/ezgl/application.hpp
+  include/ezgl/camera.hpp
   include/ezgl/canvas.hpp
   include/ezgl/colour.hpp
   include/ezgl/graphics.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
   src/application.cpp
+  src/camera.cpp
   src/canvas.cpp
   src/graphics.cpp
 )

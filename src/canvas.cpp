@@ -50,9 +50,7 @@ gboolean canvas::draw_surface(GtkWidget *, cairo_t *context, gpointer data)
 }
 
 canvas::canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system)
-    : m_canvas_id(std::move(canvas_id))
-    , m_draw_callback(draw_callback)
-    , m_coordinate_system(coordinate_system)
+    : m_canvas_id(std::move(canvas_id)), m_draw_callback(draw_callback), m_camera(coordinate_system)
 {
 }
 
@@ -79,6 +77,7 @@ void canvas::initialize(GtkWidget *drawing_area)
 
   m_drawing_area = drawing_area;
   m_surface = create_surface(m_drawing_area);
+  m_camera.update_screen(width(), height());
 
   // Draw to the newly created surface for the first time.
   redraw();
