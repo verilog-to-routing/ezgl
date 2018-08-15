@@ -15,7 +15,7 @@ calculate_scale(int screen_width, double view_width, int screen_height, double v
   return scale;
 }
 
-camera::camera(rectangle bounds) : m_bounds(bounds), m_view(bounds)
+camera::camera(rectangle bounds) : m_view(bounds)
 {
 }
 
@@ -26,14 +26,6 @@ void camera::update_screen(int width, int height)
 
   // A change in the width/height will impact the view.
   update_view(m_view);
-}
-
-void camera::update_bounds(rectangle bounds)
-{
-  m_bounds = bounds;
-
-  // Reset the view to the new bounds given.
-  update_view(bounds);
 }
 
 void camera::update_view(rectangle view)

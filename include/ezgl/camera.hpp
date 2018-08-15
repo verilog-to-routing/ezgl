@@ -16,13 +16,9 @@ public:
 
   void update_screen(int width, int height);
 
-  void update_bounds(rectangle bounds);
-
   void update_view(rectangle view);
 
 private:
-  rectangle m_bounds;
-
   rectangle m_view;
 
   int m_screen_width = 0;
