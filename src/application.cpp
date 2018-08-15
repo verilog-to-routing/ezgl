@@ -74,14 +74,17 @@ canvas *application::get_canvas(const std::string &canvas_id) const
   return nullptr;
 }
 
-canvas *application::add_canvas(std::string const &canvas_id, draw_canvas_fn draw_callback)
+canvas *application::add_canvas(std::string const &canvas_id,
+    draw_canvas_fn draw_callback,
+    rectangle coordinate_system)
 {
   if(draw_callback == nullptr) {
     // A NULL draw callback means the canvas will never render anything to the screen.
     g_warning("Canvas %s's draw callback is NULL.", canvas_id.c_str());
   }
 
-  auto it = m_canvases.emplace(canvas_id, std::make_unique<canvas>(canvas_id, draw_callback));
+  auto it = m_canvases.emplace(
+      canvas_id, std::make_unique<canvas>(canvas_id, draw_callback, std::move(coordinate_system)));
 
   if(!it.second) {
     // std::map's emplace does not insert the value when the key is already present.

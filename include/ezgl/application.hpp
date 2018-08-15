@@ -111,7 +111,7 @@ public:
    *
    * @return A pointer to the newly created cavas.
    */
-  canvas *add_canvas(std::string const &canvas_id, draw_canvas_fn draw_callback);
+  canvas *add_canvas(std::string const &canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system);
 
   /**
    * Retrieve a GLib Object (i.e., a GObject).

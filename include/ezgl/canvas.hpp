@@ -22,7 +22,7 @@ public:
    *
    * @param canvas_id The name of the main drawing area in the XML file.
    */
-  canvas(std::string canvas_id, draw_canvas_fn draw_callback);
+  canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system);
 
   /**
    * Get the name (identifier) of the canvas.
@@ -46,7 +46,6 @@ public:
 
   void redraw();
 
-
 private:
   std::string m_canvas_id;
 
@@ -57,6 +56,8 @@ private:
 
   // The off-screen surface that can be drawn to.
   cairo_surface_t *m_surface = nullptr;
+
+  rectangle m_coordinate_system;
 
 private:
   // Called each time our drawing area widget has changed (e.g., in size).

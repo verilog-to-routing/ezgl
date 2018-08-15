@@ -70,7 +70,7 @@ int main(int argc, char **argv)
   // Create our EZGL application.
   ezgl::application application(settings);
 
-  application.add_canvas("MainCanvas", draw_screen);
+  application.add_canvas("MainCanvas", draw_screen, ezgl::rectangle({0, 0}, 1100, 1150));
 
   // Run the application until the user quits.
   // This hands over all control to the GTK runtime---after this point
