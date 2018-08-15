@@ -56,6 +56,13 @@ canvas::canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle co
 {
 }
 
+canvas::~canvas()
+{
+  if(m_surface != nullptr) {
+    cairo_surface_destroy(m_surface);
+  }
+}
+
 int canvas::width() const
 {
   return cairo_image_surface_get_width(m_surface);

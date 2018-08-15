@@ -25,6 +25,11 @@ public:
   canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system);
 
   /**
+   * Destructor.
+   */
+  ~canvas();
+
+  /**
    * Get the name (identifier) of the canvas.
    */
   char const *id() const
