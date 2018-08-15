@@ -8,7 +8,9 @@ calculate_scale(int screen_width, double view_width, int screen_height, double v
   scale_transform scale{};
 
   scale.x = screen_width / view_width;
-  scale.y = screen_height / view_height;
+
+  // Cartesian coordinates has y increasing from the origin, but Cairo is the opposite, so we use a negative height.
+  scale.y = screen_height / -view_height;
 
   return scale;
 }
