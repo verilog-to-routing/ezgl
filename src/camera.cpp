@@ -40,16 +40,18 @@ void camera::update_view(rectangle view)
   // Maintain the aspect ratio by resizing the view.
   if(scale.x <= scale.y) {
     double const multiplier = scale.y / scale.x;
+    double const height = view.height();
 
-    double const y_top = view.top() - (view.bottom() - view.top()) * (multiplier - 1) * 0.5;
-    double const y_bottom = view.bottom() + (view.bottom() - view.top()) * (multiplier - 1) * 0.5;
+    double const y_top = view.top() - height * (multiplier - 1) * 0.5;
+    double const y_bottom = view.bottom() + height * (multiplier - 1) * 0.5;
 
     m_view = rectangle({view.left(), y_bottom}, {view.right(), y_top});
   } else {
     double const multiplier = scale.x / scale.y;
+    double const width = view.width();
 
-    double const x_left = view.left() - (view.right() - view.left()) * (multiplier - 1) * 0.5;
-    double const x_right = view.right() + (view.right() - view.left()) * (multiplier - 1) * 0.5;
+    double const x_left = view.left() - width * (multiplier - 1) * 0.5;
+    double const x_right = view.right() + width * (multiplier - 1) * 0.5;
 
     m_view = rectangle({x_left, view.bottom()}, {x_right, view.top()});
   }
