@@ -12,6 +12,8 @@
 
 namespace ezgl {
 
+class camera;
+
 /**
  * The slant of the font.
  *
@@ -94,7 +96,7 @@ public:
    *
    * @param cairo The cairo graphics state.
    */
-  explicit graphics(cairo_t *cairo);
+  graphics(cairo_t *cairo, camera *cam);
 
   /**
    * Change the colour for subsequent draw calls.
@@ -228,7 +230,11 @@ public:
 private:
   void draw_rectangle_path(point2d start, point2d end);
 
+  // A non-owning pointer to a cairo graphics context.
   cairo_t *m_cairo;
+
+  // A non-owning pointer to the camera.
+  camera *m_camera;
 };
 }
 

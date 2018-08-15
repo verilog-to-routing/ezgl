@@ -11,10 +11,12 @@
 
 namespace ezgl {
 
+class graphics;
+
 /**
  * The signature of a function that draws to the canvas.
  */
-using draw_canvas_fn = void (*)(cairo_t *);
+using draw_canvas_fn = void (*)(graphics &);
 
 class canvas {
 public:

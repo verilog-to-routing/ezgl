@@ -33,7 +33,7 @@ gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
  */
 gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 
-void draw_screen(cairo_t *cairo);
+void draw_screen(ezgl::graphics &g);
 
 /**
  * Connect the press_key(), click_mouse(), and draw_canvas() functions to signals emitted by different GUI objects.
@@ -113,10 +113,8 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
   return TRUE; // consume the event
 }
 
-void draw_screen(cairo_t *cairo)
+void draw_screen(ezgl::graphics &g)
 {
-  ezgl::graphics g(cairo);
-
   // Change the next draw calls to use the colour red.
   g.set_colour(ezgl::colour{255, 0, 0});
 

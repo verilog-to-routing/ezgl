@@ -1,5 +1,7 @@
 #include "ezgl/canvas.hpp"
 
+#include "ezgl/graphics.hpp"
+
 #include <gtk/gtk.h>
 
 #include <cassert>
@@ -100,7 +102,10 @@ void canvas::initialize(GtkWidget *drawing_area)
 void canvas::redraw()
 {
   cairo_t *context = cairo_create(m_surface);
-  m_draw_callback(context);
+
+  graphics g(context, &m_camera);
+  m_draw_callback(g);
+
   cairo_destroy(context);
 
   gtk_widget_queue_draw(m_drawing_area);

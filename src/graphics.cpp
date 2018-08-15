@@ -1,10 +1,12 @@
 #include "ezgl/graphics.hpp"
 
+#include "ezgl/camera.hpp"
+
 #include <cassert>
 
 namespace ezgl {
 
-graphics::graphics(cairo_t *cairo) : m_cairo(cairo)
+graphics::graphics(cairo_t *cairo, camera *cam) : m_cairo(cairo), m_camera(cam)
 {
 }
 
