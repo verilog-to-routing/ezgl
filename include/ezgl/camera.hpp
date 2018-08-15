@@ -18,6 +18,15 @@ public:
 
   void update_view(rectangle view);
 
+  point2d world_to_screen(point2d world_coordinates) const;
+
+  rectangle world_to_screen(rectangle world_coordinates) const;
+
+  rectangle view() const
+  {
+    return m_view;
+  }
+
 private:
   rectangle m_view;
 

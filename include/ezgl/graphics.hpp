@@ -108,6 +108,14 @@ public:
   /**
    * Change the colour for subsequent draw calls.
    *
+   * @param new_colour The new colour to use.
+   * @param alpha Overwrite the alpha channel in the chosen colour.
+   */
+  void set_colour(colour new_colour, uint_fast8_t alpha);
+
+  /**
+   * Change the colour for subsequent draw calls.
+   *
    * @param red The amount of red to use, between 0 and 255.
    * @param green The amount of green to use, between 0 and 255.
    * @param blue The amount of blue to use, between 0 and 255.
@@ -188,7 +196,7 @@ public:
   /**
    * Draw the outline of a rectangle.
    */
-  void draw_rectangle(rectangle const &r);
+  void draw_rectangle(rectangle r);
 
   /**
    * Draw a filled in rectangle.
@@ -210,7 +218,7 @@ public:
   /**
    * Draw a filled in rectangle.
    */
-  void fill_rectangle(rectangle const &r);
+  void fill_rectangle(rectangle r);
 
   /**
    * Draw a filled polygon.

@@ -55,4 +55,20 @@ void camera::update_view(rectangle view)
   m_world_to_screen =
       calculate_scale(m_screen_width, m_view.width(), m_screen_height, m_view.height());
 }
+
+point2d camera::world_to_screen(point2d world_coordinates) const
+{
+  double const x = (world_coordinates.x() - m_view.left()) * m_world_to_screen.x;
+  double const y = (world_coordinates.y() - m_view.top()) * m_world_to_screen.y;
+
+  return {x, y};
+}
+
+rectangle camera::world_to_screen(rectangle wc) const
+{
+  point2d const bottom_left = world_to_screen({wc.left(), wc.bottom()});
+  point2d const top_right = world_to_screen({wc.right(), wc.top()});
+
+  return {bottom_left, top_right};
+}
 }
