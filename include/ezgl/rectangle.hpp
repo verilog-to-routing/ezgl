@@ -89,6 +89,55 @@ public:
   }
 
   /**
+   * @return The width of the rectangle.
+   */
+  double width()
+  {
+    return right() - left();
+  }
+
+  /**
+   * @return The height of the rectangle.
+   */
+  double height()
+  {
+    return top() - bottom();
+  }
+
+  /**
+   *
+   * @return The area of the rectangle.
+   */
+  double area()
+  {
+    return width() * height();
+  }
+
+  /**
+   * @return The centre of the rectangle in the x plane.
+   */
+  double centre_x()
+  {
+    return (right() + left()) * 0.5;
+  }
+
+  /**
+   * @return The centre of the rectangle in the y plane.
+   */
+  double centre_y()
+  {
+    return (top() + bottom()) * 0.5;
+  }
+
+  /**
+   * @return The centre of the recangle.
+   */
+  point2d centre()
+  {
+    return {centre_x(), centre_y()};
+  }
+
+  /**
    * Test for equality.
    */
   bool operator==(const rectangle &rhs) const
@@ -108,55 +157,6 @@ private:
   point2d m_first;
   point2d m_second;
 };
-
-/**
- * @return The width of the rectangle.
- */
-inline double width(rectangle const &r)
-{
-  return r.right() - r.left();
-}
-
-/**
- * @return The height of the rectangle.
- */
-inline double height(rectangle const &r)
-{
-  return r.top() - r.bottom();
-}
-
-/**
- *
- * @return The area of the rectangle.
- */
-inline double area(rectangle const &r)
-{
-  return width(r) * height(r);
-}
-
-/**
- * @return The centre of the rectangle in the x plane.
- */
-inline double centre_x(rectangle const &r)
-{
-  return (r.right() + r.left()) * 0.5;
-}
-
-/**
- * @return The centre of the rectangle in the y plane.
- */
-inline double centre_y(rectangle const &r)
-{
-  return (r.top() + r.bottom()) * 0.5;
-}
-
-/**
- * @return The centre of the recangle.
- */
-inline point2d centre(rectangle const &r)
-{
-  return {centre_x(r), centre_y(r)};
-}
 }
 
 #endif //EZGL_RECTANGLE_HPP
