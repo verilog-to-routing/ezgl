@@ -21,15 +21,17 @@ void camera::update_screen(int width, int height)
 {
   m_screen_width = width;
   m_screen_height = height;
+
+  // A change in the width/height will impact the view.
+  update_view(m_view);
 }
 
 void camera::update_bounds(rectangle bounds)
 {
   m_bounds = bounds;
-  m_view = bounds;
 
-  // Reset scaling to 1.0 for both x and y.
-  m_world_to_screen = scale_transform{};
+  // Reset the view to the new bounds given.
+  update_view(bounds);
 }
 
 void camera::update_view(rectangle view)

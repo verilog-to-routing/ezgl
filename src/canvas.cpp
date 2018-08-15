@@ -30,6 +30,9 @@ gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointe
   // Something has changed, recreate the surface.
   surface = create_surface(widget);
 
+  // The camera needs to be updated before we start drawing again.
+  ezgl_canvas->m_camera.update_screen(ezgl_canvas->width(), ezgl_canvas->height());
+
   // Draw to the newly created surface.
   ezgl_canvas->redraw();
 
