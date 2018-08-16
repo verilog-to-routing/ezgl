@@ -51,14 +51,6 @@ void camera::update_screen(int width, int height)
   update_view(m_view);
 }
 
-void camera::update_view(rectangle view)
-{
-  m_view = maintain_aspect_ratio(view, m_screen_width, m_screen_height);
-
-  m_x_scale = m_view.width() / m_coordinate_system.width();
-  m_y_scale = m_view.height() / m_coordinate_system.height();
-}
-
 point2d camera::world_to_screen(point2d world_coordinates) const
 {
   double const x = world_coordinates.x() * m_x_scale + m_view.left();
@@ -67,11 +59,11 @@ point2d camera::world_to_screen(point2d world_coordinates) const
   return {x, -y};
 }
 
-rectangle camera::world_to_screen(rectangle wc) const
+void camera::update_view(rectangle view)
 {
-  point2d const bottom_left = world_to_screen({wc.left(), wc.bottom()});
-  point2d const top_right = world_to_screen({wc.right(), wc.top()});
+  m_view = maintain_aspect_ratio(view, m_screen_width, m_screen_height);
 
-  return {bottom_left, top_right};
+  m_x_scale = m_view.width() / m_coordinate_system.width();
+  m_y_scale = m_view.height() / m_coordinate_system.height();
 }
 }
