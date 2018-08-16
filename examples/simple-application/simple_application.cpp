@@ -95,8 +95,7 @@ void setup_callbacks(ezgl::application *application)
   GObject *main_canvas = application->get_object("MainCanvas");
 
   // Connect our click_mouse function to mouse presses and releases in the MainWindow.
-  g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(click_mouse), nullptr);
-  g_signal_connect(main_canvas, "button_release_event", G_CALLBACK(click_mouse), nullptr);
+  g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(click_mouse), application);
 }
 
 gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
@@ -107,12 +106,16 @@ gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
   return FALSE; // propagate the event
 }
 
-gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
+gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
 {
+  auto application = static_cast<ezgl::application *>(data);
+
   if(event->type == GDK_BUTTON_PRESS) {
-    std::cout << "User clicked mouse at " << event->x << ", " << event->y << "\n";
-  } else if(event->type == GDK_BUTTON_RELEASE) {
-    std::cout << "User released mouse button at " << event->x << ", " << event->y << "\n";
+    std::cout << "Click (screen): " << event->x << ", " << event->y << "\n";
+
+    ezgl::point2d const world =
+        application->get_canvas("MainCanvas")->get_camera().screen_to_world({event->x, event->y});
+    std::cout << "Click (world): " << world.x << ", " << world.y << "\n";
   }
 
   return TRUE; // consume the event

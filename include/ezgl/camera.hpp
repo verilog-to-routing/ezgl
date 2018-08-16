@@ -19,6 +19,8 @@ public:
    */
   point2d world_to_screen(point2d world_coordinates) const;
 
+  point2d screen_to_world(point2d screen_coordinates) const;
+
 protected:
   // Only an ezgl::canvas can create a camera.
   friend class canvas;
@@ -57,6 +59,7 @@ private:
 
   // The x and y scaling factors.
   point2d m_scale = {1.0, 1.0};
+  point2d m_inverse_scale = {1.0, 1.0};
 };
 }
 

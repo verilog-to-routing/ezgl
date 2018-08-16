@@ -51,9 +51,23 @@ point2d camera::world_to_screen(point2d world_coordinates) const
 
   // Translate the screen coordinates so that they fit within the view.
   screen_coordinates += point2d{m_view.left(), -m_view.top()};
-
   // Cairo uses a flipped y-axis.
-  return {screen_coordinates.x, -screen_coordinates.y};
+  screen_coordinates.y = -screen_coordinates.y;
+
+  return screen_coordinates;
+}
+
+point2d camera::screen_to_world(point2d screen_coordinates) const
+{
+  point2d const view_origin(m_view.left(), m_view.bottom());
+
+  // Project the screen coordinates to the world coordinates.
+  point2d world_coordinates = (screen_coordinates - view_origin) * m_inverse_scale;
+
+  world_coordinates += point2d{m_world.left(), -m_world.top()};
+  world_coordinates.y = -world_coordinates.y;
+
+  return world_coordinates;
 }
 
 void camera::update_screen(int width, int height)
@@ -68,5 +82,8 @@ void camera::update_scale_factor(rectangle view, rectangle world)
 {
   m_scale.x = view.width() / world.width();
   m_scale.y = view.height() / world.height();
+
+  m_inverse_scale.x = 1 / m_scale.x;
+  m_inverse_scale.y = 1 / m_scale.y;
 }
 }
