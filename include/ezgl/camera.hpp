@@ -19,6 +19,16 @@ public:
    */
   point2d world_to_screen(point2d world_coordinates) const;
 
+  /**
+   * Update the world coordinate system of the camera.
+   *
+   * Your coordinate system's aspect ratio (i.e., width to height ratio) will be maintained according to the size of
+   * the GTK widget.
+   *
+   * If you call this function, it will reset the camera's view (undoing any previous transformations, like zooming).
+   */
+  void set_visible_world(rectangle coordinate_system);
+
 protected:
   // Only an ezgl::canvas can create a camera.
   friend class canvas;
