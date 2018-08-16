@@ -5,6 +5,7 @@
 #include <gtk/gtk.h>
 
 #include <cassert>
+#include <cmath>
 
 namespace ezgl {
 
@@ -102,6 +103,10 @@ void canvas::initialize(GtkWidget *drawing_area)
 void canvas::redraw()
 {
   cairo_t *context = cairo_create(m_surface);
+
+  // Clear the screen.
+  cairo_set_source_rgb(context, 1, 1, 1);
+  cairo_paint(context);
 
   renderer g(context, &m_camera);
   m_draw_callback(g);
