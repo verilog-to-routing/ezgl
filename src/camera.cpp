@@ -5,7 +5,40 @@
 
 namespace ezgl {
 
-camera::camera(rectangle bounds) : m_view(bounds)
+rectangle maintain_aspect_ratio(rectangle const &view, int screen_width, int screen_height)
+{
+  double const x_scale = screen_width / view.width();
+  double const y_scale = screen_height / view.height();
+
+  double x_start = 0.0;
+  double y_start = 0.0;
+  double new_width;
+  double new_height;
+
+  if(x_scale * view.height() > screen_height) {
+    // Using x_scale causes the view to be larger than the screen's height.
+
+    // Keep the same height as the screen.
+    new_height = screen_height;
+    // Scale the width to maintain the aspect ratio.
+    new_width = view.width() * y_scale;
+    // Keep the view in the centre of the screen.
+    x_start = 0.5 * std::fabs(screen_width - new_width);
+  } else {
+    // Using x_scale keeps the view within the screen's height.
+
+    // Keep the width the same as the screen.
+    new_width = screen_width;
+    // Scale the height to maintain the aspect ratio.
+    new_height = view.height() * x_scale;
+    // Keep the view in the centre of the screen.
+    y_start = 0.5 * std::fabs(screen_height - new_height);
+  }
+
+  return {{x_start, y_start}, new_width, new_height};
+}
+
+camera::camera(rectangle bounds) : m_coordinate_system(bounds), m_view(bounds)
 {
 }
 
@@ -20,24 +53,18 @@ void camera::update_screen(int width, int height)
 
 void camera::update_view(rectangle view)
 {
-  double x_scale = m_screen_width / view.width();
-  double y_scale = m_screen_height / view.height();
+  m_view = maintain_aspect_ratio(view, m_screen_width, m_screen_height);
 
-  if(x_scale * view.height() > m_screen_height) {
-    m_world_to_screen.x = y_scale;
-    m_world_to_screen.y = -y_scale;
-  } else {
-    m_world_to_screen.x = x_scale;
-    m_world_to_screen.y = -x_scale;
-  }
+  m_x_scale = m_view.width() / m_coordinate_system.width();
+  m_y_scale = m_view.height() / m_coordinate_system.height();
 }
 
 point2d camera::world_to_screen(point2d world_coordinates) const
 {
-  double const x = (world_coordinates.x() - m_view.left()) * m_world_to_screen.x;
-  double const y = (world_coordinates.y() - m_view.top()) * m_world_to_screen.y;
+  double const x = world_coordinates.x() * m_x_scale + m_view.left();
+  double const y = world_coordinates.y() * m_y_scale - m_view.top();
 
-  return {x, y};
+  return {x, -y};
 }
 
 rectangle camera::world_to_screen(rectangle wc) const
