@@ -87,18 +87,13 @@ enum class line_dash : int {
 };
 
 /**
- * A thin wrapper around a cairo graphics state.
+ * Provides functions to draw primitives (e.g., lines, shapes) to a rendering context.
+ *
+ * The renderer modifies a cairo_t context based on draw calls. The renderer uses an ezgl::camera object to convert
+ * world coordinates into cairo's expected coordinate system.
  */
-class graphics {
+class renderer {
 public:
-  /**
-   * Constructor.
-   *
-   * @param cairo The cairo graphics state.
-   * @param cam The ezgl::camera for converting to screen coordinates.
-   */
-  graphics(cairo_t *cairo, camera *cam);
-
   /**
    * Change the colour for subsequent draw calls.
    *
@@ -235,6 +230,18 @@ public:
    * @param text The text to draw.
    */
   void draw_text(point2d centre, std::string const &text);
+
+protected:
+  // Only the canvas class can create a renderer.
+  friend class canvas;
+
+  /**
+   * Constructor.
+   *
+   * @param cairo The cairo graphics state.
+   * @param cam The ezgl::camera for converting to screen coordinates.
+   */
+  renderer(cairo_t *cairo, camera *cam);
 
 private:
   void draw_rectangle_path(point2d start, point2d end);

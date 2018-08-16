@@ -103,7 +103,7 @@ void canvas::redraw()
 {
   cairo_t *context = cairo_create(m_surface);
 
-  graphics g(context, &m_camera);
+  renderer g(context, &m_camera);
   m_draw_callback(g);
 
   cairo_destroy(context);

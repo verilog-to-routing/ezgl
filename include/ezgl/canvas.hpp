@@ -11,12 +11,12 @@
 
 namespace ezgl {
 
-class graphics;
+class renderer;
 
 /**
  * The signature of a function that draws to the canvas.
  */
-using draw_canvas_fn = void (*)(graphics &);
+using draw_canvas_fn = void (*)(renderer &);
 
 /**
  * Responsible for creating, destroying, and maintaining the rendering context of a GtkWidget.

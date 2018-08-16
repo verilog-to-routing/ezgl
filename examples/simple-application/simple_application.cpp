@@ -38,7 +38,7 @@ gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
  *
  * The graphics object expects that x and y values will be in the main canvas' world coordinate system.
  */
-void draw_main_canvas(ezgl::graphics &g);
+void draw_main_canvas(ezgl::renderer &g);
 
 /**
  * Connect the press_key(), click_mouse(), and draw_canvas() functions to signals emitted by different GUI objects.
@@ -118,7 +118,7 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
   return TRUE; // consume the event
 }
 
-void draw_main_canvas(ezgl::graphics &g)
+void draw_main_canvas(ezgl::renderer &g)
 {
   // Change the next draw calls to use the colour red.
   g.set_colour(ezgl::RED);
