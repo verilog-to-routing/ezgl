@@ -48,9 +48,7 @@ protected:
   void update_screen(int width, int height);
 
 private:
-  int m_screen_width = 0;
-  int m_screen_height = 0;
-
+  rectangle m_screen;
   rectangle m_coordinate_system;
   rectangle m_view;
 

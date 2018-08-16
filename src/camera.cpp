@@ -5,7 +5,7 @@
 
 namespace ezgl {
 
-rectangle maintain_aspect_ratio(rectangle const &view, int screen_width, int screen_height)
+rectangle maintain_aspect_ratio(rectangle const &view, double screen_width, double screen_height)
 {
   double const x_scale = screen_width / view.width();
   double const y_scale = screen_height / view.height();
@@ -38,7 +38,8 @@ rectangle maintain_aspect_ratio(rectangle const &view, int screen_width, int scr
   return {{x_start, y_start}, new_width, new_height};
 }
 
-camera::camera(rectangle bounds) : m_coordinate_system(bounds), m_view(bounds), m_scale(1.0, 1.0)
+camera::camera(rectangle bounds)
+    : m_screen({0, 0}, 1.0, 1.0), m_coordinate_system(bounds), m_view(bounds), m_scale(1.0, 1.0)
 {
 }
 
@@ -60,8 +61,7 @@ void camera::set_visible_world(rectangle coordinate_system)
 
 void camera::update_screen(int width, int height)
 {
-  m_screen_width = width;
-  m_screen_height = height;
+  m_screen = rectangle{{0, 0}, static_cast<double>(width), static_cast<double>(height)};
 
   // A change in the width/height will impact the view.
   update_view(m_view);
@@ -69,7 +69,7 @@ void camera::update_screen(int width, int height)
 
 void camera::update_view(rectangle view)
 {
-  m_view = maintain_aspect_ratio(view, m_screen_width, m_screen_height);
+  m_view = maintain_aspect_ratio(view, m_screen.width(), m_screen.height());
 
   m_scale.x = m_view.width() / m_coordinate_system.width();
   m_scale.y = m_view.height() / m_coordinate_system.height();
