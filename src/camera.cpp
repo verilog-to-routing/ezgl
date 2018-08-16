@@ -50,27 +50,17 @@ point2d camera::world_to_screen(point2d world_coordinates) const
   return {x, -y};
 }
 
-void camera::set_visible_world(rectangle coordinate_system)
-{
-  m_world = coordinate_system;
-  m_view = coordinate_system;
-
-  update_view(m_view);
-}
-
 void camera::update_screen(int width, int height)
 {
   m_screen = rectangle{{0, 0}, static_cast<double>(width), static_cast<double>(height)};
 
-  // A change in the width/height will impact the view.
-  update_view(m_view);
+  m_view = maintain_aspect_ratio(m_view, m_screen.width(), m_screen.height());
+  update_scale_factor(m_view, m_world);
 }
 
-void camera::update_view(rectangle view)
+void camera::update_scale_factor(rectangle view, rectangle world)
 {
-  m_view = maintain_aspect_ratio(view, m_screen.width(), m_screen.height());
-
-  m_scale.x = m_view.width() / m_world.width();
-  m_scale.y = m_view.height() / m_world.height();
+  m_scale.x = view.width() / world.width();
+  m_scale.y = view.height() / world.height();
 }
 }
