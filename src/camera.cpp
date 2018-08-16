@@ -7,6 +7,10 @@ namespace ezgl {
 
 rectangle maintain_aspect_ratio(rectangle const &view, double screen_width, double screen_height)
 {
+  // Add a bit of padding so that the borders of the view are not hard to see.
+  screen_height -= 1.0;
+  screen_width -= 1.0;
+
   double const x_scale = screen_width / view.width();
   double const y_scale = screen_height / view.height();
 
