@@ -91,7 +91,7 @@ public:
   /**
    * @return The width of the rectangle.
    */
-  double width()
+  double width() const
   {
     return right() - left();
   }
@@ -99,7 +99,7 @@ public:
   /**
    * @return The height of the rectangle.
    */
-  double height()
+  double height() const
   {
     return top() - bottom();
   }
@@ -108,7 +108,7 @@ public:
    *
    * @return The area of the rectangle.
    */
-  double area()
+  double area() const
   {
     return width() * height();
   }
@@ -116,7 +116,7 @@ public:
   /**
    * @return The centre of the rectangle in the x plane.
    */
-  double centre_x()
+  double centre_x() const
   {
     return (right() + left()) * 0.5;
   }
@@ -124,7 +124,7 @@ public:
   /**
    * @return The centre of the rectangle in the y plane.
    */
-  double centre_y()
+  double centre_y() const
   {
     return (top() + bottom()) * 0.5;
   }
@@ -132,7 +132,7 @@ public:
   /**
    * @return The centre of the recangle.
    */
-  point2d centre()
+  point2d centre() const
   {
     return {centre_x(), centre_y()};
   }
