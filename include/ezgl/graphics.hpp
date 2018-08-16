@@ -95,6 +95,7 @@ public:
    * Constructor.
    *
    * @param cairo The cairo graphics state.
+   * @param cam The ezgl::camera for converting to screen coordinates.
    */
   graphics(cairo_t *cairo, camera *cam);
 

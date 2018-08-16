@@ -28,7 +28,7 @@ public:
   }
 
   /**
-   * @return The minimum x-coordinate.
+   * The minimum x-coordinate.
    */
   double left() const
   {
@@ -36,7 +36,7 @@ public:
   }
 
   /**
-   * @return The maximum x-coordinate.
+   * The maximum x-coordinate.
    */
   double right() const
   {
@@ -44,7 +44,7 @@ public:
   }
 
   /**
-   * @return The minimum y-coordinate.
+   * The minimum y-coordinate.
    */
   double bottom() const
   {
@@ -52,7 +52,7 @@ public:
   }
 
   /**
-   * @return The maximum y-coordinate.
+   * The maximum y-coordinate.
    */
   double top() const
   {
@@ -60,7 +60,7 @@ public:
   }
 
   /**
-   * @return true if x and y are inside the rectangle, false otherwise.
+   * Test if the x and y values are within the rectangle.
    */
   bool contains(double x, double y) const
   {
@@ -72,11 +72,60 @@ public:
   }
 
   /**
-   * @return true if the point is inside the rectangle, false otherwise.
+   * Test if the x and y values are within the rectangle.
    */
   bool contains(point2d point) const
   {
     return contains(point.x(), point.y());
+  }
+
+  /**
+   * The width of the rectangle.
+   */
+  double width() const
+  {
+    return right() - left();
+  }
+
+  /**
+   * The height of the rectangle.
+   */
+  double height() const
+  {
+    return top() - bottom();
+  }
+
+  /**
+   *
+   * The area of the rectangle.
+   */
+  double area() const
+  {
+    return width() * height();
+  }
+
+  /**
+   * The centre of the rectangle in the x plane.
+   */
+  double centre_x() const
+  {
+    return (right() + left()) * 0.5;
+  }
+
+  /**
+   * The centre of the rectangle in the y plane.
+   */
+  double centre_y() const
+  {
+    return (top() + bottom()) * 0.5;
+  }
+
+  /**
+   * The centre of the recangle.
+   */
+  point2d centre() const
+  {
+    return {centre_x(), centre_y()};
   }
 
   /**
@@ -86,55 +135,6 @@ public:
   {
     m_first.offset(x_offset, y_offset);
     m_second.offset(x_offset, y_offset);
-  }
-
-  /**
-   * @return The width of the rectangle.
-   */
-  double width() const
-  {
-    return right() - left();
-  }
-
-  /**
-   * @return The height of the rectangle.
-   */
-  double height() const
-  {
-    return top() - bottom();
-  }
-
-  /**
-   *
-   * @return The area of the rectangle.
-   */
-  double area() const
-  {
-    return width() * height();
-  }
-
-  /**
-   * @return The centre of the rectangle in the x plane.
-   */
-  double centre_x() const
-  {
-    return (right() + left()) * 0.5;
-  }
-
-  /**
-   * @return The centre of the rectangle in the y plane.
-   */
-  double centre_y() const
-  {
-    return (top() + bottom()) * 0.5;
-  }
-
-  /**
-   * @return The centre of the recangle.
-   */
-  point2d centre() const
-  {
-    return {centre_x(), centre_y()};
   }
 
   /**

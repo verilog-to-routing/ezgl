@@ -18,6 +18,15 @@ class graphics;
  */
 using draw_canvas_fn = void (*)(graphics &);
 
+/**
+ * Responsible for creating, destroying, and maintaining the rendering context of a GtkWidget.
+ *
+ * Underneath, the class relies on a GtkDrawingArea as its GUI widget along with cairo to provide the rendering context.
+ * The class connects to the relevant GTK signals, namely configure and draw events, to remain responsive.
+ *
+ * Each canvas is double-buffered. A draw callback (see: ezgl::draw_canvas_fn) is invoked each time the canvas needs to
+ * be redrawn. This may be caused by the user (e.g., resizing the screen), but can also be forced by the programmer.
+ */
 class canvas {
 public:
   /**
@@ -43,6 +52,11 @@ public:
    */
   int height() const;
 
+  /**
+   * Force the canvas to redraw itself.
+   *
+   * This will invoke the ezgl::draw_canvas_fn callback and queue a redraw of the GtkWidget.
+   */
   void redraw();
 
 protected:

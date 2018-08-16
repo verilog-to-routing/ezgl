@@ -33,7 +33,12 @@ gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
  */
 gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 
-void draw_screen(ezgl::graphics &g);
+/**
+ * Draw to the main canvas using the provided graphics object.
+ *
+ * The graphics object expects that x and y values will be in the main canvas' world coordinate system.
+ */
+void draw_main_canvas(ezgl::graphics &g);
 
 /**
  * Connect the press_key(), click_mouse(), and draw_canvas() functions to signals emitted by different GUI objects.
@@ -70,7 +75,7 @@ int main(int argc, char **argv)
   // Create our EZGL application.
   ezgl::application application(settings);
 
-  application.add_canvas("MainCanvas", draw_screen, ezgl::rectangle({0, 0}, 1100, 1150));
+  application.add_canvas("MainCanvas", draw_main_canvas, ezgl::rectangle({0, 0}, 1100, 1150));
 
   // Run the application until the user quits.
   // This hands over all control to the GTK runtime---after this point
@@ -113,7 +118,7 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
   return TRUE; // consume the event
 }
 
-void draw_screen(ezgl::graphics &g)
+void draw_main_canvas(ezgl::graphics &g)
 {
   // Change the next draw calls to use the colour red.
   g.set_colour(ezgl::RED);

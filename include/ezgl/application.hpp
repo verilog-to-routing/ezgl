@@ -19,7 +19,7 @@ class application;
 /**
  * The signature of a function that connects GObject to functions via signals.
  *
- * @see application::register_callbacks_with, application::get_object.
+ * @see application::get_object.
  */
 using connect_g_objects_fn = void (*)(application *app);
 
@@ -108,6 +108,7 @@ public:
    *
    * @param canvas_id The id of the GtkDrawingArea in the XML file.
    * @param draw_callback The function to call that draws to this canvas.
+   * @param coordinate_system The initial coordinate system of this canvas.
    *
    * @return A pointer to the newly created cavas.
    */
