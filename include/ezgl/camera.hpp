@@ -54,8 +54,7 @@ private:
   rectangle m_coordinate_system;
   rectangle m_view;
 
-  double m_x_scale = 1.0;
-  double m_y_scale = 1.0;
+  point2d m_scale;
 
 private:
   void update_view(rectangle view);
