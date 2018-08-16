@@ -38,8 +38,7 @@ rectangle maintain_aspect_ratio(rectangle const &view, double screen_width, doub
   return {{x_start, y_start}, new_width, new_height};
 }
 
-camera::camera(rectangle bounds)
-    : m_screen({0, 0}, 1.0, 1.0), m_coordinate_system(bounds), m_view(bounds), m_scale(1.0, 1.0)
+camera::camera(rectangle bounds) : m_world(bounds), m_view(bounds)
 {
 }
 
@@ -53,7 +52,7 @@ point2d camera::world_to_screen(point2d world_coordinates) const
 
 void camera::set_visible_world(rectangle coordinate_system)
 {
-  m_coordinate_system = coordinate_system;
+  m_world = coordinate_system;
   m_view = coordinate_system;
 
   update_view(m_view);
@@ -71,7 +70,7 @@ void camera::update_view(rectangle view)
 {
   m_view = maintain_aspect_ratio(view, m_screen.width(), m_screen.height());
 
-  m_scale.x = m_view.width() / m_coordinate_system.width();
-  m_scale.y = m_view.height() / m_coordinate_system.height();
+  m_scale.x = m_view.width() / m_world.width();
+  m_scale.y = m_view.height() / m_world.height();
 }
 }

@@ -48,11 +48,17 @@ protected:
   void update_screen(int width, int height);
 
 private:
-  rectangle m_screen;
-  rectangle m_coordinate_system;
+  // The dimensions of the parent widget.
+  rectangle m_screen = {{0, 0}, 1.0, 1.0};
+
+  // The dimensions of the world (user-defined bounding box).
+  rectangle m_world;
+
+  // The dimensions of the view.
   rectangle m_view;
 
-  point2d m_scale;
+  // The x and y scaling factors.
+  point2d m_scale = {1.0, 1.0};
 
 private:
   void update_view(rectangle view);
