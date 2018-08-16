@@ -19,6 +19,9 @@ public:
    */
   point2d world_to_screen(point2d world_coordinates) const;
 
+  /**
+   * Convert a point in screen coordinates to world coordinates.
+   */
   point2d screen_to_world(point2d screen_coordinates) const;
 
 protected:
