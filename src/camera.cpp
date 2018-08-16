@@ -49,9 +49,8 @@ point2d camera::world_to_screen(point2d world_coordinates) const
   // Project the world coordinates to screen coordinates.
   point2d screen_coordinates = (world_coordinates - world_origin) * m_scale;
 
-  // Translate the screen coordinates so that they fit within the view.
+  // Translate the screen coordinates so that they fit within the view. Note that cairo uses a flipped y-axis.
   screen_coordinates += point2d{m_view.left(), -m_view.top()};
-  // Cairo uses a flipped y-axis.
   screen_coordinates.y = -screen_coordinates.y;
 
   return screen_coordinates;
@@ -64,6 +63,7 @@ point2d camera::screen_to_world(point2d screen_coordinates) const
   // Project the screen coordinates to the world coordinates.
   point2d world_coordinates = (screen_coordinates - view_origin) * m_inverse_scale;
 
+  // Translate the world coordinates -- needs to match what we did in world_to_screen.
   world_coordinates += point2d{m_world.left(), -m_world.top()};
   world_coordinates.y = -world_coordinates.y;
 
