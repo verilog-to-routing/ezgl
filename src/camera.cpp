@@ -44,8 +44,8 @@ camera::camera(rectangle bounds) : m_coordinate_system(bounds), m_view(bounds)
 
 point2d camera::world_to_screen(point2d world_coordinates) const
 {
-  double const x = world_coordinates.x() * m_x_scale + m_view.left();
-  double const y = world_coordinates.y() * m_y_scale - m_view.top();
+  double const x = world_coordinates.x * m_x_scale + m_view.left();
+  double const y = world_coordinates.y * m_y_scale - m_view.top();
 
   return {x, -y};
 }

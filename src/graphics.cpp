@@ -78,8 +78,8 @@ void renderer::draw_line(point2d start, point2d end)
   start = m_camera->world_to_screen(start);
   end = m_camera->world_to_screen(end);
 
-  cairo_move_to(m_cairo, start.x(), start.y());
-  cairo_line_to(m_cairo, end.x(), end.y());
+  cairo_move_to(m_cairo, start.x, start.y);
+  cairo_line_to(m_cairo, end.x, end.y);
 
   cairo_stroke(m_cairo);
 }
@@ -92,7 +92,7 @@ void renderer::draw_rectangle(point2d start, point2d end)
 
 void renderer::draw_rectangle(point2d start, double width, double height)
 {
-  draw_rectangle_path(start, {start.x() + width, start.y() + height});
+  draw_rectangle_path(start, {start.x + width, start.y + height});
   cairo_stroke(m_cairo);
 }
 
@@ -110,7 +110,7 @@ void renderer::fill_rectangle(point2d start, point2d end)
 
 void renderer::fill_rectangle(point2d start, double width, double height)
 {
-  draw_rectangle_path(start, {start.x() + width, start.y() + height});
+  draw_rectangle_path(start, {start.x + width, start.y + height});
   cairo_fill(m_cairo);
 }
 
@@ -126,11 +126,11 @@ void renderer::fill_poly(std::vector<point2d> const &points)
 
   point2d next_point = m_camera->world_to_screen(points[0]);
 
-  cairo_move_to(m_cairo, next_point.x(), next_point.y());
+  cairo_move_to(m_cairo, next_point.x, next_point.y);
 
   for(std::size_t i = 1; i < points.size(); ++i) {
     next_point = m_camera->world_to_screen(points[i]);
-    cairo_line_to(m_cairo, next_point.x(), next_point.y());
+    cairo_line_to(m_cairo, next_point.x, next_point.y);
   }
 
   cairo_close_path(m_cairo);
@@ -146,12 +146,12 @@ void renderer::draw_text(point2d centre, std::string const &text)
   cairo_font_extents(m_cairo, &font_extents);
 
   // see: https://www.cairographics.org/tutorial/#L1understandingtext
-  centre = {centre.x() - text_extents.x_bearing - (text_extents.width / 2),
-      centre.y() - font_extents.descent + (font_extents.height / 2)};
+  centre = {centre.x - text_extents.x_bearing - (text_extents.width / 2),
+      centre.y - font_extents.descent + (font_extents.height / 2)};
 
   centre = m_camera->world_to_screen(centre);
 
-  cairo_move_to(m_cairo, centre.x(), centre.y());
+  cairo_move_to(m_cairo, centre.x, centre.y);
   cairo_show_text(m_cairo, text.c_str());
 }
 
@@ -160,10 +160,10 @@ void renderer::draw_rectangle_path(point2d start, point2d end)
   start = m_camera->world_to_screen(start);
   end = m_camera->world_to_screen(end);
 
-  cairo_move_to(m_cairo, start.x(), start.y());
-  cairo_line_to(m_cairo, start.x(), end.y());
-  cairo_line_to(m_cairo, end.x(), end.y());
-  cairo_line_to(m_cairo, end.x(), start.y());
+  cairo_move_to(m_cairo, start.x, start.y);
+  cairo_line_to(m_cairo, start.x, end.y);
+  cairo_line_to(m_cairo, end.x, end.y);
+  cairo_line_to(m_cairo, end.x, start.y);
 
   cairo_close_path(m_cairo);
 }

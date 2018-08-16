@@ -24,7 +24,8 @@ public:
    */
   rectangle(point2d origin, double width, double height) : m_first(origin), m_second(origin)
   {
-    m_second.offset(width, height);
+    m_second.x += width;
+    m_second.y += height;
   }
 
   /**
@@ -32,7 +33,7 @@ public:
    */
   double left() const
   {
-    return std::min(m_first.x(), m_second.x());
+    return std::min(m_first.x, m_second.x);
   }
 
   /**
@@ -40,7 +41,7 @@ public:
    */
   double right() const
   {
-    return std::max(m_first.x(), m_second.x());
+    return std::max(m_first.x, m_second.x);
   }
 
   /**
@@ -48,7 +49,7 @@ public:
    */
   double bottom() const
   {
-    return std::min(m_first.y(), m_second.y());
+    return std::min(m_first.y, m_second.y);
   }
 
   /**
@@ -56,7 +57,7 @@ public:
    */
   double top() const
   {
-    return std::max(m_first.y(), m_second.y());
+    return std::max(m_first.y, m_second.y);
   }
 
   /**
@@ -76,7 +77,7 @@ public:
    */
   bool contains(point2d point) const
   {
-    return contains(point.x(), point.y());
+    return contains(point.x, point.y);
   }
 
   /**
@@ -126,15 +127,6 @@ public:
   point2d centre() const
   {
     return {centre_x(), centre_y()};
-  }
-
-  /**
-   * Move the rectangle along the x and y plane.
-   */
-  void offset(double x_offset, double y_offset)
-  {
-    m_first.offset(x_offset, y_offset);
-    m_second.offset(x_offset, y_offset);
   }
 
   /**

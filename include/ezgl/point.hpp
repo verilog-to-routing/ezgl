@@ -16,41 +16,26 @@ public:
   /**
    * Create a point at the given x and y position.
    */
-  point2d(double x, double y) : m_x(x), m_y(y)
+  point2d(double x_coord, double y_coord) : x(x_coord), y(y_coord)
   {
   }
 
   /**
    * Location of the x-coordinate.
    */
-  double x() const
-  {
-    return m_x;
-  }
+  double x = 0.0;
 
   /**
    * Location of the y-coordinate.
    */
-  double y() const
-  {
-    return m_y;
-  }
-
-  /**
-   * Move the point object in the x and y directions.
-   */
-  void offset(double x, double y)
-  {
-    m_x += x;
-    m_y += y;
-  }
+  double y = 0.0;
 
   /**
    * Test for equality.
    */
   friend bool operator==(point2d const &lhs, point2d const &rhs)
   {
-    return (lhs.m_x == rhs.m_x) && (lhs.m_y == rhs.m_y);
+    return (lhs.x == rhs.x) && (lhs.y == rhs.y);
   }
 
   /**
@@ -66,7 +51,7 @@ public:
    */
   friend point2d operator+(point2d const &lhs, point2d const &rhs)
   {
-    return {lhs.m_x + rhs.m_x, lhs.m_y + rhs.m_y};
+    return {lhs.x + rhs.x, lhs.y + rhs.y};
   }
 
   /**
@@ -74,8 +59,8 @@ public:
    */
   friend point2d &operator+=(point2d &lhs, point2d const &rhs)
   {
-    lhs.m_x += rhs.m_x;
-    lhs.m_y += rhs.m_y;
+    lhs.x += rhs.x;
+    lhs.y += rhs.y;
 
     return lhs;
   }
@@ -85,7 +70,7 @@ public:
    */
   friend point2d operator-(point2d const &lhs, point2d const &rhs)
   {
-    return {lhs.m_x - rhs.m_x, lhs.m_y - rhs.m_y};
+    return {lhs.x - rhs.x, lhs.y - rhs.y};
   }
 
   /**
@@ -93,8 +78,8 @@ public:
    */
   friend point2d &operator-=(point2d &lhs, point2d const &rhs)
   {
-    lhs.m_x -= rhs.m_x;
-    lhs.m_y -= rhs.m_y;
+    lhs.x -= rhs.x;
+    lhs.y -= rhs.y;
 
     return lhs;
   }
@@ -104,7 +89,7 @@ public:
    */
   friend point2d operator*(point2d const &lhs, point2d const &rhs)
   {
-    return {lhs.m_x * rhs.m_x, lhs.m_y * rhs.m_y};
+    return {lhs.x * rhs.x, lhs.y * rhs.y};
   }
 
   /**
@@ -112,15 +97,11 @@ public:
    */
   friend point2d &operator*=(point2d &lhs, point2d const &rhs)
   {
-    lhs.m_x *= rhs.m_x;
-    lhs.m_y *= rhs.m_y;
+    lhs.x *= rhs.x;
+    lhs.y *= rhs.y;
 
     return lhs;
   }
-
-private:
-  double m_x = 0.0;
-  double m_y = 0.0;
 };
 }
 
