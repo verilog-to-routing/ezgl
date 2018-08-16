@@ -44,10 +44,16 @@ camera::camera(rectangle bounds) : m_world(bounds), m_view(bounds)
 
 point2d camera::world_to_screen(point2d world_coordinates) const
 {
-  double const x = world_coordinates.x * m_scale.x + m_view.left();
-  double const y = world_coordinates.y * m_scale.y - m_view.top();
+  point2d const world_origin(m_world.left(), m_world.bottom());
 
-  return {x, -y};
+  // Project the world coordinates to screen coordinates.
+  point2d screen_coordinates = (world_coordinates - world_origin) * m_scale;
+
+  // Translate the screen coordinates so that they fit within the view.
+  screen_coordinates += point2d{m_view.left(), -m_view.top()};
+
+  // Cairo uses a flipped y-axis.
+  return {screen_coordinates.x, -screen_coordinates.y};
 }
 
 void camera::update_screen(int width, int height)
