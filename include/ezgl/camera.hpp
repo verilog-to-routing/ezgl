@@ -7,8 +7,6 @@ namespace ezgl {
 
 class camera {
 public:
-  explicit camera(rectangle bounds);
-
   void update_screen(int width, int height);
 
   void update_view(rectangle view);
@@ -17,10 +15,16 @@ public:
 
   rectangle world_to_screen(rectangle world_coordinates) const;
 
-  rectangle view() const
-  {
-    return m_view;
-  }
+protected:
+  // Only an ezgl::canvas can create a camera.
+  friend class canvas;
+
+  /**
+   * Create a camera.
+   *
+   * @param bounds The initial bounds of the coordinate system.
+   */
+  explicit camera(rectangle bounds);
 
 private:
   int m_screen_width = 0;
