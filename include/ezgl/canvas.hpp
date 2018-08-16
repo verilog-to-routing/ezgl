@@ -77,17 +77,20 @@ protected:
   void initialize(GtkWidget *drawing_area);
 
 private:
+  // Name of the canvas in XML.
   std::string m_canvas_id;
 
+  // The function to call when the widget needs to be redrawn.
   draw_canvas_fn m_draw_callback;
+
+  // The visible parts of the world.
+  camera m_camera;
 
   // A non-owning pointer to the drawing area inside a GTK window.
   GtkWidget *m_drawing_area = nullptr;
 
   // The off-screen surface that can be drawn to.
   cairo_surface_t *m_surface = nullptr;
-
-  camera m_camera;
 
 private:
   // Called each time our drawing area widget has changed (e.g., in size).

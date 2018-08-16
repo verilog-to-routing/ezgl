@@ -42,20 +42,20 @@ camera::camera(rectangle bounds) : m_coordinate_system(bounds), m_view(bounds)
 {
 }
 
-void camera::set_visible_world(rectangle coordinate_system)
-{
-  m_coordinate_system = coordinate_system;
-  m_view = coordinate_system;
-
-  update_view(m_view);
-}
-
 point2d camera::world_to_screen(point2d world_coordinates) const
 {
   double const x = world_coordinates.x() * m_x_scale + m_view.left();
   double const y = world_coordinates.y() * m_y_scale - m_view.top();
 
   return {x, -y};
+}
+
+void camera::set_visible_world(rectangle coordinate_system)
+{
+  m_coordinate_system = coordinate_system;
+  m_view = coordinate_system;
+
+  update_view(m_view);
 }
 
 void camera::update_screen(int width, int height)
