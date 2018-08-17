@@ -64,6 +64,11 @@ public:
     return m_camera;
   }
 
+  camera &get_camera()
+  {
+    return m_camera;
+  }
+
 protected:
   // Only the ezgl::application can create and initialize a canvas object.
   friend class application;

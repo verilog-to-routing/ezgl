@@ -5,6 +5,7 @@
  */
 
 #include <ezgl/application.hpp>
+#include <ezgl/control.hpp>
 #include <ezgl/graphics.hpp>
 
 #include <iostream>
@@ -111,11 +112,19 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
   auto application = static_cast<ezgl::application *>(data);
 
   if(event->type == GDK_BUTTON_PRESS) {
-    std::cout << "Click (screen): " << event->x << ", " << event->y << "\n";
+    std::cout << "Click (widget): " << event->x << ", " << event->y << "\n";
 
-    ezgl::point2d const world =
-      application->get_canvas("MainCanvas")->get_camera().widget_to_world({event->x, event->y});
+    ezgl::point2d const widget_coordinates(event->x, event->y);
+    ezgl::canvas *canvas = application->get_canvas("MainCanvas");
+
+    ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
     std::cout << "Click (world): " << world.x << ", " << world.y << "\n";
+
+    if(event->button == 1) {
+      ezgl::zoom_in(canvas, widget_coordinates, 5.0 / 3.0);
+    } else if(event->button == 3) {
+      ezgl::zoom_out(canvas, widget_coordinates, 5.0 / 3.0);
+    }
   }
 
   return TRUE; // consume the event
