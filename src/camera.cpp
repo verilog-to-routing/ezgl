@@ -42,10 +42,17 @@ camera::camera(rectangle bounds) : m_world(bounds), m_screen(bounds)
 {
 }
 
-point2d camera::screen_to_world(point2d widget_coordinates) const
+point2d camera::widget_to_screen(point2d widget_coordinates) const
 {
   point2d const screen_origin = {m_screen.left(), m_screen.bottom()};
   point2d screen_coordinates = widget_coordinates - screen_origin;
+
+  return screen_coordinates;
+}
+
+point2d camera::widget_to_world(point2d widget_coordinates) const
+{
+  point2d const screen_coordinates = widget_to_screen(widget_coordinates);
 
   point2d world_coordinates = screen_coordinates * m_screen_to_world;
 
@@ -73,7 +80,7 @@ point2d camera::world_to_screen(point2d world_coordinates) const
   return screen_coordinates;
 }
 
-void camera::update_screen(int width, int height)
+void camera::update_widget(int width, int height)
 {
   m_widget = rectangle{{0, 0}, static_cast<double>(width), static_cast<double>(height)};
 

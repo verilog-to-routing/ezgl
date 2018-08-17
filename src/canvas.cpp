@@ -34,7 +34,7 @@ gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointe
   surface = create_surface(widget);
 
   // The camera needs to be updated before we start drawing again.
-  ezgl_canvas->m_camera.update_screen(ezgl_canvas->width(), ezgl_canvas->height());
+  ezgl_canvas->m_camera.update_widget(ezgl_canvas->width(), ezgl_canvas->height());
 
   // Draw to the newly created surface.
   ezgl_canvas->redraw();
@@ -83,7 +83,7 @@ void canvas::initialize(GtkWidget *drawing_area)
 
   m_drawing_area = drawing_area;
   m_surface = create_surface(m_drawing_area);
-  m_camera.update_screen(width(), height());
+  m_camera.update_widget(width(), height());
 
   // Draw to the newly created surface for the first time.
   redraw();

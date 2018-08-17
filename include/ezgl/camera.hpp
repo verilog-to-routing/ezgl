@@ -8,9 +8,9 @@ namespace ezgl {
 /**
  * A class that manages how a world coordinate system is displayed on an ezgl::canvas.
  *
- * The camera class is maintained by the canvas object, which contains a GTK widget. The widget, in this case, is
- * considered to be the "screen". The widget may change in dimensions, in which case it is the canvas object's job to
- * update the camera.
+ * The camera class is maintained by the canvas object, which contains a GTK widget. The widget has its own dimensions,
+ * and its aspect ratio may not match the world coordinate system. The camera maintains a "screen" within the widget
+ * that keeps the same aspect ratio as the world coordinate system, regardless of the dimensions of the widget.
  */
 class camera {
 public:
@@ -20,9 +20,14 @@ public:
   point2d world_to_screen(point2d world_coordinates) const;
 
   /**
-   * Convert a point in screen coordinates to world coordinates.
+   * Convert a point in widget coordinates to screen coordinates.
    */
-  point2d screen_to_world(point2d widget_coordinates) const;
+  point2d widget_to_screen(point2d widget_coordinates) const;
+
+  /**
+   * Convert a point in widget coordinates to world coordinates.
+   */
+  point2d widget_to_world(point2d widget_coordinates) const;
 
 protected:
   // Only an ezgl::canvas can create a camera.
@@ -38,12 +43,12 @@ protected:
   /**
    * Update the dimensions of the widget.
    *
-   * This will change the view where the world is projected. The view will maintain the aspect ratio of the world's
+   * This will change the screen where the world is projected. The screen will maintain the aspect ratio of the world's
    * coordinate system while being centered within the screen.
    *
    * @see canvas::configure_event
    */
-  void update_screen(int width, int height);
+  void update_widget(int width, int height);
 
   /**
    * Update the scaling factors.
