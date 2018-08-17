@@ -14,7 +14,7 @@ namespace ezgl {
 class renderer;
 
 /**
- * The signature of a function that draws to the canvas.
+ * The signature of a function that draws to an ezgl::canvas.
  */
 using draw_canvas_fn = void (*)(renderer &);
 
@@ -59,11 +59,17 @@ public:
    */
   void redraw();
 
+  /**
+   * Get an immutable reference to this canvas' camera.
+   */
   camera const &get_camera() const
   {
     return m_camera;
   }
 
+  /**
+   * Get a mutable reference to this canvas' camera.
+   */
   camera &get_camera()
   {
     return m_camera;
@@ -93,7 +99,7 @@ private:
   // The function to call when the widget needs to be redrawn.
   draw_canvas_fn m_draw_callback;
 
-  // The visible parts of the world.
+  // The transformations between the GUI and the world.
   camera m_camera;
 
   // A non-owning pointer to the drawing area inside a GTK window.

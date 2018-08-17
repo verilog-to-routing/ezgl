@@ -4,15 +4,10 @@
 namespace ezgl {
 
 /**
- * Represents a two-dimensional point in Cartesian coordinates.
+ * Represents a two-dimensional point.
  */
 class point2d {
 public:
-  /**
-   * Create a point at the origin (0.0, 0.0).
-   */
-  point2d() = default;
-
   /**
    * Create a point at the given x and y position.
    */
@@ -47,7 +42,7 @@ public:
   }
 
   /**
-   * Add two points together and return the result.
+   * Create a new point that is the sum of two points.
    */
   friend point2d operator+(point2d const &lhs, point2d const &rhs)
   {
@@ -55,7 +50,7 @@ public:
   }
 
   /**
-   * Add the right-hand side to the left-hand side and store the result in the left-hand side.
+   * Add one point to another point.
    */
   friend point2d &operator+=(point2d &lhs, point2d const &rhs)
   {
@@ -66,7 +61,7 @@ public:
   }
 
   /**
-   * Subtract two points and return the result.
+   * Create a new point that is the difference of two points.
    */
   friend point2d operator-(point2d const &lhs, point2d const &rhs)
   {
@@ -74,7 +69,7 @@ public:
   }
 
   /**
-   * Subtract the right-hand side to the left-hand side and store the result in the left-hand side.
+   * Subtract one point from another point.
    */
   friend point2d &operator-=(point2d &lhs, point2d const &rhs)
   {
@@ -85,7 +80,7 @@ public:
   }
 
   /**
-   * Multiply two points and return the result.
+   * Create a new point that is the product of two points.
    */
   friend point2d operator*(point2d const &lhs, point2d const &rhs)
   {
@@ -93,7 +88,7 @@ public:
   }
 
   /**
-   * Multiply the right- and left-hand side and store the result in the left-hand side.
+   * Multiply one point with another point.
    */
   friend point2d &operator*=(point2d &lhs, point2d const &rhs)
   {

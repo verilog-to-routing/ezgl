@@ -24,9 +24,10 @@ class application;
 using connect_g_objects_fn = void (*)(application *app);
 
 /**
- * Represents the core application.
+ * The core application.
  *
- * EZGL applications consist of, at minimum, a main window (GtkWindow) and a main canvas (GtkDrawingArea).
+ * The GUI of an application is created from an XML file. Widgets created in the XML file can be retrieved from an
+ * application object, but only after the object has been initialized by GTK via application::run.
  */
 class application {
 public:
@@ -95,9 +96,13 @@ public:
   /**
    * Retrieve a pointer to a canvas that was previously added to the application.
    *
+   * Calling this function before application::run results in undefined behaviour.
+   *
    * @param canvas_id The key used when the canvas was added.
    *
    * @return A non-owning pointer, or nullptr if not found.
+   *
+   * @see application::get_object
    */
   canvas *get_canvas(std::string const &canvas_id) const;
 
@@ -160,6 +165,7 @@ private:
   // The function to call when the application is starting up.
   connect_g_objects_fn m_register_callbacks;
 
+  // The collection of canvases added to the application.
   std::map<std::string, std::unique_ptr<canvas>> m_canvases;
 
 private:

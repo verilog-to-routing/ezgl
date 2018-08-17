@@ -1,16 +1,22 @@
 #ifndef EZGL_CAMERA_HPP
 #define EZGL_CAMERA_HPP
 
+#include <ezgl/point.hpp>
 #include <ezgl/rectangle.hpp>
 
 namespace ezgl {
 
 /**
- * A class that manages how a world coordinate system is displayed on an ezgl::canvas.
+ * Manages the transformations between coordinate systems.
  *
- * The camera class is maintained by the canvas object, which contains a GTK widget. The widget has its own dimensions,
- * and its aspect ratio may not match the world coordinate system. The camera maintains a "screen" within the widget
- * that keeps the same aspect ratio as the world coordinate system, regardless of the dimensions of the widget.
+ * The camera class manages transformations between a GTK widget, world, and "screen" coordinate system. A GTK widget
+ * has dimensions that change based on the user, and its aspect ratio may not match the world coordinate system. The
+ * camera maintains a "screen" within the widget that keeps the same aspect ratio as the world coordinate system,
+ * regardless of the dimensions of the widget.
+ *
+ * A camera object can only be created by an ezgl::canvas object, who has the responsibility of updating the camera with
+ * changes to the widget's dimensions. The only state that can be mutated outside the library is the camera's world
+ * coordinate system.
  */
 class camera {
 public:

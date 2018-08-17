@@ -8,7 +8,7 @@
 namespace ezgl {
 
 /**
- * Represents a rectangle as two diagonally opposite points in a Cartesian plane.
+ * Represents a rectangle as two diagonally opposite points.
  */
 class rectangle {
 public:
