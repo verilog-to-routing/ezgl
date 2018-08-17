@@ -1,12 +1,10 @@
 #include "ezgl/graphics.hpp"
 
-#include "ezgl/camera.hpp"
-
 #include <cassert>
 
 namespace ezgl {
 
-renderer::renderer(cairo_t *cairo, camera *cam) : m_cairo(cairo), m_camera(cam)
+renderer::renderer(cairo_t *cairo, transform_fn transform) : m_cairo(cairo), m_transform(std::move(transform))
 {
 }
 
@@ -75,8 +73,8 @@ void renderer::format_font(std::string const &family,
 
 void renderer::draw_line(point2d start, point2d end)
 {
-  start = m_camera->world_to_screen(start);
-  end = m_camera->world_to_screen(end);
+  start = m_transform(start);
+  end = m_transform(end);
 
   cairo_move_to(m_cairo, start.x, start.y);
   cairo_line_to(m_cairo, end.x, end.y);
@@ -124,12 +122,11 @@ void renderer::fill_poly(std::vector<point2d> const &points)
 {
   assert(points.size() > 1);
 
-  point2d next_point = m_camera->world_to_screen(points[0]);
-
+  point2d next_point = m_transform(points[0]);
   cairo_move_to(m_cairo, next_point.x, next_point.y);
 
   for(std::size_t i = 1; i < points.size(); ++i) {
-    next_point = m_camera->world_to_screen(points[i]);
+    next_point = m_transform(points[i]);
     cairo_line_to(m_cairo, next_point.x, next_point.y);
   }
 
@@ -149,7 +146,7 @@ void renderer::draw_text(point2d centre, std::string const &text)
   centre = {centre.x - text_extents.x_bearing - (text_extents.width / 2),
       centre.y - font_extents.descent + (font_extents.height / 2)};
 
-  centre = m_camera->world_to_screen(centre);
+  centre = m_transform(centre);
 
   cairo_move_to(m_cairo, centre.x, centre.y);
   cairo_show_text(m_cairo, text.c_str());
@@ -157,8 +154,8 @@ void renderer::draw_text(point2d centre, std::string const &text)
 
 void renderer::draw_rectangle_path(point2d start, point2d end)
 {
-  start = m_camera->world_to_screen(start);
-  end = m_camera->world_to_screen(end);
+  start = m_transform(start);
+  end = m_transform(end);
 
   cairo_move_to(m_cairo, start.x, start.y);
   cairo_line_to(m_cairo, start.x, end.y);

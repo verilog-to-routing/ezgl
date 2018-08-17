@@ -7,12 +7,11 @@
 
 #include <cairo.h>
 
+#include <functional>
 #include <string>
 #include <vector>
 
 namespace ezgl {
-
-class camera;
 
 /**
  * The slant of the font.
@@ -236,12 +235,17 @@ protected:
   friend class canvas;
 
   /**
+   * A callback for transforming points from one coordinate system to another.
+   */
+  using transform_fn = std::function<point2d(point2d)>;
+
+  /**
    * Constructor.
    *
    * @param cairo The cairo graphics state.
-   * @param cam The ezgl::camera for converting to screen coordinates.
+   * @param transform The function to use to transform points to cairo's coordinate system.
    */
-  renderer(cairo_t *cairo, camera *cam);
+  renderer(cairo_t *cairo, transform_fn transform);
 
 private:
   void draw_rectangle_path(point2d start, point2d end);
@@ -249,8 +253,7 @@ private:
   // A non-owning pointer to a cairo graphics context.
   cairo_t *m_cairo;
 
-  // A non-owning pointer to the camera.
-  camera *m_camera;
+  transform_fn m_transform;
 };
 }
 

@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <functional>
 
 namespace ezgl {
 
@@ -108,7 +109,8 @@ void canvas::redraw()
   cairo_set_source_rgb(context, 1, 1, 1);
   cairo_paint(context);
 
-  renderer g(context, &m_camera);
+  using namespace std::placeholders;
+  renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1));
   m_draw_callback(g);
 
   cairo_destroy(context);
