@@ -80,6 +80,13 @@ point2d camera::world_to_screen(point2d world_coordinates) const
   return screen_coordinates;
 }
 
+rectangle camera::set_world(rectangle new_world)
+{
+  m_world = new_world;
+
+  update_scale_factors();
+}
+
 void camera::update_widget(int width, int height)
 {
   m_widget = rectangle{{0, 0}, static_cast<double>(width), static_cast<double>(height)};

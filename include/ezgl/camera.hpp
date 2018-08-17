@@ -29,6 +29,19 @@ public:
    */
   point2d widget_to_world(point2d widget_coordinates) const;
 
+  /**
+   * Get the currently visible bounds of the world.
+   */
+  rectangle get_world() const
+  {
+    return m_world;
+  }
+
+  /**
+   * Update the bounds of the world.
+   */
+  rectangle set_world(rectangle new_world);
+
 protected:
   // Only an ezgl::canvas can create a camera.
   friend class canvas;
