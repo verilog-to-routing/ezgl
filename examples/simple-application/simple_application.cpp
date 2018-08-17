@@ -114,7 +114,7 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
     std::cout << "Click (screen): " << event->x << ", " << event->y << "\n";
 
     ezgl::point2d const world =
-        application->get_canvas("MainCanvas")->get_camera().screen_to_world({event->x, event->y});
+      application->get_canvas("MainCanvas")->get_camera().widget_to_world({event->x, event->y});
     std::cout << "Click (world): " << world.x << ", " << world.y << "\n";
   }
 
@@ -153,4 +153,9 @@ void draw_main_canvas(ezgl::renderer &g)
   g.set_colour(ezgl::DARK_SLATE_BLUE, 128);
   g.fill_rectangle({500, 50}, {600, 300}); // from one point to another
   g.fill_rectangle({500, 50}, 50, 50);     // from one point with a width and height
+
+  g.set_colour(ezgl::BLACK);
+  g.set_line_dash(ezgl::line_dash::none);
+  g.set_line_width(1);
+  g.draw_rectangle({0, 0}, 1100, 1150);
 }
