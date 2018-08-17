@@ -5,89 +5,91 @@
 
 namespace ezgl {
 
-rectangle maintain_aspect_ratio(rectangle const &view, double screen_width, double screen_height)
+rectangle maintain_aspect_ratio(rectangle const &view, double widget_width, double widget_height)
 {
-  // Add a bit of padding so that the borders of the view are not hard to see.
-  screen_height -= 1.0;
-  screen_width -= 1.0;
-
-  double const x_scale = screen_width / view.width();
-  double const y_scale = screen_height / view.height();
+  double const x_scale = widget_width / view.width();
+  double const y_scale = widget_height / view.height();
 
   double x_start = 0.0;
   double y_start = 0.0;
   double new_width;
   double new_height;
 
-  if(x_scale * view.height() > screen_height) {
-    // Using x_scale causes the view to be larger than the screen's height.
+  if(x_scale * view.height() > widget_height) {
+    // Using x_scale causes the view to be larger than the widget's height.
 
-    // Keep the same height as the screen.
-    new_height = screen_height;
+    // Keep the same height as the widget.
+    new_height = widget_height;
     // Scale the width to maintain the aspect ratio.
     new_width = view.width() * y_scale;
-    // Keep the view in the centre of the screen.
-    x_start = 0.5 * std::fabs(screen_width - new_width);
+    // Keep the view in the centre of the widget.
+    x_start = 0.5 * std::fabs(widget_width - new_width);
   } else {
-    // Using x_scale keeps the view within the screen's height.
+    // Using x_scale keeps the view within the widget's height.
 
-    // Keep the width the same as the screen.
-    new_width = screen_width;
+    // Keep the width the same as the widget.
+    new_width = widget_width;
     // Scale the height to maintain the aspect ratio.
     new_height = view.height() * x_scale;
-    // Keep the view in the centre of the screen.
-    y_start = 0.5 * std::fabs(screen_height - new_height);
+    // Keep the view in the centre of the widget.
+    y_start = 0.5 * std::fabs(widget_height - new_height);
   }
 
   return {{x_start, y_start}, new_width, new_height};
 }
 
-camera::camera(rectangle bounds) : m_world(bounds), m_view(bounds)
+camera::camera(rectangle bounds) : m_world(bounds), m_screen(bounds)
 {
 }
 
-point2d camera::world_to_screen(point2d world_coordinates) const
+point2d camera::screen_to_world(point2d widget_coordinates) const
 {
-  point2d const world_origin(m_world.left(), m_world.bottom());
+  point2d const screen_origin = {m_screen.left(), m_screen.bottom()};
+  point2d screen_coordinates = widget_coordinates - screen_origin;
 
-  // Project the world coordinates to screen coordinates.
-  point2d screen_coordinates = (world_coordinates - world_origin) * m_scale;
+  point2d world_coordinates = screen_coordinates * m_screen_to_world;
 
-  // Translate the screen coordinates so that they fit within the view. Note that cairo uses a flipped y-axis.
-  screen_coordinates += point2d{m_view.left(), -m_view.top()};
-  screen_coordinates.y = -screen_coordinates.y;
+  world_coordinates.x += m_world.left();
 
-  return screen_coordinates;
-}
-
-point2d camera::screen_to_world(point2d screen_coordinates) const
-{
-  point2d const view_origin(m_view.left(), m_view.bottom());
-
-  // Project the screen coordinates to the world coordinates.
-  point2d world_coordinates = (screen_coordinates - view_origin) * m_inverse_scale;
-
-  // Translate the world coordinates -- needs to match what we did in world_to_screen.
-  world_coordinates += point2d{m_world.left(), -m_world.top()};
-  world_coordinates.y = -world_coordinates.y;
+  // GTK and cairo use a flipped y-axis.
+  world_coordinates.y = (world_coordinates.y - m_world.top()) * -1.0;
 
   return world_coordinates;
 }
 
-void camera::update_screen(int width, int height)
+point2d camera::world_to_screen(point2d world_coordinates) const
 {
-  m_screen = rectangle{{0, 0}, static_cast<double>(width), static_cast<double>(height)};
+  point2d const world_origin{m_world.left(), m_world.bottom()};
+  point2d widget_coordinates = (world_coordinates - world_origin) * m_world_to_widget;
 
-  m_view = maintain_aspect_ratio(m_view, m_screen.width(), m_screen.height());
-  update_scale_factor(m_view, m_world);
+  // GTK and cairo use a flipped y-axis.
+  widget_coordinates.y = (widget_coordinates.y - m_widget.top()) * -1.0;
+
+  point2d screen_coordinates = widget_coordinates * m_widget_to_screen;
+
+  point2d const screen_origin = {m_screen.left(), m_screen.bottom()};
+  screen_coordinates = screen_coordinates + screen_origin;
+
+  return screen_coordinates;
 }
 
-void camera::update_scale_factor(rectangle view, rectangle world)
+void camera::update_screen(int width, int height)
 {
-  m_scale.x = view.width() / world.width();
-  m_scale.y = view.height() / world.height();
+  m_widget = rectangle{{0, 0}, static_cast<double>(width), static_cast<double>(height)};
 
-  m_inverse_scale.x = 1 / m_scale.x;
-  m_inverse_scale.y = 1 / m_scale.y;
+  m_screen = maintain_aspect_ratio(m_screen, m_widget.width(), m_widget.height());
+  update_scale_factors();
+}
+
+void camera::update_scale_factors()
+{
+  m_widget_to_screen.x = m_screen.width() / m_widget.width();
+  m_widget_to_screen.y = m_screen.height() / m_widget.height();
+
+  m_world_to_widget.x = m_widget.width() / m_world.width();
+  m_world_to_widget.y = m_widget.height() / m_world.height();
+
+  m_screen_to_world.x = m_world.width() / m_screen.width();
+  m_screen_to_world.y = m_world.height() / m_screen.height();
 }
 }

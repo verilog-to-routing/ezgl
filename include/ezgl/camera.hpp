@@ -22,7 +22,7 @@ public:
   /**
    * Convert a point in screen coordinates to world coordinates.
    */
-  point2d screen_to_world(point2d screen_coordinates) const;
+  point2d screen_to_world(point2d widget_coordinates) const;
 
 protected:
   // Only an ezgl::canvas can create a camera.
@@ -48,21 +48,22 @@ protected:
   /**
    * Update the scaling factors.
    */
-  void update_scale_factor(rectangle view, rectangle world);
+  void update_scale_factors();
 
 private:
   // The dimensions of the parent widget.
-  rectangle m_screen = {{0, 0}, 1.0, 1.0};
+  rectangle m_widget = {{0, 0}, 1.0, 1.0};
 
   // The dimensions of the world (user-defined bounding box).
   rectangle m_world;
 
-  // The dimensions of the view.
-  rectangle m_view;
+  // The dimensions of the screen, which may not match the widget.
+  rectangle m_screen;
 
   // The x and y scaling factors.
-  point2d m_scale = {1.0, 1.0};
-  point2d m_inverse_scale = {1.0, 1.0};
+  point2d m_world_to_widget = {1.0, 1.0};
+  point2d m_widget_to_screen = {1.0, 1.0};
+  point2d m_screen_to_world = {1.0, 1.0};
 };
 }
 
