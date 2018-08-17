@@ -8,7 +8,11 @@ namespace ezgl {
 
 class canvas;
 
+void zoom_in(canvas *cnv, double zoom_factor);
+
 void zoom_in(canvas *cnv, point2d zoom_point, double zoom_factor);
+
+void zoom_out(canvas *cnv, double zoom_factor);
 
 void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor);
 

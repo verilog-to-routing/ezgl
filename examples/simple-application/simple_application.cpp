@@ -5,6 +5,8 @@
  */
 
 #include <ezgl/application.hpp>
+#include <ezgl/camera.hpp>
+#include <ezgl/canvas.hpp>
 #include <ezgl/control.hpp>
 #include <ezgl/graphics.hpp>
 
@@ -103,7 +105,29 @@ void setup_callbacks(ezgl::application *application)
   g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(click_mouse), application);
 
   GObject *zoom_fit_button = application->get_object("ZoomFitButton");
-  g_signal_connect(zoom_fit_button, "clicked", G_CALLBACK(zoom_fit_cb), application);
+  g_signal_connect(zoom_fit_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
+    auto app = static_cast<ezgl::application *>(data);
+    ezgl::zoom_fit(app->get_canvas("MainCanvas"), initial_world);
+  }),
+      application);
+
+  GObject *zoom_in_button = application->get_object("ZoomInButton");
+  g_signal_connect(zoom_in_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
+    auto app = static_cast<ezgl::application *>(data);
+    auto canvas = app->get_canvas("MainCanvas");
+
+    ezgl::zoom_in(canvas, 5.0 / 3.0);
+  }),
+      application);
+
+  GObject *zoom_out_button = application->get_object("ZoomOutButton");
+  g_signal_connect(zoom_out_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
+    auto app = static_cast<ezgl::application *>(data);
+    auto canvas = app->get_canvas("MainCanvas");
+
+    ezgl::zoom_out(canvas, 5.0 / 3.0);
+  }),
+      application);
 }
 
 gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
@@ -135,14 +159,6 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
   }
 
   return TRUE; // consume the event
-}
-
-void zoom_fit_cb(GtkWidget *, gpointer data)
-{
-  auto application = static_cast<ezgl::application *>(data);
-  ezgl::canvas *canvas = application->get_canvas("MainCanvas");
-
-  ezgl::zoom_fit(canvas, initial_world);
 }
 
 void draw_main_canvas(ezgl::renderer &g)
