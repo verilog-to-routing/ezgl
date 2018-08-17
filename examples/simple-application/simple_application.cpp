@@ -34,6 +34,8 @@ gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
  */
 gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 
+void zoom_fit_cb(GtkWidget *widget, gpointer data);
+
 /**
  * Draw to the main canvas using the provided graphics object.
  *
@@ -47,6 +49,8 @@ void draw_main_canvas(ezgl::renderer &g);
  * @param application The application gives access to the GUI objects.
  */
 void setup_callbacks(ezgl::application *application);
+
+static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
 
 /**
  * The start point of the program.
@@ -76,7 +80,7 @@ int main(int argc, char **argv)
   // Create our EZGL application.
   ezgl::application application(settings);
 
-  application.add_canvas("MainCanvas", draw_main_canvas, ezgl::rectangle({0, 0}, 1100, 1150));
+  application.add_canvas("MainCanvas", draw_main_canvas, initial_world);
 
   // Run the application until the user quits.
   // This hands over all control to the GTK runtime---after this point
@@ -97,6 +101,9 @@ void setup_callbacks(ezgl::application *application)
 
   // Connect our click_mouse function to mouse presses and releases in the MainWindow.
   g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(click_mouse), application);
+
+  GObject *zoom_fit_button = application->get_object("ZoomFitButton");
+  g_signal_connect(zoom_fit_button, "clicked", G_CALLBACK(zoom_fit_cb), application);
 }
 
 gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
@@ -128,6 +135,14 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
   }
 
   return TRUE; // consume the event
+}
+
+void zoom_fit_cb(GtkWidget *, gpointer data)
+{
+  auto application = static_cast<ezgl::application *>(data);
+  ezgl::canvas *canvas = application->get_canvas("MainCanvas");
+
+  ezgl::zoom_fit(canvas, initial_world);
 }
 
 void draw_main_canvas(ezgl::renderer &g)
@@ -166,5 +181,5 @@ void draw_main_canvas(ezgl::renderer &g)
   g.set_colour(ezgl::BLACK);
   g.set_line_dash(ezgl::line_dash::none);
   g.set_line_width(1);
-  g.draw_rectangle({0, 0}, 1100, 1150);
+  g.draw_rectangle(initial_world);
 }

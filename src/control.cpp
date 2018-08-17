@@ -34,4 +34,10 @@ void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor)
   cnv->get_camera().set_world({{left, bottom}, {right, top}});
   cnv->redraw();
 }
+
+void zoom_fit(canvas *cnv, rectangle new_world)
+{
+  cnv->get_camera().set_world(new_world);
+  cnv->redraw();
+}
 }
