@@ -36,8 +36,6 @@ gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
  */
 gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 
-void zoom_fit_cb(GtkWidget *widget, gpointer data);
-
 /**
  * Draw to the main canvas using the provided graphics object.
  *
