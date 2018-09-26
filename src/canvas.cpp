@@ -16,7 +16,7 @@ cairo_surface_t *create_surface(GtkWidget *widget)
   int const width = gtk_widget_get_allocated_width(widget);
   int const height = gtk_widget_get_allocated_height(widget);
 
-  return gdk_window_create_similar_surface(parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
+  return  gdk_window_create_similar_image_surface(parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
 }
 
 gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointer data)
