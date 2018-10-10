@@ -10,6 +10,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <math.h>
 
 namespace ezgl {
 
@@ -223,6 +224,48 @@ public:
   void fill_poly(std::vector<point2d> const &points);
 
   /**
+   * Draw the outline of an elliptic arc.
+   *
+   * @param centre The centre of the arc, in pixels.
+   * @param radius_x The x radius of the elliptic arc, in pixels.
+   * @param radius_y The y radius of the elliptic arc, in pixels.
+   * @param start_angle The starting angle of the arc, in degrees.
+   * @param extent_angle The extent angle of the arc, in degrees.
+   */
+  void draw_elliptic_arc(point2d centre, double radius_x, double radius_y, double start_angle, double extent_angle);
+
+  /**
+   * Draw the outline of an arc.
+   *
+   * @param centre The centre of the arc, in pixels.
+   * @param radius The radius of the arc, in pixels.
+   * @param start_angle The starting angle of the arc, in degrees.
+   * @param extent_angle The extent angle of the arc, in degrees.
+   */
+  void draw_arc(point2d centre, double radius, double start_angle, double extent_angle);
+
+  /**
+   * Draw a filled in elliptic arc.
+   *
+   * @param centre The centre of the arc, in pixels.
+   * @param radius_x The x radius of the elliptic arc, in pixels.
+   * @param radius_y The y radius of the elliptic arc, in pixels.
+   * @param start_angle The starting angle of the arc, in degrees.
+   * @param extent_angle The extent angle of the arc, in degrees.
+   */
+  void fill_elliptic_arc(point2d centre, double radius_x, double radius_y, double start_angle, double extent_angle);
+
+  /**
+   * Draw a filled in arc.
+   *
+   * @param centre The centre of the arc, in pixels.
+   * @param radius The radius of the arc, in pixels.
+   * @param start_angle The starting angle of the arc, in degrees.
+   * @param extent_angle The extent angle of the arc, in degrees.
+   */
+  void fill_arc(point2d centre, double radius, double start_angle, double extent_angle);
+
+  /**
    * Draw text centred around a point.
    *
    * @param centre The centre of the text, in pixels.
@@ -249,6 +292,7 @@ protected:
 
 private:
   void draw_rectangle_path(point2d start, point2d end);
+  void draw_arc_path(point2d centre, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag);
 
   // A non-owning pointer to a cairo graphics context.
   cairo_t *m_cairo;
