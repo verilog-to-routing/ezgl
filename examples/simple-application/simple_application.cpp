@@ -126,6 +126,42 @@ void setup_callbacks(ezgl::application *application)
     ezgl::zoom_out(canvas, 5.0 / 3.0);
   }),
       application);
+
+  GObject *shift_up_button = application->get_object("UpButton");
+  g_signal_connect(shift_up_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
+    auto app = static_cast<ezgl::application *>(data);
+    auto canvas = app->get_canvas("MainCanvas");
+
+    ezgl::translate_up(canvas, 5.0);
+  }),
+      application);
+
+  GObject *shift_down_button = application->get_object("DownButton");
+  g_signal_connect(shift_down_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
+    auto app = static_cast<ezgl::application *>(data);
+    auto canvas = app->get_canvas("MainCanvas");
+
+    ezgl::translate_down(canvas, 5.0);
+  }),
+      application);
+
+  GObject *shift_left_button = application->get_object("LeftButton");
+  g_signal_connect(shift_left_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
+    auto app = static_cast<ezgl::application *>(data);
+    auto canvas = app->get_canvas("MainCanvas");
+
+    ezgl::translate_left(canvas, 5.0);
+  }),
+      application);
+
+  GObject *shift_right_button = application->get_object("RightButton");
+  g_signal_connect(shift_right_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
+    auto app = static_cast<ezgl::application *>(data);
+    auto canvas = app->get_canvas("MainCanvas");
+
+    ezgl::translate_right(canvas, 5.0);
+  }),
+      application);
 }
 
 gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)

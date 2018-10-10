@@ -145,6 +145,17 @@ public:
     return !(rhs == *this);
   }
 
+  /**
+   * Shifts (translates) in the X and Y direction.
+   */
+  void translate(double dx, double dy) {
+    m_first.x += dx;
+    m_first.y += dy;
+
+    m_second.x += dx;
+    m_second.y += dy;
+  }
+
 private:
   point2d m_first;
   point2d m_second;

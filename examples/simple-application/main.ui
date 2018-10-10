@@ -31,9 +31,73 @@
                     </object>
                 </child>
                 <child>
-                    <object class="GtkVBox">
+                    <object class="GtkGrid">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
+
+                        <child>
+                            <object id="UpButton" class="GtkButton">
+                                <property name="label" translatable="yes">Up</property>
+                                <property name="use_action_appearance">False</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="use_action_appearance">False</property>
+                            </object>
+                            <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">0</property>
+                                <property name="width">1</property>
+                            </packing>
+                        </child>
+
+                        <child>
+                            <object id="DownButton" class="GtkButton">
+                                <property name="label" translatable="yes">Down</property>
+                                <property name="use_action_appearance">False</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="use_action_appearance">False</property>
+                            </object>
+                            <packing>
+                                <property name="left-attach">1</property>
+                                <property name="top-attach">2</property>
+                                <property name="width">1</property>
+                            </packing>
+                        </child>
+
+                        <child>
+                            <object id="LeftButton" class="GtkButton">
+                                <property name="label" translatable="yes">Left</property>
+                                <property name="use_action_appearance">False</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="use_action_appearance">False</property>
+                            </object>
+                            <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">1</property>
+                                <property name="width">1</property>
+                            </packing>
+                        </child>
+
+                        <child>
+                            <object id="RightButton" class="GtkButton">
+                                <property name="label" translatable="yes">Right</property>
+                                <property name="use_action_appearance">False</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="use_action_appearance">False</property>
+                            </object>
+                            <packing>
+                                <property name="left-attach">2</property>
+                                <property name="top-attach">1</property>
+                                <property name="width">1</property>
+                            </packing>
+                        </child>
 
                         <child>
                             <object id="ZoomInButton" class="GtkButton">
@@ -44,7 +108,13 @@
                                 <property name="receives_default">True</property>
                                 <property name="use_action_appearance">False</property>
                             </object>
+                            <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">3</property>
+                                <property name="width">3</property>
+                            </packing>
                         </child>
+
                         <child>
                             <object id="ZoomOutButton" class="GtkButton">
                                 <property name="label" translatable="yes">Zoom Out</property>
@@ -54,7 +124,13 @@
                                 <property name="receives_default">True</property>
                                 <property name="use_action_appearance">False</property>
                             </object>
+                            <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">4</property>
+                                <property name="width">3</property>
+                            </packing>
                         </child>
+
                         <child>
                             <object id="ZoomFitButton" class="GtkButton">
                                 <property name="label" translatable="yes">Zoom Fit</property>
@@ -64,6 +140,11 @@
                                 <property name="receives_default">True</property>
                                 <property name="use_action_appearance">False</property>
                             </object>
+                            <packing>
+                                <property name="left-attach">0</property>
+                                <property name="top-attach">5</property>
+                                <property name="width">3</property>
+                            </packing>
                         </child>
                     </object>
                 </child>

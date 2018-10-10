@@ -32,6 +32,26 @@ void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor);
  * Zoom in or out to fit an exact region of the world.
  */
 void zoom_fit(canvas *cnv, rectangle region);
+
+/**
+ * Translate up
+ */
+void translate_up(canvas *cnv, double translate_factor);
+
+/**
+ * Translate down
+ */
+void translate_down(canvas *cnv, double translate_factor);
+
+/**
+ * Translate left
+ */
+void translate_left(canvas *cnv, double translate_factor);
+
+/**
+ * Translate right
+ */
+void translate_right(canvas *cnv, double translate_factor);
 }
 
 #endif //EZGL_CONTROL_HPP

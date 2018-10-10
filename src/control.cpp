@@ -68,4 +68,41 @@ void zoom_fit(canvas *cnv, rectangle region)
   cnv->get_camera().set_world(region);
   cnv->redraw();
 }
+
+void translate_up(canvas *cnv, double translate_factor) {
+  rectangle new_world = cnv->get_camera().get_world();
+  double dy = new_world.height() / translate_factor;
+  new_world.translate(0.0, -dy);
+
+  cnv->get_camera().set_world(new_world);
+  cnv->redraw();
+}
+
+void translate_down(canvas *cnv, double translate_factor) {
+  rectangle new_world = cnv->get_camera().get_world();
+  double dy = new_world.height() / translate_factor;
+  new_world.translate(0.0, dy);
+
+  cnv->get_camera().set_world(new_world);
+  cnv->redraw();
+}
+
+void translate_left(canvas *cnv, double translate_factor) {
+  rectangle new_world = cnv->get_camera().get_world();
+  double dx = new_world.width() / translate_factor;
+  new_world.translate(-dx, 0.0);
+
+  cnv->get_camera().set_world(new_world);
+  cnv->redraw();
+}
+
+void translate_right(canvas *cnv, double translate_factor) {
+  rectangle new_world = cnv->get_camera().get_world();
+  double dx = new_world.width() / translate_factor;
+  new_world.translate(dx, 0.0);
+
+  cnv->get_camera().set_world(new_world);
+  cnv->redraw();
+}
+
 }
