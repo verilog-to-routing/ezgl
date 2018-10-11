@@ -37,6 +37,11 @@ gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
 gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
 
 /**
+ * TODO
+ */
+gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data);
+
+/**
  * Draw to the main canvas using the provided graphics object.
  *
  * The graphics object expects that x and y values will be in the main canvas' world coordinate system.
@@ -101,6 +106,9 @@ void setup_callbacks(ezgl::application *application)
 
   // Connect our click_mouse function to mouse presses and releases in the MainWindow.
   g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(click_mouse), application);
+
+  // Connect out scroll_mouse function to the mouse scroll event (up, down, left and right)
+  g_signal_connect(main_canvas, "scroll_event", G_CALLBACK(scroll_mouse), application);
 
   GObject *zoom_fit_button = application->get_object("ZoomFitButton");
   g_signal_connect(zoom_fit_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
@@ -193,6 +201,28 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
   }
 
   return TRUE; // consume the event
+}
+
+gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data) {
+
+  if(event->type == GDK_SCROLL) {
+    auto application = static_cast<ezgl::application *>(data);
+    auto canvas = application->get_canvas("MainCanvas");
+    GdkEventScroll *scroll_event = (GdkEventScroll *)event;
+
+    ezgl::point2d scroll_point(scroll_event->x, scroll_event->y);
+
+    if(scroll_event->direction == GDK_SCROLL_UP) {
+      // Zoom in at the scroll point
+      ezgl::zoom_in(canvas, scroll_point, 5.0 / 3.0);
+    } else if(scroll_event->direction == GDK_SCROLL_DOWN) {
+      // Zoom out at the scroll point
+      ezgl::zoom_out(canvas, scroll_point, 5.0 / 3.0);
+    } else if(scroll_event->direction == GDK_SCROLL_SMOOTH) {
+      // Doesn't seem to be happening
+    }  // NOTE: We ignore scroll GDK_SCROLL_LEFT and GDK_SCROLL_RIGHT
+  }
+  return TRUE;  
 }
 
 void draw_main_canvas(ezgl::renderer &g)

@@ -97,6 +97,7 @@ void canvas::initialize(GtkWidget *drawing_area)
   // GtkDrawingArea objects need mouse button button presses enabled explicitly.
   gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_RELEASE_MASK);
+  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_SCROLL_MASK);
 
   g_info("canvas::initialize successful.");
 }
