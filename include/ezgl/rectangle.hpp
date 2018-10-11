@@ -146,14 +146,41 @@ public:
   }
 
   /**
-   * Shifts (translates) in the X and Y direction.
+   * translate the rectangle by positive offsets.
    */
-  void translate(double dx, double dy) {
-    m_first.x += dx;
-    m_first.y += dy;
+  friend rectangle &operator+=(rectangle &lhs, point2d const &rhs)
+  {
+    lhs.m_first += rhs;
+    lhs.m_second += rhs;
 
-    m_second.x += dx;
-    m_second.y += dy;
+    return lhs;
+  }
+
+  /**
+   * translate the rectangle by negative offsets.
+   */
+  friend rectangle &operator-=(rectangle &lhs, point2d const &rhs)
+  {
+    lhs.m_first -= rhs;
+    lhs.m_second -= rhs;
+
+    return lhs;
+  }
+
+  /**
+   * Create a new rectangle that is translated (negative offsets).
+   */
+  friend rectangle operator-(rectangle &lhs, point2d const &rhs)
+  {
+    return rectangle(lhs.m_first-rhs, lhs.m_second-rhs);
+  }
+
+  /**
+   * Create a new rectangle that is translated (positive offsets).
+   */
+  friend rectangle operator+(rectangle &lhs, point2d const &rhs)
+  {
+    return rectangle(lhs.m_first+rhs, lhs.m_second+rhs);
   }
 
 private:
