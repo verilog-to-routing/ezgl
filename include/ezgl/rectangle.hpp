@@ -183,8 +183,10 @@ public:
     return rectangle(lhs.m_first+rhs, lhs.m_second+rhs);
   }
 
-private:
+  /** The first point of the rectangle */
   point2d m_first;
+
+  /** The second point of the rectangle */
   point2d m_second;
 };
 }
