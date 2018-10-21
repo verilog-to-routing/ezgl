@@ -4,7 +4,7 @@
 
 namespace ezgl {
 
-renderer::renderer(cairo_t *cairo, transform_fn transform) : m_cairo(cairo), m_transform(std::move(transform))
+renderer::renderer(cairo_t *cairo, transform_fn transform) : m_cairo(cairo), m_transform(std::move(transform)), rotation_angle(0)
 {
 }
 
@@ -69,6 +69,12 @@ void renderer::format_font(std::string const &family,
 {
   set_font_size(new_size);
   format_font(family, slant, weight);
+}
+
+void renderer::set_text_rotation(double degrees)
+{
+  // convert the given angle to rad
+  rotation_angle = - degrees * M_PI / 180;
 }
 
 void renderer::draw_line(point2d start, point2d end)
@@ -166,20 +172,37 @@ void renderer::fill_arc(point2d centre, double radius, double start_angle, doubl
 
 void renderer::draw_text(point2d centre, std::string const &text)
 {
+  // save the current state to undo the rotation needed for drawing rotated text
+  cairo_save(m_cairo);
+
+  // get the width and height of the drawn text
   cairo_text_extents_t text_extents{};
   cairo_text_extents(m_cairo, text.c_str(), &text_extents);
 
+  // get more information about the font used
   cairo_font_extents_t font_extents{};
   cairo_font_extents(m_cairo, &font_extents);
 
-  // see: https://www.cairographics.org/tutorial/#L1understandingtext
-  centre = {centre.x - text_extents.x_bearing - (text_extents.width / 2),
-      centre.y - font_extents.descent + (font_extents.height / 2)};
-
+  // transform the given center point
   centre = m_transform(centre);
 
-  cairo_move_to(m_cairo, centre.x, centre.y);
+  // calculating the reference point to center the text around "centre" taking into account the rotation_angle
+  // for more info about reference point location: see https://www.cairographics.org/tutorial/#L1understandingtext
+  point2d ref_point = {0, 0};
+
+  ref_point.x = centre.x - (text_extents.x_bearing + (text_extents.width / 2)) * cos (rotation_angle)
+		  - (-font_extents.descent + (text_extents.height / 2)) * sin (rotation_angle);
+
+  ref_point.y = centre.y - (text_extents.y_bearing + (text_extents.height / 2)) * cos (rotation_angle)
+		  - (text_extents.x_bearing + (text_extents.width / 2)) * sin (rotation_angle);
+
+  // move to the reference point, perform the rotation, and draw the text
+  cairo_move_to(m_cairo, ref_point.x, ref_point.y);
+  cairo_rotate(m_cairo, rotation_angle);
   cairo_show_text(m_cairo, text.c_str());
+
+  // restore the old state to undo the performed rotation
+  cairo_restore(m_cairo);
 }
 
 void renderer::draw_rectangle_path(point2d start, point2d end)

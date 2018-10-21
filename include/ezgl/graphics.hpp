@@ -165,6 +165,13 @@ public:
   format_font(std::string const &family, font_slant slant, font_weight weight, double new_size);
 
   /**
+   * set the rotation_angle variable that is used in rotating text.
+   *
+   * @param degrees The angle by which the text should rotate, in degrees.
+   */
+  void set_text_rotation(double degrees);
+
+  /**
    * Draw a line.
    *
    * @param start The start point of the line, in pixels.
@@ -298,6 +305,9 @@ private:
   cairo_t *m_cairo;
 
   transform_fn m_transform;
+
+  // the rotation angle variable used in rotating text
+  double rotation_angle;
 };
 }
 
