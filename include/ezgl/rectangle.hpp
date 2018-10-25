@@ -61,6 +61,38 @@ public:
   }
 
   /**
+   * The minimum x-coordinate and the minimum y-coordinate.
+   */
+  point2d bottom_left() const
+  {
+    return {left(), bottom()};
+  }
+
+  /**
+   * The minimum x-coordinate and the maximum y-coordinate.
+   */
+  point2d top_left() const
+  {
+    return {left(), top()};
+  }
+
+  /**
+   * The maximum x-coordinate and the minimum y-coordinate.
+   */
+  point2d bottom_right() const
+  {
+    return {right(), bottom()};
+  }
+
+  /**
+   * The maximum x-coordinate and the maximum y-coordinate.
+   */
+  point2d top_right() const
+  {
+    return {right(), top()};
+  }
+
+  /**
    * Test if the x and y values are within the rectangle.
    */
   bool contains(double x, double y) const

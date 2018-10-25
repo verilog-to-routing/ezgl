@@ -4,7 +4,11 @@
 
 namespace ezgl {
 
-renderer::renderer(cairo_t *cairo, transform_fn transform) : m_cairo(cairo), m_transform(std::move(transform)), rotation_angle(0)
+renderer::renderer(cairo_t *cairo, transform_fn transform, camera *m_camera)
+    : m_cairo(cairo)
+    , m_transform(std::move(transform))
+    , m_camera(m_camera)
+    , rotation_angle(0)
 {
 }
 
@@ -172,9 +176,25 @@ void renderer::fill_arc(point2d centre, double radius, double start_angle, doubl
 
 void renderer::draw_text(point2d centre, std::string const &text)
 {
-  // save the current state to undo the rotation needed for drawing rotated text
-  cairo_save(m_cairo);
+  // call the draw_text function with no bounds
+  draw_text(centre, text, DBL_MAX, DBL_MAX);
+}
 
+void renderer::draw_text(point2d centre, std::string const &text, const rectangle &bounds)
+{
+  // calculate the x and y bounds of the text so that the text is bounded inside the bounding box
+  point2d bottom_left_bounds = centre - bounds.bottom_left();
+  point2d top_right_bounds = bounds.top_right() - centre;
+
+  double bound_x = std::min(bottom_left_bounds.x, top_right_bounds.x) * 2;
+  double bound_y = std::min(bottom_left_bounds.y, top_right_bounds.y) * 2;
+
+  // call the draw_text function with the calculated bounds
+  draw_text(centre, text, bound_x, bound_y);
+}
+
+void renderer::draw_text(point2d centre, std::string const &text, double bound_x, double bound_y)
+{
   // get the width and height of the drawn text
   cairo_text_extents_t text_extents{};
   cairo_text_extents(m_cairo, text.c_str(), &text_extents);
@@ -182,6 +202,19 @@ void renderer::draw_text(point2d centre, std::string const &text)
   // get more information about the font used
   cairo_font_extents_t font_extents{};
   cairo_font_extents(m_cairo, &font_extents);
+
+  // get text width and height in world coordinates (text width and height are constant in widget coordinates)
+  double scaled_width = text_extents.width * m_camera->get_world_scale_factor().x;
+  double scaled_height = text_extents.height * m_camera->get_world_scale_factor().y;
+
+  // if text width or height is greater than the given bounds, don't draw the text.
+  // NOTE: text rotation is NOT taken into account in bounding check (i.e. text width is compared to bound_x)
+  if (scaled_width > bound_x || scaled_height > bound_y) {
+    return;
+  }
+
+  // save the current state to undo the rotation needed for drawing rotated text
+  cairo_save(m_cairo);
 
   // transform the given center point
   centre = m_transform(centre);

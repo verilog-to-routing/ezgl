@@ -4,13 +4,16 @@
 #include <ezgl/colour.hpp>
 #include <ezgl/point.hpp>
 #include <ezgl/rectangle.hpp>
+#include <ezgl/camera.hpp>
 
 #include <cairo.h>
 
 #include <functional>
 #include <string>
 #include <vector>
-#include <math.h>
+#include <cfloat>
+#include <cmath>
+#include <algorithm>
 
 namespace ezgl {
 
@@ -273,12 +276,31 @@ public:
   void fill_arc(point2d centre, double radius, double start_angle, double extent_angle);
 
   /**
-   * Draw text centred around a point.
+   * Draw text centered around a point.
    *
    * @param centre The centre of the text, in pixels.
    * @param text The text to draw.
    */
   void draw_text(point2d centre, std::string const &text);
+
+  /**
+   * Draw text centered around a point inside a bounding box.
+   *
+   * @param centre The centre of the text, in pixels.
+   * @param text The text to draw.
+   * @param bounds The bounding box of the text
+   */
+  void draw_text(point2d centre, std::string const &text, const rectangle &bounds);
+
+  /**
+   * Draw text centered around a point with bounds.
+   *
+   * @param centre The centre of the text, in pixels.
+   * @param text The text to draw.
+   * @param bound_x The maximum allowed width of the text
+   * @param bound_y The maximum allowed height of the text
+   */
+  void draw_text(point2d centre, std::string const &text, double bound_x, double bound_y);
 
 protected:
   // Only the canvas class can create a renderer.
@@ -295,7 +317,7 @@ protected:
    * @param cairo The cairo graphics state.
    * @param transform The function to use to transform points to cairo's coordinate system.
    */
-  renderer(cairo_t *cairo, transform_fn transform);
+  renderer(cairo_t *cairo, transform_fn transform, camera *m_camera);
 
 private:
   void draw_rectangle_path(point2d start, point2d end);
@@ -305,6 +327,9 @@ private:
   cairo_t *m_cairo;
 
   transform_fn m_transform;
+
+  //A non-owning pointer to camera object
+  camera *m_camera;
 
   // the rotation angle variable used in rotating text
   double rotation_angle;

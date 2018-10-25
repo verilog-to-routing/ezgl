@@ -48,6 +48,14 @@ public:
    */
   rectangle set_world(rectangle new_world);
 
+  /**
+   * Get the screen to world scaling factor.
+   */
+  point2d get_world_scale_factor() const
+  {
+    return m_screen_to_world;
+  }
+
 protected:
   // Only an ezgl::canvas can create a camera.
   friend class canvas;

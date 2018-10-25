@@ -111,7 +111,7 @@ void canvas::redraw()
   cairo_paint(context);
 
   using namespace std::placeholders;
-  renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1));
+  renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera);
   m_draw_callback(g);
 
   cairo_destroy(context);
