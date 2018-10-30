@@ -34,6 +34,11 @@ void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor);
 void zoom_fit(canvas *cnv, rectangle region);
 
 /**
+ * Translate by delta x and delta y (dx, dy)
+ */
+void translate(canvas *cnv, double dx, double dy);
+
+/**
  * Translate up
  */
 void translate_up(canvas *cnv, double translate_factor);

@@ -94,10 +94,11 @@ void canvas::initialize(GtkWidget *drawing_area)
   // Connect to draw events so that we draw our surface to the drawing area.
   g_signal_connect(m_drawing_area, "draw", G_CALLBACK(draw_surface), this);
 
-  // GtkDrawingArea objects need mouse button button presses enabled explicitly.
+  // GtkDrawingArea objects need specific events enabled explicitly.
   gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_RELEASE_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_SCROLL_MASK);
+  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_POINTER_MOTION_MASK);
+  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_SCROLL_MASK); 
 
   g_info("canvas::initialize successful.");
 }

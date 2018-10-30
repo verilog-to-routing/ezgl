@@ -69,40 +69,40 @@ void zoom_fit(canvas *cnv, rectangle region)
   cnv->redraw();
 }
 
-void translate_up(canvas *cnv, double translate_factor) {
+void translate(canvas *cnv, double dx, double dy) {
   rectangle new_world = cnv->get_camera().get_world();
-  double dy = new_world.height() / translate_factor;
-  new_world -= ezgl::point2d(0.0, dy);
+  new_world += ezgl::point2d(dx, dy);
 
   cnv->get_camera().set_world(new_world);
   cnv->redraw();
+}
+
+void translate_up(canvas *cnv, double translate_factor) {
+  rectangle new_world = cnv->get_camera().get_world();
+  double dy = new_world.height() / translate_factor;
+
+  translate(cnv, 0.0, -dy);
 }
 
 void translate_down(canvas *cnv, double translate_factor) {
   rectangle new_world = cnv->get_camera().get_world();
   double dy = new_world.height() / translate_factor;
-  new_world += ezgl::point2d(0.0, dy);
 
-  cnv->get_camera().set_world(new_world);
-  cnv->redraw();
+  translate(cnv, 0.0, dy);
 }
 
 void translate_left(canvas *cnv, double translate_factor) {
   rectangle new_world = cnv->get_camera().get_world();
   double dx = new_world.width() / translate_factor;
-  new_world -= ezgl::point2d(dx, 0.0);
 
-  cnv->get_camera().set_world(new_world);
-  cnv->redraw();
+  translate(cnv, -dx, 0.0);
 }
 
 void translate_right(canvas *cnv, double translate_factor) {
   rectangle new_world = cnv->get_camera().get_world();
   double dx = new_world.width() / translate_factor;
-  new_world += ezgl::point2d(dx, 0.0);
 
-  cnv->get_camera().set_world(new_world);
-  cnv->redraw();
+  translate(cnv, dx, 0.0);
 }
 
 }
