@@ -13,47 +13,11 @@
 #include <iostream>
 
 /**
- * React to a <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-key-press-event">keyboard
- * press event</a>.
- *
- * @param widget The GUI widget where this event came from.
- * @param event The keyboard event.
- * @param data A pointer to any user-specified data you passed in.
- *
- * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
- */
-gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
-
-/**
- * React to <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-button-press-event">mouse click
- * event</a>
- *
- * @param widget The GUI widget where this event came from.
- * @param event The click event.
- * @param data A pointer to any user-specified data you passed in.
- *
- * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
- */
-gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
-
-/**
- * TODO
- */
-gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data);
-
-/**
  * Draw to the main canvas using the provided graphics object.
  *
  * The graphics object expects that x and y values will be in the main canvas' world coordinate system.
  */
 void draw_main_canvas(ezgl::renderer &g);
-
-/**
- * Connect the press_key(), click_mouse(), and draw_canvas() functions to signals emitted by different GUI objects.
- *
- * @param application The application gives access to the GUI objects.
- */
-void setup_callbacks(ezgl::application *application);
 
 static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
 
@@ -78,9 +42,12 @@ int main(int argc, char **argv)
   // Note: the "main.ui" file has a GtkWindow called "MainWindow".
   settings.window_identifier = "MainWindow";
 
+  // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas".
+  settings.canvas_identifier = "MainCanvas";
+
   // Tell the EZGL application which function to call when it is time
   // to connect GUI objects to our own custom callbacks.
-  settings.setup_callbacks = setup_callbacks;
+  settings.setup_callbacks = nullptr;
 
   // Create our EZGL application.
   ezgl::application application(settings);
@@ -91,138 +58,6 @@ int main(int argc, char **argv)
   // This hands over all control to the GTK runtime---after this point
   // you will only regain control based on callbacks you have setup.
   return application.run(argc, argv);
-}
-
-void setup_callbacks(ezgl::application *application)
-{
-  // Get a pointer to the MainWindow GUI object by using its name.
-  GObject *window = application->get_object("MainWindow");
-
-  // Connect our press_key function to keyboard presses in the MainWindow.
-  g_signal_connect(window, "key_press_event", G_CALLBACK(press_key), nullptr);
-
-  // Get a pointer to the MainCanvas GUI object by using its name.
-  GObject *main_canvas = application->get_object("MainCanvas");
-
-  // Connect our click_mouse function to mouse presses and releases in the MainWindow.
-  g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(click_mouse), application);
-
-  // Connect out scroll_mouse function to the mouse scroll event (up, down, left and right)
-  g_signal_connect(main_canvas, "scroll_event", G_CALLBACK(scroll_mouse), application);
-
-  GObject *zoom_fit_button = application->get_object("ZoomFitButton");
-  g_signal_connect(zoom_fit_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
-    auto app = static_cast<ezgl::application *>(data);
-    ezgl::zoom_fit(app->get_canvas("MainCanvas"), initial_world);
-  }),
-      application);
-
-  GObject *zoom_in_button = application->get_object("ZoomInButton");
-  g_signal_connect(zoom_in_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
-    auto app = static_cast<ezgl::application *>(data);
-    auto canvas = app->get_canvas("MainCanvas");
-
-    ezgl::zoom_in(canvas, 5.0 / 3.0);
-  }),
-      application);
-
-  GObject *zoom_out_button = application->get_object("ZoomOutButton");
-  g_signal_connect(zoom_out_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
-    auto app = static_cast<ezgl::application *>(data);
-    auto canvas = app->get_canvas("MainCanvas");
-
-    ezgl::zoom_out(canvas, 5.0 / 3.0);
-  }),
-      application);
-
-  GObject *shift_up_button = application->get_object("UpButton");
-  g_signal_connect(shift_up_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
-    auto app = static_cast<ezgl::application *>(data);
-    auto canvas = app->get_canvas("MainCanvas");
-
-    ezgl::translate_up(canvas, 5.0);
-  }),
-      application);
-
-  GObject *shift_down_button = application->get_object("DownButton");
-  g_signal_connect(shift_down_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
-    auto app = static_cast<ezgl::application *>(data);
-    auto canvas = app->get_canvas("MainCanvas");
-
-    ezgl::translate_down(canvas, 5.0);
-  }),
-      application);
-
-  GObject *shift_left_button = application->get_object("LeftButton");
-  g_signal_connect(shift_left_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
-    auto app = static_cast<ezgl::application *>(data);
-    auto canvas = app->get_canvas("MainCanvas");
-
-    ezgl::translate_left(canvas, 5.0);
-  }),
-      application);
-
-  GObject *shift_right_button = application->get_object("RightButton");
-  g_signal_connect(shift_right_button, "clicked", G_CALLBACK(+[](GtkWidget *, gpointer data) {
-    auto app = static_cast<ezgl::application *>(data);
-    auto canvas = app->get_canvas("MainCanvas");
-
-    ezgl::translate_right(canvas, 5.0);
-  }),
-      application);
-}
-
-gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
-{
-  // see: https://developer.gnome.org/gdk3/stable/gdk3-Keyboard-Handling.html
-  std::cout << gdk_keyval_name(event->keyval) << " was pressed.\n";
-
-  return FALSE; // propagate the event
-}
-
-gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
-{
-  auto application = static_cast<ezgl::application *>(data);
-
-  if(event->type == GDK_BUTTON_PRESS) {
-    std::cout << "Click (widget): " << event->x << ", " << event->y << "\n";
-
-    ezgl::point2d const widget_coordinates(event->x, event->y);
-    ezgl::canvas *canvas = application->get_canvas("MainCanvas");
-
-    ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
-    std::cout << "Click (world): " << world.x << ", " << world.y << "\n";
-
-    if(event->button == 1) {
-      ezgl::zoom_in(canvas, widget_coordinates, 5.0 / 3.0);
-    } else if(event->button == 3) {
-      ezgl::zoom_out(canvas, widget_coordinates, 5.0 / 3.0);
-    }
-  }
-
-  return TRUE; // consume the event
-}
-
-gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data) {
-
-  if(event->type == GDK_SCROLL) {
-    auto application = static_cast<ezgl::application *>(data);
-    auto canvas = application->get_canvas("MainCanvas");
-    GdkEventScroll *scroll_event = (GdkEventScroll *)event;
-
-    ezgl::point2d scroll_point(scroll_event->x, scroll_event->y);
-
-    if(scroll_event->direction == GDK_SCROLL_UP) {
-      // Zoom in at the scroll point
-      ezgl::zoom_in(canvas, scroll_point, 5.0 / 3.0);
-    } else if(scroll_event->direction == GDK_SCROLL_DOWN) {
-      // Zoom out at the scroll point
-      ezgl::zoom_out(canvas, scroll_point, 5.0 / 3.0);
-    } else if(scroll_event->direction == GDK_SCROLL_SMOOTH) {
-      // Doesn't seem to be happening
-    }  // NOTE: We ignore scroll GDK_SCROLL_LEFT and GDK_SCROLL_RIGHT
-  }
-  return TRUE;
 }
 
 void draw_main_canvas(ezgl::renderer &g)

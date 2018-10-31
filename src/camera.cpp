@@ -38,7 +38,7 @@ rectangle maintain_aspect_ratio(rectangle const &view, double widget_width, doub
   return {{x_start, y_start}, new_width, new_height};
 }
 
-camera::camera(rectangle bounds) : m_world(bounds), m_screen(bounds)
+camera::camera(rectangle bounds) : m_world(bounds), m_screen(bounds), m_initial_world(bounds)
 {
 }
 

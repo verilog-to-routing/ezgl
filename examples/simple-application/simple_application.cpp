@@ -109,6 +109,9 @@ int main(int argc, char **argv)
   // Note: the "main.ui" file has a GtkWindow called "MainWindow".
   settings.window_identifier = "MainWindow";
 
+  // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas".
+  settings.canvas_identifier = "MainCanvas";
+
   // Tell the EZGL application which function to call when it is time
   // to connect GUI objects to our own custom callbacks.
   settings.setup_callbacks = setup_callbacks;

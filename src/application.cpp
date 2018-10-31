@@ -35,7 +35,8 @@ void application::activate(GtkApplication *, gpointer user_data)
   if(ezgl_app->m_register_callbacks != nullptr) {
     ezgl_app->m_register_callbacks(ezgl_app);
   } else {
-    g_warning("No user-defined callbacks have been registered.");
+    register_default_buttons_callbacks(ezgl_app);
+    register_default_events_callbacks(ezgl_app);
   }
 
   g_info("application::activate successful.");
@@ -44,6 +45,7 @@ void application::activate(GtkApplication *, gpointer user_data)
 application::application(application::settings s)
     : m_main_ui(s.main_ui_resource)
     , m_window_id(s.window_identifier)
+    , m_canvas_id(s.canvas_identifier)
     , m_application(gtk_application_new("edu.toronto.eecg.ezgl.app", G_APPLICATION_FLAGS_NONE))
     , m_builder(gtk_builder_new())
     , m_register_callbacks(s.setup_callbacks)
@@ -113,5 +115,62 @@ int application::run(int argc, char **argv)
 
   // see: https://developer.gnome.org/gio/unstable/GApplication.html#g-application-run
   return g_application_run(G_APPLICATION(m_application), argc, argv);
+}
+
+void application::register_default_events_callbacks(ezgl::application *application)
+{
+  // Get a pointer to the main window GUI object by using its name.
+  std::string main_window_id =  application->get_main_window_id();
+  GObject *window = application->get_object(main_window_id.c_str());
+
+  // Get a pointer to the main canvas GUI object by using its name.
+  std::string main_canvas_id = application->get_main_canvas_id();
+  GObject *main_canvas = application->get_object(main_canvas_id.c_str());
+
+  // Connect press_key function to keyboard presses in the MainWindow.
+  g_signal_connect(window, "key_press_event", G_CALLBACK(press_key), nullptr);
+
+  // Connect press_mouse function to mouse presses and releases in the MainWindow.
+  g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(press_mouse), application);
+
+  // Connect release_mouse function to mouse presses and releases in the MainWindow.
+  g_signal_connect(main_canvas, "button_release_event", G_CALLBACK(release_mouse), application);
+
+  // Connect release_mouse function to mouse presses and releases in the MainWindow.
+  g_signal_connect(main_canvas, "motion_notify_event", G_CALLBACK(move_mouse), application);
+
+  // Connect scroll_mouse function to the mouse scroll event (up, down, left and right)
+  g_signal_connect(main_canvas, "scroll_event", G_CALLBACK(scroll_mouse), application);
+}
+
+void application::register_default_buttons_callbacks(ezgl::application *application)
+{
+  // Connect press_zoom_fit function to the Zoom-fit button
+  GObject *zoom_fit_button = application->get_object("ZoomFitButton");
+  g_signal_connect(zoom_fit_button, "clicked", G_CALLBACK(press_zoom_fit), application);
+
+  // Connect press_zoom_in function to the Zoom-in button
+  GObject *zoom_in_button = application->get_object("ZoomInButton");
+  g_signal_connect(zoom_in_button, "clicked", G_CALLBACK(press_zoom_in), application);
+
+  // Connect press_zoom_out function to the Zoom-out button
+  GObject *zoom_out_button = application->get_object("ZoomOutButton");
+  g_signal_connect(zoom_out_button, "clicked", G_CALLBACK(press_zoom_out), application);
+
+  // Connect press_up function to the Up button
+  GObject *shift_up_button = application->get_object("UpButton");
+  g_signal_connect(shift_up_button, "clicked", G_CALLBACK(press_up), application);
+
+  // Connect press_down function to the Down button
+  GObject *shift_down_button = application->get_object("DownButton");
+  g_signal_connect(shift_down_button, "clicked", G_CALLBACK(press_down), application);
+
+  // Connect press_left function to the Left button
+  GObject *shift_left_button = application->get_object("LeftButton");
+  g_signal_connect(shift_left_button, "clicked", G_CALLBACK(press_left), application);
+
+  // Connect press_right function to the Right button
+  GObject *shift_right_button = application->get_object("RightButton");
+  g_signal_connect(shift_right_button, "clicked", G_CALLBACK(press_right), application);
 }
 }

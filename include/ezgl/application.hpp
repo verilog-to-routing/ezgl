@@ -2,6 +2,8 @@
 #define EZGL_APPLICATION_HPP
 
 #include <ezgl/canvas.hpp>
+#include <ezgl/control.hpp>
+#include <ezgl/callback.hpp>
 
 #include <map>
 #include <memory>
@@ -47,6 +49,11 @@ public:
      * The name of the main window in the XML file.
      */
     std::string window_identifier;
+
+    /**
+     * The name of the main canvas in the XML file.
+     */
+    std::string canvas_identifier;
 
     /**
      * Specficy the function that will connect GUI objects to user-defined callbacks.
@@ -133,6 +140,22 @@ public:
   GObject *get_object(gchar const *name) const;
 
   /**
+   * Get the ID of the main window
+   */
+  std::string get_main_window_id() const
+  {
+    return m_window_id;
+  }
+
+  /**
+   * Get the ID of the main canvas
+   */
+  std::string get_main_canvas_id() const
+  {
+    return m_canvas_id;
+  }
+
+  /**
    * Run the application.
    *
    * Once this is called, the application will be initialized first. Initialization will build the GUI based on the XML
@@ -156,6 +179,9 @@ private:
   // The ID of the main window to add to our GTK application.
   std::string m_window_id;
 
+  // The ID of the main canvas
+  std::string m_canvas_id;
+
   // The GTK application.
   GtkApplication *m_application;
 
@@ -174,7 +200,15 @@ private:
 
   // Called when GTK activates our application for the first time.
   static void activate(GtkApplication *gtk_app, gpointer user_data);
+
+  // Called during application activation to setup the default callbacks for the prebuilt buttons
+  static void register_default_buttons_callbacks(application *application);
+
+  // Called during application activation to setup the default callbacks for the mouse and key events
+  static void register_default_events_callbacks(application *application);
 };
+
+
 }
 
 #endif //EZGL_APPLICATION_HPP

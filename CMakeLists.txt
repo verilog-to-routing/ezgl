@@ -27,6 +27,7 @@ add_library(
   include/ezgl/canvas.hpp
   include/ezgl/colour.hpp
   include/ezgl/control.hpp
+  include/ezgl/callback.hpp
   include/ezgl/graphics.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
@@ -34,6 +35,7 @@ add_library(
   src/camera.cpp
   src/canvas.cpp
   src/control.cpp
+  src/callback.cpp
   src/graphics.cpp
 )
 

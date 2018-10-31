@@ -44,6 +44,14 @@ public:
   }
 
   /**
+   * Get the initial bounds of the world. Needed for zoom_fit
+   */
+  rectangle get_initial_world() const
+  {
+    return m_initial_world;
+  }
+
+  /**
    * Update the bounds of the world.
    */
   rectangle set_world(rectangle new_world);
@@ -88,6 +96,9 @@ private:
 
   // The dimensions of the world (user-defined bounding box).
   rectangle m_world;
+
+  // The dimensions of the initial world (user-defined bounding box). Needed for zoom_fit
+  const rectangle m_initial_world;
 
   // The dimensions of the screen, which may not match the widget.
   rectangle m_screen;
