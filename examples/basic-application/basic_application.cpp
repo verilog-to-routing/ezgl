@@ -12,6 +12,11 @@
 
 #include <iostream>
 
+// Callback functions for event handling
+void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y);
+void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y);
+void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *key_name);
+
 /**
  * Draw to the main canvas using the provided graphics object.
  *
@@ -45,10 +50,6 @@ int main(int argc, char **argv)
   // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas".
   settings.canvas_identifier = "MainCanvas";
 
-  // Tell the EZGL application which function to call when it is time
-  // to connect GUI objects to our own custom callbacks.
-  settings.setup_callbacks = nullptr;
-
   // Create our EZGL application.
   ezgl::application application(settings);
 
@@ -57,7 +58,11 @@ int main(int argc, char **argv)
   // Run the application until the user quits.
   // This hands over all control to the GTK runtime---after this point
   // you will only regain control based on callbacks you have setup.
-  return application.run(argc, argv);
+  // Three callbacks can be provided to handle mouse button presses,
+  // mouse movement and keyboard button presses in the graphics area,
+  // respectively. Those callbacks are optional, so we can pass nullptr if
+  // we don't need to take any action on those events
+  return application.run(argc, argv, act_on_mouse_press, act_on_mouse_move, act_on_key_press);
 }
 
 void draw_main_canvas(ezgl::renderer &g)
@@ -354,4 +359,52 @@ void draw_main_canvas(ezgl::renderer &g)
 
   }
 
+}
+
+/**
+ * Function to handle mouse press event
+ * The current mouse position in the main canvas' world coordinate system is returned
+ * A pointer to the application and the entire GDK event are also returned
+ */
+void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y)
+{
+  std::cout << "User clicked the ";
+
+  if (event->button == 1)
+    std::cout << "left ";
+  else if (event->button == 2)
+    std::cout << "middle ";
+  else if (event->button == 3)
+    std::cout << "right ";
+
+  std::cout << "mouse button at coordinates (" << x << "," << y << ") ";
+
+  if ((event->state & GDK_CONTROL_MASK) && (event->state & GDK_SHIFT_MASK))
+    std::cout << "with control and shift pressed ";
+  else if (event->state & GDK_CONTROL_MASK)
+    std::cout << "with control pressed ";
+  else if (event->state & GDK_SHIFT_MASK)
+    std::cout << "with shift pressed ";
+
+  std::cout << std::endl;
+}
+
+/**
+ * Function to handle mouse move event
+ * The current mouse position in the main canvas' world coordinate system is returned
+ * A pointer to the application and the entire GDK event are also returned
+ */
+void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y)
+{
+  std::cout << "Mouse move at coordinates (" << x << "," << y << ") "<< std::endl;
+}
+
+/**
+ * Function to handle keyboard press event
+ * The name of the key pressed is returned (0-9, a-z, A-Z, Up, Down, Left, Right, Shift_R, Control_L, space, Tab, ...)
+ * A pointer to the application and the entire GDK event are also returned
+ */
+void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *key_name)
+{
+  std::cout << key_name <<" key is pressed" << std::endl;
 }

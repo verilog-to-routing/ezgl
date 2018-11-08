@@ -26,6 +26,16 @@ class application;
 using connect_g_objects_fn = void (*)(application *app);
 
 /**
+ * The signature of a user-defined callback function for mouse events
+ */
+using mouse_callback_fn = void (*)(application *app, GdkEventButton *event, double x, double y);
+
+/**
+ * The signature of a user-defined callback function for keyboard events
+ */
+using key_callback_fn = void (*)(application *app, GdkEventKey *event, char *key_name);
+
+/**
  * The core application.
  *
  * The GUI of an application is created from an XML file. Widgets created in the XML file can be retrieved from an
@@ -167,10 +177,14 @@ public:
    *
    * @param argc The number of arguments.
    * @param argv An array of the arguments.
+   * @param mouse_press_user_callback The user-defined callback function for mouse press
+   * @param mouse_move_user_callback The user-defined callback function for mouse move
+   * @param key_press_user_callback The user-defined callback function for keyboard press
    *
    * @return The exit status.
    */
-  int run(int argc, char **argv);
+  int run(int argc, char **argv, mouse_callback_fn mouse_press_user_callback,
+      mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback);
 
 private:
   // The package path to the XML file that describes the UI.
@@ -206,6 +220,16 @@ private:
 
   // Called during application activation to setup the default callbacks for the mouse and key events
   static void register_default_events_callbacks(application *application);
+
+public:
+   // The user-defined callback function for handling mouse press
+  mouse_callback_fn mouse_press_callback;
+
+  // The user-defined callback function for handling mouse move
+  mouse_callback_fn mouse_move_callback;
+
+  // The user-defined callback function for handling keyboard press
+  key_callback_fn key_press_callback;
 };
 
 

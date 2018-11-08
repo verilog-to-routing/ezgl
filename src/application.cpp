@@ -109,8 +109,13 @@ GObject *application::get_object(gchar const *name) const
   return object;
 }
 
-int application::run(int argc, char **argv)
+int application::run(int argc, char **argv, mouse_callback_fn mouse_press_user_callback,
+    mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback)
 {
+  mouse_press_callback = mouse_press_user_callback;
+  mouse_move_callback = mouse_move_user_callback;
+  key_press_callback = key_press_user_callback;
+
   g_info("The event loop is now starting.");
 
   // see: https://developer.gnome.org/gio/unstable/GApplication.html#g-application-run
@@ -128,7 +133,7 @@ void application::register_default_events_callbacks(ezgl::application *applicati
   GObject *main_canvas = application->get_object(main_canvas_id.c_str());
 
   // Connect press_key function to keyboard presses in the MainWindow.
-  g_signal_connect(window, "key_press_event", G_CALLBACK(press_key), nullptr);
+  g_signal_connect(window, "key_press_event", G_CALLBACK(press_key), application);
 
   // Connect press_mouse function to mouse presses and releases in the MainWindow.
   g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(press_mouse), application);

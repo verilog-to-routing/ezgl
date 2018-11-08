@@ -7,10 +7,15 @@ namespace ezgl {
 bool middle_mouse_button_pressed = false;
 double prev_x = 0, prev_y = 0;
 
-gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
+gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer data)
 {
-  // see: https://developer.gnome.org/gdk3/stable/gdk3-Keyboard-Handling.html
-  std::cout << gdk_keyval_name(event->keyval) << " was pressed.\n";
+  auto application = static_cast<ezgl::application *>(data);
+
+  // Call the user-defined key press callback if defined
+  if(application->key_press_callback != nullptr) {
+    // see: https://developer.gnome.org/gdk3/stable/gdk3-Keyboard-Handling.html
+    application->key_press_callback(application, event, gdk_keyval_name(event->keyval));
+  }
 
   return FALSE; // propagate the event
 }
@@ -20,25 +25,25 @@ gboolean press_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
   auto application = static_cast<ezgl::application *>(data);
 
   if(event->type == GDK_BUTTON_PRESS) {
-    std::cout << "Click (widget): " << event->x << ", " << event->y << "\n";
 
-    ezgl::point2d const widget_coordinates(event->x, event->y);
-
-    std::string main_canvas_id = application->get_main_canvas_id();
-    ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
-
-    ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
-    std::cout << "Click (world): " << world.x << ", " << world.y << "\n";
-
-    if(event->button == 1) {  // Left mouse click
-      ezgl::zoom_in(canvas, widget_coordinates, 5.0 / 3.0);
-    } else if(event->button == 2) {  // Middle mouse click
+    // Check for Middle mouse press to support dragging
+    if(event->button == 2) {
       middle_mouse_button_pressed = true;
       prev_x = event->x;
       prev_y = event->y;
-    } else if(event->button == 3) {  // Right mouse click
-      ezgl::zoom_out(canvas, widget_coordinates, 5.0 / 3.0);
     }
+
+    // Call the user-defined mouse press callback if defined
+    if(application->mouse_press_callback != nullptr) {
+      ezgl::point2d const widget_coordinates(event->x, event->y);
+
+      std::string main_canvas_id = application->get_main_canvas_id();
+      ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+
+      ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
+      application->mouse_press_callback(application, event, world.x, world.y);
+    }
+
   }
 
   return TRUE; // consume the event
@@ -49,7 +54,8 @@ gboolean release_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
   auto application = static_cast<ezgl::application *>(data);
 
   if(event->type == GDK_BUTTON_RELEASE) {
-    if(event->button == 2) {  // Middle mouse release
+    // Check for Middle mouse release to support dragging
+    if(event->button == 2) {
       middle_mouse_button_pressed = false;
     }
   }
@@ -62,6 +68,8 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
   auto application = static_cast<ezgl::application *>(data);
 
   if(event->type == GDK_MOTION_NOTIFY) {
+
+    // Check if the middle mouse is pressed to support dragging
     if(middle_mouse_button_pressed) {
       GdkEventMotion *motion_event = (GdkEventMotion *)event;
 
@@ -77,6 +85,18 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
       // Flip the delta x to avoid inverted dragging
       translate(canvas, -dx, dy);
     }
+
+    // Call the user-defined mouse move callback if defined
+    if(application->mouse_move_callback != nullptr) {
+      ezgl::point2d const widget_coordinates(event->x, event->y);
+
+      std::string main_canvas_id = application->get_main_canvas_id();
+      ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+
+      ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
+      application->mouse_move_callback(application, event, world.x, world.y);
+    }
+
   }
 
   return TRUE; // consume the event
