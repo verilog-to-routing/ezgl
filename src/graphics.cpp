@@ -319,4 +319,27 @@ void renderer::draw_arc_path(point2d centre, double radius, double start_angle, 
   cairo_restore(m_cairo);
 }
 
+void renderer::draw_png(const char* file_path, point2d top_left)
+{
+  // transform the given top_left point
+  if (current_coordinate_system == WORLD)
+    top_left = m_transform(top_left);
+
+  // Create an image surface from a PNG image
+  cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
+
+  // Check if the png_surface is properly created
+  if (cairo_surface_status(png_surface) != CAIRO_STATUS_SUCCESS)
+    return;
+
+  // Create a source for painting from the created png_surface
+  cairo_set_source_surface(m_cairo, png_surface, top_left.x, top_left.y);
+
+  // Actual drawing
+  cairo_paint(m_cairo);
+
+  // Destroy the created png_surface
+  cairo_surface_destroy(png_surface);
+}
+
 }

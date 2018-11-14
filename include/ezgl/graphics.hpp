@@ -324,6 +324,14 @@ public:
    */
   void draw_text(point2d centre, std::string const &text, double bound_x, double bound_y);
 
+  /**
+   * Draw a png image
+   *
+   * @param file_path The path to the png image.
+   * @param top_left The corner point of the drawn png.
+   */
+  void draw_png(const char* file_path, point2d top_left);
+
 protected:
   // Only the canvas class can create a renderer.
   friend class canvas;

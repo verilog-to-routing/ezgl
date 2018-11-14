@@ -372,6 +372,14 @@ void draw_main_canvas(ezgl::renderer &g)
     g.set_coordinate_system(ezgl::WORLD);
   }
 
+  {
+    /* Draw a small PNG */
+    g.draw_png("small_image.png", {50, 200});
+    g.set_font_size(10);
+    g.set_colour(ezgl::BLACK);
+    g.draw_text ({50, 225}, "draw_surface", 200, DBL_MAX);
+  }
+
 }
 
 /**
