@@ -18,6 +18,20 @@
 namespace ezgl {
 
 /**
+ * Available coordinate systems
+ */
+enum t_coordinate_system {
+  /**
+   * Default coordinate system
+   */
+  WORLD,
+  /**
+   * Screen coordinate system. Screen Coordinates are not transformed so the drawn objects do not pan or zoom.
+   */
+  SCREEN
+};
+
+/**
  * The slant of the font.
  *
  * This enum is setup to match with the cairo graphics library and should not be changed.
@@ -97,6 +111,14 @@ enum class line_dash : int {
  */
 class renderer {
 public:
+
+  /*
+   * Change the current coordinate system
+   *
+   * @param new_coordinate_system The drawing coordinate system SCREEN or WORLD
+   */
+  void set_coordinate_system(t_coordinate_system new_coordinate_system);
+
   /**
    * Change the colour for subsequent draw calls.
    *
@@ -322,6 +344,9 @@ protected:
 private:
   void draw_rectangle_path(point2d start, point2d end);
   void draw_arc_path(point2d centre, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag);
+
+  // Current coordinate system (World is the default)
+  t_coordinate_system current_coordinate_system = WORLD;
 
   // A non-owning pointer to a cairo graphics context.
   cairo_t *m_cairo;

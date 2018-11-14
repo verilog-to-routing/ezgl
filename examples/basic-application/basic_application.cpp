@@ -359,6 +359,19 @@ void draw_main_canvas(ezgl::renderer &g)
 
   }
 
+  {
+    /* Draw to screen coordinates where (0,0) is the top-left corner of the window */
+    /* These coordinates are not transformed so the object will not pan or zoom. */
+    g.set_coordinate_system(ezgl::SCREEN);
+    g.set_colour(255, 0, 0, 255);
+    g.set_line_dash(ezgl::line_dash::none);
+    g.draw_rectangle({10, 10}, {100, 100});
+    g.set_font_size(10);
+    g.draw_text({55, 33}, "Screen coord");
+    g.draw_text({55, 66}, "Fixed loc");
+    g.set_coordinate_system(ezgl::WORLD);
+  }
+
 }
 
 /**

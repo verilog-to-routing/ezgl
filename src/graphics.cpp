@@ -12,6 +12,11 @@ renderer::renderer(cairo_t *cairo, transform_fn transform, camera *m_camera)
 {
 }
 
+void renderer::set_coordinate_system(t_coordinate_system new_coordinate_system)
+{
+  current_coordinate_system = new_coordinate_system;
+}
+
 void renderer::set_colour(colour c)
 {
   set_colour(c.red, c.green, c.blue, c.alpha);
@@ -83,8 +88,10 @@ void renderer::set_text_rotation(double degrees)
 
 void renderer::draw_line(point2d start, point2d end)
 {
-  start = m_transform(start);
-  end = m_transform(end);
+  if (current_coordinate_system == WORLD) {
+    start = m_transform(start);
+    end = m_transform(end);
+  }
 
   cairo_move_to(m_cairo, start.x, start.y);
   cairo_line_to(m_cairo, end.x, end.y);
@@ -132,11 +139,18 @@ void renderer::fill_poly(std::vector<point2d> const &points)
 {
   assert(points.size() > 1);
 
-  point2d next_point = m_transform(points[0]);
+  point2d next_point = points[0];
+
+  if (current_coordinate_system == WORLD)
+    next_point = m_transform(points[0]);
+
   cairo_move_to(m_cairo, next_point.x, next_point.y);
 
   for(std::size_t i = 1; i < points.size(); ++i) {
-    next_point = m_transform(points[i]);
+    if (current_coordinate_system == WORLD)
+      next_point = m_transform(points[i]);
+    else
+      next_point = points[i];
     cairo_line_to(m_cairo, next_point.x, next_point.y);
   }
 
@@ -217,7 +231,8 @@ void renderer::draw_text(point2d centre, std::string const &text, double bound_x
   cairo_save(m_cairo);
 
   // transform the given center point
-  centre = m_transform(centre);
+  if (current_coordinate_system == WORLD)
+    centre = m_transform(centre);
 
   // calculating the reference point to center the text around "centre" taking into account the rotation_angle
   // for more info about reference point location: see https://www.cairographics.org/tutorial/#L1understandingtext
@@ -240,8 +255,10 @@ void renderer::draw_text(point2d centre, std::string const &text, double bound_x
 
 void renderer::draw_rectangle_path(point2d start, point2d end)
 {
-  start = m_transform(start);
-  end = m_transform(end);
+  if (current_coordinate_system == WORLD) {
+    start = m_transform(start);
+    end = m_transform(end);
+  }
 
   cairo_move_to(m_cairo, start.x, start.y);
   cairo_line_to(m_cairo, start.x, end.y);
@@ -260,8 +277,10 @@ void renderer::draw_arc_path(point2d centre, double radius, double start_angle, 
   point2d point_x = {centre.x + radius, centre.y};
 
   // transform the center point of the arc, and the other point
-  centre = m_transform(centre);
-  point_x = m_transform(point_x);
+  if (current_coordinate_system == WORLD) {
+    centre = m_transform(centre);
+    point_x = m_transform(point_x);
+  }
 
   // calculate the new radius after transforming to the new coordinates
   radius = point_x.x - centre.x;
@@ -299,4 +318,5 @@ void renderer::draw_arc_path(point2d centre, double radius, double start_angle, 
   // restore the old state to undo the scaling needed for drawing ellipse
   cairo_restore(m_cairo);
 }
+
 }
