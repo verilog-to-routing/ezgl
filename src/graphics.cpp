@@ -17,17 +17,17 @@ void renderer::set_coordinate_system(t_coordinate_system new_coordinate_system)
   current_coordinate_system = new_coordinate_system;
 }
 
-void renderer::set_colour(colour c)
+void renderer::set_color(color c)
 {
-  set_colour(c.red, c.green, c.blue, c.alpha);
+  set_color(c.red, c.green, c.blue, c.alpha);
 }
 
-void renderer::set_colour(colour c, uint_fast8_t alpha)
+void renderer::set_color(color c, uint_fast8_t alpha)
 {
-  set_colour(c.red, c.green, c.blue, alpha);
+  set_color(c.red, c.green, c.blue, alpha);
 }
 
-void renderer::set_colour(uint_fast8_t red,
+void renderer::set_color(uint_fast8_t red,
     uint_fast8_t green,
     uint_fast8_t blue,
     uint_fast8_t alpha)
@@ -158,56 +158,56 @@ void renderer::fill_poly(std::vector<point2d> const &points)
   cairo_fill(m_cairo);
 }
 
-void renderer::draw_elliptic_arc(point2d centre, double radius_x, double radius_y, double start_angle, double extent_angle)
+void renderer::draw_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle)
 {
   // define the stretch factor (i.e. An ellipse is a stretched circle)
   double stretch_factor = radius_y / radius_x;
 
-  draw_arc_path(centre, radius_x, start_angle, extent_angle, stretch_factor, false);
+  draw_arc_path(center, radius_x, start_angle, extent_angle, stretch_factor, false);
 	cairo_stroke(m_cairo);
 }
 
-void renderer::draw_arc(point2d centre, double radius, double start_angle, double extent_angle)
+void renderer::draw_arc(point2d center, double radius, double start_angle, double extent_angle)
 {
-	draw_arc_path(centre, radius, start_angle, extent_angle, 1, false);
+	draw_arc_path(center, radius, start_angle, extent_angle, 1, false);
 	cairo_stroke(m_cairo);
 }
 
-void renderer::fill_elliptic_arc(point2d centre, double radius_x, double radius_y, double start_angle, double extent_angle)
+void renderer::fill_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle)
 {
   // define the stretch factor (i.e. An ellipse is a stretched circle)
   double stretch_factor = radius_y / radius_x;
 
-  draw_arc_path(centre, radius_x, start_angle, extent_angle, stretch_factor, true);
+  draw_arc_path(center, radius_x, start_angle, extent_angle, stretch_factor, true);
   cairo_fill(m_cairo);
 }
 
-void renderer::fill_arc(point2d centre, double radius, double start_angle, double extent_angle)
+void renderer::fill_arc(point2d center, double radius, double start_angle, double extent_angle)
 {
-  draw_arc_path(centre, radius, start_angle, extent_angle, 1, true);
+  draw_arc_path(center, radius, start_angle, extent_angle, 1, true);
   cairo_fill(m_cairo);
 }
 
-void renderer::draw_text(point2d centre, std::string const &text)
+void renderer::draw_text(point2d center, std::string const &text)
 {
   // call the draw_text function with no bounds
-  draw_text(centre, text, DBL_MAX, DBL_MAX);
+  draw_text(center, text, DBL_MAX, DBL_MAX);
 }
 
-void renderer::draw_text(point2d centre, std::string const &text, const rectangle &bounds)
+void renderer::draw_text(point2d center, std::string const &text, const rectangle &bounds)
 {
   // calculate the x and y bounds of the text so that the text is bounded inside the bounding box
-  point2d bottom_left_bounds = centre - bounds.bottom_left();
-  point2d top_right_bounds = bounds.top_right() - centre;
+  point2d bottom_left_bounds = center - bounds.bottom_left();
+  point2d top_right_bounds = bounds.top_right() - center;
 
   double bound_x = std::min(bottom_left_bounds.x, top_right_bounds.x) * 2;
   double bound_y = std::min(bottom_left_bounds.y, top_right_bounds.y) * 2;
 
   // call the draw_text function with the calculated bounds
-  draw_text(centre, text, bound_x, bound_y);
+  draw_text(center, text, bound_x, bound_y);
 }
 
-void renderer::draw_text(point2d centre, std::string const &text, double bound_x, double bound_y)
+void renderer::draw_text(point2d center, std::string const &text, double bound_x, double bound_y)
 {
   // get the width and height of the drawn text
   cairo_text_extents_t text_extents{};
@@ -232,16 +232,16 @@ void renderer::draw_text(point2d centre, std::string const &text, double bound_x
 
   // transform the given center point
   if (current_coordinate_system == WORLD)
-    centre = m_transform(centre);
+    center = m_transform(center);
 
-  // calculating the reference point to center the text around "centre" taking into account the rotation_angle
+  // calculating the reference point to center the text around "center" taking into account the rotation_angle
   // for more info about reference point location: see https://www.cairographics.org/tutorial/#L1understandingtext
   point2d ref_point = {0, 0};
 
-  ref_point.x = centre.x - (text_extents.x_bearing + (text_extents.width / 2)) * cos (rotation_angle)
+  ref_point.x = center.x - (text_extents.x_bearing + (text_extents.width / 2)) * cos (rotation_angle)
 		  - (-font_extents.descent + (text_extents.height / 2)) * sin (rotation_angle);
 
-  ref_point.y = centre.y - (text_extents.y_bearing + (text_extents.height / 2)) * cos (rotation_angle)
+  ref_point.y = center.y - (text_extents.y_bearing + (text_extents.height / 2)) * cos (rotation_angle)
 		  - (text_extents.x_bearing + (text_extents.width / 2)) * sin (rotation_angle);
 
   // move to the reference point, perform the rotation, and draw the text
@@ -268,26 +268,26 @@ void renderer::draw_rectangle_path(point2d start, point2d end)
   cairo_close_path(m_cairo);
 }
 
-void renderer::draw_arc_path(point2d centre, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag)
+void renderer::draw_arc_path(point2d center, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag)
 {
   // save the current state to undo the scaling needed for drawing ellipse
   cairo_save(m_cairo);
 
   // point_x is a point on the arc outline
-  point2d point_x = {centre.x + radius, centre.y};
+  point2d point_x = {center.x + radius, center.y};
 
   // transform the center point of the arc, and the other point
   if (current_coordinate_system == WORLD) {
-    centre = m_transform(centre);
+    center = m_transform(center);
     point_x = m_transform(point_x);
   }
 
   // calculate the new radius after transforming to the new coordinates
-  radius = point_x.x - centre.x;
+  radius = point_x.x - center.x;
 
   // scale the drawing by the stretch factor to draw elliptic circles
   cairo_scale(m_cairo, 1/stretch_factor, 1);
-  centre.x = centre.x * stretch_factor;
+  center.x = center.x * stretch_factor;
   radius = radius * stretch_factor;
 
   // start a new path (forget the current point). Alternative for cairo_move_to() for drawing non-filled arc
@@ -295,7 +295,7 @@ void renderer::draw_arc_path(point2d centre, double radius, double start_angle, 
 
   // if the arc will be filled in, start drawing from the center of the arc
   if (fill_flag)
-    cairo_move_to(m_cairo, centre.x, centre.y);
+    cairo_move_to(m_cairo, center.x, center.y);
 
   // calculating the ending angle
   double end_angle = start_angle + extent_angle;
@@ -303,12 +303,12 @@ void renderer::draw_arc_path(point2d centre, double radius, double start_angle, 
   // draw the arc in counter clock-wise direction if the extent angle is positive
   if (extent_angle >= 0)
   {
-	  cairo_arc_negative(m_cairo, centre.x, centre.y, radius, - start_angle * M_PI / 180, - end_angle * M_PI / 180);
+	  cairo_arc_negative(m_cairo, center.x, center.y, radius, - start_angle * M_PI / 180, - end_angle * M_PI / 180);
   }
   // draw the arc in clock-wise direction if the extent angle is negative
   else
   {
-	  cairo_arc(m_cairo, centre.x, centre.y, radius, - start_angle * M_PI / 180, - end_angle * M_PI / 180);
+	  cairo_arc(m_cairo, center.x, center.y, radius, - start_angle * M_PI / 180, - end_angle * M_PI / 180);
   }
 
   // if the arc will be filled in, return back to the center of the arc

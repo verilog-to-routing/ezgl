@@ -138,27 +138,27 @@ public:
   }
 
   /**
-   * The centre of the rectangle in the x plane.
+   * The center of the rectangle in the x plane.
    */
-  double centre_x() const
+  double center_x() const
   {
     return (right() + left()) * 0.5;
   }
 
   /**
-   * The centre of the rectangle in the y plane.
+   * The center of the rectangle in the y plane.
    */
-  double centre_y() const
+  double center_y() const
   {
     return (top() + bottom()) * 0.5;
   }
 
   /**
-   * The centre of the recangle.
+   * The center of the recangle.
    */
-  point2d centre() const
+  point2d center() const
   {
-    return {centre_x(), centre_y()};
+    return {center_x(), center_y()};
   }
 
   /**

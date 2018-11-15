@@ -29,7 +29,7 @@ rectangle zoom_out_world(point2d zoom_point, rectangle world, double zoom_factor
 
 void zoom_in(canvas *cnv, double zoom_factor)
 {
-  point2d const zoom_point = cnv->get_camera().get_world().centre();
+  point2d const zoom_point = cnv->get_camera().get_world().center();
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_in_world(zoom_point, world, zoom_factor));
@@ -47,7 +47,7 @@ void zoom_in(canvas *cnv, point2d zoom_point, double zoom_factor)
 
 void zoom_out(canvas *cnv, double zoom_factor)
 {
-  point2d const zoom_point = cnv->get_camera().get_world().centre();
+  point2d const zoom_point = cnv->get_camera().get_world().center();
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_out_world(zoom_point, world, zoom_factor));

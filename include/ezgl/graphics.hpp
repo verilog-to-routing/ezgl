@@ -1,7 +1,7 @@
 #ifndef EZGL_GRAPHICS_HPP
 #define EZGL_GRAPHICS_HPP
 
-#include <ezgl/colour.hpp>
+#include <ezgl/color.hpp>
 #include <ezgl/point.hpp>
 #include <ezgl/rectangle.hpp>
 #include <ezgl/camera.hpp>
@@ -120,22 +120,22 @@ public:
   void set_coordinate_system(t_coordinate_system new_coordinate_system);
 
   /**
-   * Change the colour for subsequent draw calls.
+   * Change the color for subsequent draw calls.
    *
-   * @param new_colour The new colour to use.
+   * @param new_color The new color to use.
    */
-  void set_colour(colour new_colour);
+  void set_color(color new_color);
 
   /**
-   * Change the colour for subsequent draw calls.
+   * Change the color for subsequent draw calls.
    *
-   * @param new_colour The new colour to use.
-   * @param alpha Overwrite the alpha channel in the chosen colour.
+   * @param new_color The new color to use.
+   * @param alpha Overwrite the alpha channel in the chosen color.
    */
-  void set_colour(colour new_colour, uint_fast8_t alpha);
+  void set_color(color new_color, uint_fast8_t alpha);
 
   /**
-   * Change the colour for subsequent draw calls.
+   * Change the color for subsequent draw calls.
    *
    * @param red The amount of red to use, between 0 and 255.
    * @param green The amount of green to use, between 0 and 255.
@@ -143,7 +143,7 @@ public:
    * @param alpha The transparency level (0 is fully transparent, 255 is opaque).
    */
   void
-  set_colour(uint_fast8_t red, uint_fast8_t green, uint_fast8_t blue, uint_fast8_t alpha = 255);
+  set_color(uint_fast8_t red, uint_fast8_t green, uint_fast8_t blue, uint_fast8_t alpha = 255);
 
   /**
    * Change how line endpoints will be rendered in subsequent draw calls.
@@ -258,71 +258,71 @@ public:
   /**
    * Draw the outline of an elliptic arc.
    *
-   * @param centre The centre of the arc, in pixels.
+   * @param center The center of the arc, in pixels.
    * @param radius_x The x radius of the elliptic arc, in pixels.
    * @param radius_y The y radius of the elliptic arc, in pixels.
    * @param start_angle The starting angle of the arc, in degrees.
    * @param extent_angle The extent angle of the arc, in degrees.
    */
-  void draw_elliptic_arc(point2d centre, double radius_x, double radius_y, double start_angle, double extent_angle);
+  void draw_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle);
 
   /**
    * Draw the outline of an arc.
    *
-   * @param centre The centre of the arc, in pixels.
+   * @param center The center of the arc, in pixels.
    * @param radius The radius of the arc, in pixels.
    * @param start_angle The starting angle of the arc, in degrees.
    * @param extent_angle The extent angle of the arc, in degrees.
    */
-  void draw_arc(point2d centre, double radius, double start_angle, double extent_angle);
+  void draw_arc(point2d center, double radius, double start_angle, double extent_angle);
 
   /**
    * Draw a filled in elliptic arc.
    *
-   * @param centre The centre of the arc, in pixels.
+   * @param center The center of the arc, in pixels.
    * @param radius_x The x radius of the elliptic arc, in pixels.
    * @param radius_y The y radius of the elliptic arc, in pixels.
    * @param start_angle The starting angle of the arc, in degrees.
    * @param extent_angle The extent angle of the arc, in degrees.
    */
-  void fill_elliptic_arc(point2d centre, double radius_x, double radius_y, double start_angle, double extent_angle);
+  void fill_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle);
 
   /**
    * Draw a filled in arc.
    *
-   * @param centre The centre of the arc, in pixels.
+   * @param center The center of the arc, in pixels.
    * @param radius The radius of the arc, in pixels.
    * @param start_angle The starting angle of the arc, in degrees.
    * @param extent_angle The extent angle of the arc, in degrees.
    */
-  void fill_arc(point2d centre, double radius, double start_angle, double extent_angle);
+  void fill_arc(point2d center, double radius, double start_angle, double extent_angle);
 
   /**
    * Draw text centered around a point.
    *
-   * @param centre The centre of the text, in pixels.
+   * @param center The center of the text, in pixels.
    * @param text The text to draw.
    */
-  void draw_text(point2d centre, std::string const &text);
+  void draw_text(point2d center, std::string const &text);
 
   /**
    * Draw text centered around a point inside a bounding box.
    *
-   * @param centre The centre of the text, in pixels.
+   * @param center The center of the text, in pixels.
    * @param text The text to draw.
    * @param bounds The bounding box of the text
    */
-  void draw_text(point2d centre, std::string const &text, const rectangle &bounds);
+  void draw_text(point2d center, std::string const &text, const rectangle &bounds);
 
   /**
    * Draw text centered around a point with bounds.
    *
-   * @param centre The centre of the text, in pixels.
+   * @param center The center of the text, in pixels.
    * @param text The text to draw.
    * @param bound_x The maximum allowed width of the text
    * @param bound_y The maximum allowed height of the text
    */
-  void draw_text(point2d centre, std::string const &text, double bound_x, double bound_y);
+  void draw_text(point2d center, std::string const &text, double bound_x, double bound_y);
 
   /**
    * Draw a png image
@@ -351,7 +351,7 @@ protected:
 
 private:
   void draw_rectangle_path(point2d start, point2d end);
-  void draw_arc_path(point2d centre, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag);
+  void draw_arc_path(point2d center, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag);
 
   // Current coordinate system (World is the default)
   t_coordinate_system current_coordinate_system = WORLD;

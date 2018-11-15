@@ -22,7 +22,7 @@ rectangle maintain_aspect_ratio(rectangle const &view, double widget_width, doub
     new_height = widget_height;
     // Scale the width to maintain the aspect ratio.
     new_width = view.width() * y_scale;
-    // Keep the view in the centre of the widget.
+    // Keep the view in the center of the widget.
     x_start = 0.5 * std::fabs(widget_width - new_width);
   } else {
     // Using x_scale keeps the view within the widget's height.
@@ -31,7 +31,7 @@ rectangle maintain_aspect_ratio(rectangle const &view, double widget_width, doub
     new_width = widget_width;
     // Scale the height to maintain the aspect ratio.
     new_height = view.height() * x_scale;
-    // Keep the view in the centre of the widget.
+    // Keep the view in the center of the widget.
     y_start = 0.5 * std::fabs(widget_height - new_height);
   }
 

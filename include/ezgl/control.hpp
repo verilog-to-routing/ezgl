@@ -9,12 +9,12 @@ namespace ezgl {
 class canvas;
 
 /**
- * Zoom in on the centre of the currently visible world.
+ * Zoom in on the center of the currently visible world.
  */
 void zoom_in(canvas *cnv, double zoom_factor);
 
 /**
- * Zoom out from the centre of the currently visible world.
+ * Zoom out from the center of the currently visible world.
  */
 void zoom_out(canvas *cnv, double zoom_factor);
 

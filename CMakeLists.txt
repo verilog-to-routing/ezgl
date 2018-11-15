@@ -25,7 +25,7 @@ add_library(
   include/ezgl/application.hpp
   include/ezgl/camera.hpp
   include/ezgl/canvas.hpp
-  include/ezgl/colour.hpp
+  include/ezgl/color.hpp
   include/ezgl/control.hpp
   include/ezgl/callback.hpp
   include/ezgl/graphics.hpp
