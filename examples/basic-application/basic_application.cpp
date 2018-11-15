@@ -389,6 +389,8 @@ void draw_main_canvas(ezgl::renderer &g)
  */
 void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y)
 {
+  application->update_message("Mouse Clicked");
+
   std::cout << "User clicked the ";
 
   if (event->button == 1)
@@ -427,5 +429,7 @@ void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, do
  */
 void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *key_name)
 {
+  application->update_message("Key Pressed");
+
   std::cout << key_name <<" key is pressed" << std::endl;
 }

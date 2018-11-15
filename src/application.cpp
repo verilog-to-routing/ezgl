@@ -178,4 +178,16 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   GObject *shift_right_button = application->get_object("RightButton");
   g_signal_connect(shift_right_button, "clicked", G_CALLBACK(press_right), application);
 }
+
+void application::update_message(std::string const &message)
+{
+  // Get the StatusBar Object
+  GtkStatusbar *status_bar = (GtkStatusbar *) get_object("StatusBar");
+
+  // Remove all previous messages from the message stack
+  gtk_statusbar_remove_all(status_bar, 0);
+
+  // Push user message to the message stack
+  gtk_statusbar_push (status_bar, 0, message.c_str());
+}
 }

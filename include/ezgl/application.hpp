@@ -166,6 +166,13 @@ public:
   }
 
   /**
+   * Update the message in the status bar
+   *
+   * @param message The message that will be displayed on the status bar
+   */
+  void update_message(std::string const &message);
+
+  /**
    * Run the application.
    *
    * Once this is called, the application will be initialized first. Initialization will build the GUI based on the XML
