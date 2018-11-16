@@ -211,4 +211,9 @@ gboolean press_right(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
+gboolean press_proceed(GtkWidget *widget, GdkEvent *event, gpointer data) {
+  auto ezgl_app = static_cast<ezgl::application *>(data);
+  ezgl_app->quit();
+}
+
 }

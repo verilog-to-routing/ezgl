@@ -148,6 +148,17 @@ gboolean press_left(GtkWidget *widget, GdkEvent *event, gpointer data);
  */
 gboolean press_right(GtkWidget *widget, GdkEvent *event, gpointer data);
 
+/**
+ * React to the clicked proceed button
+ *
+ * @param widget The GUI widget where this event came from.
+ * @param event The click event.
+ * @param data A pointer to any user-specified data you passed in.
+ *
+ * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
+ */
+gboolean press_proceed(GtkWidget *widget, GdkEvent *event, gpointer data);
+
 }
 
 

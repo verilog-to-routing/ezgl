@@ -193,6 +193,11 @@ public:
   int run(int argc, char **argv, mouse_callback_fn mouse_press_user_callback,
       mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback);
 
+  /*
+   * Quit the application
+   */
+  int quit();
+
 private:
   // The package path to the XML file that describes the UI.
   std::string m_main_ui;

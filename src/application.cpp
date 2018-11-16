@@ -122,6 +122,10 @@ int application::run(int argc, char **argv, mouse_callback_fn mouse_press_user_c
   return g_application_run(G_APPLICATION(m_application), argc, argv);
 }
 
+int application::quit() {
+  g_application_quit(G_APPLICATION(m_application));
+}
+
 void application::register_default_events_callbacks(ezgl::application *application)
 {
   // Get a pointer to the main window GUI object by using its name.
@@ -177,6 +181,10 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   // Connect press_right function to the Right button
   GObject *shift_right_button = application->get_object("RightButton");
   g_signal_connect(shift_right_button, "clicked", G_CALLBACK(press_right), application);
+
+// Connect press_proceed function to the Proceed button
+  GObject *proceed_button = application->get_object("ProceedButton");
+  g_signal_connect(proceed_button, "clicked", G_CALLBACK(press_proceed), application);
 }
 
 void application::update_message(std::string const &message)
