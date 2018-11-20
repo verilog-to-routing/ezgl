@@ -432,4 +432,5 @@ void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *
   application->update_message("Key Pressed");
 
   std::cout << key_name <<" key is pressed" << std::endl;
+  application->destroy_button("Proceed");
 }

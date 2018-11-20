@@ -190,6 +190,14 @@ public:
   void create_button(const char *button_text, int insert_row, GCallback button_func);
 
   /**
+   * Deletes a button by its label (displayed text)
+   * 
+   * @param the text of the button to delete
+   * @return whether the button was found and deleted
+   */
+  bool destroy_button(const char *button_text_to_destroy);
+
+  /**
    * Update the message in the status bar
    *
    * @param message The message that will be displayed on the status bar

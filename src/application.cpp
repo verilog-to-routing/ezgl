@@ -229,4 +229,37 @@ void application::create_button(const char *button_text, int insert_row, GCallba
   create_button(button_text, 0, insert_row, 3, 1, button_func);
 }
 
+bool application::destroy_button(const char *button_text_to_destroy) {
+  // get the inner grid
+  GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
+
+  // the text to delete, in c++ string form
+  std::string text_to_del = std::string(button_text_to_destroy);
+
+  // iterate over all of the children in the grid and find the button by it's text
+  GList *children, *iter;
+  children = gtk_container_get_children(GTK_CONTAINER(in_grid));
+  for(iter = children; iter != NULL; iter = g_list_next(iter)) {
+    // iterator to widget
+    GtkWidget* widget = GTK_WIDGET(iter->data);
+
+    // check if widget is a button
+    if(GTK_IS_BUTTON(widget)) {
+      // convert to button
+      GtkButton* button = GTK_BUTTON(widget);
+
+      // does the label of the button match the one we want to delete?
+      std::string button_text = std::string(gtk_button_get_label(button));
+      if(button_text == text_to_del) {
+        // destroy the button (widget) and return true
+        gtk_widget_destroy(widget);
+        return true;
+      }
+    }
+  }
+
+  // couldn't find the button with the label 'button_text_to_destroy'
+  return false;
+}
+
 }
