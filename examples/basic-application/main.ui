@@ -37,12 +37,17 @@
 
                         <child>
                             <object id="UpButton" class="GtkButton">
-                                <property name="label" translatable="yes">Up</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
-                                <property name="use_action_appearance">False</property>
+                                <child>
+                                    <object class="GtkArrow">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="arrow_type">up</property>
+                                    </object>
+                                </child>
                             </object>
                             <packing>
                                 <property name="left-attach">1</property>
@@ -53,12 +58,17 @@
 
                         <child>
                             <object id="DownButton" class="GtkButton">
-                                <property name="label" translatable="yes">Down</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
-                                <property name="use_action_appearance">False</property>
+                                <child>
+                                    <object class="GtkArrow">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="arrow_type">down</property>
+                                    </object>
+                                </child>
                             </object>
                             <packing>
                                 <property name="left-attach">1</property>
@@ -69,12 +79,17 @@
 
                         <child>
                             <object id="LeftButton" class="GtkButton">
-                                <property name="label" translatable="yes">Left</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
-                                <property name="use_action_appearance">False</property>
+                                <child>
+                                    <object class="GtkArrow">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="arrow_type">left</property>
+                                    </object>
+                                </child>
                             </object>
                             <packing>
                                 <property name="left-attach">0</property>
@@ -85,12 +100,17 @@
 
                         <child>
                             <object id="RightButton" class="GtkButton">
-                                <property name="label" translatable="yes">Right</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
-                                <property name="use_action_appearance">False</property>
+                                <child>
+                                    <object class="GtkArrow">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="arrow_type">right</property>
+                                    </object>
+                                </child>
                             </object>
                             <packing>
                                 <property name="left-attach">2</property>
