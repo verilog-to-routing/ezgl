@@ -31,7 +31,7 @@
                     </object>
                 </child>
                 <child>
-                    <object class="GtkGrid">
+                    <object class="GtkGrid" id="InnerGrid">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
 
@@ -158,7 +158,7 @@
                             </object>
                             <packing>
                                 <property name="left-attach">0</property>
-                                <property name="top-attach">10</property>
+                                <property name="top-attach">6</property>
                                 <property name="width">3</property>
                             </packing>
                         </child>

@@ -198,4 +198,35 @@ void application::update_message(std::string const &message)
   // Push user message to the message stack
   gtk_statusbar_push (status_bar, 0, message.c_str());
 }
+
+void application::create_button(const char *button_text, int left, int top, int width, int height, GCallback button_func) {
+  // get the internal Gtk grid
+  GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
+
+  // create the new button with the given label
+  GtkWidget *new_button = gtk_button_new_with_label(button_text);
+
+  // connect the buttons clicked event to the callback
+  if(button_func != NULL) {
+    g_signal_connect(G_OBJECT(new_button), "clicked", button_func, m_application);
+  }
+
+  // add the new button
+  gtk_grid_attach(in_grid, new_button, left, top, width, height);
+
+  // show the button
+  gtk_widget_show(new_button);
+}
+
+void application::create_button(const char *button_text, int insert_row, GCallback button_func) {
+  // get the internal Gtk grid
+  GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
+
+  // add a row where we want to insert
+  gtk_grid_insert_row(in_grid, insert_row);
+
+  // create the button
+  create_button(button_text, 0, insert_row, 3, 1, button_func);
+}
+
 }

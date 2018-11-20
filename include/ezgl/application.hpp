@@ -166,6 +166,30 @@ public:
   }
 
   /**
+   * Add a button
+   *
+   * @param button_text the new button text
+   * @param left the column number to attach the left side of the new button to
+   * @param top the row number to attach the top side of the new button to
+   * @param width the number of columns that the button will span
+   * @param height the number of rows that the button will span
+   * @param button_func callback function for the button
+   */
+  void create_button(const char *button_text, int left, int top, int width, int height, GCallback button_func);
+
+
+  /**
+   * Add a button convenience
+   * Adds a button at a given row index (assuming buttons in the right bar use 1 row each)
+   * by inserting a row in the grid and adding the button. Uses the default width of 3 and height of 1
+   * 
+   * @param button_text the new button text
+   * @param insert_row the row in the right bar to insert the button
+   * @param button_func callback function for the button
+   */
+  void create_button(const char *button_text, int insert_row, GCallback button_func);
+
+  /**
    * Update the message in the status bar
    *
    * @param message The message that will be displayed on the status bar
