@@ -2,6 +2,9 @@
 
 namespace ezgl {
 
+// A flag to disable event loop (default is false)
+bool application::disable_event_loop = false;
+
 void application::startup(GtkApplication *, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
@@ -117,6 +120,9 @@ GObject *application::get_object(gchar const *name) const
 int application::run(gen_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
     mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback)
 {
+  if (disable_event_loop)
+    return 0;
+
   initial_setup_callback = initial_setup_user_callback;
   mouse_press_callback = mouse_press_user_callback;
   mouse_move_callback = mouse_move_user_callback;

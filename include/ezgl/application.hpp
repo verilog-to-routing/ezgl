@@ -230,10 +230,22 @@ public:
   int run(gen_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
       mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback);
 
-  /*
+  /**
    * Quit the application
    */
   void quit();
+
+  /**
+   * Set the disable_event_loop flag to new_setting
+   * Call with new_setting == true to make the event_loop immediately return.
+   * Needed only for auto-marking
+   *
+   * @param new_setting The new state of disable_event_loop flag
+   */
+  static void set_disable_event_loop (bool new_setting)
+  {
+    disable_event_loop = new_setting;
+  }
 
 private:
   // The package path to the XML file that describes the UI.
@@ -285,6 +297,9 @@ public:
 
   // The user-defined callback function for handling keyboard press
   key_callback_fn key_press_callback;
+
+  // A flag to disable event loop (default is false)
+  static bool disable_event_loop;
 };
 
 
