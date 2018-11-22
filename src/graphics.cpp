@@ -17,6 +17,11 @@ void renderer::set_coordinate_system(t_coordinate_system new_coordinate_system)
   current_coordinate_system = new_coordinate_system;
 }
 
+rectangle renderer::get_visible_world()
+{
+  return m_camera->get_world();
+}
+
 void renderer::set_color(color c)
 {
   set_color(c.red, c.green, c.blue, c.alpha);
