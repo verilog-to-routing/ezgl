@@ -26,6 +26,11 @@ class application;
 using connect_g_objects_fn = void (*)(application *app);
 
 /**
+ * The signature of a general callback function
+ */
+using gen_callback_fn = void (*)(application *app);
+
+/**
  * The signature of a user-defined callback function for mouse events
  */
 using mouse_callback_fn = void (*)(application *app, GdkEventButton *event, double x, double y);
@@ -222,13 +227,13 @@ public:
    *
    * @return The exit status.
    */
-  int run(int argc, char **argv, mouse_callback_fn mouse_press_user_callback,
+  int run(gen_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
       mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback);
 
   /*
    * Quit the application
    */
-  int quit();
+  void quit();
 
 private:
   // The package path to the XML file that describes the UI.
@@ -252,6 +257,9 @@ private:
   // The collection of canvases added to the application.
   std::map<std::string, std::unique_ptr<canvas>> m_canvases;
 
+  // A flag that indicates if the run() was called before or not to allow multiple reruns
+  bool first_run;
+
 private:
   // Called when our GtkApplication is initialized for the first time.
   static void startup(GtkApplication *gtk_app, gpointer user_data);
@@ -266,6 +274,9 @@ private:
   static void register_default_events_callbacks(application *application);
 
 public:
+  // The user-defined initial setup callback function
+  gen_callback_fn initial_setup_callback;
+
    // The user-defined callback function for handling mouse press
   mouse_callback_fn mouse_press_callback;
 
