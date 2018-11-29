@@ -16,6 +16,8 @@
 void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y);
 void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y);
 void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *key_name);
+void initial_setup(ezgl::application *application);
+void test_button();
 
 /**
  * Draw to the main canvas using the provided graphics object.
@@ -61,9 +63,13 @@ int main(int argc, char **argv)
   // you will only regain control based on callbacks you have setup.
   // Three callbacks can be provided to handle mouse button presses,
   // mouse movement and keyboard button presses in the graphics area,
-  // respectively. Those callbacks are optional, so we can pass nullptr if
+  // respectively. Also, an initial_setup function can be passed that will
+  // be called before the activation of the application and can be used
+  // to create additional buttons, initialize the status message, or
+  // connect added widgets to their callback functions.
+  // Those callbacks are optional, so we can pass nullptr if
   // we don't need to take any action on those events
-  return application.run(argc, argv, act_on_mouse_press, act_on_mouse_move, act_on_key_press);
+  return application.run(initial_setup, act_on_mouse_press, act_on_mouse_move, act_on_key_press);
 }
 
 void draw_main_canvas(ezgl::renderer &g)
@@ -383,6 +389,21 @@ void draw_main_canvas(ezgl::renderer &g)
 
 }
 
+
+/**
+ * Function called before the activation of the application
+ * Can be used to create additional buttons, initialize the status message,
+ * or connect added widgets to their callback functions
+ */
+void initial_setup(ezgl::application *application)
+{
+  // Update the status bar message
+  application->update_message("EZGL Application");
+
+  // Create a Test button and link it with test_button callback fn.
+  application->create_button("Test", 6, test_button);
+}
+
 /**
  * Function to handle mouse press event
  * The current mouse position in the main canvas' world coordinate system is returned
@@ -434,3 +455,12 @@ void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *
 
   std::cout << key_name <<" key is pressed" << std::endl;
 }
+
+/**
+ * A callback function to test the Test button
+ */
+void test_button()
+{
+  std::cout << "Test Button Pressed" << std::endl;
+}
+

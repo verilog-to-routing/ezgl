@@ -120,6 +120,11 @@ public:
   void set_coordinate_system(t_coordinate_system new_coordinate_system);
 
   /**
+   * Get the current visible bounds of the world
+   */
+  rectangle get_visible_world();
+
+  /**
    * Change the color for subsequent draw calls.
    *
    * @param new_color The new color to use.

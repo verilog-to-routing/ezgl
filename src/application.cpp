@@ -2,6 +2,9 @@
 
 namespace ezgl {
 
+// A flag to disable event loop (default is false)
+bool application::disable_event_loop = false;
+
 void application::startup(GtkApplication *, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
@@ -39,6 +42,9 @@ void application::activate(GtkApplication *, gpointer user_data)
     register_default_events_callbacks(ezgl_app);
   }
 
+  if (ezgl_app->initial_setup_callback != nullptr)
+    ezgl_app->initial_setup_callback(ezgl_app);
+
   g_info("application::activate successful.");
 }
 
@@ -54,6 +60,8 @@ application::application(application::settings s)
   // so that we can use it in our static functions.
   g_signal_connect(m_application, "startup", G_CALLBACK(startup), this);
   g_signal_connect(m_application, "activate", G_CALLBACK(activate), this);
+
+  first_run = true;
 }
 
 application::~application()
@@ -109,20 +117,46 @@ GObject *application::get_object(gchar const *name) const
   return object;
 }
 
-int application::run(int argc, char **argv, mouse_callback_fn mouse_press_user_callback,
+int application::run(gen_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
     mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback)
 {
+  if (disable_event_loop)
+    return 0;
+
+  initial_setup_callback = initial_setup_user_callback;
   mouse_press_callback = mouse_press_user_callback;
   mouse_move_callback = mouse_move_user_callback;
   key_press_callback = key_press_user_callback;
 
+  // The result of calling g_application_run() again after it returns is unspecified.
+  // So we have to destruct and reconstruct the GTKApplication
+  if (!first_run) {
+    // Destroy the GTK application
+    g_object_unref(m_application);
+    g_object_unref(m_builder);
+
+    // Reconstruct the GTK application
+    m_application = (gtk_application_new("edu.toronto.eecg.ezgl.app", G_APPLICATION_FLAGS_NONE));
+    m_builder = (gtk_builder_new());
+    g_signal_connect(m_application, "startup", G_CALLBACK(startup), this);
+    g_signal_connect(m_application, "activate", G_CALLBACK(activate), this);
+  }
+
+  // set the first_run flag to false
+  first_run = false;
+
   g_info("The event loop is now starting.");
 
   // see: https://developer.gnome.org/gio/unstable/GApplication.html#g-application-run
-  return g_application_run(G_APPLICATION(m_application), argc, argv);
+  return g_application_run(G_APPLICATION(m_application), 0, 0);
 }
 
-int application::quit() {
+void application::quit() {
+  // Close the current window
+  GObject *window = get_object(m_window_id.c_str());
+  gtk_window_close(GTK_WINDOW(window));
+
+  // Quit the GTK application
   g_application_quit(G_APPLICATION(m_application));
 }
 
@@ -248,12 +282,17 @@ bool application::destroy_button(const char *button_text_to_destroy) {
       // convert to button
       GtkButton* button = GTK_BUTTON(widget);
 
-      // does the label of the button match the one we want to delete?
-      std::string button_text = std::string(gtk_button_get_label(button));
-      if(button_text == text_to_del) {
-        // destroy the button (widget) and return true
-        gtk_widget_destroy(widget);
-        return true;
+      // get the button label
+      const char *button_label = gtk_button_get_label(button);
+      if (button_label != nullptr) {
+        std::string button_text = std::string(button_label);
+
+        // does the label of the button match the one we want to delete?
+        if(button_text == text_to_del) {
+          // destroy the button (widget) and return true
+          gtk_widget_destroy(widget);
+          return true;
+        }
       }
     }
   }
