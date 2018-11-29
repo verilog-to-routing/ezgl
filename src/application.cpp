@@ -11,7 +11,7 @@ void application::startup(GtkApplication *, gpointer user_data)
 
   // Build the main user interface from the XML resource.
   GError *error = nullptr;
-  if(gtk_builder_add_from_resource(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
+  if(gtk_builder_add_from_file(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
     g_error("%s.", error->message);
   }
 

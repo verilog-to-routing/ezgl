@@ -42,7 +42,8 @@ int main(int argc, char **argv)
 
   // Path to the resource that contains an XML description of the UI.
   // Note: this is not a file path, it is a resource path.
-  settings.main_ui_resource = "/edu/toronto/eecg/ezgl/ece297/cd000/main.ui";
+  //settings.main_ui_resource = "/edu/toronto/eecg/ezgl/ece297/cd000/main.ui";
+  settings.main_ui_resource = "/home/tanner/ezgl/examples/basic-application/main.ui";
 
   // Note: the "main.ui" file has a GtkWindow called "MainWindow".
   settings.window_identifier = "MainWindow";
