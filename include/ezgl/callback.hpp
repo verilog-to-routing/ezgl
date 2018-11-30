@@ -75,89 +75,81 @@ gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data);
  * React to the clicked zoom_fit button
  *
  * @param widget The GUI widget where this event came from.
- * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean press_zoom_fit(GtkWidget *widget, GdkEvent *event, gpointer data);
+gboolean press_zoom_fit(GtkWidget *widget, gpointer data);
 
 /**
  * React to the clicked zoom_in button
  *
  * @param widget The GUI widget where this event came from.
- * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean press_zoom_in(GtkWidget *widget, GdkEvent *event, gpointer data);
+gboolean press_zoom_in(GtkWidget *widget, gpointer data);
 
 /**
  * React to the clicked zoom_out button
  *
  * @param widget The GUI widget where this event came from.
- * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean press_zoom_out(GtkWidget *widget, GdkEvent *event, gpointer data);
+gboolean press_zoom_out(GtkWidget *widget, gpointer data);
 
 /**
  * React to the clicked up button
  *
  * @param widget The GUI widget where this event came from.
- * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean press_up(GtkWidget *widget, GdkEvent *event, gpointer data);
+gboolean press_up(GtkWidget *widget, gpointer data);
 
 /**
  * React to the clicked up button
  *
  * @param widget The GUI widget where this event came from.
- * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean press_down(GtkWidget *widget, GdkEvent *event, gpointer data);
+gboolean press_down(GtkWidget *widget, gpointer data);
 
 /**
  * React to the clicked up button
  *
  * @param widget The GUI widget where this event came from.
- * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean press_left(GtkWidget *widget, GdkEvent *event, gpointer data);
+gboolean press_left(GtkWidget *widget, gpointer data);
 
 /**
  * React to the clicked up button
  *
  * @param widget The GUI widget where this event came from.
- * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean press_right(GtkWidget *widget, GdkEvent *event, gpointer data);
+gboolean press_right(GtkWidget *widget, gpointer data);
 
 /**
  * React to the clicked proceed button
  *
  * @param widget The GUI widget where this event came from.
- * @param event The click event.
  * @param data A pointer to any user-specified data you passed in.
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-gboolean press_proceed(GtkWidget *widget, GdkEvent *event, gpointer data);
+gboolean press_proceed(GtkWidget *widget, gpointer data);
 
 }
 

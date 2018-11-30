@@ -127,7 +127,7 @@ gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
-gboolean press_zoom_fit(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean press_zoom_fit(GtkWidget *widget, gpointer data) {
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -139,7 +139,7 @@ gboolean press_zoom_fit(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
-gboolean press_zoom_in(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean press_zoom_in(GtkWidget *widget, gpointer data) {
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -151,7 +151,7 @@ gboolean press_zoom_in(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
-gboolean press_zoom_out(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean press_zoom_out(GtkWidget *widget, gpointer data) {
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -163,7 +163,7 @@ gboolean press_zoom_out(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
-gboolean press_up(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean press_up(GtkWidget *widget, gpointer data) {
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -175,7 +175,7 @@ gboolean press_up(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
-gboolean press_down(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean press_down(GtkWidget *widget, gpointer data) {
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -187,7 +187,7 @@ gboolean press_down(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
-gboolean press_left(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean press_left(GtkWidget *widget, gpointer data) {
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -199,7 +199,7 @@ gboolean press_left(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
-gboolean press_right(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean press_right(GtkWidget *widget, gpointer data) {
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -211,7 +211,7 @@ gboolean press_right(GtkWidget *widget, GdkEvent *event, gpointer data) {
   return TRUE;
 }
 
-gboolean press_proceed(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean press_proceed(GtkWidget *widget, gpointer data) {
   auto ezgl_app = static_cast<ezgl::application *>(data);
   ezgl_app->quit();
 }
