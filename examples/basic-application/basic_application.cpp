@@ -461,5 +461,6 @@ void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *
 void test_button(GtkWidget *widget, ezgl::application *application)
 {
   application->update_message("Test Button Pressed");
+  application->refresh_drawing();
 }
 

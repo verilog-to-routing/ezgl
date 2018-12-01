@@ -223,6 +223,11 @@ public:
   void update_message(std::string const &message);
 
   /**
+   * refresh the DrawingArea
+   */
+  void refresh_drawing();
+
+  /**
    * Run the application.
    *
    * Once this is called, the application will be initialized first. Initialization will build the GUI based on the XML

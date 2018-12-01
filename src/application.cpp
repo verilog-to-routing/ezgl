@@ -335,4 +335,12 @@ void application::change_button_text(const char *button_text, const char *new_bu
   }
 }
 
+void application::refresh_drawing() {
+  // get the main canvas
+  canvas *cnv = get_canvas(m_canvas_id);
+
+  // force redrawing
+  cnv->redraw();
+}
+
 }
