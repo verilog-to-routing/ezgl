@@ -76,14 +76,17 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
       std::string main_canvas_id = application->get_main_canvas_id();
       auto canvas = application->get_canvas(main_canvas_id);
 
-      double dx = motion_event->x - prev_x;
-      double dy = motion_event->y - prev_y;
+      point2d curr_trans = canvas->get_camera().widget_to_world({motion_event->x,motion_event->y});
+      point2d prev_trans = canvas->get_camera().widget_to_world({prev_x,prev_y});
+
+      double dx = curr_trans.x - prev_trans.x;
+      double dy = curr_trans.y - prev_trans.y;
 
       prev_x = motion_event->x;
       prev_y = motion_event->y;
 
       // Flip the delta x to avoid inverted dragging
-      translate(canvas, -dx, dy);
+      translate(canvas, -dx, -dy);
     }
 
     // Call the user-defined mouse move callback if defined
