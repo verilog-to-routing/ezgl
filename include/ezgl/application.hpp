@@ -26,9 +26,14 @@ class application;
 using connect_g_objects_fn = void (*)(application *app);
 
 /**
- * The signature of a general callback function
+ * The signature of a setup callback function
  */
-using gen_callback_fn = void (*)(application *app);
+using setup_callback_fn = void (*)(application *app);
+
+/**
+ * The signature of a button callback function
+ */
+using button_callback_fn = void (*)(GtkWidget *widget, application *app);
 
 /**
  * The signature of a user-defined callback function for mouse events
@@ -180,7 +185,7 @@ public:
    * @param height the number of rows that the button will span
    * @param button_func callback function for the button
    */
-  void create_button(const char *button_text, int left, int top, int width, int height, GCallback button_func);
+  void create_button(const char *button_text, int left, int top, int width, int height, button_callback_fn button_func);
 
 
   /**
@@ -192,7 +197,7 @@ public:
    * @param insert_row the row in the right bar to insert the button
    * @param button_func callback function for the button
    */
-  void create_button(const char *button_text, int insert_row, GCallback button_func);
+  void create_button(const char *button_text, int insert_row, button_callback_fn button_func);
 
   /**
    * Deletes a button by its label (displayed text)
@@ -227,7 +232,7 @@ public:
    *
    * @return The exit status.
    */
-  int run(gen_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
+  int run(setup_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
       mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback);
 
   /**
@@ -287,7 +292,7 @@ private:
 
 public:
   // The user-defined initial setup callback function
-  gen_callback_fn initial_setup_callback;
+  setup_callback_fn initial_setup_callback;
 
    // The user-defined callback function for handling mouse press
   mouse_callback_fn mouse_press_callback;

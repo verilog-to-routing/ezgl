@@ -54,7 +54,7 @@ public:
   /**
    * Update the bounds of the world.
    */
-  rectangle set_world(rectangle new_world);
+  void set_world(rectangle new_world);
 
   /**
    * Get the screen to world scaling factor.

@@ -117,7 +117,7 @@ GObject *application::get_object(gchar const *name) const
   return object;
 }
 
-int application::run(gen_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
+int application::run(setup_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
     mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback)
 {
   if (disable_event_loop)
@@ -233,7 +233,7 @@ void application::update_message(std::string const &message)
   gtk_statusbar_push (status_bar, 0, message.c_str());
 }
 
-void application::create_button(const char *button_text, int left, int top, int width, int height, GCallback button_func) {
+void application::create_button(const char *button_text, int left, int top, int width, int height, button_callback_fn button_func) {
   // get the internal Gtk grid
   GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
 
@@ -242,7 +242,7 @@ void application::create_button(const char *button_text, int left, int top, int 
 
   // connect the buttons clicked event to the callback
   if(button_func != NULL) {
-    g_signal_connect(G_OBJECT(new_button), "clicked", button_func, m_application);
+    g_signal_connect(G_OBJECT(new_button), "clicked", G_CALLBACK(button_func), this);
   }
 
   // add the new button
@@ -252,7 +252,7 @@ void application::create_button(const char *button_text, int left, int top, int 
   gtk_widget_show(new_button);
 }
 
-void application::create_button(const char *button_text, int insert_row, GCallback button_func) {
+void application::create_button(const char *button_text, int insert_row, button_callback_fn button_func) {
   // get the internal Gtk grid
   GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
 

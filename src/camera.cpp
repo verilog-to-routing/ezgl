@@ -80,7 +80,7 @@ point2d camera::world_to_screen(point2d world_coordinates) const
   return screen_coordinates;
 }
 
-rectangle camera::set_world(rectangle new_world)
+void camera::set_world(rectangle new_world)
 {
   m_world = new_world;
 

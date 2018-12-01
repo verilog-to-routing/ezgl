@@ -17,7 +17,7 @@ void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, d
 void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y);
 void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *key_name);
 void initial_setup(ezgl::application *application);
-void test_button();
+void test_button(GtkWidget *widget, ezgl::application *application);
 
 /**
  * Draw to the main canvas using the provided graphics object.
@@ -458,8 +458,8 @@ void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *
 /**
  * A callback function to test the Test button
  */
-void test_button()
+void test_button(GtkWidget *widget, ezgl::application *application)
 {
-  std::cout << "Test Button Pressed" << std::endl;
+  application->update_message("Test Button Pressed");
 }
 
