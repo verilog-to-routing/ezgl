@@ -301,4 +301,38 @@ bool application::destroy_button(const char *button_text_to_destroy) {
   return false;
 }
 
+void application::change_button_text(const char *button_text, const char *new_button_text) {
+  // get the inner grid
+  GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
+
+  // the text to change, in c++ string form
+  std::string text_to_change = std::string(button_text);
+
+  // iterate over all of the children in the grid and find the button by it's text
+  GList *children, *iter;
+  children = gtk_container_get_children(GTK_CONTAINER(in_grid));
+  for(iter = children; iter != NULL; iter = g_list_next(iter)) {
+    // iterator to widget
+    GtkWidget* widget = GTK_WIDGET(iter->data);
+
+    // check if widget is a button
+    if(GTK_IS_BUTTON(widget)) {
+      // convert to button
+      GtkButton* button = GTK_BUTTON(widget);
+
+      // get the button label
+      const char *button_label = gtk_button_get_label(button);
+      if (button_label != nullptr) {
+        std::string button_text_str = std::string(button_label);
+
+        // does the label of the button match the one we want to change?
+        if(button_text_str == text_to_change) {
+          // change button label
+          gtk_button_set_label(button, new_button_text);
+        }
+      }
+    }
+  }
+}
+
 }

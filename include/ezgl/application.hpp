@@ -208,6 +208,14 @@ public:
   bool destroy_button(const char *button_text_to_destroy);
 
   /**
+   * Change the label of the button (displayed text)
+   *
+   * @param button_text the old text of the button
+   * @param new_button_text the new button text
+   */
+  void change_button_text(const char *button_text, const char *new_button_text);
+
+  /**
    * Update the message in the status bar
    *
    * @param message The message that will be displayed on the status bar
