@@ -27,7 +27,7 @@ gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointe
   auto ezgl_canvas = static_cast<canvas *>(data);
   auto &surface = ezgl_canvas->m_surface;
 
-  if(surface == nullptr) {
+  if(surface != nullptr) {
     cairo_surface_destroy(surface);
   }
 
