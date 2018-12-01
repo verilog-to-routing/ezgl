@@ -5,6 +5,7 @@ namespace ezgl {
 // File wide static variables to track whether the middle mouse
 // button is currently pressed AND the old x and y positions of the mouse pointer
 bool middle_mouse_button_pressed = false;
+int last_panning_event_time = 0;
 double prev_x = 0, prev_y = 0;
 
 gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer data)
@@ -71,6 +72,12 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
 
     // Check if the middle mouse is pressed to support dragging
     if(middle_mouse_button_pressed) {
+      // drop this panning event if we have just served another one
+      if (gtk_get_current_event_time() - last_panning_event_time < 150)
+	return true;
+
+      last_panning_event_time = gtk_get_current_event_time();
+
       GdkEventMotion *motion_event = (GdkEventMotion *)event;
 
       std::string main_canvas_id = application->get_main_canvas_id();
@@ -88,9 +95,8 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
       // Flip the delta x to avoid inverted dragging
       translate(canvas, -dx, -dy);
     }
-
-    // Call the user-defined mouse move callback if defined
-    if(application->mouse_move_callback != nullptr) {
+    // Else call the user-defined mouse move callback if defined
+    else if(application->mouse_move_callback != nullptr) {
       ezgl::point2d const widget_coordinates(event->x, event->y);
 
       std::string main_canvas_id = application->get_main_canvas_id();
