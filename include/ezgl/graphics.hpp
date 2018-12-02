@@ -125,6 +125,13 @@ public:
   rectangle get_visible_world();
 
   /**
+   * Check if a rectangle is off the screen
+   *
+   * @param rect The rectangle to check
+   */
+  bool rectangle_off_screen(rectangle rect);
+
+  /**
    * Change the color for subsequent draw calls.
    *
    * @param new_color The new color to use.

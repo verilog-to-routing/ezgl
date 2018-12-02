@@ -44,6 +44,14 @@ public:
   }
 
   /**
+   * Get the dimensions of the screen.
+   */
+  rectangle get_screen() const
+  {
+    return m_screen;
+  }
+
+  /**
    * Get the initial bounds of the world. Needed for zoom_fit
    */
   rectangle get_initial_world() const
