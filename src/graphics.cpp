@@ -412,25 +412,42 @@ void renderer::draw_arc_path(point2d center, double radius, double start_angle, 
 
 void renderer::draw_png(const char* file_path, point2d top_left)
 {
+  // Create an image surface from a PNG image
+  cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
+
+  // Check if the surface is properly created
+  if (cairo_surface_status(png_surface) != CAIRO_STATUS_SUCCESS)
+    return;
+
+  // Draw the created png_surface
+  draw_surface(png_surface, top_left);
+
+  // Destroy the created png_surface
+  cairo_surface_destroy(png_surface);
+}
+
+void renderer::draw_surface(cairo_surface_t *surface, point2d top_left)
+{
+  // Check if the surface is properly created
+  if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
+    return;
+
+  // pre-clipping
+  double s_width = (double) cairo_image_surface_get_width(surface);
+  double s_height = (double) cairo_image_surface_get_height(surface);
+
+  if (rectangle_off_screen({{top_left.x, top_left.y - s_height}, s_width, s_height}))
+    return;
+
   // transform the given top_left point
   if (current_coordinate_system == WORLD)
     top_left = m_transform(top_left);
 
-  // Create an image surface from a PNG image
-  cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
-
-  // Check if the png_surface is properly created
-  if (cairo_surface_status(png_surface) != CAIRO_STATUS_SUCCESS)
-    return;
-
-  // Create a source for painting from the created png_surface
-  cairo_set_source_surface(m_cairo, png_surface, top_left.x, top_left.y);
+  // Create a source for painting from the surface
+  cairo_set_source_surface(m_cairo, surface, top_left.x, top_left.y);
 
   // Actual drawing
   cairo_paint(m_cairo);
-
-  // Destroy the created png_surface
-  cairo_surface_destroy(png_surface);
 }
 
 }

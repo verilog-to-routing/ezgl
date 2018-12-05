@@ -344,6 +344,14 @@ public:
    */
   void draw_png(const char* file_path, point2d top_left);
 
+  /**
+   * Draw a surface
+   *
+   * @param surface The surface to draw
+   * @param top_left The corner point of the drawn surface.
+   */
+  void draw_surface(cairo_surface_t *surface, point2d top_left);
+
 protected:
   // Only the canvas class can create a renderer.
   friend class canvas;

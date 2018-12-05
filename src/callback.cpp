@@ -73,7 +73,7 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
     // Check if the middle mouse is pressed to support dragging
     if(middle_mouse_button_pressed) {
       // drop this panning event if we have just served another one
-      if (gtk_get_current_event_time() - last_panning_event_time < 150)
+      if (gtk_get_current_event_time() - last_panning_event_time < 100)
 	return true;
 
       last_panning_event_time = gtk_get_current_event_time();
