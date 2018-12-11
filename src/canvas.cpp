@@ -107,6 +107,11 @@ void canvas::redraw()
 {
   cairo_t *context = cairo_create(m_surface);
 
+  // Set the antialiasing mode of the rasterizer used for drawing shapes
+  // Set to CAIRO_ANTIALIAS_NONE for maximum speed
+  // See https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-antialias-t
+  cairo_set_antialias(context, CAIRO_ANTIALIAS_NONE);
+
   // Clear the screen.
   cairo_set_source_rgb(context, 1, 1, 1);
   cairo_paint(context);
