@@ -3,6 +3,7 @@
 
 #include <ezgl/camera.hpp>
 #include <ezgl/rectangle.hpp>
+#include <ezgl/graphics.hpp>
 
 #include <cairo.h>
 #include <gtk/gtk.h>

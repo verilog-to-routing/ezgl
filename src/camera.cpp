@@ -64,6 +64,14 @@ point2d camera::widget_to_world(point2d widget_coordinates) const
   return world_coordinates;
 }
 
+/**
+ * Some X11 implementations overflow with sufficiently large pixel
+ * coordinates and start drawing strangely. We will clip all pixels
+ * to lie in the range below.
+ */
+#define MAXPIXEL 32000.0
+#define MINPIXEL -32000.0
+
 point2d camera::world_to_screen(point2d world_coordinates) const
 {
   point2d const world_origin{m_world.left(), m_world.bottom()};
@@ -76,6 +84,11 @@ point2d camera::world_to_screen(point2d world_coordinates) const
 
   point2d const screen_origin = {m_screen.left(), m_screen.bottom()};
   screen_coordinates = screen_coordinates + screen_origin;
+
+  screen_coordinates.x = std::max(screen_coordinates.x, MINPIXEL);
+  screen_coordinates.y = std::max(screen_coordinates.y, MINPIXEL);
+  screen_coordinates.x = std::min(screen_coordinates.x, MAXPIXEL);
+  screen_coordinates.y = std::min(screen_coordinates.y, MAXPIXEL);
 
   return screen_coordinates;
 }

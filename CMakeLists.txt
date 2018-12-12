@@ -11,6 +11,7 @@ project(
 # we rely on GTK3 for the GUI, so make sure the system has it
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+pkg_check_modules(X11 QUIET x11)
 
 # we also rely on glib to compile the GTK resource files
 # a set of macros has been developed by Makman2 on GitHub to help with this
@@ -43,11 +44,13 @@ target_include_directories(
   ${PROJECT_NAME}
   PUBLIC include
   PUBLIC ${GTK3_INCLUDE_DIRS}
+  PUBLIC ${X11_INCLUDE_DIRS}
 )
 
 target_link_libraries(
   ${PROJECT_NAME}
   PUBLIC ${GTK3_LIBRARIES}
+  PUBLIC ${X11_LIBRARIES}
 )
 
 # add_compile_options does not seem to be working on the UG machines,

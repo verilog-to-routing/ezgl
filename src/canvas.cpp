@@ -16,7 +16,15 @@ cairo_surface_t *create_surface(GtkWidget *widget)
   int const width = gtk_widget_get_allocated_width(widget);
   int const height = gtk_widget_get_allocated_height(widget);
 
-  return  gdk_window_create_similar_image_surface(parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
+  /**
+   * Cairo image surfaces are more efficient than normal Cairo surfaces
+   * However, you cannot use X11 functions to draw on image surfaces
+   */
+#ifdef USE_X11
+  return gdk_window_create_similar_surface(parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
+#else
+  return gdk_window_create_similar_image_surface(parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
+#endif
 }
 
 gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointer data)
@@ -70,12 +78,20 @@ canvas::~canvas()
 
 int canvas::width() const
 {
+#ifdef USE_X11
+  return cairo_xlib_surface_get_width(m_surface);
+#else
   return cairo_image_surface_get_width(m_surface);
+#endif
 }
 
 int canvas::height() const
 {
+#ifdef USE_X11
+  return cairo_xlib_surface_get_height(m_surface);
+#else
   return cairo_image_surface_get_height(m_surface);
+#endif
 }
 
 void canvas::initialize(GtkWidget *drawing_area)
@@ -117,7 +133,7 @@ void canvas::redraw()
   cairo_paint(context);
 
   using namespace std::placeholders;
-  renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera);
+  renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera, m_surface);
   m_draw_callback(g);
 
   cairo_destroy(context);

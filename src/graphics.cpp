@@ -4,12 +4,30 @@
 
 namespace ezgl {
 
-renderer::renderer(cairo_t *cairo, transform_fn transform, camera *m_camera)
+renderer::renderer(cairo_t *cairo, transform_fn transform, camera *m_camera, cairo_surface_t *m_surface)
     : m_cairo(cairo)
     , m_transform(std::move(transform))
     , m_camera(m_camera)
     , rotation_angle(0)
 {
+#ifdef USE_X11
+  // get the underlying x11 drawable used by cairo surface
+  x11_drawable = cairo_xlib_surface_get_drawable(m_surface);
+
+  // get the x11 display
+  x11_display = cairo_xlib_surface_get_display(m_surface);
+
+  // create the x11 context from the drawable of the cairo surface
+  x11_context = XCreateGC(x11_display, x11_drawable, 0, 0);
+#endif
+}
+
+renderer::~renderer()
+{
+#ifdef USE_X11
+  // free the x11 context
+  XFreeGC(x11_display, x11_context);
+#endif
 }
 
 void renderer::set_coordinate_system(t_coordinate_system new_coordinate_system)
@@ -71,13 +89,37 @@ void renderer::set_color(uint_fast8_t red,
     uint_fast8_t blue,
     uint_fast8_t alpha)
 {
+  // set color for cairo
   cairo_set_source_rgba(m_cairo, red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0);
+
+#ifdef USE_X11
+  // check transparency
+  if (alpha != 255)
+    transparency_flag = true;
+  else
+    transparency_flag = false;
+
+  // set color for x11 (no transparency)
+  unsigned long xcolor = 0;
+  xcolor |= (red << 2 * 8 | red << 8 | red) & 0xFF0000;
+  xcolor |= (green << 2 * 8 | green << 8 | green) & 0xFF00;
+  xcolor |= (blue << 2 * 8 | blue << 8 | blue) & 0xFF;
+  xcolor |= 0xFF000000;
+  XSetForeground(x11_display, x11_context, xcolor);
+#endif
 }
 
 void renderer::set_line_cap(line_cap cap)
 {
   auto cairo_cap = static_cast<cairo_line_cap_t>(cap);
   cairo_set_line_cap(m_cairo, cairo_cap);
+
+#ifdef USE_X11
+  current_line_cap = cap;
+  XSetLineAttributes(x11_display, x11_context, current_line_width,
+      current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
+      current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+#endif
 }
 
 void renderer::set_line_dash(line_dash dash)
@@ -92,11 +134,25 @@ void renderer::set_line_dash(line_dash dash)
 
     cairo_set_dash(m_cairo, dashes, num_dashes, 0);
   }
+
+#ifdef USE_X11
+  current_line_dash = dash;
+  XSetLineAttributes(x11_display, x11_context, current_line_width,
+      current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
+      current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+#endif
 }
 
 void renderer::set_line_width(int width)
 {
   cairo_set_line_width(m_cairo, width);
+
+#ifdef USE_X11
+  current_line_width = width;
+  XSetLineAttributes(x11_display, x11_context, current_line_width,
+      current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
+      current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+#endif
 }
 
 void renderer::set_font_size(double new_size)
@@ -135,6 +191,13 @@ void renderer::draw_line(point2d start, point2d end)
     end = m_transform(end);
   }
 
+#ifdef USE_X11
+  if (!transparency_flag) {
+    XDrawLine(x11_display, x11_drawable, x11_context,  start.x , start.y , end.x , end.y);
+    return;
+  }
+#endif
+
   cairo_move_to(m_cairo, start.x, start.y);
   cairo_line_to(m_cairo, end.x, end.y);
 
@@ -146,8 +209,7 @@ void renderer::draw_rectangle(point2d start, point2d end)
   if (rectangle_off_screen({start, end}))
     return;
 
-  draw_rectangle_path(start, end);
-  cairo_stroke(m_cairo);
+  draw_rectangle_path(start, end, false);
 }
 
 void renderer::draw_rectangle(point2d start, double width, double height)
@@ -155,8 +217,7 @@ void renderer::draw_rectangle(point2d start, double width, double height)
   if (rectangle_off_screen({start, {start.x + width, start.y + height}}))
     return;
 
-  draw_rectangle_path(start, {start.x + width, start.y + height});
-  cairo_stroke(m_cairo);
+  draw_rectangle_path(start, {start.x + width, start.y + height}, false);
 }
 
 void renderer::draw_rectangle(rectangle r)
@@ -164,8 +225,7 @@ void renderer::draw_rectangle(rectangle r)
   if (rectangle_off_screen({{r.left(), r.bottom()}, {r.right(), r.top()}}))
     return;
 
-  draw_rectangle_path({r.left(), r.bottom()}, {r.right(), r.top()});
-  cairo_stroke(m_cairo);
+  draw_rectangle_path({r.left(), r.bottom()}, {r.right(), r.top()}, false);
 }
 
 void renderer::fill_rectangle(point2d start, point2d end)
@@ -173,8 +233,7 @@ void renderer::fill_rectangle(point2d start, point2d end)
   if (rectangle_off_screen({start, end}))
     return;
 
-  draw_rectangle_path(start, end);
-  cairo_fill(m_cairo);
+  draw_rectangle_path(start, end, true);
 }
 
 void renderer::fill_rectangle(point2d start, double width, double height)
@@ -182,8 +241,7 @@ void renderer::fill_rectangle(point2d start, double width, double height)
   if (rectangle_off_screen({start, {start.x + width, start.y + height}}))
     return;
 
-  draw_rectangle_path(start, {start.x + width, start.y + height});
-  cairo_fill(m_cairo);
+  draw_rectangle_path(start, {start.x + width, start.y + height}, true);
 }
 
 void renderer::fill_rectangle(rectangle r)
@@ -191,9 +249,12 @@ void renderer::fill_rectangle(rectangle r)
   if (rectangle_off_screen({{r.left(), r.bottom()}, {r.right(), r.top()}}))
     return;
 
-  draw_rectangle_path({r.left(), r.bottom()}, {r.right(), r.top()});
-  cairo_fill(m_cairo);
+  draw_rectangle_path({r.left(), r.bottom()}, {r.right(), r.top()}, true);
 }
+
+// For speed, use a fixed size polygon point buffer when possible
+// Dynamically allocate an arbitrary size buffer only when necessary.
+#define X11_MAX_FIXED_POLY_PTS 100
 
 void renderer::fill_poly(std::vector<point2d> const &points)
 {
@@ -216,6 +277,32 @@ void renderer::fill_poly(std::vector<point2d> const &points)
     return;
 
   point2d next_point = points[0];
+
+#ifdef USE_X11
+  if (!transparency_flag) {
+    XPoint fixed_trans_points[X11_MAX_FIXED_POLY_PTS];
+    XPoint *trans_points = fixed_trans_points;
+
+    if (points.size() > X11_MAX_FIXED_POLY_PTS) {
+      trans_points = new XPoint [points.size()];
+    }
+
+    for (int i = 0; i < points.size(); i++) {
+      if (current_coordinate_system == WORLD)
+        next_point = m_transform(points[i]);
+      else
+        next_point = points[i];
+      trans_points[i].x = static_cast<long>(next_point.x);
+      trans_points[i].y = static_cast<long>(next_point.y);
+    }
+
+    XFillPolygon(x11_display, x11_drawable, x11_context, trans_points, points.size(), Complex, CoordModeOrigin);
+
+    if (points.size() > X11_MAX_FIXED_POLY_PTS)
+        delete [] trans_points;
+    return;
+  }
+#endif
 
   if (current_coordinate_system == WORLD)
     next_point = m_transform(points[0]);
@@ -243,7 +330,6 @@ void renderer::draw_elliptic_arc(point2d center, double radius_x, double radius_
   double stretch_factor = radius_y / radius_x;
 
   draw_arc_path(center, radius_x, start_angle, extent_angle, stretch_factor, false);
-	cairo_stroke(m_cairo);
 }
 
 void renderer::draw_arc(point2d center, double radius, double start_angle, double extent_angle)
@@ -252,7 +338,6 @@ void renderer::draw_arc(point2d center, double radius, double start_angle, doubl
     return;
 
   draw_arc_path(center, radius, start_angle, extent_angle, 1, false);
-  cairo_stroke(m_cairo);
 }
 
 void renderer::fill_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle)
@@ -264,7 +349,6 @@ void renderer::fill_elliptic_arc(point2d center, double radius_x, double radius_
   double stretch_factor = radius_y / radius_x;
 
   draw_arc_path(center, radius_x, start_angle, extent_angle, stretch_factor, true);
-  cairo_fill(m_cairo);
 }
 
 void renderer::fill_arc(point2d center, double radius, double start_angle, double extent_angle)
@@ -273,7 +357,6 @@ void renderer::fill_arc(point2d center, double radius, double start_angle, doubl
     return;
 
   draw_arc_path(center, radius, start_angle, extent_angle, 1, true);
-  cairo_fill(m_cairo);
 }
 
 void renderer::draw_text(point2d center, std::string const &text)
@@ -344,12 +427,24 @@ void renderer::draw_text(point2d center, std::string const &text, double bound_x
   cairo_restore(m_cairo);
 }
 
-void renderer::draw_rectangle_path(point2d start, point2d end)
+void renderer::draw_rectangle_path(point2d start, point2d end, bool fill_flag)
 {
   if (current_coordinate_system == WORLD) {
     start = m_transform(start);
     end = m_transform(end);
   }
+
+#ifdef USE_X11
+  if (!transparency_flag) {
+    if (fill_flag)
+      XFillRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),std::min(start.y, end.y),
+	  std::abs(end.x - start.x), std::abs(end.y - start.y));
+    else
+      XDrawRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),std::min(start.y, end.y),
+	  std::abs(end.x - start.x), std::abs(end.y - start.y));
+    return;
+  }
+#endif
 
   cairo_move_to(m_cairo, start.x, start.y);
   cairo_line_to(m_cairo, start.x, end.y);
@@ -357,13 +452,16 @@ void renderer::draw_rectangle_path(point2d start, point2d end)
   cairo_line_to(m_cairo, end.x, start.y);
 
   cairo_close_path(m_cairo);
+
+  // actual drawing
+  if (fill_flag)
+    cairo_fill(m_cairo);
+  else
+    cairo_stroke(m_cairo);
 }
 
 void renderer::draw_arc_path(point2d center, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag)
 {
-  // save the current state to undo the scaling needed for drawing ellipse
-  cairo_save(m_cairo);
-
   // point_x is a point on the arc outline
   point2d point_x = {center.x + radius, center.y};
 
@@ -375,6 +473,21 @@ void renderer::draw_arc_path(point2d center, double radius, double start_angle, 
 
   // calculate the new radius after transforming to the new coordinates
   radius = point_x.x - center.x;
+
+#ifdef USE_X11
+  if (!transparency_flag) {
+    if (fill_flag)
+      XFillArc(x11_display, x11_drawable, x11_context, center.x - radius, center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,
+	  start_angle * 64, extent_angle * 64);
+    else
+      XDrawArc(x11_display, x11_drawable, x11_context, center.x - radius, center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,
+	  start_angle * 64, extent_angle * 64);
+    return;
+  }
+#endif
+
+  // save the current state to undo the scaling needed for drawing ellipse
+  cairo_save(m_cairo);
 
   // scale the drawing by the stretch factor to draw elliptic circles
   cairo_scale(m_cairo, 1/stretch_factor, 1);
@@ -408,6 +521,12 @@ void renderer::draw_arc_path(point2d center, double radius, double start_angle, 
 
   // restore the old state to undo the scaling needed for drawing ellipse
   cairo_restore(m_cairo);
+
+  // actual drawing
+  if (fill_flag)
+    cairo_fill(m_cairo);
+  else
+    cairo_stroke(m_cairo);
 }
 
 void renderer::draw_png(const char* file_path, point2d top_left)

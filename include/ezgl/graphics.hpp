@@ -7,6 +7,9 @@
 #include <ezgl/camera.hpp>
 
 #include <cairo.h>
+#ifdef CAIRO_HAS_XLIB_SURFACE
+#include <cairo-xlib.h>
+#endif
 
 #include <functional>
 #include <string>
@@ -14,6 +17,10 @@
 #include <cfloat>
 #include <cmath>
 #include <algorithm>
+
+#ifdef CAIRO_HAS_XLIB_SURFACE
+#define USE_X11
+#endif
 
 namespace ezgl {
 
@@ -80,12 +87,7 @@ enum class line_cap : int {
   /**
    * Each end of the line has circles.
    */
-  round = CAIRO_LINE_CAP_ROUND,
-
-  /**
-   * Each end of the line has squares.
-   */
-  square = CAIRO_LINE_CAP_SQUARE
+  round = CAIRO_LINE_CAP_ROUND
 };
 
 /**
@@ -352,6 +354,11 @@ public:
    */
   void draw_surface(cairo_surface_t *surface, point2d top_left);
 
+  /**
+   * Destructor.
+   */
+  ~renderer();
+
 protected:
   // Only the canvas class can create a renderer.
   friend class canvas;
@@ -367,10 +374,10 @@ protected:
    * @param cairo The cairo graphics state.
    * @param transform The function to use to transform points to cairo's coordinate system.
    */
-  renderer(cairo_t *cairo, transform_fn transform, camera *m_camera);
+  renderer(cairo_t *cairo, transform_fn transform, camera *m_camera, cairo_surface_t *m_surface);
 
 private:
-  void draw_rectangle_path(point2d start, point2d end);
+  void draw_rectangle_path(point2d start, point2d end, bool fill_flag);
   void draw_arc_path(point2d center, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag);
 
   // Current coordinate system (World is the default)
@@ -378,6 +385,29 @@ private:
 
   // A non-owning pointer to a cairo graphics context.
   cairo_t *m_cairo;
+
+#ifdef USE_X11
+  // The x11 drawable
+  Drawable x11_drawable;
+
+  // The x11 display
+  Display *x11_display;
+
+  // The x11 context
+  GC x11_context;
+
+  // Current line width
+  int current_line_width = 1;
+
+  // Current line cap
+  line_cap current_line_cap = line_cap::butt;
+
+  // Current line dash
+  line_dash current_line_dash = line_dash::none;
+
+  // Transparency flag, if set cairo will be used
+  bool transparency_flag = false;
+#endif
 
   transform_fn m_transform;
 

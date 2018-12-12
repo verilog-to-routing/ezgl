@@ -27,10 +27,10 @@ SRCS = $(wildcard ./*.cpp $(EZGL_DIR)/src/*.cpp)
 HDRS = $(wildcard ./*.h $(EZGL_DIR)/include/ezgl/*.hpp)
 
 # the GTK include directories. Runs "pkg-config --cflags gtk+-3.0" to get the include directories.
-GTK_INCLUDE_DIRS := $(shell pkg-config --cflags gtk+-$(GTK_VERSION_NUM))
+GTK_INCLUDE_DIRS := $(shell pkg-config --cflags gtk+-$(GTK_VERSION_NUM) x11)
 
 # the GTK libraries. Runs "pkg-config --libs gtk+-3.0" to get the libraries to include for GTK.
-GTK_LIBS := $(shell pkg-config --libs gtk+-$(GTK_VERSION_NUM))
+GTK_LIBS := $(shell pkg-config --libs gtk+-$(GTK_VERSION_NUM) x11)
 
 # set the include directories
 INC_DIRS = $(EZGL_DIR)/include $(EZGL_DIR)/include/ezgl
