@@ -204,7 +204,7 @@ public:
    */
   friend rectangle operator-(rectangle &lhs, point2d const &rhs)
   {
-    return rectangle(lhs.m_first-rhs, lhs.m_second-rhs);
+    return rectangle(lhs.m_first - rhs, lhs.m_second - rhs);
   }
 
   /**
@@ -212,7 +212,7 @@ public:
    */
   friend rectangle operator+(rectangle &lhs, point2d const &rhs)
   {
-    return rectangle(lhs.m_first+rhs, lhs.m_second+rhs);
+    return rectangle(lhs.m_first + rhs, lhs.m_second + rhs);
   }
 
   /** The first point of the rectangle */

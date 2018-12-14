@@ -44,7 +44,6 @@ gboolean press_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
       ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
       application->mouse_press_callback(application, event, world.x, world.y);
     }
-
   }
 
   return TRUE; // consume the event
@@ -73,7 +72,7 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
     // Check if the middle mouse is pressed to support dragging
     if(middle_mouse_button_pressed) {
       // drop this panning event if we have just served another one
-      if (gtk_get_current_event_time() - last_panning_event_time < 100)
+      if(gtk_get_current_event_time() - last_panning_event_time < 100)
         return true;
 
       last_panning_event_time = gtk_get_current_event_time();
@@ -83,8 +82,8 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
       std::string main_canvas_id = application->get_main_canvas_id();
       auto canvas = application->get_canvas(main_canvas_id);
 
-      point2d curr_trans = canvas->get_camera().widget_to_world({motion_event->x,motion_event->y});
-      point2d prev_trans = canvas->get_camera().widget_to_world({prev_x,prev_y});
+      point2d curr_trans = canvas->get_camera().widget_to_world({motion_event->x, motion_event->y});
+      point2d prev_trans = canvas->get_camera().widget_to_world({prev_x, prev_y});
 
       double dx = curr_trans.x - prev_trans.x;
       double dy = curr_trans.y - prev_trans.y;
@@ -105,13 +104,13 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
       ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
       application->mouse_move_callback(application, event, world.x, world.y);
     }
-
   }
 
   return TRUE; // consume the event
 }
 
-gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data) {
+gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data)
+{
 
   if(event->type == GDK_SCROLL) {
     auto application = static_cast<ezgl::application *>(data);
@@ -131,12 +130,13 @@ gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data) {
       ezgl::zoom_out(canvas, scroll_point, 5.0 / 3.0);
     } else if(scroll_event->direction == GDK_SCROLL_SMOOTH) {
       // Doesn't seem to be happening
-    }  // NOTE: We ignore scroll GDK_SCROLL_LEFT and GDK_SCROLL_RIGHT
+    } // NOTE: We ignore scroll GDK_SCROLL_LEFT and GDK_SCROLL_RIGHT
   }
   return TRUE;
 }
 
-gboolean press_zoom_fit(GtkWidget *widget, gpointer data) {
+gboolean press_zoom_fit(GtkWidget *widget, gpointer data)
+{
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -148,7 +148,8 @@ gboolean press_zoom_fit(GtkWidget *widget, gpointer data) {
   return TRUE;
 }
 
-gboolean press_zoom_in(GtkWidget *widget, gpointer data) {
+gboolean press_zoom_in(GtkWidget *widget, gpointer data)
+{
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -160,7 +161,8 @@ gboolean press_zoom_in(GtkWidget *widget, gpointer data) {
   return TRUE;
 }
 
-gboolean press_zoom_out(GtkWidget *widget, gpointer data) {
+gboolean press_zoom_out(GtkWidget *widget, gpointer data)
+{
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -172,7 +174,8 @@ gboolean press_zoom_out(GtkWidget *widget, gpointer data) {
   return TRUE;
 }
 
-gboolean press_up(GtkWidget *widget, gpointer data) {
+gboolean press_up(GtkWidget *widget, gpointer data)
+{
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -184,7 +187,8 @@ gboolean press_up(GtkWidget *widget, gpointer data) {
   return TRUE;
 }
 
-gboolean press_down(GtkWidget *widget, gpointer data) {
+gboolean press_down(GtkWidget *widget, gpointer data)
+{
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -196,7 +200,8 @@ gboolean press_down(GtkWidget *widget, gpointer data) {
   return TRUE;
 }
 
-gboolean press_left(GtkWidget *widget, gpointer data) {
+gboolean press_left(GtkWidget *widget, gpointer data)
+{
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -208,7 +213,8 @@ gboolean press_left(GtkWidget *widget, gpointer data) {
   return TRUE;
 }
 
-gboolean press_right(GtkWidget *widget, gpointer data) {
+gboolean press_right(GtkWidget *widget, gpointer data)
+{
 
   auto application = static_cast<ezgl::application *>(data);
 
@@ -220,11 +226,11 @@ gboolean press_right(GtkWidget *widget, gpointer data) {
   return TRUE;
 }
 
-gboolean press_proceed(GtkWidget *widget, gpointer data) {
+gboolean press_proceed(GtkWidget *widget, gpointer data)
+{
   auto ezgl_app = static_cast<ezgl::application *>(data);
   ezgl_app->quit();
 
   return TRUE;
 }
-
 }

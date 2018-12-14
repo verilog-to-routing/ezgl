@@ -42,7 +42,7 @@ void application::activate(GtkApplication *, gpointer user_data)
     register_default_events_callbacks(ezgl_app);
   }
 
-  if (ezgl_app->initial_setup_callback != nullptr)
+  if(ezgl_app->initial_setup_callback != nullptr)
     ezgl_app->initial_setup_callback(ezgl_app);
 
   g_info("application::activate successful.");
@@ -117,10 +117,12 @@ GObject *application::get_object(gchar const *name) const
   return object;
 }
 
-int application::run(setup_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
-    mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback)
+int application::run(setup_callback_fn initial_setup_user_callback,
+    mouse_callback_fn mouse_press_user_callback,
+    mouse_callback_fn mouse_move_user_callback,
+    key_callback_fn key_press_user_callback)
 {
-  if (disable_event_loop)
+  if(disable_event_loop)
     return 0;
 
   initial_setup_callback = initial_setup_user_callback;
@@ -130,7 +132,7 @@ int application::run(setup_callback_fn initial_setup_user_callback, mouse_callba
 
   // The result of calling g_application_run() again after it returns is unspecified.
   // So we have to destruct and reconstruct the GTKApplication
-  if (!first_run) {
+  if(!first_run) {
     // Destroy the GTK application
     g_object_unref(m_application);
     g_object_unref(m_builder);
@@ -151,7 +153,8 @@ int application::run(setup_callback_fn initial_setup_user_callback, mouse_callba
   return g_application_run(G_APPLICATION(m_application), 0, 0);
 }
 
-void application::quit() {
+void application::quit()
+{
   // Close the current window
   GObject *window = get_object(m_window_id.c_str());
   gtk_window_close(GTK_WINDOW(window));
@@ -163,7 +166,7 @@ void application::quit() {
 void application::register_default_events_callbacks(ezgl::application *application)
 {
   // Get a pointer to the main window GUI object by using its name.
-  std::string main_window_id =  application->get_main_window_id();
+  std::string main_window_id = application->get_main_window_id();
   GObject *window = application->get_object(main_window_id.c_str());
 
   // Get a pointer to the main canvas GUI object by using its name.
@@ -216,7 +219,7 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   GObject *shift_right_button = application->get_object("RightButton");
   g_signal_connect(shift_right_button, "clicked", G_CALLBACK(press_right), application);
 
-// Connect press_proceed function to the Proceed button
+  // Connect press_proceed function to the Proceed button
   GObject *proceed_button = application->get_object("ProceedButton");
   g_signal_connect(proceed_button, "clicked", G_CALLBACK(press_proceed), application);
 }
@@ -224,18 +227,24 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
 void application::update_message(std::string const &message)
 {
   // Get the StatusBar Object
-  GtkStatusbar *status_bar = (GtkStatusbar *) get_object("StatusBar");
+  GtkStatusbar *status_bar = (GtkStatusbar *)get_object("StatusBar");
 
   // Remove all previous messages from the message stack
   gtk_statusbar_remove_all(status_bar, 0);
 
   // Push user message to the message stack
-  gtk_statusbar_push (status_bar, 0, message.c_str());
+  gtk_statusbar_push(status_bar, 0, message.c_str());
 }
 
-void application::create_button(const char *button_text, int left, int top, int width, int height, button_callback_fn button_func) {
+void application::create_button(const char *button_text,
+    int left,
+    int top,
+    int width,
+    int height,
+    button_callback_fn button_func)
+{
   // get the internal Gtk grid
-  GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
+  GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
 
   // create the new button with the given label
   GtkWidget *new_button = gtk_button_new_with_label(button_text);
@@ -252,9 +261,12 @@ void application::create_button(const char *button_text, int left, int top, int 
   gtk_widget_show(new_button);
 }
 
-void application::create_button(const char *button_text, int insert_row, button_callback_fn button_func) {
+void application::create_button(const char *button_text,
+    int insert_row,
+    button_callback_fn button_func)
+{
   // get the internal Gtk grid
-  GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
+  GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
 
   // add a row where we want to insert
   gtk_grid_insert_row(in_grid, insert_row);
@@ -263,9 +275,10 @@ void application::create_button(const char *button_text, int insert_row, button_
   create_button(button_text, 0, insert_row, 3, 1, button_func);
 }
 
-bool application::destroy_button(const char *button_text_to_destroy) {
+bool application::destroy_button(const char *button_text_to_destroy)
+{
   // get the inner grid
-  GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
+  GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
 
   // the text to delete, in c++ string form
   std::string text_to_del = std::string(button_text_to_destroy);
@@ -275,16 +288,16 @@ bool application::destroy_button(const char *button_text_to_destroy) {
   children = gtk_container_get_children(GTK_CONTAINER(in_grid));
   for(iter = children; iter != NULL; iter = g_list_next(iter)) {
     // iterator to widget
-    GtkWidget* widget = GTK_WIDGET(iter->data);
+    GtkWidget *widget = GTK_WIDGET(iter->data);
 
     // check if widget is a button
     if(GTK_IS_BUTTON(widget)) {
       // convert to button
-      GtkButton* button = GTK_BUTTON(widget);
+      GtkButton *button = GTK_BUTTON(widget);
 
       // get the button label
       const char *button_label = gtk_button_get_label(button);
-      if (button_label != nullptr) {
+      if(button_label != nullptr) {
         std::string button_text = std::string(button_label);
 
         // does the label of the button match the one we want to delete?
@@ -301,9 +314,10 @@ bool application::destroy_button(const char *button_text_to_destroy) {
   return false;
 }
 
-void application::change_button_text(const char *button_text, const char *new_button_text) {
+void application::change_button_text(const char *button_text, const char *new_button_text)
+{
   // get the inner grid
-  GtkGrid *in_grid = (GtkGrid *) get_object("InnerGrid");
+  GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
 
   // the text to change, in c++ string form
   std::string text_to_change = std::string(button_text);
@@ -313,16 +327,16 @@ void application::change_button_text(const char *button_text, const char *new_bu
   children = gtk_container_get_children(GTK_CONTAINER(in_grid));
   for(iter = children; iter != NULL; iter = g_list_next(iter)) {
     // iterator to widget
-    GtkWidget* widget = GTK_WIDGET(iter->data);
+    GtkWidget *widget = GTK_WIDGET(iter->data);
 
     // check if widget is a button
     if(GTK_IS_BUTTON(widget)) {
       // convert to button
-      GtkButton* button = GTK_BUTTON(widget);
+      GtkButton *button = GTK_BUTTON(widget);
 
       // get the button label
       const char *button_label = gtk_button_get_label(button);
-      if (button_label != nullptr) {
+      if(button_label != nullptr) {
         std::string button_text_str = std::string(button_label);
 
         // does the label of the button match the one we want to change?
@@ -335,12 +349,12 @@ void application::change_button_text(const char *button_text, const char *new_bu
   }
 }
 
-void application::refresh_drawing() {
+void application::refresh_drawing()
+{
   // get the main canvas
   canvas *cnv = get_canvas(m_canvas_id);
 
   // force redrawing
   cnv->redraw();
 }
-
 }

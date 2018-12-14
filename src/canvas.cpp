@@ -16,14 +16,15 @@ cairo_surface_t *create_surface(GtkWidget *widget)
   int const width = gtk_widget_get_allocated_width(widget);
   int const height = gtk_widget_get_allocated_height(widget);
 
-  /**
+/**
    * Cairo image surfaces are more efficient than normal Cairo surfaces
    * However, you cannot use X11 functions to draw on image surfaces
    */
 #ifdef USE_X11
   return gdk_window_create_similar_surface(parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
 #else
-  return gdk_window_create_similar_image_surface(parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
+  return gdk_window_create_similar_image_surface(
+      parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
 #endif
 }
 
@@ -114,7 +115,7 @@ void canvas::initialize(GtkWidget *drawing_area)
   gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_POINTER_MOTION_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_SCROLL_MASK); 
+  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_SCROLL_MASK);
 
   g_info("canvas::initialize successful.");
 }

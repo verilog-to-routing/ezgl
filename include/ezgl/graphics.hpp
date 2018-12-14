@@ -113,7 +113,6 @@ enum class line_dash : int {
  */
 class renderer {
 public:
-
   /*
    * Change the current coordinate system
    *
@@ -156,8 +155,7 @@ public:
    * @param blue The amount of blue to use, between 0 and 255.
    * @param alpha The transparency level (0 is fully transparent, 255 is opaque).
    */
-  void
-  set_color(uint_fast8_t red, uint_fast8_t green, uint_fast8_t blue, uint_fast8_t alpha = 255);
+  void set_color(uint_fast8_t red, uint_fast8_t green, uint_fast8_t blue, uint_fast8_t alpha = 255);
 
   /**
    * Change how line endpoints will be rendered in subsequent draw calls.
@@ -278,7 +276,11 @@ public:
    * @param start_angle The starting angle of the arc, in degrees.
    * @param extent_angle The extent angle of the arc, in degrees.
    */
-  void draw_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle);
+  void draw_elliptic_arc(point2d center,
+      double radius_x,
+      double radius_y,
+      double start_angle,
+      double extent_angle);
 
   /**
    * Draw the outline of an arc.
@@ -299,7 +301,11 @@ public:
    * @param start_angle The starting angle of the arc, in degrees.
    * @param extent_angle The extent angle of the arc, in degrees.
    */
-  void fill_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle);
+  void fill_elliptic_arc(point2d center,
+      double radius_x,
+      double radius_y,
+      double start_angle,
+      double extent_angle);
 
   /**
    * Draw a filled in arc.
@@ -344,7 +350,7 @@ public:
    * @param file_path The path to the png image.
    * @param top_left The corner point of the drawn png.
    */
-  void draw_png(const char* file_path, point2d top_left);
+  void draw_png(const char *file_path, point2d top_left);
 
   /**
    * Draw a surface
@@ -378,7 +384,13 @@ protected:
 
 private:
   void draw_rectangle_path(point2d start, point2d end, bool fill_flag);
-  void draw_arc_path(point2d center, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag);
+
+  void draw_arc_path(point2d center,
+      double radius,
+      double start_angle,
+      double extent_angle,
+      double stretch_factor,
+      bool fill_flag);
 
   // Current coordinate system (World is the default)
   t_coordinate_system current_coordinate_system = WORLD;

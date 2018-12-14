@@ -144,7 +144,9 @@ public:
    *
    * @return A pointer to the newly created cavas.
    */
-  canvas *add_canvas(std::string const &canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system);
+  canvas *add_canvas(std::string const &canvas_id,
+      draw_canvas_fn draw_callback,
+      rectangle coordinate_system);
 
   /**
    * Retrieve a GLib Object (i.e., a GObject).
@@ -185,8 +187,12 @@ public:
    * @param height the number of rows that the button will span
    * @param button_func callback function for the button
    */
-  void create_button(const char *button_text, int left, int top, int width, int height, button_callback_fn button_func);
-
+  void create_button(const char *button_text,
+      int left,
+      int top,
+      int width,
+      int height,
+      button_callback_fn button_func);
 
   /**
    * Add a button convenience
@@ -245,8 +251,10 @@ public:
    *
    * @return The exit status.
    */
-  int run(setup_callback_fn initial_setup_user_callback, mouse_callback_fn mouse_press_user_callback,
-      mouse_callback_fn mouse_move_user_callback, key_callback_fn key_press_user_callback);
+  int run(setup_callback_fn initial_setup_user_callback,
+      mouse_callback_fn mouse_press_user_callback,
+      mouse_callback_fn mouse_move_user_callback,
+      key_callback_fn key_press_user_callback);
 
   /**
    * Quit the application
@@ -260,7 +268,7 @@ public:
    *
    * @param new_setting The new state of disable_event_loop flag
    */
-  static void set_disable_event_loop (bool new_setting)
+  static void set_disable_event_loop(bool new_setting)
   {
     disable_event_loop = new_setting;
   }
@@ -307,7 +315,7 @@ public:
   // The user-defined initial setup callback function
   setup_callback_fn initial_setup_callback;
 
-   // The user-defined callback function for handling mouse press
+  // The user-defined callback function for handling mouse press
   mouse_callback_fn mouse_press_callback;
 
   // The user-defined callback function for handling mouse move
@@ -319,8 +327,6 @@ public:
   // A flag to disable event loop (default is false)
   static bool disable_event_loop;
 };
-
-
 }
 
 #endif //EZGL_APPLICATION_HPP

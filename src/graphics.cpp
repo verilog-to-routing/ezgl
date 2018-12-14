@@ -4,11 +4,11 @@
 
 namespace ezgl {
 
-renderer::renderer(cairo_t *cairo, transform_fn transform, camera *m_camera, cairo_surface_t *m_surface)
-    : m_cairo(cairo)
-    , m_transform(std::move(transform))
-    , m_camera(m_camera)
-    , rotation_angle(0)
+renderer::renderer(cairo_t *cairo,
+    transform_fn transform,
+    camera *m_camera,
+    cairo_surface_t *m_surface)
+    : m_cairo(cairo), m_transform(std::move(transform)), m_camera(m_camera), rotation_angle(0)
 {
 #ifdef USE_X11
   // get the underlying x11 drawable used by cairo surface
@@ -54,21 +54,21 @@ rectangle renderer::get_visible_world()
 
 bool renderer::rectangle_off_screen(rectangle rect)
 {
-  if (current_coordinate_system == SCREEN)
+  if(current_coordinate_system == SCREEN)
     return false;
 
   rectangle visible = get_visible_world();
 
-  if (rect.right() < visible.left())
+  if(rect.right() < visible.left())
     return true;
 
-  if (rect.left() > visible.right())
+  if(rect.left() > visible.right())
     return true;
 
-  if (rect.top() < visible.bottom())
+  if(rect.top() < visible.bottom())
     return true;
 
-  if (rect.bottom() > visible.top())
+  if(rect.bottom() > visible.top())
     return true;
 
   return false;
@@ -94,7 +94,7 @@ void renderer::set_color(uint_fast8_t red,
 
 #ifdef USE_X11
   // check transparency
-  if (alpha != 255)
+  if(alpha != 255)
     transparency_flag = true;
   else
     transparency_flag = false;
@@ -178,22 +178,22 @@ void renderer::format_font(std::string const &family,
 void renderer::set_text_rotation(double degrees)
 {
   // convert the given angle to rad
-  rotation_angle = - degrees * M_PI / 180;
+  rotation_angle = -degrees * M_PI / 180;
 }
 
 void renderer::draw_line(point2d start, point2d end)
 {
-  if (rectangle_off_screen({start, end}))
+  if(rectangle_off_screen({start, end}))
     return;
 
-  if (current_coordinate_system == WORLD) {
+  if(current_coordinate_system == WORLD) {
     start = m_transform(start);
     end = m_transform(end);
   }
 
 #ifdef USE_X11
-  if (!transparency_flag) {
-    XDrawLine(x11_display, x11_drawable, x11_context,  start.x , start.y , end.x , end.y);
+  if(!transparency_flag) {
+    XDrawLine(x11_display, x11_drawable, x11_context, start.x, start.y, end.x, end.y);
     return;
   }
 #endif
@@ -206,7 +206,7 @@ void renderer::draw_line(point2d start, point2d end)
 
 void renderer::draw_rectangle(point2d start, point2d end)
 {
-  if (rectangle_off_screen({start, end}))
+  if(rectangle_off_screen({start, end}))
     return;
 
   draw_rectangle_path(start, end, false);
@@ -214,7 +214,7 @@ void renderer::draw_rectangle(point2d start, point2d end)
 
 void renderer::draw_rectangle(point2d start, double width, double height)
 {
-  if (rectangle_off_screen({start, {start.x + width, start.y + height}}))
+  if(rectangle_off_screen({start, {start.x + width, start.y + height}}))
     return;
 
   draw_rectangle_path(start, {start.x + width, start.y + height}, false);
@@ -222,7 +222,7 @@ void renderer::draw_rectangle(point2d start, double width, double height)
 
 void renderer::draw_rectangle(rectangle r)
 {
-  if (rectangle_off_screen({{r.left(), r.bottom()}, {r.right(), r.top()}}))
+  if(rectangle_off_screen({{r.left(), r.bottom()}, {r.right(), r.top()}}))
     return;
 
   draw_rectangle_path({r.left(), r.bottom()}, {r.right(), r.top()}, false);
@@ -230,7 +230,7 @@ void renderer::draw_rectangle(rectangle r)
 
 void renderer::fill_rectangle(point2d start, point2d end)
 {
-  if (rectangle_off_screen({start, end}))
+  if(rectangle_off_screen({start, end}))
     return;
 
   draw_rectangle_path(start, end, true);
@@ -238,7 +238,7 @@ void renderer::fill_rectangle(point2d start, point2d end)
 
 void renderer::fill_rectangle(point2d start, double width, double height)
 {
-  if (rectangle_off_screen({start, {start.x + width, start.y + height}}))
+  if(rectangle_off_screen({start, {start.x + width, start.y + height}}))
     return;
 
   draw_rectangle_path(start, {start.x + width, start.y + height}, true);
@@ -246,7 +246,7 @@ void renderer::fill_rectangle(point2d start, double width, double height)
 
 void renderer::fill_rectangle(rectangle r)
 {
-  if (rectangle_off_screen({{r.left(), r.bottom()}, {r.right(), r.top()}}))
+  if(rectangle_off_screen({{r.left(), r.bottom()}, {r.right(), r.top()}}))
     return;
 
   draw_rectangle_path({r.left(), r.bottom()}, {r.right(), r.top()}, true);
@@ -267,28 +267,28 @@ void renderer::fill_poly(std::vector<point2d> const &points)
   double y_max = points[0].y;
 
   for(std::size_t i = 1; i < points.size(); ++i) {
-      x_min = std::min(x_min, points[i].x);
-      x_max = std::max(x_max, points[i].x);
-      y_min = std::min(y_min, points[i].y);
-      y_max = std::max(y_max, points[i].y);
+    x_min = std::min(x_min, points[i].x);
+    x_max = std::max(x_max, points[i].x);
+    y_min = std::min(y_min, points[i].y);
+    y_max = std::max(y_max, points[i].y);
   }
 
-  if (rectangle_off_screen({{x_min, y_min}, {x_max, y_max}}))
+  if(rectangle_off_screen({{x_min, y_min}, {x_max, y_max}}))
     return;
 
   point2d next_point = points[0];
 
 #ifdef USE_X11
-  if (!transparency_flag) {
+  if(!transparency_flag) {
     XPoint fixed_trans_points[X11_MAX_FIXED_POLY_PTS];
     XPoint *trans_points = fixed_trans_points;
 
-    if (points.size() > X11_MAX_FIXED_POLY_PTS) {
-      trans_points = new XPoint [points.size()];
+    if(points.size() > X11_MAX_FIXED_POLY_PTS) {
+      trans_points = new XPoint[points.size()];
     }
 
-    for (int i = 0; i < points.size(); i++) {
-      if (current_coordinate_system == WORLD)
+    for(int i = 0; i < points.size(); i++) {
+      if(current_coordinate_system == WORLD)
         next_point = m_transform(points[i]);
       else
         next_point = points[i];
@@ -296,21 +296,22 @@ void renderer::fill_poly(std::vector<point2d> const &points)
       trans_points[i].y = static_cast<long>(next_point.y);
     }
 
-    XFillPolygon(x11_display, x11_drawable, x11_context, trans_points, points.size(), Complex, CoordModeOrigin);
+    XFillPolygon(x11_display, x11_drawable, x11_context, trans_points, points.size(), Complex,
+        CoordModeOrigin);
 
-    if (points.size() > X11_MAX_FIXED_POLY_PTS)
-        delete [] trans_points;
+    if(points.size() > X11_MAX_FIXED_POLY_PTS)
+      delete[] trans_points;
     return;
   }
 #endif
 
-  if (current_coordinate_system == WORLD)
+  if(current_coordinate_system == WORLD)
     next_point = m_transform(points[0]);
 
   cairo_move_to(m_cairo, next_point.x, next_point.y);
 
   for(std::size_t i = 1; i < points.size(); ++i) {
-    if (current_coordinate_system == WORLD)
+    if(current_coordinate_system == WORLD)
       next_point = m_transform(points[i]);
     else
       next_point = points[i];
@@ -321,9 +322,14 @@ void renderer::fill_poly(std::vector<point2d> const &points)
   cairo_fill(m_cairo);
 }
 
-void renderer::draw_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle)
+void renderer::draw_elliptic_arc(point2d center,
+    double radius_x,
+    double radius_y,
+    double start_angle,
+    double extent_angle)
 {
-  if (rectangle_off_screen({{center.x - radius_x, center.y - radius_y}, {center.x + radius_x, center.y + radius_y}}))
+  if(rectangle_off_screen(
+         {{center.x - radius_x, center.y - radius_y}, {center.x + radius_x, center.y + radius_y}}))
     return;
 
   // define the stretch factor (i.e. An ellipse is a stretched circle)
@@ -334,15 +340,21 @@ void renderer::draw_elliptic_arc(point2d center, double radius_x, double radius_
 
 void renderer::draw_arc(point2d center, double radius, double start_angle, double extent_angle)
 {
-  if (rectangle_off_screen({{center.x - radius, center.y - radius}, {center.x + radius, center.y + radius}}))
+  if(rectangle_off_screen(
+         {{center.x - radius, center.y - radius}, {center.x + radius, center.y + radius}}))
     return;
 
   draw_arc_path(center, radius, start_angle, extent_angle, 1, false);
 }
 
-void renderer::fill_elliptic_arc(point2d center, double radius_x, double radius_y, double start_angle, double extent_angle)
+void renderer::fill_elliptic_arc(point2d center,
+    double radius_x,
+    double radius_y,
+    double start_angle,
+    double extent_angle)
 {
-  if (rectangle_off_screen({{center.x - radius_x, center.y - radius_y}, {center.x + radius_x, center.y + radius_y}}))
+  if(rectangle_off_screen(
+         {{center.x - radius_x, center.y - radius_y}, {center.x + radius_x, center.y + radius_y}}))
     return;
 
   // define the stretch factor (i.e. An ellipse is a stretched circle)
@@ -353,7 +365,8 @@ void renderer::fill_elliptic_arc(point2d center, double radius_x, double radius_
 
 void renderer::fill_arc(point2d center, double radius, double start_angle, double extent_angle)
 {
-  if (rectangle_off_screen({{center.x - radius, center.y - radius}, {center.x + radius, center.y + radius}}))
+  if(rectangle_off_screen(
+         {{center.x - radius, center.y - radius}, {center.x + radius, center.y + radius}}))
     return;
 
   draw_arc_path(center, radius, start_angle, extent_angle, 1, true);
@@ -380,7 +393,7 @@ void renderer::draw_text(point2d center, std::string const &text, const rectangl
 
 void renderer::draw_text(point2d center, std::string const &text, double bound_x, double bound_y)
 {
-  if (rectangle_off_screen({{center.x-bound_x/2, center.y-bound_y/2}, bound_x, bound_y}))
+  if(rectangle_off_screen({{center.x - bound_x / 2, center.y - bound_y / 2}, bound_x, bound_y}))
     return;
 
   // get the width and height of the drawn text
@@ -397,7 +410,7 @@ void renderer::draw_text(point2d center, std::string const &text, double bound_x
 
   // if text width or height is greater than the given bounds, don't draw the text.
   // NOTE: text rotation is NOT taken into account in bounding check (i.e. text width is compared to bound_x)
-  if (scaled_width > bound_x || scaled_height > bound_y) {
+  if(scaled_width > bound_x || scaled_height > bound_y) {
     return;
   }
 
@@ -405,18 +418,20 @@ void renderer::draw_text(point2d center, std::string const &text, double bound_x
   cairo_save(m_cairo);
 
   // transform the given center point
-  if (current_coordinate_system == WORLD)
+  if(current_coordinate_system == WORLD)
     center = m_transform(center);
 
   // calculating the reference point to center the text around "center" taking into account the rotation_angle
   // for more info about reference point location: see https://www.cairographics.org/tutorial/#L1understandingtext
   point2d ref_point = {0, 0};
 
-  ref_point.x = center.x - (text_extents.x_bearing + (text_extents.width / 2)) * cos (rotation_angle)
-		  - (-font_extents.descent + (text_extents.height / 2)) * sin (rotation_angle);
+  ref_point.x = center.x -
+                (text_extents.x_bearing + (text_extents.width / 2)) * cos(rotation_angle) -
+                (-font_extents.descent + (text_extents.height / 2)) * sin(rotation_angle);
 
-  ref_point.y = center.y - (text_extents.y_bearing + (text_extents.height / 2)) * cos (rotation_angle)
-		  - (text_extents.x_bearing + (text_extents.width / 2)) * sin (rotation_angle);
+  ref_point.y = center.y -
+                (text_extents.y_bearing + (text_extents.height / 2)) * cos(rotation_angle) -
+                (text_extents.x_bearing + (text_extents.width / 2)) * sin(rotation_angle);
 
   // move to the reference point, perform the rotation, and draw the text
   cairo_move_to(m_cairo, ref_point.x, ref_point.y);
@@ -429,19 +444,19 @@ void renderer::draw_text(point2d center, std::string const &text, double bound_x
 
 void renderer::draw_rectangle_path(point2d start, point2d end, bool fill_flag)
 {
-  if (current_coordinate_system == WORLD) {
+  if(current_coordinate_system == WORLD) {
     start = m_transform(start);
     end = m_transform(end);
   }
 
 #ifdef USE_X11
-  if (!transparency_flag) {
-    if (fill_flag)
-      XFillRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),std::min(start.y, end.y),
-	  std::abs(end.x - start.x), std::abs(end.y - start.y));
+  if(!transparency_flag) {
+    if(fill_flag)
+      XFillRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),
+          std::min(start.y, end.y), std::abs(end.x - start.x), std::abs(end.y - start.y));
     else
-      XDrawRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),std::min(start.y, end.y),
-	  std::abs(end.x - start.x), std::abs(end.y - start.y));
+      XDrawRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),
+          std::min(start.y, end.y), std::abs(end.x - start.x), std::abs(end.y - start.y));
     return;
   }
 #endif
@@ -454,19 +469,24 @@ void renderer::draw_rectangle_path(point2d start, point2d end, bool fill_flag)
   cairo_close_path(m_cairo);
 
   // actual drawing
-  if (fill_flag)
+  if(fill_flag)
     cairo_fill(m_cairo);
   else
     cairo_stroke(m_cairo);
 }
 
-void renderer::draw_arc_path(point2d center, double radius, double start_angle, double extent_angle, double stretch_factor, bool fill_flag)
+void renderer::draw_arc_path(point2d center,
+    double radius,
+    double start_angle,
+    double extent_angle,
+    double stretch_factor,
+    bool fill_flag)
 {
   // point_x is a point on the arc outline
   point2d point_x = {center.x + radius, center.y};
 
   // transform the center point of the arc, and the other point
-  if (current_coordinate_system == WORLD) {
+  if(current_coordinate_system == WORLD) {
     center = m_transform(center);
     point_x = m_transform(point_x);
   }
@@ -475,13 +495,15 @@ void renderer::draw_arc_path(point2d center, double radius, double start_angle, 
   radius = point_x.x - center.x;
 
 #ifdef USE_X11
-  if (!transparency_flag) {
-    if (fill_flag)
-      XFillArc(x11_display, x11_drawable, x11_context, center.x - radius, center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,
-	  start_angle * 64, extent_angle * 64);
+  if(!transparency_flag) {
+    if(fill_flag)
+      XFillArc(x11_display, x11_drawable, x11_context, center.x - radius,
+          center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,
+          start_angle * 64, extent_angle * 64);
     else
-      XDrawArc(x11_display, x11_drawable, x11_context, center.x - radius, center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,
-	  start_angle * 64, extent_angle * 64);
+      XDrawArc(x11_display, x11_drawable, x11_context, center.x - radius,
+          center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,
+          start_angle * 64, extent_angle * 64);
     return;
   }
 #endif
@@ -490,7 +512,7 @@ void renderer::draw_arc_path(point2d center, double radius, double start_angle, 
   cairo_save(m_cairo);
 
   // scale the drawing by the stretch factor to draw elliptic circles
-  cairo_scale(m_cairo, 1/stretch_factor, 1);
+  cairo_scale(m_cairo, 1 / stretch_factor, 1);
   center.x = center.x * stretch_factor;
   radius = radius * stretch_factor;
 
@@ -498,44 +520,44 @@ void renderer::draw_arc_path(point2d center, double radius, double start_angle, 
   cairo_new_path(m_cairo);
 
   // if the arc will be filled in, start drawing from the center of the arc
-  if (fill_flag)
+  if(fill_flag)
     cairo_move_to(m_cairo, center.x, center.y);
 
   // calculating the ending angle
   double end_angle = start_angle + extent_angle;
 
   // draw the arc in counter clock-wise direction if the extent angle is positive
-  if (extent_angle >= 0)
-  {
-	  cairo_arc_negative(m_cairo, center.x, center.y, radius, - start_angle * M_PI / 180, - end_angle * M_PI / 180);
+  if(extent_angle >= 0) {
+    cairo_arc_negative(
+        m_cairo, center.x, center.y, radius, -start_angle * M_PI / 180, -end_angle * M_PI / 180);
   }
   // draw the arc in clock-wise direction if the extent angle is negative
-  else
-  {
-	  cairo_arc(m_cairo, center.x, center.y, radius, - start_angle * M_PI / 180, - end_angle * M_PI / 180);
+  else {
+    cairo_arc(
+        m_cairo, center.x, center.y, radius, -start_angle * M_PI / 180, -end_angle * M_PI / 180);
   }
 
   // if the arc will be filled in, return back to the center of the arc
-  if (fill_flag)
-     cairo_close_path(m_cairo);
+  if(fill_flag)
+    cairo_close_path(m_cairo);
 
   // restore the old state to undo the scaling needed for drawing ellipse
   cairo_restore(m_cairo);
 
   // actual drawing
-  if (fill_flag)
+  if(fill_flag)
     cairo_fill(m_cairo);
   else
     cairo_stroke(m_cairo);
 }
 
-void renderer::draw_png(const char* file_path, point2d top_left)
+void renderer::draw_png(const char *file_path, point2d top_left)
 {
   // Create an image surface from a PNG image
   cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
 
   // Check if the surface is properly created
-  if (cairo_surface_status(png_surface) != CAIRO_STATUS_SUCCESS)
+  if(cairo_surface_status(png_surface) != CAIRO_STATUS_SUCCESS)
     return;
 
   // Draw the created png_surface
@@ -548,18 +570,18 @@ void renderer::draw_png(const char* file_path, point2d top_left)
 void renderer::draw_surface(cairo_surface_t *surface, point2d top_left)
 {
   // Check if the surface is properly created
-  if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
+  if(cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
     return;
 
   // pre-clipping
-  double s_width = (double) cairo_image_surface_get_width(surface);
-  double s_height = (double) cairo_image_surface_get_height(surface);
+  double s_width = (double)cairo_image_surface_get_width(surface);
+  double s_height = (double)cairo_image_surface_get_height(surface);
 
-  if (rectangle_off_screen({{top_left.x, top_left.y - s_height}, s_width, s_height}))
+  if(rectangle_off_screen({{top_left.x, top_left.y - s_height}, s_width, s_height}))
     return;
 
   // transform the given top_left point
-  if (current_coordinate_system == WORLD)
+  if(current_coordinate_system == WORLD)
     top_left = m_transform(top_left);
 
   // Create a source for painting from the surface
@@ -568,5 +590,4 @@ void renderer::draw_surface(cairo_surface_t *surface, point2d top_left)
   // Actual drawing
   cairo_paint(m_cairo);
 }
-
 }

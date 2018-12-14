@@ -150,8 +150,6 @@ gboolean press_right(GtkWidget *widget, gpointer data);
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
 gboolean press_proceed(GtkWidget *widget, gpointer data);
-
 }
-
 
 #endif //EZGL_CALLBACK_HPP
