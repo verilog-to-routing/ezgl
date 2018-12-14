@@ -7,8 +7,12 @@
 #include <ezgl/camera.hpp>
 
 #include <cairo.h>
+
 #ifdef CAIRO_HAS_XLIB_SURFACE
 #include <cairo-xlib.h>
+
+// Speed up draw calls by using X11 instead of cairo wherever possible.
+#define EZGL_USE_X11
 #endif
 
 #include <functional>
@@ -17,10 +21,6 @@
 #include <cfloat>
 #include <cmath>
 #include <algorithm>
-
-#ifdef CAIRO_HAS_XLIB_SURFACE
-#define USE_X11
-#endif
 
 namespace ezgl {
 
@@ -398,7 +398,7 @@ private:
   // A non-owning pointer to a cairo graphics context.
   cairo_t *m_cairo;
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   // The x11 drawable
   Drawable x11_drawable;
 

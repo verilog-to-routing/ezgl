@@ -10,7 +10,7 @@ renderer::renderer(cairo_t *cairo,
     cairo_surface_t *m_surface)
     : m_cairo(cairo), m_transform(std::move(transform)), m_camera(m_camera), rotation_angle(0)
 {
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   // get the underlying x11 drawable used by cairo surface
   x11_drawable = cairo_xlib_surface_get_drawable(m_surface);
 
@@ -24,7 +24,7 @@ renderer::renderer(cairo_t *cairo,
 
 renderer::~renderer()
 {
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   // free the x11 context
   XFreeGC(x11_display, x11_context);
 #endif
@@ -92,7 +92,7 @@ void renderer::set_color(uint_fast8_t red,
   // set color for cairo
   cairo_set_source_rgba(m_cairo, red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0);
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   // check transparency
   if(alpha != 255)
     transparency_flag = true;
@@ -114,7 +114,7 @@ void renderer::set_line_cap(line_cap cap)
   auto cairo_cap = static_cast<cairo_line_cap_t>(cap);
   cairo_set_line_cap(m_cairo, cairo_cap);
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   current_line_cap = cap;
   XSetLineAttributes(x11_display, x11_context, current_line_width,
       current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
@@ -135,7 +135,7 @@ void renderer::set_line_dash(line_dash dash)
     cairo_set_dash(m_cairo, dashes, num_dashes, 0);
   }
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   current_line_dash = dash;
   XSetLineAttributes(x11_display, x11_context, current_line_width,
       current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
@@ -147,7 +147,7 @@ void renderer::set_line_width(int width)
 {
   cairo_set_line_width(m_cairo, width);
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   current_line_width = width;
   XSetLineAttributes(x11_display, x11_context, current_line_width,
       current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
@@ -191,7 +191,7 @@ void renderer::draw_line(point2d start, point2d end)
     end = m_transform(end);
   }
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   if(!transparency_flag) {
     XDrawLine(x11_display, x11_drawable, x11_context, start.x, start.y, end.x, end.y);
     return;
@@ -278,7 +278,7 @@ void renderer::fill_poly(std::vector<point2d> const &points)
 
   point2d next_point = points[0];
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   if(!transparency_flag) {
     XPoint fixed_trans_points[X11_MAX_FIXED_POLY_PTS];
     XPoint *trans_points = fixed_trans_points;
@@ -449,7 +449,7 @@ void renderer::draw_rectangle_path(point2d start, point2d end, bool fill_flag)
     end = m_transform(end);
   }
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   if(!transparency_flag) {
     if(fill_flag)
       XFillRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),
@@ -494,7 +494,7 @@ void renderer::draw_arc_path(point2d center,
   // calculate the new radius after transforming to the new coordinates
   radius = point_x.x - center.x;
 
-#ifdef USE_X11
+#ifdef EZGL_USE_X11
   if(!transparency_flag) {
     if(fill_flag)
       XFillArc(x11_display, x11_drawable, x11_context, center.x - radius,
