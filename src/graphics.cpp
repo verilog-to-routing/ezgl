@@ -1,6 +1,7 @@
 #include "ezgl/graphics.hpp"
 
 #include <cassert>
+#include <glib.h>
 
 namespace ezgl {
 
@@ -16,6 +17,10 @@ renderer::renderer(cairo_t *cairo,
 
   // get the x11 display
   x11_display = cairo_xlib_surface_get_display(m_surface);
+
+  if(x11_display == nullptr) {
+    g_error("Could not get X11 display from cairo.");
+  }
 
   // create the x11 context from the drawable of the cairo surface
   x11_context = XCreateGC(x11_display, x11_drawable, 0, 0);
