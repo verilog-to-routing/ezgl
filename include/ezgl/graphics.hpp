@@ -25,6 +25,11 @@
 namespace ezgl {
 
 /**
+ * define ezgl::surface type used for drawing pngs
+ */
+typedef cairo_surface_t surface;
+
+/**
  * Available coordinate systems
  */
 enum t_coordinate_system {
@@ -345,12 +350,20 @@ public:
   void draw_text(point2d center, std::string const &text, double bound_x, double bound_y);
 
   /**
-   * Draw a png image
+   * load a png image
    *
    * @param file_path The path to the png image.
-   * @param top_left The corner point of the drawn png.
+   *
+   * @return a pointer to the created surface. Should be freed using free_surface()
    */
-  void draw_png(const char *file_path, point2d top_left);
+  surface *load_png(const char *file_path);
+
+  /**
+   * Free a surface
+   *
+   * @param surface The surface to destroy
+   */
+  void free_surface(surface *surface);
 
   /**
    * Draw a surface
@@ -358,7 +371,7 @@ public:
    * @param surface The surface to draw
    * @param top_left The corner point of the drawn surface.
    */
-  void draw_surface(cairo_surface_t *surface, point2d top_left);
+  void draw_surface(surface *surface, point2d top_left);
 
   /**
    * Destructor.

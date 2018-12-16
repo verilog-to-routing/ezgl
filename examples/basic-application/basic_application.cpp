@@ -380,7 +380,9 @@ void draw_main_canvas(ezgl::renderer &g)
 
   {
     /* Draw a small PNG */
-    g.draw_png("small_image.png", {50, 200});
+    ezgl::surface *png_surface = g.load_png("small_image.png");
+    g.draw_surface(png_surface, {50, 200});
+    g.free_surface(png_surface);
     g.set_font_size(10);
     g.set_color(ezgl::BLACK);
     g.draw_text ({50, 225}, "draw_surface", 200, DBL_MAX);
