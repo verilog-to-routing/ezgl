@@ -343,28 +343,28 @@ public:
   void draw_text(point2d center, std::string const &text, double bound_x, double bound_y);
 
   /**
-   * load a png image
-   *
-   * @param file_path The path to the png image.
-   *
-   * @return a pointer to the created surface. Should be freed using free_surface()
-   */
-  surface *load_png(const char *file_path);
-
-  /**
-   * Free a surface
-   *
-   * @param surface The surface to destroy
-   */
-  void free_surface(surface *surface);
-
-  /**
    * Draw a surface
    *
    * @param surface The surface to draw
    * @param top_left The corner point of the drawn surface.
    */
   void draw_surface(surface *surface, point2d top_left);
+
+  /**
+   * load a png image
+   *
+   * @param file_path The path to the png image.
+   *
+   * @return a pointer to the created surface. Should be freed using free_surface()
+   */
+  static surface *load_png(const char *file_path);
+
+  /**
+   * Free a surface
+   *
+   * @param surface The surface to destroy
+   */
+  static void free_surface(surface *surface);
 
   /**
    * Destructor.

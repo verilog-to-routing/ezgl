@@ -562,21 +562,6 @@ void renderer::draw_arc_path(point2d center,
     cairo_stroke(m_cairo);
 }
 
-surface *renderer::load_png(const char *file_path)
-{
-  // Create an image surface from a PNG image
-  cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
-
-  return png_surface;
-}
-
-void renderer::free_surface(surface *surface)
-{
-  // Check if the surface is properly created
-  if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
-    cairo_surface_destroy(surface);
-}
-
 void renderer::draw_surface(surface *surface, point2d top_left)
 {
   // Check if the surface is properly created
@@ -599,5 +584,20 @@ void renderer::draw_surface(surface *surface, point2d top_left)
 
   // Actual drawing
   cairo_paint(m_cairo);
+}
+
+surface *renderer::load_png(const char *file_path)
+{
+  // Create an image surface from a PNG image
+  cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
+
+  return png_surface;
+}
+
+void renderer::free_surface(surface *surface)
+{
+  // Check if the surface is properly created
+  if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
+    cairo_surface_destroy(surface);
 }
 }
