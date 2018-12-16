@@ -131,13 +131,6 @@ public:
   rectangle get_visible_world();
 
   /**
-   * Check if a rectangle is off the screen
-   *
-   * @param rect The rectangle to check
-   */
-  bool rectangle_off_screen(rectangle rect);
-
-  /**
    * Change the color for subsequent draw calls.
    *
    * @param new_color The new color to use.
@@ -404,6 +397,9 @@ private:
       double extent_angle,
       double stretch_factor,
       bool fill_flag);
+
+  // Pre-clipping function
+  bool rectangle_off_screen(rectangle rect);
 
   // Current coordinate system (World is the default)
   t_coordinate_system current_coordinate_system = WORLD;

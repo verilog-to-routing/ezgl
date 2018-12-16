@@ -61,7 +61,7 @@ public:
    */
   struct settings {
     /**
-     * The resource path that contains the XML file, which describes the GUI.
+     * The file path that contains the XML file, which describes the GUI.
      */
     std::string main_ui_resource;
 

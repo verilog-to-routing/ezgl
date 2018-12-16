@@ -5,7 +5,7 @@
 
 namespace ezgl {
 
-rectangle zoom_in_world(point2d zoom_point, rectangle world, double zoom_factor)
+static rectangle zoom_in_world(point2d zoom_point, rectangle world, double zoom_factor)
 {
   double const left = zoom_point.x - (zoom_point.x - world.left()) / zoom_factor;
   double const bottom = zoom_point.y + (world.bottom() - zoom_point.y) / zoom_factor;
@@ -16,7 +16,7 @@ rectangle zoom_in_world(point2d zoom_point, rectangle world, double zoom_factor)
   return {{left, bottom}, {right, top}};
 }
 
-rectangle zoom_out_world(point2d zoom_point, rectangle world, double zoom_factor)
+static rectangle zoom_out_world(point2d zoom_point, rectangle world, double zoom_factor)
 {
   double const left = zoom_point.x - (zoom_point.x - world.left()) * zoom_factor;
   double const bottom = zoom_point.y + (world.bottom() - zoom_point.y) * zoom_factor;

@@ -105,11 +105,11 @@ private:
   // The dimensions of the world (user-defined bounding box).
   rectangle m_world;
 
-  // The dimensions of the initial world (user-defined bounding box). Needed for zoom_fit
-  const rectangle m_initial_world;
-
   // The dimensions of the screen, which may not match the widget.
   rectangle m_screen;
+
+  // The dimensions of the initial world (user-defined bounding box). Needed for zoom_fit
+  const rectangle m_initial_world;
 
   // The x and y scaling factors.
   point2d m_world_to_widget = {1.0, 1.0};

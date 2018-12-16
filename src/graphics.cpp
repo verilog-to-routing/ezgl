@@ -292,7 +292,7 @@ void renderer::fill_poly(std::vector<point2d> const &points)
       trans_points = new XPoint[points.size()];
     }
 
-    for(int i = 0; i < points.size(); i++) {
+    for(size_t i = 0; i < points.size(); i++) {
       if(current_coordinate_system == WORLD)
         next_point = m_transform(points[i]);
       else
@@ -456,12 +456,18 @@ void renderer::draw_rectangle_path(point2d start, point2d end, bool fill_flag)
 
 #ifdef EZGL_USE_X11
   if(!transparency_flag) {
+    // Add 0.5 for extra half-pixel accuracy
+    int start_x = static_cast<int>(start.x + 0.5);
+    int start_y = static_cast<int>(start.y + 0.5);
+    int end_x = static_cast<int>(end.x + 0.5);
+    int end_y = static_cast<int>(end.y + 0.5);
+
     if(fill_flag)
-      XFillRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),
-          std::min(start.y, end.y), std::abs(end.x - start.x), std::abs(end.y - start.y));
+      XFillRectangle(x11_display, x11_drawable, x11_context, std::min(start_x, end_x),
+          std::min(start_y, end_y), std::abs(end_x - start_x), std::abs(end_y - start_y));
     else
-      XDrawRectangle(x11_display, x11_drawable, x11_context, std::min(start.x, end.x),
-          std::min(start.y, end.y), std::abs(end.x - start.x), std::abs(end.y - start.y));
+      XDrawRectangle(x11_display, x11_drawable, x11_context, std::min(start_x, end_x),
+          std::min(start_y, end_y), std::abs(end_x - start_x), std::abs(end_y - start_y));
     return;
   }
 #endif

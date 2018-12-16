@@ -5,7 +5,7 @@
 
 namespace ezgl {
 
-rectangle maintain_aspect_ratio(rectangle const &view, double widget_width, double widget_height)
+static rectangle maintain_aspect_ratio(rectangle const &view, double widget_width, double widget_height)
 {
   double const x_scale = widget_width / view.width();
   double const y_scale = widget_height / view.height();

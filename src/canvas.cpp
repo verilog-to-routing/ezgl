@@ -10,7 +10,7 @@
 
 namespace ezgl {
 
-cairo_surface_t *create_surface(GtkWidget *widget)
+static cairo_surface_t *create_surface(GtkWidget *widget)
 {
   GdkWindow *parent_window = gtk_widget_get_window(widget);
   int const width = gtk_widget_get_allocated_width(widget);
