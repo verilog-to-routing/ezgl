@@ -44,6 +44,28 @@ enum t_coordinate_system {
 };
 
 /**
+ * Text justification options
+ */
+enum class text_just {
+  /**
+   * Used for vertical and horizontal justification
+   */
+  center,
+
+  /**
+   * Used for horizontal justification
+   */
+  left,
+  right,
+
+  /**
+   * Used for horizontal justification
+   */
+  top,
+  bottom
+};
+
+/**
  * The slant of the font.
  *
  * This enum is setup to match with the cairo graphics library and should not be changed.
@@ -207,6 +229,20 @@ public:
   void set_text_rotation(double degrees);
 
   /**
+   * set horizontal text justification.
+   *
+   * @param horiz_just Options: center, left and right justification.
+   */
+  void set_horiz_text_just(text_just horiz_just);
+
+  /**
+   * set vertical text justification.
+   *
+   * @param vert_just Options: center, top and bottom justification.
+   */
+  void set_vert_text_just(text_just vert_just);
+
+  /**
    * Draw a line.
    *
    * @param start The start point of the line, in pixels.
@@ -316,31 +352,22 @@ public:
   void fill_arc(point2d center, double radius, double start_angle, double extent_angle);
 
   /**
-   * Draw text centered around a point.
+   * Draw text.
    *
-   * @param center The center of the text, in pixels.
+   * @param point The point where the text is drawn, in pixels.
    * @param text The text to draw.
    */
-  void draw_text(point2d center, std::string const &text);
+  void draw_text(point2d point, std::string const &text);
 
   /**
-   * Draw text centered around a point inside a bounding box.
+   * Draw text with bounds.
    *
-   * @param center The center of the text, in pixels.
-   * @param text The text to draw.
-   * @param bounds The bounding box of the text
-   */
-  void draw_text(point2d center, std::string const &text, const rectangle &bounds);
-
-  /**
-   * Draw text centered around a point with bounds.
-   *
-   * @param center The center of the text, in pixels.
+   * @param point The point where the text is drawn, in pixels.
    * @param text The text to draw.
    * @param bound_x The maximum allowed width of the text
    * @param bound_y The maximum allowed height of the text
    */
-  void draw_text(point2d center, std::string const &text, double bound_x, double bound_y);
+  void draw_text(point2d point, std::string const &text, double bound_x, double bound_y);
 
   /**
    * Draw a surface
@@ -437,6 +464,12 @@ private:
 
   // the rotation angle variable used in rotating text
   double rotation_angle;
+
+  // Current horizontal text justification
+  text_just horiz_text_just = text_just::center;
+
+  // Current vertical text justification
+  text_just vert_text_just = text_just::center;
 };
 }
 

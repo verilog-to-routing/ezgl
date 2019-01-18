@@ -246,7 +246,7 @@ void draw_main_canvas(ezgl::renderer &g)
     g.set_color(ezgl::DARK_GREEN);
     g.set_line_dash(ezgl::line_dash::none);
     ezgl::rectangle rect = {{350, 550}, {650, 670}};
-    g.draw_text(rect.center(), "draw_rectangle", rect);
+    g.draw_text(rect.center(), "draw_rectangle", rect.width(), rect.height());
     g.draw_rectangle(rect);
 
   }
@@ -285,26 +285,30 @@ void draw_main_canvas(ezgl::renderer &g)
     {
       double offsetY = 50*i;
 
+      g.set_horiz_text_just(ezgl::text_just::left);
+
       if (i == 0) {
         g.set_color(ezgl::BLACK);
         g.set_line_cap(ezgl::line_cap::butt); // Butt ends
         g.set_line_dash(ezgl::line_dash::none); // Solid line
-        g.draw_text({1100, 920+offsetY}, "Butt ends, opaque", 400, DBL_MAX);
+        g.draw_text({950, 920+offsetY}, "Butt ends, opaque", 400, DBL_MAX);
       }
 
       else if (i == 1) {
         g.set_color(ezgl::GREEN, 255*2/3); // Green line that is 33% transparent)
         g.set_line_cap(ezgl::line_cap::round); // Round ends
         g.set_line_dash(ezgl::line_dash::none); // Solid line
-        g.draw_text({1100, 920+offsetY}, "Round ends, 33% transparent", 400, DBL_MAX);
+        g.draw_text({950, 920+offsetY}, "Round ends, 33% transparent", 400, DBL_MAX);
       }
 
       else {
         g.set_color(ezgl::RED, 255/3);  // Red line that is 67% transparent
         g.set_line_cap(ezgl::line_cap::butt); // butt ends
         g.set_line_dash(ezgl::line_dash::asymmetric_5_3); // Dashed line
-        g.draw_text({1100, 920+offsetY}, "Butt ends, 67% transparent", 400, DBL_MAX);
+        g.draw_text({950, 920+offsetY}, "Butt ends, 67% transparent", 400, DBL_MAX);
       }
+
+      g.set_horiz_text_just(ezgl::text_just::center);
 
       g.draw_text({200, 900+offsetY}, "Thin line (width 1)", 200, DBL_MAX);
       g.set_line_width(1);
@@ -356,7 +360,7 @@ void draw_main_canvas(ezgl::renderer &g)
 
       for (int j = 0; j < num_strings_per_line[i]; ++j) {
         g.set_font_size(text_sizes[i][j]);
-        g.draw_text(text_bbox.center(), line_text[i][j], text_bbox);
+        g.draw_text(text_bbox.center(), line_text[i][j], text_bbox.width(), text_bbox.height());
         g.draw_rectangle(text_bbox);
         text_bbox = {{text_bbox.left() + text_example_width / num_strings_per_line[i], text_bbox.bottom()} , text_bbox.width(), text_bbox.height()};
       }

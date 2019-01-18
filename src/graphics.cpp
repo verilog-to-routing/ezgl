@@ -186,6 +186,18 @@ void renderer::set_text_rotation(double degrees)
   rotation_angle = -degrees * M_PI / 180;
 }
 
+void renderer::set_horiz_text_just(text_just horiz_just)
+{
+  if (horiz_just != text_just::top || horiz_just != text_just::bottom)
+    horiz_text_just = horiz_just;
+}
+
+void renderer::set_vert_text_just(text_just vert_just)
+{
+  if (vert_just != text_just::right || vert_just != text_just::left)
+    vert_text_just = vert_just;
+}
+
 void renderer::draw_line(point2d start, point2d end)
 {
   if(rectangle_off_screen({start, end}))
@@ -377,27 +389,27 @@ void renderer::fill_arc(point2d center, double radius, double start_angle, doubl
   draw_arc_path(center, radius, start_angle, extent_angle, 1, true);
 }
 
-void renderer::draw_text(point2d center, std::string const &text)
+void renderer::draw_text(point2d point, std::string const &text)
 {
   // call the draw_text function with no bounds
-  draw_text(center, text, DBL_MAX, DBL_MAX);
+  draw_text(point, text, DBL_MAX, DBL_MAX);
 }
 
-void renderer::draw_text(point2d center, std::string const &text, const rectangle &bounds)
+void renderer::draw_text(point2d point, std::string const &text, double bound_x, double bound_y)
 {
-  // calculate the x and y bounds of the text so that the text is bounded inside the bounding box
-  point2d bottom_left_bounds = center - bounds.bottom_left();
-  point2d top_right_bounds = bounds.top_right() - center;
+  // the center point of the text
+  point2d center = point;
 
-  double bound_x = std::min(bottom_left_bounds.x, top_right_bounds.x) * 2;
-  double bound_y = std::min(bottom_left_bounds.y, top_right_bounds.y) * 2;
+  // roughly calculate the center point for pre-clipping
+  if (horiz_text_just == text_just::left)
+    center.x += bound_x/2;
+  else if (horiz_text_just == text_just::right)
+    center.x -= bound_x/2;
+  if (vert_text_just == text_just::top)
+    center.y -= bound_y/2;
+  else if (vert_text_just == text_just::bottom)
+    center.y += bound_y/2;
 
-  // call the draw_text function with the calculated bounds
-  draw_text(center, text, bound_x, bound_y);
-}
-
-void renderer::draw_text(point2d center, std::string const &text, double bound_x, double bound_y)
-{
   if(rectangle_off_screen({{center.x - bound_x / 2, center.y - bound_y / 2}, bound_x, bound_y}))
     return;
 
@@ -422,9 +434,9 @@ void renderer::draw_text(point2d center, std::string const &text, double bound_x
   // save the current state to undo the rotation needed for drawing rotated text
   cairo_save(m_cairo);
 
-  // transform the given center point
+  // transform the given point
   if(current_coordinate_system == WORLD)
-    center = m_transform(center);
+    center = m_transform(point);
 
   // calculating the reference point to center the text around "center" taking into account the rotation_angle
   // for more info about reference point location: see https://www.cairographics.org/tutorial/#L1understandingtext
@@ -437,6 +449,24 @@ void renderer::draw_text(point2d center, std::string const &text, double bound_x
   ref_point.y = center.y -
                 (text_extents.y_bearing + (text_extents.height / 2)) * cos(rotation_angle) -
                 (text_extents.x_bearing + (text_extents.width / 2)) * sin(rotation_angle);
+
+  // adjust the reference point according to the required justification
+  if (horiz_text_just == text_just::left) {
+    ref_point.x += (text_extents.width / 2) * cos(rotation_angle);
+    ref_point.y += (text_extents.width / 2) * sin(rotation_angle);
+  }
+  else if (horiz_text_just == text_just::right) {
+    ref_point.x -= (text_extents.width / 2) * cos(rotation_angle);
+    ref_point.y -= (text_extents.width / 2) * sin(rotation_angle);
+  }
+  if (vert_text_just == text_just::top) {
+    ref_point.x -= (text_extents.height / 2) * sin(rotation_angle);
+    ref_point.y += (text_extents.height / 2) * cos(rotation_angle);
+  }
+  else if (vert_text_just == text_just::bottom) {
+    ref_point.x += (text_extents.height / 2) * sin(rotation_angle);
+    ref_point.y -= (text_extents.height / 2) * cos(rotation_angle);
+  }
 
   // move to the reference point, perform the rotation, and draw the text
   cairo_move_to(m_cairo, ref_point.x, ref_point.y);
