@@ -627,7 +627,7 @@ surface *renderer::load_png(const char *file_path)
 void renderer::free_surface(surface *surface)
 {
   // Check if the surface is properly created
-  if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
+  if (cairo_surface_status(surface) == CAIRO_STATUS_SUCCESS)
     cairo_surface_destroy(surface);
 }
 }
