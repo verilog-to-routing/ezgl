@@ -188,13 +188,13 @@ void renderer::set_text_rotation(double degrees)
 
 void renderer::set_horiz_text_just(text_just horiz_just)
 {
-  if (horiz_just != text_just::top || horiz_just != text_just::bottom)
+  if (horiz_just != text_just::top && horiz_just != text_just::bottom)
     horiz_text_just = horiz_just;
 }
 
 void renderer::set_vert_text_just(text_just vert_just)
 {
-  if (vert_just != text_just::right || vert_just != text_just::left)
+  if (vert_just != text_just::right && vert_just != text_just::left)
     vert_text_just = vert_just;
 }
 
