@@ -5,9 +5,6 @@
  */
 
 #include <ezgl/application.hpp>
-#include <ezgl/camera.hpp>
-#include <ezgl/canvas.hpp>
-#include <ezgl/control.hpp>
 #include <ezgl/graphics.hpp>
 
 #include <iostream>

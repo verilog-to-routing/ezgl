@@ -54,7 +54,7 @@ using key_callback_fn = void (*)(application *app, GdkEventKey *event, char *key
 class application {
 public:
   /**
-   * Configuration settings for the applicaton.
+   * Configuration settings for the application.
    *
    * The GUI will be built from the XML description given by main_ui_resource.
    * The XML file must contain a GtkWindow with the name in window_identifier.
@@ -96,44 +96,6 @@ public:
   explicit application(application::settings s);
 
   /**
-   * Destructor.
-   */
-  ~application();
-
-  /**
-   * Copies are disabled.
-   */
-  application(application const &) = delete;
-
-  /**
-   * Copies are disabled.
-   */
-  application &operator=(application const &) = delete;
-
-  /**
-   * Ownership of an application is transferrable.
-   */
-  application(application &&) = default;
-
-  /**
-   * Ownership of an application is transferrable.
-   */
-  application &operator=(application &&) = default;
-
-  /**
-   * Retrieve a pointer to a canvas that was previously added to the application.
-   *
-   * Calling this function before application::run results in undefined behaviour.
-   *
-   * @param canvas_id The key used when the canvas was added.
-   *
-   * @return A non-owning pointer, or nullptr if not found.
-   *
-   * @see application::get_object
-   */
-  canvas *get_canvas(std::string const &canvas_id) const;
-
-  /**
    * Add a canvas to the application.
    *
    * If the canvas has already been added, it will not be overwritten and a warning will be displayed.
@@ -147,35 +109,6 @@ public:
   canvas *add_canvas(std::string const &canvas_id,
       draw_canvas_fn draw_callback,
       rectangle coordinate_system);
-
-  /**
-   * Retrieve a GLib Object (i.e., a GObject).
-   *
-   * This is useful for retrieving GUI elements specified in your XML file(s). You should only call this function after
-   * the application has been run, otherwise the GUI elements will have not been created yet.
-   *
-   * @param name The ID of the object.
-   * @return The object with the ID, or NULL if it could not be found.
-   *
-   * @see application::run
-   */
-  GObject *get_object(gchar const *name) const;
-
-  /**
-   * Get the ID of the main window
-   */
-  std::string get_main_window_id() const
-  {
-    return m_window_id;
-  }
-
-  /**
-   * Get the ID of the main canvas
-   */
-  std::string get_main_canvas_id() const
-  {
-    return m_canvas_id;
-  }
 
   /**
    * Add a button
@@ -237,14 +170,13 @@ public:
    * Run the application.
    *
    * Once this is called, the application will be initialized first. Initialization will build the GUI based on the XML
-   * resource given in the constructor. Once the GUI has been created, the function set in
-   * application::register_callbacks_with will be called.
+   * resource given in the constructor. Once the GUI has been created, the function initial_setup_user_callback will be
+   * called.
    *
    * After initialization, control of the program will be given to GTK. You will only regain control for the signals
    * that you have registered callbacks for.
    *
-   * @param argc The number of arguments.
-   * @param argv An array of the arguments.
+   * @param initial_setup_user_callback A user-defined function that is called before application activation
    * @param mouse_press_user_callback The user-defined callback function for mouse press
    * @param mouse_move_user_callback The user-defined callback function for mouse move
    * @param key_press_user_callback The user-defined callback function for keyboard press
@@ -255,6 +187,73 @@ public:
       mouse_callback_fn mouse_press_user_callback,
       mouse_callback_fn mouse_move_user_callback,
       key_callback_fn key_press_user_callback);
+
+  /**
+   * Destructor.
+   */
+  ~application();
+
+  /**
+   * Copies are disabled.
+   */
+  application(application const &) = delete;
+
+  /**
+   * Copies are disabled.
+   */
+  application &operator=(application const &) = delete;
+
+  /**
+   * Ownership of an application is transferrable.
+   */
+  application(application &&) = default;
+
+  /**
+   * Ownership of an application is transferrable.
+   */
+  application &operator=(application &&) = default;
+
+  /**
+   * Retrieve a pointer to a canvas that was previously added to the application.
+   *
+   * Calling this function before application::run results in undefined behaviour.
+   *
+   * @param canvas_id The key used when the canvas was added.
+   *
+   * @return A non-owning pointer, or nullptr if not found.
+   *
+   * @see application::get_object
+   */
+  canvas *get_canvas(std::string const &canvas_id) const;
+
+  /**
+   * Retrieve a GLib Object (i.e., a GObject).
+   *
+   * This is useful for retrieving GUI elements specified in your XML file(s). You should only call this function after
+   * the application has been run, otherwise the GUI elements will have not been created yet.
+   *
+   * @param name The ID of the object.
+   * @return The object with the ID, or NULL if it could not be found.
+   *
+   * @see application::run
+   */
+  GObject *get_object(gchar const *name) const;
+
+  /**
+   * Get the ID of the main window
+   */
+  std::string get_main_window_id() const
+  {
+    return m_window_id;
+  }
+
+  /**
+   * Get the ID of the main canvas
+   */
+  std::string get_main_canvas_id() const
+  {
+    return m_canvas_id;
+  }
 
   /**
    * Quit the application

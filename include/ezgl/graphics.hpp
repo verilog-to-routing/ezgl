@@ -48,20 +48,24 @@ enum t_coordinate_system {
  */
 enum class text_just {
   /**
-   * Used for vertical and horizontal justification
+   * Center Justification: used for both vertical and horizontal justification
    */
   center,
-
   /**
-   * Used for horizontal justification
+   * Left justification: used for horizontal justification
    */
   left,
-  right,
-
   /**
-   * Used for horizontal justification
+   * Right justification: used for horizontal justification
+   */
+  right,
+  /**
+   * Top justification: used for vertical justification
    */
   top,
+  /**
+   * Bottom justification: used for vertical justification
+   */
   bottom
 };
 
@@ -140,7 +144,7 @@ enum class line_dash : int {
  */
 class renderer {
 public:
-  /*
+  /**
    * Change the current coordinate system
    *
    * @param new_coordinate_system The drawing coordinate system SCREEN or WORLD
