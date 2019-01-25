@@ -6,6 +6,9 @@
 
 namespace ezgl {
 
+/**** Functions to manipulate what is visible on the screen; used by ezgl's predefined buttons. ****/
+/**** Application code does not have to ever call these functions.                              ****/
+
 class canvas;
 
 /**

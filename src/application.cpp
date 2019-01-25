@@ -1,9 +1,9 @@
 #include "ezgl/application.hpp"
 
-namespace ezgl {
-
 // A flag to disable event loop (default is false)
-bool application::disable_event_loop = false;
+bool disable_event_loop = false;
+
+namespace ezgl {
 
 void application::startup(GtkApplication *, gpointer user_data)
 {
@@ -357,4 +357,9 @@ void application::refresh_drawing()
   // force redrawing
   cnv->redraw();
 }
+}
+
+void set_disable_event_loop(bool new_setting)
+{
+  disable_event_loop = new_setting;
 }

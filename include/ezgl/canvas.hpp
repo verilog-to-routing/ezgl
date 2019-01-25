@@ -12,6 +12,8 @@
 
 namespace ezgl {
 
+/**** Functions in this class are for ezgl internal use; application code doesn't need to call them ****/
+
 class renderer;
 
 /**

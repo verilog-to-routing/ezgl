@@ -260,18 +260,6 @@ public:
    */
   void quit();
 
-  /**
-   * Set the disable_event_loop flag to new_setting
-   * Call with new_setting == true to make the event_loop immediately return.
-   * Needed only for auto-marking
-   *
-   * @param new_setting The new state of disable_event_loop flag
-   */
-  static void set_disable_event_loop(bool new_setting)
-  {
-    disable_event_loop = new_setting;
-  }
-
 private:
   // The package path to the XML file that describes the UI.
   std::string m_main_ui;
@@ -322,10 +310,16 @@ public:
 
   // The user-defined callback function for handling keyboard press
   key_callback_fn key_press_callback;
-
-  // A flag to disable event loop (default is false)
-  static bool disable_event_loop;
 };
 }
+
+/**
+ * Set the disable_event_loop flag to new_setting
+ * Call with new_setting == true to make the event_loop immediately return.
+ * Needed only for auto-marking
+ *
+ * @param new_setting The new state of disable_event_loop flag
+ */
+void set_disable_event_loop(bool new_setting);
 
 #endif //EZGL_APPLICATION_HPP

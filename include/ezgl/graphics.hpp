@@ -156,6 +156,8 @@ public:
    */
   rectangle get_visible_world();
 
+  /**** Functions to set graphics attributes (for all subsequent drawing calls). ****/
+
   /**
    * Change the color for subsequent draw calls.
    *
@@ -245,6 +247,8 @@ public:
    * @param vert_just Options: center, top and bottom justification.
    */
   void set_vert_text_just(text_just vert_just);
+
+  /**** Functions to draw various graphics primitives ****/
 
   /**
    * Draw a line.

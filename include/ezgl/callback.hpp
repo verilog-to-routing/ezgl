@@ -11,6 +11,8 @@
 
 namespace ezgl {
 
+/**** Callback functions for keyboard and mouse input, and for all the ezgl predefined buttons. *****/
+
 /**
  * React to a <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-key-press-event">keyboard
  * press event</a>.
