@@ -437,6 +437,8 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
   // transform the given point
   if(current_coordinate_system == WORLD)
     center = m_transform(point);
+  else
+    center = point;
 
   // calculating the reference point to center the text around "center" taking into account the rotation_angle
   // for more info about reference point location: see https://www.cairographics.org/tutorial/#L1understandingtext
