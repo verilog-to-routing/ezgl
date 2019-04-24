@@ -34,14 +34,14 @@ gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointe
   g_return_val_if_fail(data != nullptr, FALSE);
 
   auto ezgl_canvas = static_cast<canvas *>(data);
-  auto &surface = ezgl_canvas->m_surface;
+  auto &p_surface = ezgl_canvas->m_surface;
 
-  if(surface != nullptr) {
-    cairo_surface_destroy(surface);
+  if(p_surface != nullptr) {
+    cairo_surface_destroy(p_surface);
   }
 
   // Something has changed, recreate the surface.
-  surface = create_surface(widget);
+  p_surface = create_surface(widget);
 
   // The camera needs to be updated before we start drawing again.
   ezgl_canvas->m_camera.update_widget(ezgl_canvas->width(), ezgl_canvas->height());
@@ -56,10 +56,10 @@ gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointe
 gboolean canvas::draw_surface(GtkWidget *, cairo_t *context, gpointer data)
 {
   // Assume context and data are non-null.
-  auto &surface = static_cast<canvas *>(data)->m_surface;
+  auto &p_surface = static_cast<canvas *>(data)->m_surface;
 
   // Assume surface is non-null.
-  cairo_set_source_surface(context, surface, 0, 0);
+  cairo_set_source_surface(context, p_surface, 0, 0);
   cairo_paint(context);
 
   return FALSE;

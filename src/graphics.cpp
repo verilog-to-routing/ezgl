@@ -7,9 +7,9 @@ namespace ezgl {
 
 renderer::renderer(cairo_t *cairo,
     transform_fn transform,
-    camera *m_camera,
+    camera *p_camera,
     cairo_surface_t *m_surface)
-    : m_cairo(cairo), m_transform(std::move(transform)), m_camera(m_camera), rotation_angle(0)
+    : m_cairo(cairo), m_transform(std::move(transform)), m_camera(p_camera), rotation_angle(0)
 {
 #ifdef EZGL_USE_X11
   // get the underlying x11 drawable used by cairo surface
@@ -592,15 +592,15 @@ void renderer::draw_arc_path(point2d center,
     cairo_stroke(m_cairo);
 }
 
-void renderer::draw_surface(surface *surface, point2d top_left)
+void renderer::draw_surface(surface *p_surface, point2d top_left)
 {
   // Check if the surface is properly created
-  if(cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
+  if(cairo_surface_status(p_surface) != CAIRO_STATUS_SUCCESS)
     return;
 
   // pre-clipping
-  double s_width = (double)cairo_image_surface_get_width(surface);
-  double s_height = (double)cairo_image_surface_get_height(surface);
+  double s_width = (double)cairo_image_surface_get_width(p_surface);
+  double s_height = (double)cairo_image_surface_get_height(p_surface);
 
   if(rectangle_off_screen({{top_left.x, top_left.y - s_height}, s_width, s_height}))
     return;
@@ -610,7 +610,7 @@ void renderer::draw_surface(surface *surface, point2d top_left)
     top_left = m_transform(top_left);
 
   // Create a source for painting from the surface
-  cairo_set_source_surface(m_cairo, surface, top_left.x, top_left.y);
+  cairo_set_source_surface(m_cairo, p_surface, top_left.x, top_left.y);
 
   // Actual drawing
   cairo_paint(m_cairo);
@@ -624,10 +624,10 @@ surface *renderer::load_png(const char *file_path)
   return png_surface;
 }
 
-void renderer::free_surface(surface *surface)
+void renderer::free_surface(surface *p_surface)
 {
   // Check if the surface is properly created
-  if (cairo_surface_status(surface) == CAIRO_STATUS_SUCCESS)
-    cairo_surface_destroy(surface);
+  if (cairo_surface_status(p_surface) == CAIRO_STATUS_SUCCESS)
+    cairo_surface_destroy(p_surface);
 }
 }
