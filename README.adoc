@@ -1,12 +1,11 @@
 = EZGL - An Easy Graphics Library
 
-This project is still a work in progress.
 EZGL is a library for use in ece297 as a simple way to create a GUI application.
 The library provides a thin wrapper around GTK and drawing functionality.
 
 == Dependencies
 
-The library currently depends on GTK 3 and cairo (both are installed on the UG machines).
+The library currently depends on GTK 3 and cairo.
 
 == Compilation
 
