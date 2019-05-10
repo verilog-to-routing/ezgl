@@ -22,6 +22,7 @@
 #include "ezgl/canvas.hpp"
 #include "ezgl/control.hpp"
 #include "ezgl/callback.hpp"
+#include "ezgl/graphics.hpp"
 
 #include <map>
 #include <memory>

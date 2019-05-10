@@ -74,6 +74,11 @@ application::application(application::settings s)
     , m_builder(gtk_builder_new())
     , m_register_callbacks(s.setup_callbacks)
 {
+#ifdef EZGL_USE_X11
+  // Prefer x11 first, then other backends.
+  gdk_set_allowed_backends("x11,*");
+#endif
+
   // Connect our static functions application::{startup, activate} to their callbacks. We pass 'this' as the userdata
   // so that we can use it in our static functions.
   g_signal_connect(m_application, "startup", G_CALLBACK(startup), this);
