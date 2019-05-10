@@ -78,6 +78,13 @@ public:
     return m_camera;
   }
 
+  /**
+   * Create a temporary renderer that can be used to draw on top of the current canvas
+   *
+   * The created renderer should be used only in the same callback in which it was created
+   */
+  renderer create_temporary_renderer();
+
 protected:
   // Only the ezgl::application can create and initialize a canvas object.
   friend class application;
@@ -110,6 +117,9 @@ private:
 
   // The off-screen surface that can be drawn to.
   cairo_surface_t *m_surface = nullptr;
+
+  // The off-screen cairo context that can be drawn to
+  cairo_t *m_context = nullptr;
 
 private:
   // Called each time our drawing area widget has changed (e.g., in size).

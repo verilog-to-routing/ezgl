@@ -357,6 +357,24 @@ void application::refresh_drawing()
   // force redrawing
   cnv->redraw();
 }
+
+void application::flush_drawing()
+{
+  // get the main drawing area widget
+  GtkWidget *drawing_area = (GtkWidget *)get_object(m_canvas_id.c_str());
+
+  // queue a redraw of the GtkWidget
+  gtk_widget_queue_draw(drawing_area);
+}
+
+renderer application::get_renderer()
+{
+  // get the main canvas
+  canvas *cnv = get_canvas(m_canvas_id);
+
+  return cnv->create_temporary_renderer();
+}
+
 }
 
 void set_disable_event_loop(bool new_setting)

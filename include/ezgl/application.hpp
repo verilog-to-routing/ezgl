@@ -162,9 +162,23 @@ public:
   void update_message(std::string const &message);
 
   /**
-   * refresh the DrawingArea
+   * redraw the main canvas
    */
   void refresh_drawing();
+
+  /**
+   * Get a temporary renderer that can be used to draw on top of the main canvas
+   *
+   * The returned renderer should be used only in the same callback in which this function is called
+   */
+  renderer get_renderer();
+
+  /**
+   * Flush the drawings done by the renderer, returned from get_renderer(), to the on-screen buffer
+   *
+   * The flushing is done after returning to the GTK event loop
+   */
+  void flush_drawing();
 
   /**
    * Run the application.

@@ -16,16 +16,26 @@ static cairo_surface_t *create_surface(GtkWidget *widget)
   int const width = gtk_widget_get_allocated_width(widget);
   int const height = gtk_widget_get_allocated_height(widget);
 
-/**
-   * Cairo image surfaces are more efficient than normal Cairo surfaces
-   * However, you cannot use X11 functions to draw on image surfaces
-   */
+  // Cairo image surfaces are more efficient than normal Cairo surfaces
+  // However, you cannot use X11 functions to draw on image surfaces
 #ifdef EZGL_USE_X11
   return gdk_window_create_similar_surface(parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
 #else
   return gdk_window_create_similar_image_surface(
       parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
 #endif
+}
+
+static cairo_t *create_context(cairo_surface_t *p_surface)
+{
+  cairo_t *context = cairo_create(p_surface);
+
+  // Set the antialiasing mode of the rasterizer used for drawing shapes
+  // Set to CAIRO_ANTIALIAS_NONE for maximum speed
+  // See https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-antialias-t
+  cairo_set_antialias(context, CAIRO_ANTIALIAS_NONE);
+
+  return context;
 }
 
 gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointer data)
@@ -35,13 +45,21 @@ gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointe
 
   auto ezgl_canvas = static_cast<canvas *>(data);
   auto &p_surface = ezgl_canvas->m_surface;
+  auto &p_context = ezgl_canvas->m_context;
 
   if(p_surface != nullptr) {
     cairo_surface_destroy(p_surface);
   }
 
+  if(p_context != nullptr) {
+    cairo_destroy(p_context);
+  }
+
   // Something has changed, recreate the surface.
   p_surface = create_surface(widget);
+
+  // Recreate the context
+  p_context = create_context(p_surface);
 
   // The camera needs to be updated before we start drawing again.
   ezgl_canvas->m_camera.update_widget(ezgl_canvas->width(), ezgl_canvas->height());
@@ -75,6 +93,10 @@ canvas::~canvas()
   if(m_surface != nullptr) {
     cairo_surface_destroy(m_surface);
   }
+
+  if(m_context != nullptr) {
+    cairo_destroy(m_context);
+  }
 }
 
 int canvas::width() const
@@ -101,6 +123,7 @@ void canvas::initialize(GtkWidget *drawing_area)
 
   m_drawing_area = drawing_area;
   m_surface = create_surface(m_drawing_area);
+  m_context = create_context(m_surface);
   m_camera.update_widget(width(), height());
 
   // Draw to the newly created surface for the first time.
@@ -122,25 +145,24 @@ void canvas::initialize(GtkWidget *drawing_area)
 
 void canvas::redraw()
 {
-  cairo_t *context = cairo_create(m_surface);
-
-  // Set the antialiasing mode of the rasterizer used for drawing shapes
-  // Set to CAIRO_ANTIALIAS_NONE for maximum speed
-  // See https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-antialias-t
-  cairo_set_antialias(context, CAIRO_ANTIALIAS_NONE);
-
   // Clear the screen.
-  cairo_set_source_rgb(context, 1, 1, 1);
-  cairo_paint(context);
+  cairo_set_source_rgb(m_context, 1, 1, 1);
+  cairo_paint(m_context);
 
   using namespace std::placeholders;
-  renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera, m_surface);
+  renderer g(m_context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera, m_surface);
   m_draw_callback(g);
-
-  cairo_destroy(context);
 
   gtk_widget_queue_draw(m_drawing_area);
 
   g_info("The canvas will be redrawn.");
+}
+
+renderer canvas::create_temporary_renderer()
+{
+  using namespace std::placeholders;
+  renderer g(m_context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera, m_surface);
+
+  return g;
 }
 }

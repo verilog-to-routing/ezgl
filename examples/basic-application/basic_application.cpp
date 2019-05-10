@@ -462,7 +462,17 @@ void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *
  */
 void test_button(GtkWidget *widget, ezgl::application *application)
 {
+  // Update the status bar message
   application->update_message("Test Button Pressed");
+
+  // Redraw the main canvas
   application->refresh_drawing();
+
+  // Draw a temporary rectangle border
+  ezgl::renderer g = application->get_renderer();
+  g.set_line_width(1);
+  g.set_color(ezgl::BLACK);
+  g.draw_rectangle({{0, 0}, 1100, 1150});
+  application->flush_drawing();
 }
 
