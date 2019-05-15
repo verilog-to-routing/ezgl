@@ -71,6 +71,14 @@ public:
   }
 
   /**
+   * Get the dimensions of the widget.
+   */
+  rectangle get_widget() const
+  {
+    return m_widget;
+  }
+
+  /**
    * Get the initial bounds of the world. Needed for zoom_fit
    */
   rectangle get_initial_world() const

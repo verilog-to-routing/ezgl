@@ -75,6 +75,12 @@ rectangle renderer::get_visible_world()
   return {(world.bottom_left() - margin), (world.top_right() + margin)};
 }
 
+rectangle renderer::get_visible_screen()
+{
+  // Get the widget dimensions
+  return m_camera->get_widget();
+}
+
 bool renderer::rectangle_off_screen(rectangle rect)
 {
   if(current_coordinate_system == SCREEN)

@@ -174,6 +174,11 @@ public:
    */
   rectangle get_visible_world();
 
+  /**
+   * Get the current visible bounds of the screen
+   */
+  rectangle get_visible_screen();
+
   /**** Functions to set graphics attributes (for all subsequent drawing calls). ****/
 
   /**
