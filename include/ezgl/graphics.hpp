@@ -170,6 +170,15 @@ public:
   void set_coordinate_system(t_coordinate_system new_coordinate_system);
 
   /**
+   * Set the visible bounds of the world
+   *
+   * The function preserves the aspect ratio of the initial world
+   *
+   * @param new_world The new visible bounds of the world
+   */
+  void set_visible_world(rectangle new_world);
+
+  /**
    * Get the current visible bounds of the world
    */
   rectangle get_visible_world();

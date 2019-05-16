@@ -123,7 +123,7 @@ public:
    * @param draw_callback The function to call that draws to this canvas.
    * @param coordinate_system The initial coordinate system of this canvas.
    *
-   * @return A pointer to the newly created cavas.
+   * @return A pointer to the newly created canvas.
    */
   canvas *add_canvas(std::string const &canvas_id,
       draw_canvas_fn draw_callback,
@@ -179,6 +179,14 @@ public:
    * @param message The message that will be displayed on the status bar
    */
   void update_message(std::string const &message);
+
+  /**
+   * Change the coordinate system of a created canvas
+   *
+   * @param canvas_id The id of the GtkDrawingArea in the XML file.
+   * @param coordinate_system The new coordinate system of this canvas.
+   */
+  void change_canvas_world_coordinates(std::string const &canvas_id, rectangle coordinate_system);
 
   /**
    * redraw the main canvas

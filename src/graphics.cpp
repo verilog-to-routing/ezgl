@@ -58,6 +58,35 @@ void renderer::set_coordinate_system(t_coordinate_system new_coordinate_system)
   current_coordinate_system = new_coordinate_system;
 }
 
+void renderer::set_visible_world(rectangle new_world)
+{
+  // Change the aspect ratio of the new_world to align with the aspect ratio of the initial world
+  // Get the width and height of the new_world
+  point2d n_center = new_world.center();
+  double n_width = new_world.width();
+  double n_height = new_world.height();
+
+  // Get the aspect ratio of the initial world
+  double i_width = m_camera->get_initial_world().width();
+  double i_height = m_camera->get_initial_world().height();
+  double i_aspect_ratio = i_width / i_height;
+
+  // Make sure the required area is entirely visible
+  if (n_width/i_aspect_ratio >= n_height) {
+    // Change the height
+    double new_height = n_width/i_aspect_ratio;
+    new_world ={{n_center.x-n_width/2, n_center.y-new_height/2}, n_width, new_height};
+  }
+  else {
+    // Change the width
+    double new_width = n_height/i_aspect_ratio;
+    new_world ={{n_center.x-new_width/2, n_center.y-n_height/2}, new_width, n_height};
+  }
+
+  // set the visible bounds of the world
+  m_camera->set_world(new_world);
+}
+
 rectangle renderer::get_visible_world()
 {
   // m_camera->get_world() is not good representative of the visible world since it doesn't

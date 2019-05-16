@@ -372,6 +372,18 @@ void application::change_button_text(const char *button_text, const char *new_bu
   }
 }
 
+void application::change_canvas_world_coordinates(std::string const &canvas_id,
+    rectangle coordinate_system)
+{
+  // get the canvas
+  canvas *cnv = get_canvas(canvas_id);
+
+  // reset the camera system with the new coordinates
+  if (cnv != nullptr) {
+    cnv->get_camera().reset_world(coordinate_system);
+  }
+}
+
 void application::refresh_drawing()
 {
   // get the main canvas
