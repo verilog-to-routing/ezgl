@@ -352,7 +352,6 @@ public:
   // The user-defined callback function for handling keyboard press
   key_callback_fn key_press_callback;
 };
-}
 
 /**
  * Set the disable_event_loop flag to new_setting
@@ -362,5 +361,6 @@ public:
  * @param new_setting The new state of disable_event_loop flag
  */
 void set_disable_event_loop(bool new_setting);
+}
 
 #endif //EZGL_APPLICATION_HPP

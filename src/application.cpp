@@ -18,10 +18,9 @@
 
 #include "ezgl/application.hpp"
 
+namespace ezgl {
 // A flag to disable event loop (default is false)
 bool disable_event_loop = false;
-
-namespace ezgl {
 
 void application::startup(GtkApplication *, gpointer user_data)
 {
@@ -410,9 +409,8 @@ renderer application::get_renderer()
   return cnv->create_temporary_renderer();
 }
 
-}
-
 void set_disable_event_loop(bool new_setting)
 {
   disable_event_loop = new_setting;
+}
 }
