@@ -30,18 +30,19 @@ renderer::renderer(cairo_t *cairo,
     : m_cairo(cairo), m_transform(std::move(transform)), m_camera(p_camera), rotation_angle(0)
 {
 #ifdef EZGL_USE_X11
-  // get the underlying x11 drawable used by cairo surface
-  x11_drawable = cairo_xlib_surface_get_drawable(m_surface);
+  // Check if the created cairo surface is an XLIB surface
+  if (cairo_surface_get_type(m_surface) == CAIRO_SURFACE_TYPE_XLIB) {
+    // get the underlying x11 drawable used by cairo surface
+    x11_drawable = cairo_xlib_surface_get_drawable(m_surface);
 
-  // get the x11 display
-  x11_display = cairo_xlib_surface_get_display(m_surface);
+    // get the x11 display
+    x11_display = cairo_xlib_surface_get_display(m_surface);
 
-  if(x11_display == nullptr) {
-    g_error("Could not get X11 display from cairo.");
+    // create the x11 context from the drawable of the cairo surface
+    if (x11_display != nullptr) {
+      x11_context = XCreateGC(x11_display, x11_drawable, 0, 0);
+    }
   }
-
-  // create the x11 context from the drawable of the cairo surface
-  x11_context = XCreateGC(x11_display, x11_drawable, 0, 0);
 #endif
 }
 
@@ -49,7 +50,9 @@ renderer::~renderer()
 {
 #ifdef EZGL_USE_X11
   // free the x11 context
-  XFreeGC(x11_display, x11_context);
+  if (x11_display != nullptr) {
+    XFreeGC(x11_display, x11_context);
+  }
 #endif
 }
 
@@ -158,12 +161,14 @@ void renderer::set_color(uint_fast8_t red,
     transparency_flag = false;
 
   // set color for x11 (no transparency)
-  unsigned long xcolor = 0;
-  xcolor |= (red << 2 * 8 | red << 8 | red) & 0xFF0000;
-  xcolor |= (green << 2 * 8 | green << 8 | green) & 0xFF00;
-  xcolor |= (blue << 2 * 8 | blue << 8 | blue) & 0xFF;
-  xcolor |= 0xFF000000;
-  XSetForeground(x11_display, x11_context, xcolor);
+  if (x11_display != nullptr) {
+    unsigned long xcolor = 0;
+    xcolor |= (red << 2 * 8 | red << 8 | red) & 0xFF0000;
+    xcolor |= (green << 2 * 8 | green << 8 | green) & 0xFF00;
+    xcolor |= (blue << 2 * 8 | blue << 8 | blue) & 0xFF;
+    xcolor |= 0xFF000000;
+    XSetForeground(x11_display, x11_context, xcolor);
+  }
 #endif
 }
 
@@ -173,10 +178,12 @@ void renderer::set_line_cap(line_cap cap)
   cairo_set_line_cap(m_cairo, cairo_cap);
 
 #ifdef EZGL_USE_X11
-  current_line_cap = cap;
-  XSetLineAttributes(x11_display, x11_context, current_line_width,
-      current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
-      current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+  if (x11_display != nullptr) {
+    current_line_cap = cap;
+    XSetLineAttributes(x11_display, x11_context, current_line_width,
+        current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
+        current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+  }
 #endif
 }
 
@@ -194,10 +201,12 @@ void renderer::set_line_dash(line_dash dash)
   }
 
 #ifdef EZGL_USE_X11
-  current_line_dash = dash;
-  XSetLineAttributes(x11_display, x11_context, current_line_width,
-      current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
-      current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+  if (x11_display != nullptr) {
+    current_line_dash = dash;
+    XSetLineAttributes(x11_display, x11_context, current_line_width,
+        current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
+        current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+  }
 #endif
 }
 
@@ -206,10 +215,12 @@ void renderer::set_line_width(int width)
   cairo_set_line_width(m_cairo, width);
 
 #ifdef EZGL_USE_X11
-  current_line_width = width;
-  XSetLineAttributes(x11_display, x11_context, current_line_width,
-      current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
-      current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+  if (x11_display != nullptr) {
+    current_line_width = width;
+    XSetLineAttributes(x11_display, x11_context, current_line_width,
+        current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
+        current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
+  }
 #endif
 }
 
@@ -262,7 +273,7 @@ void renderer::draw_line(point2d start, point2d end)
   }
 
 #ifdef EZGL_USE_X11
-  if(!transparency_flag) {
+  if(!transparency_flag && x11_display != nullptr) {
     XDrawLine(x11_display, x11_drawable, x11_context, start.x, start.y, end.x, end.y);
     return;
   }
@@ -349,7 +360,7 @@ void renderer::fill_poly(std::vector<point2d> const &points)
   point2d next_point = points[0];
 
 #ifdef EZGL_USE_X11
-  if(!transparency_flag) {
+  if(!transparency_flag && x11_display != nullptr) {
     XPoint fixed_trans_points[X11_MAX_FIXED_POLY_PTS];
     XPoint *trans_points = fixed_trans_points;
 
@@ -540,7 +551,7 @@ void renderer::draw_rectangle_path(point2d start, point2d end, bool fill_flag)
   }
 
 #ifdef EZGL_USE_X11
-  if(!transparency_flag) {
+  if(!transparency_flag && x11_display != nullptr) {
     // Add 0.5 for extra half-pixel accuracy
     int start_x = static_cast<int>(start.x + 0.5);
     int start_y = static_cast<int>(start.y + 0.5);
@@ -591,7 +602,7 @@ void renderer::draw_arc_path(point2d center,
   radius = point_x.x - center.x;
 
 #ifdef EZGL_USE_X11
-  if(!transparency_flag) {
+  if(!transparency_flag && x11_display != nullptr) {
     if(fill_flag)
       XFillArc(x11_display, x11_drawable, x11_context, center.x - radius,
           center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,

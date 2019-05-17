@@ -25,12 +25,15 @@
 #include "ezgl/camera.hpp"
 
 #include <cairo.h>
+#include <gdk/gdk.h>
 
 #ifdef CAIRO_HAS_XLIB_SURFACE
+#ifdef GDK_WINDOWING_X11
 #include <cairo-xlib.h>
 
 // Speed up draw calls by using X11 instead of cairo wherever possible.
 #define EZGL_USE_X11
+#endif
 #endif
 
 #include <functional>
@@ -479,7 +482,7 @@ private:
   Drawable x11_drawable;
 
   // The x11 display
-  Display *x11_display;
+  Display *x11_display = nullptr;
 
   // The x11 context
   GC x11_context;
