@@ -80,9 +80,9 @@ public:
    */
   struct settings {
     /**
-     * The file path that contains the XML file, which describes the GUI.
+     * The resource path that contains the XML file, which describes the GUI.
      */
-    std::string main_ui_resource;
+    std::string main_ui_resource = "/ezgl/main.ui";
 
     /**
      * The name of the main window in the XML file.

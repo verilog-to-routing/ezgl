@@ -32,7 +32,7 @@ void application::startup(GtkApplication *, gpointer user_data)
 
   // Build the main user interface from the XML resource.
   GError *error = nullptr;
-  if(gtk_builder_add_from_file(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
+  if(gtk_builder_add_from_resource(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
     g_error("%s.", error->message);
   }
 
@@ -70,7 +70,7 @@ application::application(application::settings s)
     : m_main_ui(s.main_ui_resource)
     , m_window_id(s.window_identifier)
     , m_canvas_id(s.canvas_identifier)
-    , m_application(gtk_application_new("edu.toronto.eecg.ezgl.app", G_APPLICATION_FLAGS_NONE))
+    , m_application(gtk_application_new("ezgl.app", G_APPLICATION_FLAGS_NONE))
     , m_builder(gtk_builder_new())
     , m_register_callbacks(s.setup_callbacks)
 {
