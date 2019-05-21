@@ -82,7 +82,7 @@ public:
     /**
      * The resource path that contains the XML file, which describes the GUI.
      */
-    std::string main_ui_resource = "/ezgl/main.ui";
+    std::string main_ui_resource;
 
     /**
      * The name of the main window in the XML file.
@@ -103,7 +103,23 @@ public:
      *
      * @see application::get_object
      */
-    connect_g_objects_fn setup_callbacks = nullptr;
+    connect_g_objects_fn setup_callbacks;
+
+    /**
+     * Create the settings structure with default values
+     */
+    settings()
+    : main_ui_resource("/ezgl/main.ui"), window_identifier("MainWindow"), canvas_identifier("MainCanvas"), setup_callbacks(nullptr)
+    {
+    }
+
+    /**
+     * Create the settings structure with user-defined values
+     */
+    settings(std::string m_resource, std::string w_identifier, std::string c_identifier, connect_g_objects_fn s_callbacks = nullptr)
+    : main_ui_resource(m_resource), window_identifier(w_identifier), canvas_identifier(c_identifier), setup_callbacks(s_callbacks)
+    {
+    }
   };
 
 public:
