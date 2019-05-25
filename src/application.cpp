@@ -108,7 +108,8 @@ canvas *application::get_canvas(const std::string &canvas_id) const
 
 canvas *application::add_canvas(std::string const &canvas_id,
     draw_canvas_fn draw_callback,
-    rectangle coordinate_system)
+    rectangle coordinate_system,
+    color background_color)
 {
   if(draw_callback == nullptr) {
     // A NULL draw callback means the canvas will never render anything to the screen.
@@ -117,7 +118,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
 
   // Can't use make_unique with protected constructor without fancy code that will confuse students, so we use new
   // instead.
-  std::unique_ptr<canvas> canvas_ptr(new canvas(canvas_id, draw_callback, coordinate_system));
+  std::unique_ptr<canvas> canvas_ptr(new canvas(canvas_id, draw_callback, coordinate_system, background_color));
   auto it = m_canvases.emplace(canvas_id, std::move(canvas_ptr));
 
   if(!it.second) {

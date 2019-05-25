@@ -23,6 +23,7 @@
 #include "ezgl/control.hpp"
 #include "ezgl/callback.hpp"
 #include "ezgl/graphics.hpp"
+#include "ezgl/color.hpp"
 
 #include <map>
 #include <memory>
@@ -138,12 +139,14 @@ public:
    * @param canvas_id The id of the GtkDrawingArea in the XML file.
    * @param draw_callback The function to call that draws to this canvas.
    * @param coordinate_system The initial coordinate system of this canvas.
+   * @param background_color (OPTIONAL) The color of the canvas background. Default is WHITE.
    *
    * @return A pointer to the newly created canvas.
    */
   canvas *add_canvas(std::string const &canvas_id,
       draw_canvas_fn draw_callback,
-      rectangle coordinate_system);
+      rectangle coordinate_system,
+      color background_color = WHITE);
 
   /**
    * Add a button
