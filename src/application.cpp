@@ -52,11 +52,14 @@ void application::activate(GtkApplication *, gpointer user_data)
   GObject *window = ezgl_app->get_object(ezgl_app->m_window_id.c_str());
   gtk_application_add_window(ezgl_app->m_application, GTK_WINDOW(window));
 
+  // Setup the default callbacks for the mouse and key events
+  register_default_events_callbacks(ezgl_app);
+
   if(ezgl_app->m_register_callbacks != nullptr) {
     ezgl_app->m_register_callbacks(ezgl_app);
   } else {
+    // Setup the default callbacks for the prebuilt buttons
     register_default_buttons_callbacks(ezgl_app);
-    register_default_events_callbacks(ezgl_app);
   }
 
   if(ezgl_app->initial_setup_callback != nullptr)
