@@ -327,12 +327,16 @@ bool application::destroy_button(const char *button_text_to_destroy)
         if(button_text == text_to_del) {
           // destroy the button (widget) and return true
           gtk_widget_destroy(widget);
+          // free the children list
+          g_list_free (children);
           return true;
         }
       }
     }
   }
 
+  // free the children list
+  g_list_free (children);
   // couldn't find the button with the label 'button_text_to_destroy'
   return false;
 }
@@ -370,6 +374,9 @@ void application::change_button_text(const char *button_text, const char *new_bu
       }
     }
   }
+
+  // free the children list
+  g_list_free (children);
 }
 
 void application::change_canvas_world_coordinates(std::string const &canvas_id,
