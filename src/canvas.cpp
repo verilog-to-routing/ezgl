@@ -54,15 +54,6 @@ static cairo_surface_t *create_pdf_surface(GtkWidget *widget)
 
 }
 
-static cairo_surface_t *create_png_surface(GtkWidget *widget)
-{
-  int const width = gtk_widget_get_allocated_width(widget);
-  int const height = gtk_widget_get_allocated_height(widget);
-
-  return cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-
-}
-
 static cairo_surface_t *create_svg_surface(GtkWidget *widget)
 {
     std::string file_name = "svg_output";
@@ -70,6 +61,15 @@ static cairo_surface_t *create_svg_surface(GtkWidget *widget)
   int const height = gtk_widget_get_allocated_height(widget);
 
   return cairo_svg_surface_create(file_name.c_str(), width, height);
+
+}
+
+static cairo_surface_t *create_png_surface(GtkWidget *widget)
+{
+  int const width = gtk_widget_get_allocated_width(widget);
+  int const height = gtk_widget_get_allocated_height(widget);
+
+  return cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
 
 }
 
@@ -84,22 +84,6 @@ static cairo_t *create_context(cairo_surface_t *p_surface)
 
   return context;
 }
-
-//static cairo_status_t *create_png_context(cairo_surface_t *p_surface)
-//{
-//    std::string file_name = "png_output";
-//  cairo_status_t *context = cairo_surface_write_to_png(p_surface, file_name.c_str());
-//
-//  return context;
-//}
-//
-//static cairo_status_t *create_pdf_context(cairo_surface_t *p_surface)
-//{
-//    std::string file_name = "png_output";
-//  cairo_status_t *context = cairo_surface_write_to_png(p_surface, file_name.c_str());
-//
-//  return context;
-//}
 
 gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointer data)
 {

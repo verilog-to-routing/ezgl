@@ -25,6 +25,8 @@
 #include "ezgl/color.hpp"
 
 #include <cairo.h>
+#include <cairo-pdf.h>
+#include <cairo-svg.h>
 #include <gtk/gtk.h>
 
 #include <string>

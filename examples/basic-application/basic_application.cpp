@@ -537,6 +537,8 @@ void test_button(GtkWidget *widget, ezgl::application *application)
 {
   // Update the status bar message
   application->update_message("Test Button Pressed");
+  
+    create_pdf_surface(widget);
 
   // Redraw the main canvas
   application->refresh_drawing();
