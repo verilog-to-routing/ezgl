@@ -25,6 +25,7 @@
 #include <cassert>
 #include <cmath>
 #include <functional>
+#include <iostream>
 
 namespace ezgl {
 
@@ -44,7 +45,7 @@ static cairo_surface_t *create_surface(GtkWidget *widget)
 #endif
 }
 
-static cairo_surface_t *create_pdf_surface(GtkWidget *widget)
+cairo_surface_t *create_pdf_surface(GtkWidget *widget)
 {
     std::string file_name = "pdf_output";
   int const width = gtk_widget_get_allocated_width(widget);
@@ -54,7 +55,7 @@ static cairo_surface_t *create_pdf_surface(GtkWidget *widget)
 
 }
 
-static cairo_surface_t *create_svg_surface(GtkWidget *widget)
+cairo_surface_t *create_svg_surface(GtkWidget *widget)
 {
     std::string file_name = "svg_output";
   int const width = gtk_widget_get_allocated_width(widget);
@@ -64,7 +65,7 @@ static cairo_surface_t *create_svg_surface(GtkWidget *widget)
 
 }
 
-static cairo_surface_t *create_png_surface(GtkWidget *widget)
+cairo_surface_t *create_png_surface(GtkWidget *widget)
 {
   int const width = gtk_widget_get_allocated_width(widget);
   int const height = gtk_widget_get_allocated_height(widget);

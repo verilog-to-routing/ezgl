@@ -36,6 +36,9 @@ namespace ezgl {
 /**** Functions in this class are for ezgl internal use; application code doesn't need to call them ****/
 
 class renderer;
+cairo_surface_t *create_pdf_surface(GtkWidget *widget);
+cairo_surface_t *create_svg_surface(GtkWidget *widget);
+cairo_surface_t *create_png_surface(GtkWidget *widget);
 
 /**
  * The signature of a function that draws to an ezgl::canvas.
