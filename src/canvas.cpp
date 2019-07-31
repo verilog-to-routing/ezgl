@@ -45,33 +45,33 @@ static cairo_surface_t *create_surface(GtkWidget *widget)
 #endif
 }
 
-cairo_surface_t *create_pdf_surface(GtkWidget *widget)
+cairo_surface_t *create_and_generate_pdf(GtkWidget *widget, const char *file_name)
 {
-    std::string file_name = "pdf_output";
   int const width = gtk_widget_get_allocated_width(widget);
   int const height = gtk_widget_get_allocated_height(widget);
 
-  return cairo_pdf_surface_create(file_name.c_str(), width, height);
-
+  return cairo_pdf_surface_create(file_name, width, height);
 }
 
-cairo_surface_t *create_svg_surface(GtkWidget *widget)
+cairo_surface_t *create_and_generate_svg(GtkWidget *widget, const char *file_name)
 {
-    std::string file_name = "svg_output";
   int const width = gtk_widget_get_allocated_width(widget);
   int const height = gtk_widget_get_allocated_height(widget);
 
-  return cairo_svg_surface_create(file_name.c_str(), width, height);
-
+  return cairo_svg_surface_create(file_name, width, height);
 }
 
-cairo_surface_t *create_png_surface(GtkWidget *widget)
+cairo_surface_t *create_png(GtkWidget *widget)
 {
   int const width = gtk_widget_get_allocated_width(widget);
   int const height = gtk_widget_get_allocated_height(widget);
 
   return cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+}
 
+cairo_public cairo_status_t generate_png(cairo_surface_t *p_surface, const char *file_name)
+{
+  return cairo_surface_write_to_png(p_surface, file_name);
 }
 
 static cairo_t *create_context(cairo_surface_t *p_surface)
