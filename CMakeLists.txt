@@ -47,6 +47,13 @@ add_library(
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC include
+)
+
+#Treat GTK/X11 headers as system headers so they
+#do not generate compilation warnings
+target_include_directories(
+  ${PROJECT_NAME}
+  SYSTEM
   PUBLIC ${GTK3_INCLUDE_DIRS}
   PUBLIC ${X11_INCLUDE_DIRS}
 )
