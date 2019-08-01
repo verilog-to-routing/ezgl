@@ -134,6 +134,8 @@ public:
    * The created renderer should be used only in the same callback in which it was created
    */
   renderer create_temporary_renderer();
+  
+  void print_pdf(const char *file_name);
 
 protected:
   // Only the ezgl::application can create and initialize a canvas object.

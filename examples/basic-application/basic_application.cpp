@@ -541,7 +541,8 @@ void test_button(GtkWidget *widget, ezgl::application *application)
   
   // Redraw the main canvas
   application->refresh_drawing();
-
+  std::cout << "see me!" << std::endl;
+//  application->get_canvas(application->get_main_canvas_id())->print_pdf("test_test");
   // Draw a temporary rectangle border
   ezgl::renderer g = application->get_renderer();
   g.set_line_width(1);
