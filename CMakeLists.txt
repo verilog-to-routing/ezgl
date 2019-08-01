@@ -1,5 +1,4 @@
-# require at least CMake version 3.0.2
-cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 
 # create the project
 project(
