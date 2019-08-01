@@ -50,7 +50,9 @@ class renderer;
  *                      generating a temporary file.
  * @return              a pointer to the newly created surface. The caller owns 
  *                      the surface and should call cairo_surface_destroy() when 
- *                      done with it.
+ *                      done with it. 
+ *                      Always returns a valid pointer, but it will return a pointer 
+ *                      to a NULL surface if an error such as out of memory occurs. 
  * 
  * sample code: http://zetcode.com/gfx/cairo/cairobackends/
  */
@@ -135,8 +137,19 @@ public:
    */
   renderer create_temporary_renderer();
   
-  void print_pdf(const char *file_name);
-
+  /**
+   * print_pdf, print_svg, and print_png generate a PDF, SVG, or PNG output file showing 
+   * all the graphical content of the current canvas. 
+   * 
+   * @param file_name   name of the output file
+   * @return            returns true if the function has successfully generated the output file, otherwise
+   *                    failed due to errors such as out of memory occurs. 
+   */
+  bool print_pdf(const char *file_name);
+  bool print_svg(const char *file_name);
+  bool print_png(const char *file_name);
+  
+  
 protected:
   // Only the ezgl::application can create and initialize a canvas object.
   friend class application;

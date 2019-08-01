@@ -25,7 +25,6 @@
 #include <cassert>
 #include <cmath>
 #include <functional>
-#include <iostream>
 
 namespace ezgl {
 
@@ -63,7 +62,6 @@ namespace ezgl {
 
     cairo_surface_t *create_png(GtkWidget *widget)
     {
-        std::cout << "in here png" <<std::endl;
       int const width = gtk_widget_get_allocated_width(widget);
       int const height = gtk_widget_get_allocated_height(widget);
 
@@ -87,29 +85,82 @@ namespace ezgl {
       return context;
     }
 
-    void canvas::print_pdf(const char *file_name)
+    bool canvas::print_pdf(const char *file_name)
     {
-        std::cout << "in here" <<std::endl;
         cairo_surface_t *surface;
         cairo_t *context;
-        //GObject *main_widget = application.get_object(application.get_main_window_id().c_str());
-        
+        // create pdf surface, context, and output file
         surface = create_and_generate_pdf(m_drawing_area, file_name);
+        if(surface == NULL) return false; 
         context = create_context(surface);
 
-        cairo_set_source_rgb(context, 0, 0, 0);
-        cairo_select_font_face (context, "Sans", CAIRO_FONT_SLANT_NORMAL,
-            CAIRO_FONT_WEIGHT_NORMAL);
-        cairo_set_font_size (context, 40.0);
+        // draw on the newly created pdf surface & context
+        cairo_set_source_rgb(context, m_background_color.red / 255.0,
+                                m_background_color.green / 255.0, m_background_color.blue / 255.0);
+        cairo_paint(context);
 
-        cairo_move_to(context, 10.0, 50.0);
-        cairo_show_text(context, "Disziplin ist Macht.");
+        using namespace std::placeholders;
+        renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera, surface);
+        m_draw_callback(g);
 
-        cairo_show_page(context);
-        
-        //free surface & context
+        // free surface & context
         cairo_surface_destroy(surface);
         cairo_destroy(context);
+        
+        return true;
+    }
+    
+    bool canvas::print_svg(const char *file_name)
+    {
+        cairo_surface_t *surface;
+        cairo_t *context;
+        // create svg surface, context, and output file
+        surface = create_and_generate_svg(m_drawing_area, file_name);
+        if(surface == NULL) return false; 
+        context = create_context(surface);
+
+        // draw on the newly created svg surface & context
+        cairo_set_source_rgb(context, m_background_color.red / 255.0,
+                                m_background_color.green / 255.0, m_background_color.blue / 255.0);
+        cairo_paint(context);
+
+        using namespace std::placeholders;
+        renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera, surface);
+        m_draw_callback(g);
+
+        // free surface & context
+        cairo_surface_destroy(surface);
+        cairo_destroy(context);
+        
+        return true;
+    }
+    
+    bool canvas::print_png(const char *file_name)
+    {
+        cairo_surface_t *surface;
+        cairo_t *context;
+        // create png surface & context
+        surface = create_png(m_drawing_area);
+        if(surface == NULL) return false; 
+        context = create_context(surface);
+
+        // draw on the newly created png surface & context
+        cairo_set_source_rgb(context, m_background_color.red / 255.0,
+                                m_background_color.green / 255.0, m_background_color.blue / 255.0);
+        cairo_paint(context);
+
+        using namespace std::placeholders;
+        renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera, surface);
+        m_draw_callback(g);
+        
+        // create png output file
+        generate_png(surface, file_name);
+
+        // free surface & context
+        cairo_surface_destroy(surface);
+        cairo_destroy(context);
+        
+        return true;
     }
 
     gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointer data)

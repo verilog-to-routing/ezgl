@@ -26,8 +26,6 @@
 #include "ezgl/graphics.hpp"
 #include "ezgl/canvas.hpp"
 
-#include <iostream>
-
 // Callback functions for event handling
 void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y);
 void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y);
@@ -541,8 +539,7 @@ void test_button(GtkWidget *widget, ezgl::application *application)
   
   // Redraw the main canvas
   application->refresh_drawing();
-  std::cout << "see me!" << std::endl;
-//  application->get_canvas(application->get_main_canvas_id())->print_pdf("test_test");
+
   // Draw a temporary rectangle border
   ezgl::renderer g = application->get_renderer();
   g.set_line_width(1);
