@@ -20,6 +20,9 @@ endif()
 # a set of macros has been developed by Makman2 on GitHub to help with this
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gcr-cmake/macros)
 
+#Is ezgl the root cmake project?
+set(IS_ROOT_PROJECT (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR}))
+
 # include the configuration/compile time options for this library
 include(options.cmake)
 
