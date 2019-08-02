@@ -38,37 +38,6 @@ namespace ezgl {
 class renderer;
 
 /**
- * create_and_generate_pdf and create_and_generate_svg both create a surface and generate an file output.
- * 
- * @param widget        a widget which specifies the width and the height of the 
- *                      surface generated. Can use any widget — button, window, etc. 
- *                      Should be using the MainCanvas (GtkDrawingArea) to save the
- *                      graphical content shown in the main canvas.
- * @param file_name:    a filename for the PDF output (must be writable), NULL may 
- *                      be used to specify no output. This will generate a PDF/SVG 
- *                      surface that may be queried and used as a source, without 
- *                      generating a temporary file.
- * @return              a pointer to the newly created surface. The caller owns 
- *                      the surface and should call cairo_surface_destroy() when 
- *                      done with it. 
- *                      Always returns a valid pointer, but it will return a pointer 
- *                      to a NULL surface if an error such as out of memory occurs. 
- * 
- * sample code: http://zetcode.com/gfx/cairo/cairobackends/
- */
-cairo_surface_t *create_and_generate_pdf(GtkWidget *widget, const char *file_name);
-cairo_surface_t *create_and_generate_svg(GtkWidget *widget, const char *file_name);
-
-/**
- * create_png and generate_png work the same way as create_and_generate_pdf and create_and_generate_svg,
- * while the process is broken into two separate functions due to the corresponding cairo functions. 
- * Please refer to the comments for create_and_generate_pdf/create_and_generate_svg above.
- * Pass the return value of create_png into generate_png to generate an output png file.
- */
-cairo_surface_t *create_png(GtkWidget *widget);
-cairo_public cairo_status_t generate_png(cairo_surface_t *p_surface, const char *file_name);
-
-/**
  * The signature of a function that draws to an ezgl::canvas.
  */
 using draw_canvas_fn = void (*)(renderer &);

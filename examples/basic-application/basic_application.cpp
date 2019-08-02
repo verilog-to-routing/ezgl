@@ -24,7 +24,6 @@
 
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
-#include "ezgl/canvas.hpp"
 
 // Callback functions for event handling
 void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y);

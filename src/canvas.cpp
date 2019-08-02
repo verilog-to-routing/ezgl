@@ -44,35 +44,6 @@ namespace ezgl {
     #endif
     }
 
-    cairo_surface_t *create_and_generate_pdf(GtkWidget *widget, const char *file_name)
-    {
-      int const width = gtk_widget_get_allocated_width(widget);
-      int const height = gtk_widget_get_allocated_height(widget);
-
-      return cairo_pdf_surface_create(file_name, width, height);
-    }
-
-    cairo_surface_t *create_and_generate_svg(GtkWidget *widget, const char *file_name)
-    {
-      int const width = gtk_widget_get_allocated_width(widget);
-      int const height = gtk_widget_get_allocated_height(widget);
-
-      return cairo_svg_surface_create(file_name, width, height);
-    }
-
-    cairo_surface_t *create_png(GtkWidget *widget)
-    {
-      int const width = gtk_widget_get_allocated_width(widget);
-      int const height = gtk_widget_get_allocated_height(widget);
-
-      return cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-    }
-
-    cairo_public cairo_status_t generate_png(cairo_surface_t *p_surface, const char *file_name)
-    {
-      return cairo_surface_write_to_png(p_surface, file_name);
-    }
-
     static cairo_t *create_context(cairo_surface_t *p_surface)
     {
       cairo_t *context = cairo_create(p_surface);
@@ -89,9 +60,13 @@ namespace ezgl {
     {
         cairo_surface_t *surface;
         cairo_t *context;
-        // create pdf surface, context, and output file
-        surface = create_and_generate_pdf(m_drawing_area, file_name);
-        if(surface == NULL) return false; 
+        
+        // create pdf surface based on canvas size
+        int const width = gtk_widget_get_allocated_width(m_drawing_area);
+        int const height = gtk_widget_get_allocated_height(m_drawing_area);
+        surface = cairo_pdf_surface_create(file_name, width, height);
+        
+        if(surface == NULL) return false; // failed to create due to errors such as out of memory
         context = create_context(surface);
 
         // draw on the newly created pdf surface & context
@@ -114,9 +89,13 @@ namespace ezgl {
     {
         cairo_surface_t *surface;
         cairo_t *context;
-        // create svg surface, context, and output file
-        surface = create_and_generate_svg(m_drawing_area, file_name);
-        if(surface == NULL) return false; 
+        
+        // create svg surface based on canvas size
+        int const width = gtk_widget_get_allocated_width(m_drawing_area);
+        int const height = gtk_widget_get_allocated_height(m_drawing_area);
+        surface = cairo_svg_surface_create(file_name, width, height);
+        
+        if(surface == NULL) return false; // failed to create due to errors such as out of memory
         context = create_context(surface);
 
         // draw on the newly created svg surface & context
@@ -139,23 +118,26 @@ namespace ezgl {
     {
         cairo_surface_t *surface;
         cairo_t *context;
-        // create png surface & context
-        surface = create_png(m_drawing_area);
-        if(surface == NULL) return false; 
+        
+        // create png surface based on canvas size
+        int const width = gtk_widget_get_allocated_width(m_drawing_area);
+        int const height = gtk_widget_get_allocated_height(m_drawing_area);
+        surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+        
+        if(surface == NULL) return false; // failed to create due to errors such as out of memory
         context = create_context(surface);
-
+        
         // draw on the newly created png surface & context
         cairo_set_source_rgb(context, m_background_color.red / 255.0,
                                 m_background_color.green / 255.0, m_background_color.blue / 255.0);
         cairo_paint(context);
-
         using namespace std::placeholders;
         renderer g(context, std::bind(&camera::world_to_screen, m_camera, _1), &m_camera, surface);
         m_draw_callback(g);
         
         // create png output file
-        generate_png(surface, file_name);
-
+        cairo_surface_write_to_png(surface, file_name);
+        
         // free surface & context
         cairo_surface_destroy(surface);
         cairo_destroy(context);

@@ -25,8 +25,6 @@
 #include "ezgl/camera.hpp"
 
 #include <cairo.h>
-#include <cairo-pdf.h>
-#include <cairo-svg.h>
 #include <gdk/gdk.h>
 
 #ifdef CAIRO_HAS_XLIB_SURFACE
