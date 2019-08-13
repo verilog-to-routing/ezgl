@@ -83,7 +83,7 @@ bool canvas::print_pdf(const char *file_name, int width, int height)
   cairo_paint(context);
 
   using namespace std::placeholders;
-  camera pdf_cam({{0,0},{(double)surface_width, (double)surface_height}});
+  camera pdf_cam = m_camera;
   pdf_cam.update_widget(surface_width, surface_height);
   renderer g(context, std::bind(&camera::world_to_screen, pdf_cam, _1), &pdf_cam, surface);
   m_draw_callback(g);
@@ -122,7 +122,7 @@ bool canvas::print_svg(const char *file_name, int width, int height)
   cairo_paint(context);
 
   using namespace std::placeholders;
-  camera pdf_cam({{0,0},{(double)surface_width, (double)surface_height}});
+  camera pdf_cam = m_camera;
   pdf_cam.update_widget(surface_width, surface_height);
   renderer g(context, std::bind(&camera::world_to_screen, pdf_cam, _1), &pdf_cam, surface);
   m_draw_callback(g);
@@ -161,7 +161,7 @@ bool canvas::print_png(const char *file_name, int width, int height)
   cairo_paint(context);
 
   using namespace std::placeholders;
-  camera pdf_cam({{0,0},{(double)surface_width, (double)surface_height}});
+  camera pdf_cam = m_camera;
   pdf_cam.update_widget(surface_width, surface_height);
   renderer g(context, std::bind(&camera::world_to_screen, pdf_cam, _1), &pdf_cam, surface);
   m_draw_callback(g);
