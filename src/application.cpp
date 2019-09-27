@@ -410,6 +410,10 @@ void application::flush_drawing()
 
   // queue a redraw of the GtkWidget
   gtk_widget_queue_draw(drawing_area);
+
+  // run the main loop on pending events
+  while(gtk_events_pending())
+    gtk_main_iteration();
 }
 
 renderer application::get_renderer()

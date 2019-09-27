@@ -234,7 +234,7 @@ public:
   /**
    * Flush the drawings done by the renderer, returned from get_renderer(), to the on-screen buffer
    *
-   * The flushing is done after returning to the GTK event loop
+   * The flushing is done immediately
    */
   void flush_drawing();
 
