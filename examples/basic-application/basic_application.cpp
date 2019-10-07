@@ -29,7 +29,7 @@
 void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y);
 void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y);
 void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *key_name);
-void initial_setup(ezgl::application *application);
+void initial_setup(ezgl::application *application, bool new_window);
 void test_button(GtkWidget *widget, ezgl::application *application);
 
 /**
@@ -467,7 +467,7 @@ void draw_png_example(ezgl::renderer &g)
  * Can be used to create additional buttons, initialize the status message,
  * or connect added widgets to their callback functions
  */
-void initial_setup(ezgl::application *application)
+void initial_setup(ezgl::application *application, bool new_window)
 {
   // Update the status bar message
   application->update_message("EZGL Application");

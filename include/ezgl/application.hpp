@@ -48,7 +48,7 @@ using connect_g_objects_fn = void (*)(application *app);
 /**
  * The signature of a setup callback function
  */
-using setup_callback_fn = void (*)(application *app);
+using setup_callback_fn = void (*)(application *app, bool new_window);
 
 /**
  * The signature of a button callback function
@@ -356,6 +356,9 @@ private:
 
   // A flag that indicates if the run() was called before or not to allow multiple reruns
   bool first_run;
+
+  // A flag that indicates if we are resuming an older run to allow proper quitting
+  bool resume_run;
 
 private:
   // Called when our GtkApplication is initialized for the first time.
