@@ -40,7 +40,7 @@ class renderer;
 /**
  * The signature of a function that draws to an ezgl::canvas.
  */
-using draw_canvas_fn = void (*)(renderer &);
+using draw_canvas_fn = void (*)(renderer*);
 
 /**
  * Responsible for creating, destroying, and maintaining the rendering context of a GtkWidget.
