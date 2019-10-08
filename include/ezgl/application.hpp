@@ -225,11 +225,9 @@ public:
   void refresh_drawing();
 
   /**
-   * Get a temporary renderer that can be used to draw on top of the main canvas
-   *
-   * The returned renderer should be used only in the same callback in which this function is called
+   * Get a renderer that can be used to draw on top of the main canvas
    */
-  renderer get_renderer();
+  renderer *get_renderer();
 
   /**
    * Flush the drawings done by the renderer, returned from get_renderer(), to the on-screen buffer

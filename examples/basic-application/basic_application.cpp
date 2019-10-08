@@ -467,7 +467,7 @@ void draw_png_example(ezgl::renderer &g)
  * Can be used to create additional buttons, initialize the status message,
  * or connect added widgets to their callback functions
  */
-void initial_setup(ezgl::application *application, bool new_window)
+void initial_setup(ezgl::application *application, bool /*new_window*/)
 {
   // Update the status bar message
   application->update_message("EZGL Application");
@@ -540,10 +540,10 @@ void test_button(GtkWidget */*widget*/, ezgl::application *application)
   application->refresh_drawing();
 
   // Draw a temporary rectangle border
-  ezgl::renderer g = application->get_renderer();
-  g.set_line_width(1);
-  g.set_color(ezgl::BLACK);
-  g.draw_rectangle({{0, 0}, 1100, 1150});
+  ezgl::renderer *g = application->get_renderer();
+  g->set_line_width(1);
+  g->set_color(ezgl::BLACK);
+  g->draw_rectangle({{0, 0}, 1100, 1150});
   application->flush_drawing();
 }
 

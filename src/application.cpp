@@ -447,12 +447,12 @@ void application::flush_drawing()
     gtk_main_iteration();
 }
 
-renderer application::get_renderer()
+renderer *application::get_renderer()
 {
   // get the main canvas
   canvas *cnv = get_canvas(m_canvas_id);
 
-  return cnv->create_temporary_renderer();
+  return cnv->create_animation_renderer();
 }
 
 void set_disable_event_loop(bool new_setting)
