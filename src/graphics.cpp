@@ -112,7 +112,7 @@ void renderer::set_visible_world(rectangle new_world)
   }
   else {
     // Change the width
-    double new_width = n_height/i_aspect_ratio;
+    double new_width = n_height*i_aspect_ratio;
     new_world ={{n_center.x-new_width/2, n_center.y-n_height/2}, new_width, n_height};
   }
 
