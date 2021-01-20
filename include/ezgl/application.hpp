@@ -36,6 +36,13 @@
  */
 namespace ezgl {
 
+// A flag to specify whether the GUI is built from an XML file or an XML resource
+#ifndef ECE297
+const bool build_ui_from_file = false;
+#else
+const bool build_ui_from_file = true;
+#endif
+
 class application;
 
 /**
@@ -81,7 +88,7 @@ public:
    */
   struct settings {
     /**
-     * The resource path that contains the XML file, which describes the GUI.
+     * The resource/file path that contains the XML file, which describes the GUI.
      */
     std::string main_ui_resource;
 
@@ -121,7 +128,7 @@ public:
      * Create the settings structure with default values
      */
     settings()
-    : main_ui_resource("/ezgl/main.ui"), window_identifier("MainWindow"), canvas_identifier("MainCanvas"), application_identifier("ezgl.app"),
+    : main_ui_resource(build_ui_from_file ? "main_ui" : "/ezgl/main.ui"), window_identifier("MainWindow"), canvas_identifier("MainCanvas"), application_identifier("ezgl.app"),
       setup_callbacks(nullptr)
     {
     }

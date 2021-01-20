@@ -37,10 +37,19 @@ void application::startup(GtkApplication *, gpointer user_data)
 
   char const *main_ui_resource = ezgl_app->m_main_ui.c_str();
 
-  // Build the main user interface from the XML resource.
-  GError *error = nullptr;
-  if(gtk_builder_add_from_resource(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
-    g_error("%s.", error->message);
+  if (!build_ui_from_file) {
+    // Build the main user interface from the XML resource.
+    GError *error = nullptr;
+    if(gtk_builder_add_from_resource(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
+      g_error("%s.", error->message);
+    }
+  }
+  else {
+    // Build the main user interface from the XML file.
+    GError *error = nullptr;
+    if(gtk_builder_add_from_file(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
+      g_error("%s.", error->message);
+    }
   }
 
   for(auto &c_pair : ezgl_app->m_canvases) {
