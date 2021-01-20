@@ -290,8 +290,16 @@ void renderer::format_font(std::string const &family,
 
 void renderer::set_text_rotation(double degrees)
 {
-  // convert the given angle to rad
-  rotation_angle = -degrees * M_PI / 180;
+  // Bad rotation values (inf, NaN) can cause permanent problems in the 
+  // graphics, as the cairo_restore to undo the rotation doesn't work.
+  // Check for them before changing the angle.
+  if (degrees >= -360. && degrees <= 360.) {
+    // convert the given angle to rad
+    rotation_angle = -degrees * M_PI / 180;
+  }
+  else {
+    g_warning("set_text_rotation: bad rotation angle of %f. Ignored!", degrees);
+  }
 }
 
 void renderer::set_horiz_text_just(text_just horiz_just)
@@ -730,6 +738,15 @@ surface *renderer::load_png(const char *file_path)
 {
   // Create an image surface from a PNG image
   cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
+
+  cairo_status_t status = cairo_surface_status(png_surface);
+
+  if (status == CAIRO_STATUS_FILE_NOT_FOUND) {
+    g_warning("load_png: File %s not found.", file_path);
+  }
+  else if (status != CAIRO_STATUS_SUCCESS) {
+    g_warning("load_png: Error loading file %s.", file_path);
+  }
 
   return png_surface;
 }

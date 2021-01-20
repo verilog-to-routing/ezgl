@@ -36,7 +36,13 @@ gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer data)
     application->key_press_callback(application, event, gdk_keyval_name(event->keyval));
   }
 
-  return FALSE; // propagate the event
+  // Returning FALSE to indicate this event should be propagated on to other
+  // gtk widgets. This is important since we're grabbing keyboard events
+  // for the whole main window. It can have unexpected effects though, such
+  // as Enter/Space being treated as press any highlighted button.
+  // return TRUE (event consumed) if you want to avoid that, and don't have
+  // any widgets that need keyboard events.
+  return FALSE;
 }
 
 gboolean press_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
