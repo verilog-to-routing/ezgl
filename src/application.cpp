@@ -324,6 +324,9 @@ void application::create_button(const char *button_text,
   // create the new button with the given label
   GtkWidget *new_button = gtk_button_new_with_label(button_text);
 
+  // set can_focus property to false
+  gtk_widget_set_focus_on_click(new_button, false);
+
   // connect the buttons clicked event to the callback
   if(button_func != NULL) {
     g_signal_connect(G_OBJECT(new_button), "clicked", G_CALLBACK(button_func), this);
