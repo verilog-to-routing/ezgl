@@ -28,6 +28,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <ctime>
 
 #include <gtk/gtk.h>
 
@@ -131,6 +132,8 @@ public:
     : main_ui_resource(build_ui_from_file ? "main_ui" : "/ezgl/main.ui"), window_identifier("MainWindow"), canvas_identifier("MainCanvas"), application_identifier("ezgl.app"),
       setup_callbacks(nullptr)
     {
+      // If the default application identifier is used, uniquify it by appending a time stamp
+      application_identifier = "ezgl.app.t" + std::to_string(std::time(nullptr));
     }
 
     /**
@@ -141,6 +144,9 @@ public:
     : main_ui_resource(m_resource), window_identifier(w_identifier), canvas_identifier(c_identifier), application_identifier(a_identifier),
       setup_callbacks(s_callbacks)
     {
+      // If the default application identifier is used, uniquify it by appending a time stamp
+      if (application_identifier == "ezgl.app")
+        application_identifier = "ezgl.app.t" + std::to_string(std::time(nullptr));
     }
   };
 
