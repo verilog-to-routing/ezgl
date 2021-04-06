@@ -302,16 +302,16 @@ void renderer::set_text_rotation(double degrees)
   }
 }
 
-void renderer::set_horiz_text_just(text_just horiz_just)
+void renderer::set_horiz_justification(justification horiz_just)
 {
-  if (horiz_just != text_just::top && horiz_just != text_just::bottom)
-    horiz_text_just = horiz_just;
+  if (horiz_just != justification::top && horiz_just != justification::bottom)
+    horiz_justification = horiz_just;
 }
 
-void renderer::set_vert_text_just(text_just vert_just)
+void renderer::set_vert_justification(justification vert_just)
 {
-  if (vert_just != text_just::right && vert_just != text_just::left)
-    vert_text_just = vert_just;
+  if (vert_just != justification::right && vert_just != justification::left)
+    vert_justification = vert_just;
 }
 
 void renderer::draw_line(point2d start, point2d end)
@@ -517,13 +517,13 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
   point2d center = point;
 
   // roughly calculate the center point for pre-clipping
-  if (horiz_text_just == text_just::left)
+  if (horiz_justification == justification::left)
     center.x += bound_x/2;
-  else if (horiz_text_just == text_just::right)
+  else if (horiz_justification == justification::right)
     center.x -= bound_x/2;
-  if (vert_text_just == text_just::top)
+  if (vert_justification == justification::top)
     center.y -= bound_y/2;
-  else if (vert_text_just == text_just::bottom)
+  else if (vert_justification == justification::bottom)
     center.y += bound_y/2;
 
   if(rectangle_off_screen({{center.x - bound_x / 2, center.y - bound_y / 2}, bound_x, bound_y}))
@@ -569,19 +569,19 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
                 (text_extents.x_bearing + (text_extents.width / 2)) * sin(rotation_angle);
 
   // adjust the reference point according to the required justification
-  if (horiz_text_just == text_just::left) {
+  if (horiz_justification == justification::left) {
     ref_point.x += (text_extents.width / 2) * cos(rotation_angle);
     ref_point.y += (text_extents.width / 2) * sin(rotation_angle);
   }
-  else if (horiz_text_just == text_just::right) {
+  else if (horiz_justification == justification::right) {
     ref_point.x -= (text_extents.width / 2) * cos(rotation_angle);
     ref_point.y -= (text_extents.width / 2) * sin(rotation_angle);
   }
-  if (vert_text_just == text_just::top) {
+  if (vert_justification == justification::top) {
     ref_point.x -= (text_extents.height / 2) * sin(rotation_angle);
     ref_point.y += (text_extents.height / 2) * cos(rotation_angle);
   }
-  else if (vert_text_just == text_just::bottom) {
+  else if (vert_justification == justification::bottom) {
     ref_point.x += (text_extents.height / 2) * sin(rotation_angle);
     ref_point.y -= (text_extents.height / 2) * cos(rotation_angle);
   }
@@ -710,20 +710,37 @@ void renderer::draw_arc_path(point2d center,
     cairo_stroke(m_cairo);
 }
 
-void renderer::draw_surface(surface *p_surface, point2d top_left, double scale_factor)
+void renderer::draw_surface(surface *p_surface, point2d point, double scale_factor)
 {
   // Check if the surface is properly created
   if(cairo_surface_status(p_surface) != CAIRO_STATUS_SUCCESS)
     return;
 
-  // pre-clipping
+  // calculate surface width and height in screen coordinates
   double s_width = (double)cairo_image_surface_get_width(p_surface) * scale_factor;
   double s_height = (double)cairo_image_surface_get_height(p_surface) * scale_factor;
 
-  if(rectangle_off_screen({{top_left.x, top_left.y - s_height}, s_width, s_height}))
+  // calculate surface width and height in world coordinates
+  if (current_coordinate_system == WORLD) {
+    s_width *= m_camera->get_world_scale_factor().x;
+    s_height *= m_camera->get_world_scale_factor().y;
+  }
+
+  // Calculate the top left point
+  point2d top_left = point;
+  if (horiz_justification == justification::center)
+    top_left.x -= s_width/2;
+  else if (horiz_justification == justification::right)
+    top_left.x -= s_width;
+  if (vert_justification == justification::center)
+    top_left.y += (current_coordinate_system == WORLD) ? s_height/2 : -s_height/2;
+  else if (vert_justification == justification::bottom)
+    top_left.y += (current_coordinate_system == WORLD) ? s_height : -s_height;
+
+  if (rectangle_off_screen({{top_left.x, top_left.y - s_height}, s_width, s_height}))
     return;
 
-  // transform the given top_left point
+  // transform the given point
   if(current_coordinate_system == WORLD)
     top_left = m_transform(top_left);
 
