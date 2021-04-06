@@ -710,15 +710,15 @@ void renderer::draw_arc_path(point2d center,
     cairo_stroke(m_cairo);
 }
 
-void renderer::draw_surface(surface *p_surface, point2d top_left)
+void renderer::draw_surface(surface *p_surface, point2d top_left, double scale_factor)
 {
   // Check if the surface is properly created
   if(cairo_surface_status(p_surface) != CAIRO_STATUS_SUCCESS)
     return;
 
   // pre-clipping
-  double s_width = (double)cairo_image_surface_get_width(p_surface);
-  double s_height = (double)cairo_image_surface_get_height(p_surface);
+  double s_width = (double)cairo_image_surface_get_width(p_surface) * scale_factor;
+  double s_height = (double)cairo_image_surface_get_height(p_surface) * scale_factor;
 
   if(rectangle_off_screen({{top_left.x, top_left.y - s_height}, s_width, s_height}))
     return;
@@ -727,11 +727,28 @@ void renderer::draw_surface(surface *p_surface, point2d top_left)
   if(current_coordinate_system == WORLD)
     top_left = m_transform(top_left);
 
+  if (scale_factor != 1) {
+    // save the current state to undo the scaling
+    cairo_save(m_cairo);
+
+    // scale the cairo context with the given scale factor
+    cairo_scale(m_cairo, scale_factor, scale_factor);
+
+    // adjust the corner point based on the context scaling
+    top_left.x /= scale_factor;
+    top_left.y /= scale_factor;
+  }
+
   // Create a source for painting from the surface
   cairo_set_source_surface(m_cairo, p_surface, top_left.x, top_left.y);
 
   // Actual drawing
   cairo_paint(m_cairo);
+
+  if (scale_factor != 1) {
+    // restore the old state to undo the performed scaling
+    cairo_restore(m_cairo);
+  }
 }
 
 surface *renderer::load_png(const char *file_path)
