@@ -57,9 +57,11 @@ gboolean press_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
       prev_x = event->x;
       prev_y = event->y;
     }
-
     // Call the user-defined mouse press callback if defined
-    if(application->mouse_press_callback != nullptr) {
+    // The user-defined callback is called for mouse buttons other than
+    // the PANNING_MOUSE_BUTTON button. If the user pressed the PANNING_MOUSE_BUTTON button,
+    // the callback will be called at mouse release only if no panning occurs
+    else if(application->mouse_press_callback != nullptr) {
       ezgl::point2d const widget_coordinates(event->x, event->y);
 
       std::string main_canvas_id = application->get_main_canvas_id();
@@ -73,12 +75,25 @@ gboolean press_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
   return TRUE; // consume the event
 }
 
-gboolean release_mouse(GtkWidget *, GdkEventButton *event, gpointer )
+gboolean release_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
 {
+  auto application = static_cast<ezgl::application *>(data);
+
   if(event->type == GDK_BUTTON_RELEASE) {
     // Check for mouse release to support dragging
     if(event->button == PANNING_MOUSE_BUTTON) {
       panning_mouse_button_pressed = false;
+
+      // Call the user-defined mouse press callback for the PANNING_MOUSE_BUTTON button only if no panning occurs
+      if(event->x == prev_x && event->y == prev_y && application->mouse_press_callback != nullptr) {
+        ezgl::point2d const widget_coordinates(event->x, event->y);
+
+        std::string main_canvas_id = application->get_main_canvas_id();
+        ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+
+        ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
+        application->mouse_press_callback(application, event, world.x, world.y);
+      }
     }
   }
 
