@@ -18,19 +18,11 @@
 
 #include "ezgl/application.hpp"
 
-#ifdef ECE297
-// A flag to disable event loop (default is false)
-// This allows basic scripted testing even if the GUI is on (return immediately when the event loop is called)
-bool disable_event_loop = false;
-#endif
-
 namespace ezgl {
 
-#ifndef ECE297
 // A flag to disable event loop (default is false)
 // This allows basic scripted testing even if the GUI is on (return immediately when the event loop is called)
 bool disable_event_loop = false;
-#endif
 
 void application::startup(GtkApplication *, gpointer user_data)
 {
@@ -482,17 +474,8 @@ renderer *application::get_renderer()
   return cnv->create_animation_renderer();
 }
 
-#ifndef ECE297
 void set_disable_event_loop(bool new_setting)
 {
   disable_event_loop = new_setting;
 }
-#endif
 }
-
-#ifdef ECE297
-void set_disable_event_loop(bool new_setting)
-{
-  disable_event_loop = new_setting;
-}
-#endif
