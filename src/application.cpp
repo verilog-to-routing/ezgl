@@ -329,7 +329,9 @@ void application::create_button(const char *button_text,
   GtkWidget *new_button = gtk_button_new_with_label(button_text);
 
   // set can_focus property to false
+#if GTK_CHECK_VERSION (3, 20, 0)
   gtk_widget_set_focus_on_click(new_button, false);
+#endif
 
   // connect the buttons clicked event to the callback
   if(button_func != NULL) {
