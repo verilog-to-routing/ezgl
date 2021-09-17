@@ -715,8 +715,10 @@ void renderer::draw_arc_path(point2d center,
 void renderer::draw_surface(surface *p_surface, point2d point, double scale_factor)
 {
   // Check if the surface is properly created
-  if(cairo_surface_status(p_surface) != CAIRO_STATUS_SUCCESS)
+  if(cairo_surface_status(p_surface) != CAIRO_STATUS_SUCCESS) {
+    g_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", p_surface);
     return;
+  }
 
   // calculate surface width and height in screen coordinates
   double s_width = (double)cairo_image_surface_get_width(p_surface) * scale_factor;
@@ -781,10 +783,10 @@ surface *renderer::load_png(const char *file_path)
   cairo_status_t status = cairo_surface_status(png_surface);
 
   if (status == CAIRO_STATUS_FILE_NOT_FOUND) {
-    g_warning("load_png: File %s not found.", file_path);
+    g_warning("renderer::load_png: File %s not found.", file_path);
   }
   else if (status != CAIRO_STATUS_SUCCESS) {
-    g_warning("load_png: Error loading file %s.", file_path);
+    g_warning("renderer::load_png: Error loading file %s.", file_path);
   }
 
   return png_surface;
