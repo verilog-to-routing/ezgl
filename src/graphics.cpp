@@ -304,12 +304,14 @@ void renderer::set_text_rotation(double degrees)
 
 void renderer::set_horiz_justification(justification horiz_just)
 {
+  // Ignore illegal values for horizontal justification
   if (horiz_just != justification::top && horiz_just != justification::bottom)
     horiz_justification = horiz_just;
 }
 
 void renderer::set_vert_justification(justification vert_just)
 {
+  // Ignore illegal values for vertical justification
   if (vert_just != justification::right && vert_just != justification::left)
     vert_justification = vert_just;
 }
@@ -732,6 +734,9 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
     top_left.x -= s_width/2;
   else if (horiz_justification == justification::right)
     top_left.x -= s_width;
+  // Vertical justifaction is calculated differently based on the current coordinate system
+  // Since the origin point of screen coordinates is at the top left,
+  // while the origin point of world coordinates is at the bottom left
   if (vert_justification == justification::center)
     top_left.y += (current_coordinate_system == WORLD) ? s_height/2 : -s_height/2;
   else if (vert_justification == justification::bottom)

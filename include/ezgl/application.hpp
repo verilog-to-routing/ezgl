@@ -420,7 +420,7 @@ public:
 /**
  * Set the disable_event_loop flag to new_setting
  * Call with new_setting == true to make the event_loop immediately return.
- * Needed only for auto-marking
+ * Needed only for auto-marking, to ensure the GUI doesn't wait for button clicks when a script is testing the non-interactive code only.
  *
  * @param new_setting The new state of disable_event_loop flag
  */
@@ -432,7 +432,7 @@ void set_disable_event_loop(bool new_setting);
 /**
  * Set the disable_event_loop flag to new_setting
  * Call with new_setting == true to make the event_loop immediately return.
- * Needed only for auto-marking
+ * Needed only for auto-marking, to ensure the GUI doesn't wait for button clicks when a script is testing the non-interactive code only.
  *
  * @param new_setting The new state of disable_event_loop flag
  */

@@ -20,6 +20,7 @@
 
 #ifdef ECE297
 // A flag to disable event loop (default is false)
+// This allows basic scripted testing even if the GUI is on (return immediately when the event loop is called)
 bool disable_event_loop = false;
 #endif
 
@@ -27,6 +28,7 @@ namespace ezgl {
 
 #ifndef ECE297
 // A flag to disable event loop (default is false)
+// This allows basic scripted testing even if the GUI is on (return immediately when the event loop is called)
 bool disable_event_loop = false;
 #endif
 
@@ -39,6 +41,8 @@ void application::startup(GtkApplication *, gpointer user_data)
 
   if (!build_ui_from_file) {
     // Build the main user interface from the XML resource.
+    // The XML resource is built from an XML file using the glib-compile-resources tool.
+    // This adds an extra compilation step, but it embeds the UI description in the executable.
     GError *error = nullptr;
     if(gtk_builder_add_from_resource(ezgl_app->m_builder, main_ui_resource, &error) == 0) {
       g_error("%s.", error->message);
