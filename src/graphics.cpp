@@ -716,7 +716,7 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
 {
   // Check if the surface is properly created
   if(cairo_surface_status(p_surface) != CAIRO_STATUS_SUCCESS) {
-    g_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", p_surface);
+    g_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", (void*) p_surface);
     return;
   }
 
