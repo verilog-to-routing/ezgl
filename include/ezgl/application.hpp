@@ -78,6 +78,7 @@ using key_callback_fn = void (*)(application *app, GdkEventKey *event, char *key
  *
  * The GUI of an application is created from an XML file. Widgets created in the XML file can be retrieved from an
  * application object, but only after the object has been initialized by GTK via application::run.
+ * application is a singleton class: only create one.
  */
 class application {
 public:
@@ -99,7 +100,7 @@ public:
     std::string window_identifier;
 
     /**
-     * The name of the main canvas in the XML file.
+     * The name of the main canvas in the XML file. This is where renderer drawing calls appear.
      */
     std::string canvas_identifier;
 
@@ -117,7 +118,7 @@ public:
      *
      * GUI objects (i.e., a GObject) can be retrieved from this application object. These objects can then be connected
      * to specific events using g_signal_connect. A list of signals that can be used to make these connections can be
-     * found <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget.signals">here</a>.
+     * found <a href = "https://docs.gtk.org/gtk3/class.Widget.html#signals">here</a>.
      *
      * If not provided, application::register_default_buttons_callbacks function will be used, which assumes that the
      * UI has GtkButton widgets named "ZoomFitButton", "ZoomInButton", "ZoomOutButton", "UpButton", "DownButton",
@@ -134,7 +135,7 @@ public:
     {
       // Uniquify the application_identifier by appending a time stamp,
       // so that each instance of the same program has a different application ID.
-      // This allows multiple instance of the program to run independelty.
+      // This allows multiple instances of the program to run independelty.
       application_identifier += ".t" + std::to_string(std::time(nullptr));
     }
 
@@ -166,9 +167,11 @@ public:
    *
    * If the canvas has already been added, it will not be overwritten and a warning will be displayed.
    *
-   * @param canvas_id The id of the GtkDrawingArea in the XML file.
+   * @param canvas_id The id of the GtkDrawingArea in the ui XML file.
    * @param draw_callback The function to call that draws to this canvas.
-   * @param coordinate_system The initial coordinate system of this canvas.
+   * @param coordinate_system The initial coordinate system of this canvas. 
+   *            coordinate_system.first gives the (x,y) world coordinates of the lower left corner, 
+   *            and coordinate_system.second gives the (x,y) coordinates of the upper right corner.
    * @param background_color (OPTIONAL) The color of the canvas background. Default is WHITE.
    *
    * @return A pointer to the newly created canvas.
@@ -199,11 +202,12 @@ public:
 
   /**
    * Add a button convenience
-   * Adds a button at a given row index (assuming buttons in the right bar use 1 row each)
+   * Adds a button at a given row index (assuming buttons in the right bar use 1 row each, with the top button at row 0)
    * by inserting a row in the grid and adding the button. Uses the default width of 3 and height of 1
    * 
    * @param button_text the new button text
-   * @param insert_row the row in the right bar to insert the button
+   * @param insert_row the row in the right bar to insert the button.
+   *         If there is already a button there, it and the following buttons shift down 1 row.
    * @param button_func callback function for the button
    *
    * The function assumes that the UI has a GtkGrid named "InnerGrid"
@@ -240,27 +244,35 @@ public:
   void update_message(std::string const &message);
 
   /**
-   * Change the coordinate system of a created canvas
+   * Change the coordinate system of a previously created canvas
+   * 
+   * This changes the current visible world (as set_visible_world would) and also changes 
+   * the saved initial coordinate_system so that Zoom Fit shows the proper area.
    *
-   * @param canvas_id The id of the GtkDrawingArea in the XML file.
+   * @param canvas_id The id of the GtkDrawingArea in the XML file, e.g. "MainCanvas"
    * @param coordinate_system The new coordinate system of this canvas.
    */
   void change_canvas_world_coordinates(std::string const &canvas_id, rectangle coordinate_system);
 
   /**
-   * redraw the main canvas
+   * redraw the main canvas 
+   * 
+   * Useful to force an immediate redraw when you want a different graphics display
    */
   void refresh_drawing();
 
   /**
    * Get a renderer that can be used to draw on top of the main canvas
+   * 
+   * Most common usage is to get a renderer in an animation callback.
    */
   renderer *get_renderer();
 
   /**
-   * Flush the drawings done by the renderer, returned from get_renderer(), to the on-screen buffer
+   * Flush the drawing done by the renderer to the on-screen buffer
    *
-   * The flushing is done immediately
+   * The flushing is done immediately. Useful when you are drawing an animation and need the graphics
+   * to update immediatey, instead of the usual allowing them to be buffered until user in put is requested.
    */
   void flush_drawing();
 
@@ -269,7 +281,7 @@ public:
    *
    * Once this is called, the application will be initialized first. Initialization will build the GUI based on the XML
    * resource given in the constructor. Once the GUI has been created, the function initial_setup_user_callback will be
-   * called.
+   * called; you can use that callback to create additional widgets and/or connect additional signals.
    *
    * After initialization, control of the program will be given to GTK. You will only regain control for the signals
    * that you have registered callbacks for.
@@ -316,7 +328,7 @@ public:
    *
    * Calling this function before application::run results in undefined behaviour.
    *
-   * @param canvas_id The key used when the canvas was added.
+   * @param canvas_id The key used when the canvas was added (e.g. "MainCanvas")
    *
    * @return A non-owning pointer, or nullptr if not found.
    *
@@ -327,7 +339,7 @@ public:
   /**
    * Retrieve a GLib Object (i.e., a GObject).
    *
-   * This is useful for retrieving GUI elements specified in your XML file(s). You should only call this function after
+   * This is useful for retrieving GUI elements specified in your ui XML file(s). You should only call this function after
    * the application has been run, otherwise the GUI elements will have not been created yet.
    *
    * @param name The ID of the object.
@@ -346,7 +358,7 @@ public:
   }
 
   /**
-   * Get the ID of the main canvas
+   * Get the ID of the main canvas 
    */
   std::string get_main_canvas_id() const
   {
@@ -365,7 +377,7 @@ private:
   // The ID of the main window to add to our GTK application.
   std::string m_window_id;
 
-  // The ID of the main canvas
+  // The ID of the main canvas. This canvas is where ezgl renderer calls (e.g. draw_line) display
   std::string m_canvas_id;
 
   // The ID of the GTK application
@@ -418,7 +430,8 @@ public:
 
 /**
  * Set the disable_event_loop flag to new_setting
- * Call with new_setting == true to make the event_loop immediately return.
+ * Call with new_setting == true to make the event_loop immediately return. This is useful for 
+ * unit tests, to ensure the GUI doesn't wait for user input in an automatic test.
  *
  * @param new_setting The new state of disable_event_loop flag
  */
