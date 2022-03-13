@@ -3,7 +3,7 @@
 ########################################################################
 
 # Usage: make {all | clean} CONF={debug|release} VERBOSE={0|1}
-# Default is the "all" target, release build, and verbose output
+# Default is the "all" target, debug build, and verbose output
 
 VERBOSE ?= 1
 ifeq ($(VERBOSE),1)
@@ -14,7 +14,7 @@ endif
 
 
 #Default build type
-CONF ?= release
+CONF ?= debug
 
 # the compiler
 CXX = g++
@@ -54,7 +54,7 @@ ifeq (release, $(CONF))
 else ifeq (debug, $(CONF))
 # Don't change anything
 else
-    $(error Invalid value for CONF: '$(CONF)', must be 'release' or 'debug'. )
+    $(error Invalid value for CONF: '$(CONF)', must be 'release' or 'debug'. Try 'make help' for usage)
 endif
 
 
@@ -80,4 +80,29 @@ clean:
 	$(ECHO) rm -f $(TARGET_DIR)/$(TARGET)
 	$(ECHO) rm -f $(RES_TARGET)
 
-.PHONY: all release debug clean
+help:
+	@echo "Makefile for ezgl example program"
+	@echo ""
+	@echo "Usage: "
+	@echo '    > make -j4'
+	@echo "        Call the default make target (all)."
+	@echo "        This builds the project executable: '$(TARGET)'."
+	@echo "        Use -j4 option to do parallel builds."
+	@echo "    > make clean"
+	@echo "        Removes any generated files including exectuables "
+	@echo "        and object files."
+	@echo "    > make help"
+	@echo "        Prints this help message."
+	@echo ""
+	@echo ""
+	@echo "Configuration Variables: "
+	@echo "    CONF={release | debug}"
+	@echo "        Controls whether the build performs compiler optimizations"
+	@echo "        to improve performance. Currently set to '$(CONF)'."
+	@echo ""
+	@echo "        With CONF=release compiler optimization is enabled ($(RELEASE_CXXFLAGS))."
+	@echo ""
+	@echo "        With CONF=debug compiler optimization is disabled to improve"
+	@echo "        interactive debugging ($(DEBUG_CXXFLAGS))."
+
+.PHONY: all clean help
