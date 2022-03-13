@@ -2,12 +2,19 @@
 ## Makefile for basic_application
 ########################################################################
 
-# turn on/off verbosity with 'make {all|release|debug|clean} VERBOSE=1'. Default is silent.
+# Usage: make {all | clean} CONF={debug|release} VERBOSE={0|1}
+# Default is the "all" target, release build, and verbose output
+
+VERBOSE ?= 1
 ifeq ($(VERBOSE),1)
-	ECHO := 
+        ECHO :=
 else
-	ECHO := @
+        ECHO := @
 endif
+
+
+#Default build type
+CONF ?= release
 
 # the compiler
 CXX = g++
@@ -42,6 +49,15 @@ INC_DIRS = $(EZGL_DIR)/include $(EZGL_DIR)/include/ezgl
 # compiler flags
 CXX_FLAGS = -g -Wall -std=c++14
 
+ifeq (release, $(CONF))
+        CXX_FLAGS += -O3
+else ifeq (debug, $(CONF))
+# Don't change anything
+else
+    $(error Invalid value for CONF: '$(CONF)', must be 'release' or 'debug'. )
+endif
+
+
 # GLIB resource compiler
 GLIB_COMPILE_RESOURCES = $(shell pkg-config --variable=glib_compile_resources gio-2.0)
 
@@ -63,13 +79,5 @@ $(RES_TARGET): $(RES_XML) $(resources)
 clean:
 	$(ECHO) rm -f $(TARGET_DIR)/$(TARGET)
 	$(ECHO) rm -f $(RES_TARGET)
-
-# 'make release' is the same as 'make all' but the -O3 flag is added
-release: all
-CXX_FLAGS += -O3
-
-# 'make debug' is the same as 'make all'. Currently nothing is added here
-debug: all
-
 
 .PHONY: all release debug clean

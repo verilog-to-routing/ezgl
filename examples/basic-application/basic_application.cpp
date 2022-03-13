@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 University of Toronto
+ * Copyright 2021 University of Toronto
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Authors: Mario Badr, Sameh Attia ,Tanner Young-Schultz and Vaughn Betz
+ * Authors: Mario Badr, Sameh Attia and Tanner Young-Schultz
  */
 
 /**
@@ -71,7 +71,7 @@ int main(int /*argc*/, char **/*argv*/)
 {
   ezgl::application::settings settings;
 
-  // Path to the resource that contains an XML description of the UI.
+  // Path to the "main.ui" file that contains an XML description of the UI.
   // Note: this is not a file path, it is a resource path.
   settings.main_ui_resource = "/ezgl/main.ui";
 
@@ -84,6 +84,10 @@ int main(int /*argc*/, char **/*argv*/)
   // Create our EZGL application.
   ezgl::application application(settings);
 
+  // Set some parameters for the main sub-window (MainCanvas), where 
+  // visualization graphics are draw. Set the callback function that will be 
+  // called when the main window needs redrawing, and define the (world) 
+  // coordinate system we want to draw in.
   application.add_canvas("MainCanvas", draw_main_canvas, initial_world);
 
   // Run the application until the user quits.
