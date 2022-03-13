@@ -100,9 +100,9 @@ help:
 	@echo "        Controls whether the build performs compiler optimizations"
 	@echo "        to improve performance. Currently set to '$(CONF)'."
 	@echo ""
-	@echo "        With CONF=release compiler optimization is enabled ($(RELEASE_CXXFLAGS))."
+	@echo "        With CONF=release compiler optimization is enabled."
 	@echo ""
 	@echo "        With CONF=debug compiler optimization is disabled to improve"
-	@echo "        interactive debugging ($(DEBUG_CXXFLAGS))."
+	@echo "        interactive debugging."
 
 .PHONY: all clean help
