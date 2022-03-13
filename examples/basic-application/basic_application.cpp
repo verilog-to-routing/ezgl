@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 University of Toronto
+ * Copyright 2019-2022 University of Toronto
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Authors: Mario Badr, Sameh Attia and Tanner Young-Schultz
+ * Authors: Mario Badr, Sameh Attia ,Tanner Young-Schultz and Vaughn Betz
  */
 
 /**
