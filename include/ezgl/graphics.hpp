@@ -446,8 +446,10 @@ public:
    * @param point The point where the text is drawn (justified according to the current justification),
    *              in the current coordinate system.
    * @param text The text to draw
-   * @param bound_x The maximum allowed width of the text, in world coordinates
-   * @param bound_y The maximum allowed height of the text, in world coordinates
+   * @param bound_x The maximum allowed width of the text, 
+   *              in the current  coordinate system.
+   * @param bound_y The maximum allowed height of the text, 
+                  in the current coordinate system.
    */
   void draw_text(point2d point, std::string const &text, double bound_x, double bound_y);
 

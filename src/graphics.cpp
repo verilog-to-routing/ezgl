@@ -539,9 +539,16 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
   cairo_font_extents_t font_extents{0,0,0,0,0};
   cairo_font_extents(m_cairo, &font_extents);
 
-  // get text width and height in world coordinates (text width and height are constant in widget coordinates)
-  double scaled_width = text_extents.width * m_camera->get_world_scale_factor().x;
-  double scaled_height = text_extents.height * m_camera->get_world_scale_factor().y;
+  // get text width and height in the current coordinate system to check against the bounds
+  // Note: text width and height are constant in widget coordinates
+  double scaled_width, scaled_height;
+  if (current_coordinate_system == WORLD) {
+    scaled_width = text_extents.width * m_camera->get_world_scale_factor().x;
+    scaled_height = text_extents.height * m_camera->get_world_scale_factor().y;
+  } else {  /* SCREEN coordinates */
+    scaled_width = text_extents.width;
+    scaled_height = text_extents.height;
+  }
 
   // if text width or height is greater than the given bounds, don't draw the text.
   // NOTE: text rotation is NOT taken into account in bounding check (i.e. text width is compared to bound_x)
