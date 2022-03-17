@@ -121,9 +121,15 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
 
     // Check if the mouse button is pressed to support dragging
     if(g_mouse_pan.panning_mouse_button_pressed) {
-      // drop this panning event if we have just served another one
-      if(gtk_get_current_event_time() - g_mouse_pan.last_panning_event_time < 100)
-        return true;
+      // Code below drops a panning event if we served anothe one 
+      // less than 100 ms. I believe it was intended to avoid having panning
+      // fall behind and queue up many events if redraws were slow. However,
+      // it is not necessary on the UG machines (debian) in person, or over 
+      // VNC or on a VM and it has the bad effect of limiting refresh to 10 Hz.
+      // Commenting it out for now and will delete if there 
+      // are no reported issues. - VB
+      // if(gtk_get_current_event_time() - g_mouse_pan.last_panning_event_time < 100)
+       // return true;
 
       g_mouse_pan.last_panning_event_time = gtk_get_current_event_time();
 
