@@ -4,6 +4,7 @@ image:https://codedocs.xyz/mariobadr/ezgl.svg[link="https://codedocs.xyz/marioba
 
 EZGL is a library for use in ece297 as a simple way to create a GUI application.
 The library provides a thin wrapper around GTK and drawing functionality.
+It is also used by the VPR program.
 
 == Dependencies
 
