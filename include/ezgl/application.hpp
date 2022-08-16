@@ -19,6 +19,7 @@
 
 #ifndef EZGL_APPLICATION_HPP
 #define EZGL_APPLICATION_HPP
+#define ECE297
 
 #include "ezgl/canvas.hpp"
 #include "ezgl/control.hpp"
@@ -239,8 +240,35 @@ public:
 
   //SEB NEW STARTS HERE
   //===================================================
-  //Creates a label (Add doxygen comment later)
+  /**
+   * @brief Creates a label object in Inner Grid
+   * 
+   * Label convenience function. Assumes default height of 1 and width of 3. 
+   * Creates Label object at insert_row in Inner Grid. Also sets name of label to text.
+   * If you ever need to delete or find the widget, use find_widget with the label_text
+   * 
+   * @param insert_row Row where label will be placed
+   * @param label_text Text of Label
+   */
   void create_label(int insert_row, const char *label_text);
+
+  /**
+   * @brief Create a label object in Inner Grid at specified position/dimensions
+   * 
+   * Creates a label and sets its name to given text, which can be used with find_widget to access it
+   * @param left the column number to attach the left side of the new button to
+   * @param top the row number to attach the top side of the new button to
+   * @param width the number of columns that the button will span
+   * @param height the number of rows that the button will span
+   * @param label_text Text of Label
+   */
+  void create_label(
+    int left,
+    int top,
+    int width,
+    int height,
+    const char *label_text
+  );
 
   /**
    * @brief Creates a GTK combo box object in Inner Grid
@@ -254,7 +282,7 @@ public:
    *         If there is already a button there, it and the following buttons shift down 1 row.
    * @param combo_box_fn Callback function for "changed" signal, emmitted when a new option is selected.
    *              fn prototype: void fn_name(GtkComboBoxText* self, ezgl::application* app);
-   * @param options A string vector containing the options to be contained in the combo box
+   * @param options A string vector containing the options to be contained in the combo box. String at index 0 is set as default
    */
   void create_combo_box_text(
     const char* id_string,
@@ -265,15 +293,19 @@ public:
   /**
    * @brief Create a combo box text object
    * 
-   * @note PUT SAME DOXYGEN COMMENT
    * 
-   * @param id_string 
-   * @param left 
-   * @param top 
-   * @param width 
-   * @param height 
-   * @param combo_box_fn 
-   * @param options 
+   * Creates a GtkComboBox at the given location. A combo box is a dropdown menu with different options. EZGL provides functions to modify 
+   * the options in your combo box, and you can connect a callback function to the signal sent when the selected option is changed
+   * 
+   * @param id_string A id string used to track combo box. Can be any UNIQUE string, not a label/not visible
+   *              used to identify widget to destroy/modify it.
+   * @param left the column number to attach the left side of the new button to
+   * @param top the row number to attach the top side of the new button to
+   * @param width the number of columns that the button will span
+   * @param height the number of rows that the button will span
+   * @param combo_box_fn Callback function for "changed" signal, emmitted when a new option is selected.
+   *              fn prototype: void fn_name(GtkComboBoxText* self, ezgl::application* app);
+   * @param options A string vector containing the options to be contained in the combo box. String at index 0 is set as default
    */
   void create_combo_box_text(
     const char* id_string,
@@ -285,8 +317,11 @@ public:
     std::vector<std::string> options);
 
   /**
-   * @brief changes list of options to new given vector. Erases all old options
+   * @brief changes list of options to new given vector. Erases all old options. 
    * 
+   * This will call your callback function. Make sure you have some check that returns/ends the function if
+   * your combo box has no active id (this occurs while erasing the old options)
+
    * @param name identifying string of GtkComboBoxText, given in creation
    * @param new_options new string vector of options
    */
@@ -301,7 +336,7 @@ public:
    * X - GTK_RESPONSE_DELETE_EVENT
    * It is dynamically created and shown through this function. Hitting any option in the dialog will
    * run the attached cbk fn. Follow the given fn prototype and use the response_id to act accordingly.
-   * you must call gtk_widget_destroy(/*ptr to dialog window) in your cbk function.
+   * you must call gtk_widget_destroy(ptr to dialog window) in your cbk function.
    *
    * @param cbk_fn Dialog callback function. Function prototype:
    *              void dialog_cbk(GtkDialog* self, gint response_id, application* app);
@@ -310,15 +345,51 @@ public:
    */
   void create_dialog_window(dialog_callback_fn cbk_fn, const char* dialog_title, const char *window_text);
 
-
+  /**
+   * @brief Creates a popup message with a "DONE" button. This version has a default callback
+   * 
+   * Creates a popup window that will hold focus until user hits done button. This version has a default
+   * callback function that will just close the dialog window. 
+   * 
+   * @param title Popup Message Title
+   * @param message Popup Message Body
+   */
   void create_popup_message(const char* title, const char *message);
 
   /**
-   * @brief Destroys 
+   * @brief Creates a popup message with a "DONE" button. This version takes a callback function
+   * 
+   * Creates a popup window that will hold focus until user hits done button. You can pass
+   * a callback function. This dialog window only has one button.
+   * 
+   * @param cbk_fn Popup Callback Function
+   * @param title Popup Message Title
+   * @param message Popup Message Body
+   */
+  void create_popup_message_with_callback(dialog_callback_fn cbk_fn, const char* title, const char *message);
+
+  /**
+   * @brief Destroys widget.
+   * 
+   * @param widget_name The ID given in Glade/Name set in creation function
+   * @return true if widget found and destroyed, false if not found
+   */
+  bool destroy_widget(const char* widget_name);
+
+  /**
+   * @brief Searches inner grid for widget with given name
+   * 
+   * This function will search the inner grid (sidebar) for the widget with the given name/id. 
+   * It will return a Widget ptr to it. This function is powerful; it will search through, in this order:
+   * Names set in Glade 
+   * Names set using application constructors (i.e create_combo_box)
+   * Button labels set using create_button
+   * By extension, it is slower since it searches all types. If you created an object in Glade, use get_object. 
    * 
    * @param widget_name 
+   * @return GtkWidget* 
    */
-  void destroy_widget(const char* widget_name);
+  GtkWidget* find_widget(const char* widget_name);
 
   //SEB NEW ENDS HERE
 
