@@ -72,8 +72,8 @@ int main(int /*argc*/, char **/*argv*/)
   ezgl::application::settings settings;
 
   // Path to the "main.ui" file that contains an XML description of the UI.
-  // Note: this is not a file path, it is a resource path.
-  settings.main_ui_resource = "/ezgl/main.ui";
+  // Edit this file with glade if you want to change the UI layout
+  settings.main_ui_resource = "main.ui";
 
   // Note: the "main.ui" file has a GtkWindow called "MainWindow".
   settings.window_identifier = "MainWindow";
@@ -470,6 +470,60 @@ void draw_png_example(ezgl::renderer *g)
   g->draw_text ({50, 225}, "draw_surface", 200, DBL_MAX);
 }
 
+//Example combo box fn, sets mssg to selected option
+void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app){
+  auto text = gtk_combo_box_text_get_active_text(self);
+  if(!text){  //Returning if the combo box is currently empty
+    return;
+  } else {
+    app->update_message(gtk_combo_box_text_get_active_text(self));
+  }
+}
+
+void change_option_button(GtkWidget* /*widget*/, ezgl::application *application){
+  application->change_combo_box_text_options("TestComboBox", {"YES", "NO"});
+}
+
+//cbk fn for dialog window; updates app message to reflect new state
+void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
+  switch(response_id){
+    case GTK_RESPONSE_ACCEPT:
+      app->update_message("USER ACCEPTED");
+      break;
+    case GTK_RESPONSE_REJECT:
+      app->update_message("USER REJECTED");
+      break;
+    case GTK_RESPONSE_DELETE_EVENT:
+      app->update_message("USER CLOSED WINDOW");
+      break;
+    default:
+      app->update_message("YOU SHOULD NOT SEE THIS");
+  }
+  gtk_widget_destroy(GTK_WIDGET(self));
+}
+
+//cbk fn for a button that creates a dialog window
+void create_dialog_button(GtkWidget* /*widget*/, ezgl::application *application){
+  application->create_dialog_window(dialog_cbk, "Title", "THIS IS SOME TEXT. HELLO!");
+}
+
+// void delete_combo_box(GtkWidget* /*widget*/, ezgl::application *app){
+//   app->
+// }
+
+//Cbk fn that creates a mssg
+void create_mssg_button(GtkWidget* /*widget*/, ezgl::application* app){
+  app->create_popup_message("My Message", "Hello, hit Done to Proceed");
+}
+
+void delete_combo_box(GtkWidget* /*widget*/, ezgl::application* app){
+  if(app->destroy_widget("TestComboBox")){
+    app->update_message("Successfully deleted");
+  } else {
+    app->update_message("Already deleted or not found");
+  }
+}
+
 /**
  * Function called before the activation of the application
  * Can be used to create additional buttons, initialize the status message,
@@ -485,6 +539,24 @@ void initial_setup(ezgl::application *application, bool /*new_window*/)
 
   // Create the Animate button and link it with animate_button callback fn.
   application->create_button("Animate", 7, animate_button);
+
+  application->create_label(8, "Test Combo Box:");
+
+  //Creating example combo box
+  application->create_combo_box_text(
+    "TestComboBox", 
+    9,
+    combo_box_cbk,
+    {"YES", "NO", "MAYBE"}
+  );
+
+  application->create_button("Change Options", 10, change_option_button);
+
+  application->create_button("Create Dialog", 11, create_dialog_button);
+
+  application->create_button("Create Popup Mssg", 12, create_mssg_button);
+
+  application->create_button("Delete Combo Box", 13, delete_combo_box);
 }
 
 /**
