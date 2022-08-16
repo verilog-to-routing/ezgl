@@ -254,7 +254,7 @@ public:
    *         If there is already a button there, it and the following buttons shift down 1 row.
    * @param combo_box_fn Callback function for "changed" signal, emmitted when a new option is selected.
    *              fn prototype: void fn_name(GtkComboBoxText* self, ezgl::application* app);
-   * @param options A string vector containing the options to be contained in the combo box
+   * @param options A string vector containing the options to be contained in the combo box. String at index 0 is set as default
    */
   void create_combo_box_text(
     const char* id_string,

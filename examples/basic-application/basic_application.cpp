@@ -1,4 +1,4 @@
-/*
+xx/*
  * Copyright 2019-2022 University of Toronto
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <vector>
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
 
@@ -470,6 +471,39 @@ void draw_png_example(ezgl::renderer *g)
   g->draw_text ({50, 225}, "draw_surface", 200, DBL_MAX);
 }
 
+//Example combo box fn, sets mssg to selected option
+void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app){
+  app->update_message(gtk_combo_box_text_get_active_text(self));
+}
+
+void change_option_button(GtkWidget* /*widget*/, ezgl::application *application){
+  application->change_combo_box_text_options("TestComboBox", {"YES", "NO"});
+}
+
+//cbk fn for dialog window; updates app message to reflect new state
+void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
+  switch(response_id){
+    case GTK_RESPONSE_ACCEPT:
+      app->update_message("USER ACCEPTED");
+      break;
+    case GTK_RESPONSE_REJECT:
+      app->update_message("USER REJECTED");
+      break;
+    case GTK_RESPONSE_DELETE_EVENT:
+      app->update_message("USER CLOSED WINDOW");
+      break;
+    default:
+      app->update_message("YOU SHOULD NOT SEE THIS");
+  }
+  gtk_widget_destroy(GTK_WIDGET(self));
+}
+
+//cbk fn for a button that creates a dialog window
+void create_dialog_button(GtkWidget* /*widget*/, ezgl::application *application){
+  application->create_dialog_window(dialog_cbk, "Title", "THIS IS SOME TEXT. HELLO!");
+}
+
+
 /**
  * Function called before the activation of the application
  * Can be used to create additional buttons, initialize the status message,
@@ -485,6 +519,20 @@ void initial_setup(ezgl::application *application, bool /*new_window*/)
 
   // Create the Animate button and link it with animate_button callback fn.
   application->create_button("Animate", 7, animate_button);
+
+  //Creating example combo box
+  application->create_combo_box_text(
+    "TestComboBox", 
+    8,
+    combo_box_cbk,
+    {"YES", "NO", "MAYBE"}
+  );
+
+  application->create_button("Change Options", 9, change_option_button);
+
+  application->create_button("Create Dialog", 10, create_dialog_button);
+
+  
 }
 
 /**

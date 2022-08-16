@@ -367,7 +367,7 @@ void application::create_combo_box_text(
   gtk_grid_insert_row(in_grid, insert_row);
 
   // create the combo box
-  create_combo_box_text(name, 0, insert_row, 3, 1, callback);
+  create_combo_box_text(name, 0, insert_row, 3, 1, callback, options);
 }
 
 void application::create_combo_box_text(
@@ -376,7 +376,7 @@ void application::create_combo_box_text(
   int top,
   int width,
   int height,
-  button_callback_fn combo_box_fn, 
+  combo_box_callback_fn combo_box_fn, 
   std::vector<std::string> options)
 {
     // get the internal Gtk grid
@@ -392,8 +392,10 @@ void application::create_combo_box_text(
 
   //Inserting options into combo box
   for(auto it : options){
-    gtk_combo_box_text_append_text(new_combo_box, it.c_str());
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(new_combo_box), it.c_str());
   }
+  gtk_combo_box_set_active(GTK_COMBO_BOX(new_combo_box),0);
+
 
   // add the new button
   gtk_grid_attach(in_grid, new_combo_box, left, top, width, height);
@@ -419,7 +421,7 @@ void application::change_combo_box_text_options(const char* name, std::vector<st
         auto combo_box = GTK_COMBO_BOX_TEXT(widget);
         gtk_combo_box_text_remove_all(combo_box);
         for(auto it : new_options){
-          gtk_combo_box_text_append_text(it.c_str());
+          gtk_combo_box_text_append_text(combo_box, it.c_str());
         }
       }
     }
@@ -432,7 +434,7 @@ void application::create_dialog_window(
   const char *window_text)
 {
   //getting window ptr
-  GtkWindow* window = get_object(m_window_id.c_str());
+  GtkWindow* window = GTK_WINDOW(get_object(m_window_id.c_str()));
   GtkWidget* dialog = gtk_dialog_new_with_buttons(
     dialog_title,   //title
     window,         //window
