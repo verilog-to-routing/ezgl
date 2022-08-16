@@ -1,4 +1,4 @@
-/*
+xx/*
  * Copyright 2019-2022 University of Toronto
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <vector>
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
 
@@ -506,10 +507,6 @@ void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
 void create_dialog_button(GtkWidget* /*widget*/, ezgl::application *application){
   application->create_dialog_window(dialog_cbk, "Title", "THIS IS SOME TEXT. HELLO!");
 }
-
-// void delete_combo_box(GtkWidget* /*widget*/, ezgl::application *app){
-//   app->
-// }
 
 //Cbk fn that creates a mssg
 void create_mssg_button(GtkWidget* /*widget*/, ezgl::application* app){
