@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Authors: Mario Badr, Sameh Attia, Tanner Young-Schultz and Vaughn Betz
+ * Authors: Mario Badr, Sameh Attia, Tanner Young-Schultz,
+ * Sebastian Lievano Arzayus and Vaughn Betz
  */
 
 #include "ezgl/application.hpp"
@@ -349,6 +350,107 @@ void application::create_button(const char *button_text,
 
   // create the button
   create_button(button_text, 0, insert_row, 3, 1, button_func);
+}
+
+//SEB NEW STARTS HERE
+
+void application::create_combo_box_text(
+  const char* name, 
+  int insert_row, 
+  combo_box_callback_fn callback,
+  std::vector<std::string> options)
+{
+  // get the internal Gtk grid
+  GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
+
+  // add a row where we want to insert
+  gtk_grid_insert_row(in_grid, insert_row);
+
+  // create the combo box
+  create_combo_box_text(name, 0, insert_row, 3, 1, callback);
+}
+
+void application::create_combo_box_text(
+  const char* name,
+  int left,
+  int top,
+  int width,
+  int height,
+  button_callback_fn combo_box_fn, 
+  std::vector<std::string> options)
+{
+    // get the internal Gtk grid
+  GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
+
+  //Creating new 
+  GtkWidget* new_combo_box = gtk_combo_box_text_new();
+  gtk_widget_set_name(new_combo_box, name);
+  // connect the buttons clicked event to the callback
+  if(combo_box_fn != NULL) {
+    g_signal_connect(G_OBJECT(new_combo_box), "changed", G_CALLBACK(combo_box_fn), this);
+  }
+
+  //Inserting options into combo box
+  for(auto it : options){
+    gtk_combo_box_text_append_text(new_combo_box, it.c_str());
+  }
+
+  // add the new button
+  gtk_grid_attach(in_grid, new_combo_box, left, top, width, height);
+
+  // show the button
+  gtk_widget_show(new_combo_box);
+}
+
+void application::change_combo_box_text_options(const char* name, std::vector<std::string> new_options){
+  GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
+
+  // the text to delete, in c++ string form
+  std::string name_to_find = std::string(name);
+
+  // iterate over all of the children in the grid and find the button by it's text
+  GList *children, *iter;
+  children = gtk_container_get_children(GTK_CONTAINER(in_grid));
+  for(iter = children; iter != NULL; iter = g_list_next(iter)){
+    GtkWidget* widget = GTK_WIDGET(iter->data);
+
+    if(GTK_IS_COMBO_BOX_TEXT(widget)) {
+      if(gtk_widget_get_name(widget) == name_to_find){
+        auto combo_box = GTK_COMBO_BOX_TEXT(widget);
+        gtk_combo_box_text_remove_all(combo_box);
+        for(auto it : new_options){
+          gtk_combo_box_text_append_text(it.c_str());
+        }
+      }
+    }
+  }
+}
+
+void application::create_dialog_window(
+  dialog_callback_fn cbk_fn, 
+  const char* dialog_title, 
+  const char *window_text)
+{
+  //getting window ptr
+  GtkWindow* window = get_object(m_window_id.c_str());
+  GtkWidget* dialog = gtk_dialog_new_with_buttons(
+    dialog_title,   //title
+    window,         //window
+    GTK_DIALOG_MODAL, //Button and return_id pairs
+    ("OK"),
+    GTK_RESPONSE_ACCEPT,
+    ("CANCEL"),
+    GTK_RESPONSE_REJECT, 
+    NULL
+  );
+
+  //Adding the label to the content window
+  auto content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  GtkWidget* label = gtk_label_new(window_text);
+  gtk_container_add(GTK_CONTAINER(content_area), label);
+
+  //Showing the dialog window
+  gtk_widget_show_all(dialog);
 }
 
 bool application::destroy_button(const char *button_text_to_destroy)
