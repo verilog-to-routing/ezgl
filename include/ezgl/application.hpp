@@ -195,6 +195,12 @@ public:
       color background_color = WHITE);
 
   /**
+   * @note The following functions create UI Elements and add them to the Gtk Grid "InnerGrid".
+   * The example main.ui file already includes a grid called "InnerGrid", as well as the Zoom and pan buttons.
+   * As long a GtkGrid called "InnerGrid" exists, the functions will work and add the UI elements to that grid. 
+   */
+
+  /**
    * Add a button
    *
    * @param button_text the new button text
@@ -322,7 +328,7 @@ public:
    * This will call your callback function. Make sure you have some check that returns/ends the function if
    * your combo box has no active id (this occurs while erasing the old options)
 
-   * @param name identifying string of GtkComboBoxText, given in creation
+   * @param id_string identifying string of GtkComboBoxText, given in creation
    * @param new_options new string vector of options
    */
   void change_combo_box_text_options(const char* name, std::vector<std::string> new_options);
@@ -349,7 +355,7 @@ public:
    * @brief Creates a popup message with a "DONE" button. This version has a default callback
    * 
    * Creates a popup window that will hold focus until user hits done button. This version has a default
-   * callback function that will just close the dialog window. 
+   * callback function that will just close the dialog window. popup is destroyed when user presses "DONE"
    * 
    * @param title Popup Message Title
    * @param message Popup Message Body
@@ -360,7 +366,8 @@ public:
    * @brief Creates a popup message with a "DONE" button. This version takes a callback function
    * 
    * Creates a popup window that will hold focus until user hits done button. You can pass
-   * a callback function. This dialog window only has one button.
+   * a callback function, which is called when user hits DONE. This dialog window only has one button.
+   * Make sure to call gtk_widget_destroy(ptr to popup) to close the popup in the cbk fn
    * 
    * @param cbk_fn Popup Callback Function
    * @param title Popup Message Title
@@ -381,13 +388,12 @@ public:
    * 
    * This function will search the inner grid (sidebar) for the widget with the given name/id. 
    * It will return a Widget ptr to it. This function is powerful; it will search through, in this order:
-   * Names set in Glade 
-   * Names set using application constructors (i.e create_combo_box)
-   * Button labels set using create_button
-   * By extension, it is slower since it searches all types. If you created an object in Glade, use get_object. 
+   * String IDs created in Glade for widgets
+   * Names set using ezgl::application method functions that make widgets (i.e create_combo_box)
+   * Button labels set using application::create_button 
    * 
-   * @param widget_name 
-   * @return GtkWidget* 
+   * @param widget_name string to be searched for
+   * @return GtkWidget* GtkWdiget to pointer. can be cast to appropriate type
    */
   GtkWidget* find_widget(const char* widget_name);
 
