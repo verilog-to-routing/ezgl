@@ -1,0 +1,2 @@
+/usr/bin/ar qc libezgl.a CMakeFiles/ezgl.dir/src/application.cpp.o CMakeFiles/ezgl.dir/src/camera.cpp.o CMakeFiles/ezgl.dir/src/canvas.cpp.o CMakeFiles/ezgl.dir/src/control.cpp.o CMakeFiles/ezgl.dir/src/callback.cpp.o CMakeFiles/ezgl.dir/src/graphics.cpp.o
+/usr/bin/ranlib libezgl.a
