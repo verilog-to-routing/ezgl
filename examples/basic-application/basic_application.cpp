@@ -66,9 +66,9 @@ void animate_button_cbk(GtkWidget *widget, ezgl::application *application);
 void test_button_cbk(GtkWidget *widget, ezgl::application *application);
 void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app);
 void delete_combo_box_cbk(GtkWidget* widget, ezgl::application *application);
-void create_dialog_cbk(GtkWidget *widget, ezgl::application *application);
+void create_dialog_button_cbk(GtkWidget *widget, ezgl::application *application);
 void create_mssg_button_cbk(GtkWidget* widget, ezgl::application *application);
-void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app)
+void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app);
 
 /**
  * EVENT CALLBACK FUNCTIONS
@@ -192,7 +192,7 @@ void initial_setup(ezgl::application *application, bool /*new_window*/)
 
   application->create_button("Delete Combo Box", row++, delete_combo_box_cbk);
 
-  application->create_button("Create Dialog", row++, create_dialog_cbk);
+  application->create_button("Create Dialog", row++, create_dialog_button_cbk);
 
   application->create_button("Create Popup Mssg", row++, create_mssg_button_cbk);
 }
@@ -604,14 +604,14 @@ void delete_combo_box_cbk(GtkWidget* widget, ezgl::application* app){
 /**
  * Callback function for the create dialog button. Creates a dialog window and connects it to the dialog_cbk function
  */
-void create_dialog_button(GtkWidget* /*widget*/, ezgl::application *application){
+void create_dialog_button_cbk(GtkWidget* /*widget*/, ezgl::application *application){
   application->create_dialog_window(dialog_cbk, "Title", "THIS IS SOME TEXT. HELLO!");
 }
 
 /**
  * Callback function for the create message button. Creates a popup message
  */
-void create_mssg_button(GtkWidget* /*widget*/, ezgl::application* app){
+void create_mssg_button_cbk(GtkWidget* /*widget*/, ezgl::application* app){
   app->create_popup_message("My Message", "Hello, hit Done to Proceed");
 }
 

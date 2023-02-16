@@ -1,0 +1,234 @@
+make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+make: *** No rule to make target 'all'.  Stop.
+
+# GNU Make 4.3
+# Built for x86_64-pc-linux-gnu
+# Copyright (C) 1988-2020 Free Software Foundation, Inc.
+# License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+# This is free software: you are free to change and redistribute it.
+# There is NO WARRANTY, to the extent permitted by law.
+
+# Make data base, printed on Tue Aug 16 17:31:37 2022
+
+# Variables
+
+# environment
+LC_ALL = C
+# environment
+VSCODE_CWD = /nfs/ug/homes-5/l/lievanoa
+# environment
+GROUP = cpe2T4
+# environment
+MACHTYPE = x86_64
+# default
+MAKE_COMMAND := make
+# environment
+VSCODE_HANDLES_SIGPIPE = true
+# automatic
+@D = $(patsubst %/,%,$(dir $@))
+# environment
+VSCODE_HANDLES_UNCAUGHT_ERRORS = true
+# default
+.VARIABLES := 
+# environment
+PWD = /nfs/ug/homes-5/l/lievanoa/ezgl
+# environment
+HOST = ug212
+# automatic
+%D = $(patsubst %/,%,$(dir $%))
+# automatic
+^D = $(patsubst %/,%,$(dir $^))
+# automatic
+%F = $(notdir $%)
+# environment
+LANG = C
+# default
+.LOADED := 
+# default
+.INCLUDE_DIRS = /usr/local/include /usr/include /usr/include
+# makefile
+MAKEFLAGS = pqrR
+# makefile
+CURDIR := /nfs/ug/homes-5/l/lievanoa/ezgl
+# environment
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = true
+# automatic
+*D = $(patsubst %/,%,$(dir $*))
+# environment
+MFLAGS = -pqrR
+# default
+.SHELLFLAGS := -c
+# automatic
++D = $(patsubst %/,%,$(dir $+))
+# makefile
+MAKEFILE_LIST := 
+# automatic
+@F = $(notdir $@)
+# environment
+VENDOR = unknown
+# environment
+XDG_SESSION_TYPE = tty
+# automatic
+?D = $(patsubst %/,%,$(dir $?))
+# automatic
+*F = $(notdir $*)
+# environment
+DBUS_SESSION_BUS_ADDRESS = unix:path=/run/user/6773/bus
+# automatic
+<D = $(patsubst %/,%,$(dir $<))
+# environment
+VSCODE_NLS_CONFIG = {"locale":"en","availableLanguages":{}}
+# default
+MAKE_HOST := x86_64-pc-linux-gnu
+# makefile
+SHELL = /bin/sh
+# default
+MAKECMDGOALS := all
+# environment
+SHLVL = 2
+# environment
+MAKELEVEL := 0
+# default
+MAKE = $(MAKE_COMMAND)
+# environment
+PATH = /nfs/ug/homes-5/l/lievanoa/.vscode-server/bin/3b889b090b5ad5793f524b5d1d39fda662b96a2a/bin/remote-cli:/homes/l/lievanoa/bin:/local/bin:/usr/local/bin:/usr/bin:/bin:/usr/games:.:/cad2/ece297s/public/bin
+# default
+MAKEFILES := 
+# environment
+MOTD_SHOWN = pam
+# automatic
+^F = $(notdir $^)
+# environment
+OSTYPE = linux
+# environment
+SSH_CLIENT = 38.23.191.202 56426 22
+# environment
+PRINTER = lj251
+# automatic
+?F = $(notdir $?)
+# environment
+HOSTTYPE = x86_64-linux
+# automatic
++F = $(notdir $+)
+# environment
+LESS = MeQdR
+# 'override' directive
+GNUMAKEFLAGS := 
+# environment
+BROWSER = /nfs/ug/homes-5/l/lievanoa/.vscode-server/bin/3b889b090b5ad5793f524b5d1d39fda662b96a2a/bin/helpers/browser.sh
+# environment
+LOGNAME = lievanoa
+# makefile
+.DEFAULT_GOAL := 
+# environment
+EDITOR = vi
+# environment
+USER = lievanoa
+# default
+MAKE_VERSION := 4.3
+# environment
+PAGER = less
+# environment
+VSCODE_AGENT_FOLDER = /homes/l/lievanoa/.vscode-server
+# environment
+_ = /usr/bin/make
+# environment
+ECE297 = 1
+# environment
+XDG_RUNTIME_DIR = /run/user/6773
+# environment
+VSCODE_IPC_HOOK_CLI = /run/user/6773/vscode-ipc-24f43eb4-b3b0-4561-a403-f8d40e721312.sock
+# environment
+LEVEL = 1
+# environment
+XDG_SESSION_CLASS = user
+# environment
+VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
+# environment
+HOME = /homes/l/lievanoa
+# environment
+ELECTRON_RUN_AS_NODE = 1
+# environment
+XDG_SESSION_ID = 6603
+# default
+.RECIPEPREFIX := 
+# automatic
+<F = $(notdir $<)
+# default
+SUFFIXES := 
+# default
+.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync check-symlink load
+# environment
+LSAN_OPTIONS = suppressions=/cad2/ece297s/public/m2/ezgl_sanitizer.supp
+# environment
+SSH_CONNECTION = 38.23.191.202 56426 128.100.13.212 22
+# variable set hash-table stats:
+# Load=75/1024=7%, Rehash=0, Collisions=3/102=3%
+
+# Pattern-specific Variable Values
+
+# No pattern-specific variable values.
+
+# Directories
+
+# . (device 43, inode 7445254): 16 files, no impossibilities.
+
+# 16 files, no impossibilities in 1 directories.
+
+# Implicit Rules
+
+# No implicit rules.
+
+# Files
+
+# Not a target:
+Makefile:
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has been updated.
+#  Failed to be updated.
+
+# Not a target:
+.DEFAULT:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+all:
+#  Command line target.
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has not been updated.
+
+# Not a target:
+makefile:
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has been updated.
+#  Failed to be updated.
+
+# Not a target:
+GNUmakefile:
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has been updated.
+#  Failed to be updated.
+
+# files hash-table stats:
+# Load=6/1024=1%, Rehash=0, Collisions=0/15=0%
+# VPATH Search Paths
+
+# No 'vpath' search paths.
+
+# No general ('VPATH' variable) search path.
+
+# strcache buffers: 1 (0) / strings = 24 / storage = 218 B / avg = 9 B
+# current buf: size = 8162 B / used = 218 B / count = 24 / avg = 9 B
+
+# strcache performance: lookups = 27 / hit rate = 11%
+# hash-table stats:
+# Load=24/8192=0%, Rehash=0, Collisions=0/27=0%
+# Finished Make data base on Tue Aug 16 17:31:37 2022
+
+ 
