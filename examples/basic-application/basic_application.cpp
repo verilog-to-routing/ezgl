@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 University of Toronto
+ * Copyright 2019-2023 University of Toronto
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -580,12 +580,13 @@ void test_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
  * Function trigerred when currently selected option changes. 
  */
 void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app){
-  //Getting text content of combo box
+  //Getting text content of combo box. This call makes a copy that we must free
   auto text = gtk_combo_box_text_get_active_text(self);
   if(!text){  //Returning if the combo box is currently empty (Always check to avoid errors)
     return;
   } else {  //Updating message to reflect new combo box value.
-    app->update_message(gtk_combo_box_text_get_active_text(self));
+    app->update_message(text);
+    g_free (text);      // gtk made a copy that we own; need to free.
   }
 }
 
