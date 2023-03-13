@@ -242,16 +242,21 @@ void application::register_default_events_callbacks(ezgl::application *applicati
   std::string main_canvas_id = application->get_main_canvas_id();
   GObject *main_canvas = application->get_object(main_canvas_id.c_str());
 
-  // Connect press_key function to keyboard presses in the MainWindow.
-  g_signal_connect(window, "key_press_event", G_CALLBACK(press_key), application);
+  // We want to enable user event handlers for mouse clicks, key presses etc.
+  // when they are in the drawing area (MainCanvas).
+  // Connect press_key function to keyboard presses in the MainCanvas (drawing area).
+  // In the main.ui, this only works if the MainCanvas "can focus" and has 
+  // keyboard events selected. Hit tab to move focus from a widget (e.g. a dialog)
+  // to the MainCanvas when running the application.
+  g_signal_connect(main_canvas, "key_press_event", G_CALLBACK(press_key), application);
 
-  // Connect press_mouse function to mouse presses and releases in the MainWindow.
+  // Connect press_mouse function to mouse presses and releases in the MainCanvas.
   g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(press_mouse), application);
 
-  // Connect release_mouse function to mouse presses and releases in the MainWindow.
+  // Connect release_mouse function to mouse presses and releases in the MainCanvas.
   g_signal_connect(main_canvas, "button_release_event", G_CALLBACK(release_mouse), application);
 
-  // Connect release_mouse function to mouse presses and releases in the MainWindow.
+  // Connect release_mouse function to mouse presses and releases in the MainCanvas.
   g_signal_connect(main_canvas, "motion_notify_event", G_CALLBACK(move_mouse), application);
 
   // Connect scroll_mouse function to the mouse scroll event (up, down, left and right)
@@ -322,7 +327,9 @@ void application::create_button(const char *button_text,
   GtkWidget *new_button = gtk_button_new_with_label(button_text);
   gtk_widget_set_name(new_button, button_text);
 
-  // set can_focus property to false
+  // set can_focus property to false; helps keyboard events go to more useful
+  // widgets (e.g. MainCanvas can get them if the user set a callback).
+  gtk_widget_set_can_focus(new_button, false);
 #if GTK_CHECK_VERSION (3, 20, 0)
   gtk_widget_set_focus_on_click(new_button, false);
 #endif
@@ -352,9 +359,6 @@ void application::create_button(const char *button_text,
   // create the button
   create_button(button_text, 0, insert_row, 3, 1, button_func);
 }
-
-//SEB NEW STARTS HERE
-
 
 void application::create_label(int insert_row, const char *label_text){
   //Getting grid
@@ -433,6 +437,14 @@ void application::create_combo_box_text(
 
   // add the new button
   gtk_grid_attach(in_grid, new_combo_box, left, top, width, height);
+
+  // set can_focus property to false; helps keyboard events go to more useful
+  // widgets (e.g. MainCanvas can get them if the user set a callback).
+  // Even with this code, seems the combo box can get focus, oddly.
+  gtk_widget_set_can_focus(new_combo_box, false);
+#if GTK_CHECK_VERSION (3, 20, 0)
+  gtk_widget_set_focus_on_click(new_combo_box, false);
+#endif
 
   // show the button
   gtk_widget_show(new_combo_box);
@@ -581,9 +593,6 @@ GtkWidget* application::find_widget(const char* widget_name){
   return widget;
 }
 
-
-
-//SEB NEW ENDS HERE
 
 bool application::destroy_button(const char *button_text_to_destroy)
 {

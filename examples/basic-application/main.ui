@@ -14,6 +14,19 @@
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <child>
+          <object class="GtkDrawingArea" id="MainCanvas">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="events">GDK_KEY_PRESS_MASK | GDK_STRUCTURE_MASK</property>
+            <property name="hexpand">True</property>
+            <property name="vexpand">True</property>
+          </object>
+          <packing>
+            <property name="left-attach">0</property>
+            <property name="top-attach">0</property>
+          </packing>
+        </child>
+        <child>
           <!-- n-columns=3 n-rows=7 -->
           <object class="GtkGrid" id="InnerGrid">
             <property name="visible">True</property>
@@ -173,26 +186,6 @@
             <property name="left-attach">0</property>
             <property name="top-attach">1</property>
             <property name="width">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEventBox" id="MainCanvasEventBox">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="visible-window">False</property>
-            <property name="above-child">True</property>
-            <child>
-              <object class="GtkDrawingArea" id="MainCanvas">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="hexpand">True</property>
-                <property name="vexpand">True</property>
-              </object>
-            </child>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">0</property>
           </packing>
         </child>
         <child>
