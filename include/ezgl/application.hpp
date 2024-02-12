@@ -408,7 +408,7 @@ public:
    * Button labels set using application::create_button 
    * 
    * @param widget_name string to be searched for
-   * @return GtkWidget* GtkWidget to pointer. Can be cast to appropriate type
+   * @return GtkWidget* Pointer to GtkWidget. Can be cast to appropriate type
    */
   GtkWidget* find_widget(const char* widget_name);
 
