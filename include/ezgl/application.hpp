@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 University of Toronto
+ * Copyright 2019-2024 University of Toronto
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -194,7 +194,13 @@ public:
       color background_color = WHITE);
 
   /**
-   * Add a button
+   * @note The following functions create UI Elements and add them to the Gtk Grid "InnerGrid".
+   * The example main.ui file already includes a grid called "InnerGrid", as well as the Zoom and pan buttons.
+   * As long a GtkGrid called "InnerGrid" exists, the functions will work and add the UI elements to that grid. 
+   */
+
+  /**
+   * Add a button that you can click on to call its callback function.
    *
    * @param button_text the new button text
    * @param left the column number to attach the left side of the new button to
@@ -238,7 +244,18 @@ public:
 
 
   /**
-   * @brief Creates a label object in Inner Grid
+   * Change the label of the button (displayed text)
+   *
+   * @param button_text the old text of the button
+   * @param new_button_text the new button text
+   *
+   * The function assumes that the UI has a GtkGrid named "InnerGrid"
+   */
+  void change_button_text(const char *button_text, const char *new_button_text);
+
+
+  /**
+   * @brief Creates a label object (a text label) in the Inner Grid
    * 
    * Label convenience function. Assumes default height of 1 and width of 3. 
    * Creates Label object at insert_row in Inner Grid. Also sets name of label to text.
@@ -269,9 +286,13 @@ public:
 
   /**
    * @brief Creates a GTK combo box object in Inner Grid
+   * A combo box is a dropdown menu with different options. 
+   * EZGL provides functions to modify the options in your combo box, and 
+   * you can connect a callback function to the signal sent when the 
+   * selected option is changed
    * 
-   * GTK Combo Box convenience function. Creates a combo box at the row id given by
-   * insert_row. Assumes default height of 1 and width of 3
+   * GTK Combo Box convenience function. Creates a combo box at the row id 
+   * given by insert_row. Assumes default height of 1 and width of 3
    * 
    * @param id_string A id string used to track combo box. Can be any UNIQUE string, not a label/not visible
    *              used to identify widget to destroy/modify it.
@@ -291,8 +312,11 @@ public:
    * @brief Create a combo box text object
    * 
    * 
-   * Creates a GtkComboBox at the given location. A combo box is a dropdown menu with different options. EZGL provides functions to modify 
-   * the options in your combo box, and you can connect a callback function to the signal sent when the selected option is changed
+   * Creates a GtkComboBox at the given location. 
+   * A combo box is a dropdown menu with different options. 
+   * EZGL provides functions to modify the options in your combo box, and 
+   * you can connect a callback function to the signal sent when the 
+   * selected option is changed
    * 
    * @param id_string A id string used to track combo box. Can be any UNIQUE string, not a label/not visible
    *              used to identify widget to destroy/modify it.
@@ -319,7 +343,7 @@ public:
    * This will call your callback function. Make sure you have some check that returns/ends the function if
    * your combo box has no active id (this occurs while erasing the old options)
 
-   * @param name identifying string of GtkComboBoxText, given in creation
+   * @param id_string identifying string of GtkComboBoxText, given in creation
    * @param new_options new string vector of options
    */
   void change_combo_box_text_options(const char* name, std::vector<std::string> new_options);
@@ -346,7 +370,7 @@ public:
    * @brief Creates a popup message with a "DONE" button. This version has a default callback
    * 
    * Creates a popup window that will hold focus until user hits done button. This version has a default
-   * callback function that will just close the dialog window. 
+   * callback function that will just close the dialog window. popup is destroyed when user presses "DONE"
    * 
    * @param title Popup Message Title
    * @param message Popup Message Body
@@ -357,7 +381,8 @@ public:
    * @brief Creates a popup message with a "DONE" button. This version takes a callback function
    * 
    * Creates a popup window that will hold focus until user hits done button. You can pass
-   * a callback function. This dialog window only has one button.
+   * a callback function, which is called when user hits DONE. This dialog window only has one button.
+   * Make sure to call gtk_widget_destroy(ptr to popup) to close the popup in the cbk fn
    * 
    * @param cbk_fn Popup Callback Function
    * @param title Popup Message Title
@@ -378,25 +403,14 @@ public:
    * 
    * This function will search the inner grid (sidebar) for the widget with the given name/id. 
    * It will return a Widget ptr to it. This function is powerful; it will search through, in this order:
-   * Names set in Glade 
-   * Names set using application constructors (i.e create_combo_box)
-   * Button labels set using create_button
-   * By extension, it is slower since it searches all types. If you created an object in Glade, use get_object. 
+   * String IDs created in Glade for widgets
+   * Names set using ezgl::application method functions that make widgets (i.e create_combo_box)
+   * Button labels set using application::create_button 
    * 
-   * @param widget_name 
-   * @return GtkWidget* 
+   * @param widget_name string to be searched for
+   * @return GtkWidget* GtkWidget to pointer. Can be cast to appropriate type
    */
   GtkWidget* find_widget(const char* widget_name);
-
-  /**
-   * Change the label of the button (displayed text)
-   *
-   * @param button_text the old text of the button
-   * @param new_button_text the new button text
-   *
-   * The function assumes that the UI has a GtkGrid named "InnerGrid"
-   */
-  void change_button_text(const char *button_text, const char *new_button_text);
 
   /**
    * Update the message in the status bar
