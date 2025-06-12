@@ -32,7 +32,10 @@
 *.app
 
 # Build Directories
+CMakeCache.txt
+CMakeFiles
 cmake-build*
+build
 
 # Vim
 .swp
@@ -40,3 +43,12 @@ cmake-build*
 # IDE Files and Folders
 .idea
 .cache
+
+#
+# VS Code
+#
+.vscode
+.history
+.cache
+#eclipse project
+.project
