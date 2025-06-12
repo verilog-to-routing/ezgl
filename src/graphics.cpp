@@ -20,6 +20,7 @@
 
 #include <cassert>
 #include <glib.h>
+#include <numbers>
 
 namespace ezgl {
 
@@ -295,7 +296,7 @@ void renderer::set_text_rotation(double degrees)
   // Check for them before changing the angle.
   if (degrees >= -360. && degrees <= 360.) {
     // convert the given angle to rad
-    rotation_angle = -degrees * M_PI / 180;
+    rotation_angle = -degrees * std::numbers::pi / 180;
   }
   else {
     g_warning("set_text_rotation: bad rotation angle of %f. Ignored!", degrees);
@@ -697,12 +698,12 @@ void renderer::draw_arc_path(point2d center,
   // draw the arc in counter clock-wise direction if the extent angle is positive
   if(extent_angle >= 0) {
     cairo_arc_negative(
-        m_cairo, center.x, center.y, radius, -start_angle * M_PI / 180, -end_angle * M_PI / 180);
+        m_cairo, center.x, center.y, radius, -start_angle * std::numbers::pi / 180, -end_angle * std::numbers::pi / 180);
   }
   // draw the arc in clock-wise direction if the extent angle is negative
   else {
     cairo_arc(
-        m_cairo, center.x, center.y, radius, -start_angle * M_PI / 180, -end_angle * M_PI / 180);
+        m_cairo, center.x, center.y, radius, -start_angle * std::numbers::pi / 180, -end_angle * std::numbers::pi / 180);
   }
 
   // if the arc will be filled in, return back to the center of the arc
