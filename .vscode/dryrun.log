@@ -1,6 +1,0 @@
-make --dry-run --always-make --keep-going --print-directory
-make: Entering directory '/nfs/ug/homes-5/l/lievanoa/ezgl'
-make: Leaving directory '/nfs/ug/homes-5/l/lievanoa/ezgl'
- 
-make: *** No targets specified and no makefile found.  Stop.
-
