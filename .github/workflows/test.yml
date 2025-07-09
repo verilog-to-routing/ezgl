@@ -34,7 +34,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: sudo apt install -y libgtk-3-dev libx11-dev
+      run: sudo apt update && sudo apt install -y libgtk-3-dev libx11-dev
 
     - name: Build EZGL
       run: |
@@ -50,7 +50,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: sudo apt install -y libgtk-3-dev libx11-dev libxml2-utils
+      run: sudo apt update && sudo apt install -y libgtk-3-dev libx11-dev libxml2-utils
 
     - name: Build EZGL with examples
       run: |
