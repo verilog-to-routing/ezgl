@@ -24,6 +24,118 @@
 
 namespace ezgl {
 
+/**
+ * Test if a line segment can pass through a clipping edge (Liang-Barsky algorithm)
+ * 
+ * @param direction_component: The directional component (dx or dy)
+ * @param distance_to_edge: Distance from line start to the clipping edge
+ * @param t_enter: Parameter for line entry point (modified by reference)
+ * @param t_exit: Parameter for line exit point (modified by reference)
+ * @return true if line segment can potentially be visible, false if completely clipped
+ */
+static bool test_clipping_edge(double direction_component, 
+                              double distance_to_edge, 
+                              double& t_enter, 
+                              double& t_exit)
+{
+    if (direction_component < 0.0) {
+        // Line is entering the clipping region through this edge
+        double t_intersection = distance_to_edge / direction_component;
+        
+        if (t_intersection > t_exit) {
+            // Line enters after it should exit - completely outside
+            return false;
+        }
+        
+        if (t_intersection > t_enter) {
+            // Update entry point
+            t_enter = t_intersection;
+        }
+    }
+    else if (direction_component > 0.0) {
+        // Line is exiting the clipping region through this edge
+        double t_intersection = distance_to_edge / direction_component;
+        
+        if (t_intersection < t_enter) {
+            // Line exits before it should enter - completely outside
+            return false;
+        }
+        
+        if (t_intersection < t_exit) {
+            // Update exit point
+            t_exit = t_intersection;
+        }
+    }
+    else {
+        // Line is parallel to this edge (direction_component == 0)
+        if (distance_to_edge < 0.0) {
+            // Line is completely outside this edge
+            return false;
+        }
+        // If distance_to_edge >= 0, line is inside or on the edge
+    }
+    
+    return true;
+}
+
+/**
+ * Clip a line segment against a rectangular window using Liang-Barsky algorithm
+ * https://www.geeksforgeeks.org/computer-graphics/liang-barsky-algorithm/
+ * 
+ * @param clip_window: The rectangular clipping window
+ * @param start_point: Starting point of the line (modified if clipped)
+ * @param end_point: Ending point of the line (modified if clipped)
+ * @return true if any part of the line is visible, false if completely clipped
+ */
+static bool clip_line(const rectangle& clip_window, 
+                                  point2d& start_point, 
+                                  point2d& end_point)
+{
+    // Parametric line equation: P(t) = P1 + t * (P2 - P1), where 0 <= t <= 1
+    double dx = end_point.x - start_point.x;
+    double dy = end_point.y - start_point.y;
+    
+    // Parameter values for entry and exit points
+    double t_enter = 0.0;  // Start of visible line segment
+    double t_exit = 1.0;   // End of visible line segment
+    
+    // Test against left edge: x = clip_window.left()
+    if (!test_clipping_edge(-dx, start_point.x - clip_window.left(), t_enter, t_exit)) {
+        return false;
+    }
+    
+    // Test against right edge: x = clip_window.right()
+    if (!test_clipping_edge(dx, clip_window.right() - start_point.x, t_enter, t_exit)) {
+        return false;
+    }
+    
+    // Test against bottom edge: y = clip_window.bottom()
+    if (!test_clipping_edge(-dy, start_point.y - clip_window.bottom(), t_enter, t_exit)) {
+        return false;
+    }
+    
+    // Test against top edge: y = clip_window.top()
+    if (!test_clipping_edge(dy, clip_window.top() - start_point.y, t_enter, t_exit)) {
+        return false;
+    }
+    
+    // If we reach here, some part of the line is visible
+    
+    // Clip the end point if necessary
+    if (t_exit < 1.0) {
+        end_point.x = start_point.x + t_exit * dx;
+        end_point.y = start_point.y + t_exit * dy;
+    }
+    
+    // Clip the start point if necessary
+    if (t_enter > 0.0) {
+        start_point.x = start_point.x + t_enter * dx;
+        start_point.y = start_point.y + t_enter * dy;
+    }
+    
+    return true;
+}
+
 renderer::renderer(cairo_t *cairo,
     transform_fn transform,
     camera *p_camera,
@@ -323,6 +435,16 @@ void renderer::draw_line(point2d start, point2d end)
     return;
 
   if(current_coordinate_system == WORLD) {
+
+    rectangle world_clip_bounds = get_visible_world();
+
+    // Clip the line in world coordinates using Liang-Barsky algorithm
+    if (!clip_line(world_clip_bounds, start, end)) {
+      // Line is completely outside the drawable area
+      return;
+    }
+
+    // Transform to screen coordinates
     start = m_transform(start);
     end = m_transform(end);
   }
