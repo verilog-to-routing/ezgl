@@ -97,7 +97,7 @@ int main(int /*argc*/, char **/*argv*/)
 
   // Path to the "main.ui" file that contains an XML description of the UI.
   // Edit this file with glade if you want to change the UI layout
-  settings.main_ui_resource = "main.ui";
+  settings.main_ui_resource = "/ezgl/main.ui";
 
   // Note: the "main.ui" file has a GtkWindow called "MainWindow".
   settings.window_identifier = "MainWindow";
