@@ -21,8 +21,9 @@ endif()
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gcr-cmake/macros)
 
 #Is ezgl the root cmake project?
-set(IS_ROOT_PROJECT TRUE)
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+    set(IS_ROOT_PROJECT TRUE)
+else()
     set(IS_ROOT_PROJECT FALSE)
 endif()
 
