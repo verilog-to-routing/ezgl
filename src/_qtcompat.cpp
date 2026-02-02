@@ -92,7 +92,7 @@ void gtk_main_quit()
   QApplication::quit();
 }
 
-int g_application_run(Application* app)
+int g_application_run(Application* app, int, int)
 {
   g_debug("~~~ g_application_run");
   return app->exec();

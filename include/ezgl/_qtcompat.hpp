@@ -26,6 +26,8 @@ using gpointer = void*;
 using gboolean = int;
 using gint = int;
 
+#define G_APPLICATION
+
 class Application final : public QApplication {
 public:
   Application(int& argc, char** argv): QApplication(argc, argv) {
@@ -224,7 +226,7 @@ QWidget* gtk_application_get_active_window(Application* app);
 void gtk_main();
 void gtk_main_quit();
 
-int g_application_run(Application* app);
+int g_application_run(Application* app, int, int);
 void g_application_quit(Application* app);
 Application* gtk_application_new(const char* appName);
 Application* gtk_application_new(const char* appName, int& argc, char** argv);

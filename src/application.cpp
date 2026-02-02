@@ -320,12 +320,8 @@ int application::run(setup_callback_fn initial_setup_user_callback,
 
     g_info("The event loop is now starting.");
 
-#ifdef EZGL_QT
-    return g_application_run(m_application);
-#else // EZGL_QT
     // see: https://developer.gnome.org/gio/stable/GApplication.html#g-application-run
     return g_application_run(G_APPLICATION(m_application), 0, 0);
-#endif // EZGL_QT
   }
   // The result of calling g_application_run() again after it returns is unspecified.
   // So in the subsequent runs instead of calling g_application_run(), we will go back to the event loop using gtk_main()
@@ -378,12 +374,8 @@ int application::run(setup_callback_fn initial_setup_user_callback,
 
     g_info("The event loop is now restarting.");
 
-#ifdef EZGL_QT
-    return m_application->exec();
-#else // EZGL_QT
     // see: https://developer.gnome.org/gio/stable/GApplication.html#g-application-run
     return g_application_run(G_APPLICATION(m_application), 0, 0);
-#endif // EZGL_QT
   }
 }
 
