@@ -19,6 +19,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QColor>
+#include <QStatusBar>
 
 #include <QMouseEvent>
 

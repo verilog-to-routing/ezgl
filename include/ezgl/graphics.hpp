@@ -25,7 +25,7 @@
 #include "ezgl/camera.hpp"
 
 #ifdef EZGL_QT
-#include <ezgl/_qtcompat.hpp>
+#include <ezgl/qt/_qtcompat.hpp>
 #include <QFont>
 class QImage;
 #else // EZGL_QT

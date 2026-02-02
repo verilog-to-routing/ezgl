@@ -467,7 +467,14 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
 void application::update_message(std::string const &message)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  // Get the StatusBar Object
+  QStatusBar* status_bar = qobject_cast<QStatusBar*>(get_object("StatusBar"));
+
+  // Remove all previous messages from the message stack
+  status_bar->clearMessage();
+
+  // Push user message to the message stack
+  status_bar->showMessage(QString::fromStdString(message));
 #else // EZGL_QT
   // Get the StatusBar Object
   GtkStatusbar *status_bar = (GtkStatusbar *)get_object("StatusBar");

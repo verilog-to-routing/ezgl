@@ -58,14 +58,16 @@ add_library(
   include/ezgl/graphics.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
-  include/ezgl/_qtcompat.hpp
+  include/ezgl/qt/_qtcompat.hpp
+  #include/ezgl/qt/gladeloader.hpp
   src/application.cpp
   src/camera.cpp
   src/canvas.cpp
   src/control.cpp
   src/callback.cpp
   src/graphics.cpp
-  src/_qtcompat.cpp
+  src/qt/_qtcompat.cpp
+  #src/qt/gladeloader.cpp
 )
 
 target_include_directories(

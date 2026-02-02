@@ -1,4 +1,4 @@
-#include <ezgl/_qtcompat.hpp>
+#include <ezgl/qt/_qtcompat.hpp>
 #include <ezgl/callback.hpp>
 
 #include <QMouseEvent>

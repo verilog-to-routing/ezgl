@@ -21,7 +21,7 @@
 #include <cassert>
 
 #ifdef EZGL_QT
-#include <ezgl/_qtcompat.hpp>
+#include "ezgl/qt/_qtcompat.hpp"
 #else // EZGL_QT
 #include <glib.h>
 #endif // EZGL_QT
