@@ -1,4 +1,5 @@
 #include <ezgl/_qtcompat.hpp>
+#include <ezgl/callback.hpp>
 
 #include <QMouseEvent>
 #include <QKeyEvent>
@@ -8,6 +9,8 @@
 DrawingAreaWidget::DrawingAreaWidget(QWidget* parent): QWidget(parent)
 {
   setFixedSize(DRAWING_AREA_WIDTH, DRAWING_AREA_HEIGHT);
+  setFocusPolicy(Qt::StrongFocus);
+  setMouseTracking(true); // for move events even without mouse button pressed
 }
 
 DrawingAreaWidget::~DrawingAreaWidget()
@@ -43,20 +46,20 @@ void DrawingAreaWidget::paintEvent(QPaintEvent* event)
   //m_image->save("my_image.png", "PNG");
 }
 
-void DrawingAreaWidget::mousePressEvent(QMouseEvent* event)
-{
-  qDebug() << "Mouse press at" << event->pos();
-}
+// void DrawingAreaWidget::mousePressEvent(QMouseEvent* event)
+// {
+//   qDebug() << "Mouse press at" << event->pos();
+// }
 
-void DrawingAreaWidget::mouseMoveEvent(QMouseEvent* event)
-{
-  qDebug() << "Mouse move at" << event->pos();
-}
+// void DrawingAreaWidget::mouseMoveEvent(QMouseEvent* event)
+// {
+//   qDebug() << "Mouse move at" << event->pos();
+// }
 
-void DrawingAreaWidget::keyPressEvent(QKeyEvent* event)
-{
-  qDebug() << "Key pressed:" << event->key();
-}
+// void DrawingAreaWidget::keyPressEvent(QKeyEvent* event)
+// {
+//   qDebug() << "Key pressed:" << event->key();
+// }
 
 
 // gtk wrapper
@@ -125,36 +128,64 @@ Application* gtk_application_new(const char* appName, int& argc, char** argv)
   return app;
 }
 
-bool Application::eventFilter(QObject* obj, QEvent* event)
-{
-  switch (event->type()) {
-  case QEvent::MouseButtonPress: {
-    auto* e = static_cast<QMouseEvent*>(event);
-    qDebug() << "Global mouse press:" << e->globalPosition();
-    return false;
-  }
-  case QEvent::MouseMove: {
-    auto* e = static_cast<QMouseEvent*>(event);
-    qDebug() << "Global mouse move:" << e->globalPosition();
-    return false;
-  }
-  case QEvent::KeyPress: {
-    auto* e = static_cast<QKeyEvent*>(event);
-    qDebug() << "Global key press:" << e->key();
-    return false;
-  }
-  }
-  return QObject::eventFilter(obj, event);
-}
+// bool Application::eventFilter(QObject* obj, QEvent* event)
+// {
+//   auto* w = qobject_cast<QWidget*>(obj);
+//   if (!w) return false;
 
-bool Application::notify(QObject* receiver, QEvent* event) {
-  if (event->type() == QEvent::MouseButtonPress) {
-    qDebug() << "Mouse press caught in QApplication, to reciever" << receiver;
-  }
-  if (event->type() == QEvent::KeyPress) {
-    qDebug() << "Key press caught in QApplication, to reciever" << receiver;
-  }
-  return QApplication::notify(receiver, event);
+//   switch (event->type()) {
+//   case QEvent::KeyPress:
+//     return press_key(w, static_cast<QKeyEvent*>(event), m_app);
+//   case QEvent::MouseButtonPress:
+//     return press_mouse(w, static_cast<QMouseEvent*>(event), m_app);
+//   case QEvent::MouseButtonRelease:
+//     return release_mouse(w, static_cast<QMouseEvent*>(event), m_app);
+//   case QEvent::MouseMove:
+//     return move_mouse(w, static_cast<QMouseEvent*>(event), m_app);
+//   case QEvent::Wheel:
+//     return scroll_mouse(w, static_cast<QWheelEvent*>(event), m_app);
+//   }
+  // return QObject::eventFilter(obj, event);
+// }
+
+bool Application::notify(QObject* obj, QEvent* event) {
+    auto* w = qobject_cast<DrawingAreaWidget*>(obj);
+    if (!w) {
+      return QApplication::notify(obj, event);
+    }
+
+    bool consumed = false;
+
+    switch (event->type()) {
+    case QEvent::KeyPress:
+      consumed = press_key(w, static_cast<QKeyEvent*>(event), m_app);
+      break;
+
+    case QEvent::MouseButtonPress:
+      consumed = press_mouse(w, static_cast<QMouseEvent*>(event), m_app);
+      break;
+
+    case QEvent::MouseButtonRelease:
+      consumed = release_mouse(w, static_cast<QMouseEvent*>(event), m_app);
+      break;
+
+    case QEvent::MouseMove:
+      consumed = move_mouse(w, static_cast<QMouseEvent*>(event), m_app);
+      break;
+
+    case QEvent::Wheel:
+      consumed = scroll_mouse(w, static_cast<QWheelEvent*>(event), m_app);
+      break;
+
+    default:
+      break;
+    }
+
+    if (consumed) {
+      return true; // stops normal processing
+    }
+
+    return QApplication::notify(obj, event);
 }
 
 int Painter::counter = 0;

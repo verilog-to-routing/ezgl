@@ -81,9 +81,9 @@ void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app);
  * These functions run whenever their corresponding event (key press, mouse move, or mouse click) occurs.
  */
 #ifdef EZGL_QT
-void act_on_mouse_press(ezgl::application *application, QMouseEvent *event);
-void act_on_mouse_move(ezgl::application *application, QMouseEvent *event);
-void act_on_key_press(ezgl::application *application, QKeyEvent *event);
+void act_on_mouse_press(ezgl::application *application, QMouseEvent *event, double x, double y);
+void act_on_mouse_move(ezgl::application *application, QMouseEvent *event, double x, double y);
+void act_on_key_press(ezgl::application *application, QKeyEvent *event, const char *key_name);
 #else
 void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y);
 void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y);
@@ -674,7 +674,7 @@ void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
  * A pointer to the application and the entire GDK event are also returned
  */
 #ifdef EZGL_QT
-void act_on_mouse_press(ezgl::application *application, QMouseEvent *event)
+void act_on_mouse_press(ezgl::application *application, QMouseEvent *event, double x, double y)
 {
   application->update_message("Mouse Clicked");
 
@@ -695,7 +695,7 @@ void act_on_mouse_press(ezgl::application *application, QMouseEvent *event)
     break;
   }
 
-  std::cout << "mouse button at coordinates (" << event->pos().x() << "," << event->pos().y() << ") ";
+  std::cout << "mouse button at coordinates (" << x << "," << y << ") ";
 
   Qt::KeyboardModifiers keyMods = event->modifiers();
 
@@ -744,9 +744,9 @@ void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, d
  * A pointer to the application and the entire GDK event are also returned
  */
 #ifdef EZGL_QT
-void act_on_mouse_move(ezgl::application */*application*/, QMouseEvent *event)
+void act_on_mouse_move(ezgl::application */*application*/, QMouseEvent *event, double x, double y)
 {
-  std::cout << "Mouse move at coordinates (" << event->pos().x() << "," << event->pos().y() << ") "<< std::endl;
+  std::cout << "Mouse move at coordinates (" << x << "," << y << ") "<< std::endl;
 }
 #else
 void act_on_mouse_move(ezgl::application */*application*/, GdkEventButton */*event*/, double x, double y)
@@ -761,11 +761,11 @@ void act_on_mouse_move(ezgl::application */*application*/, GdkEventButton */*eve
  * A pointer to the application and the entire GDK event are also returned
  */
 #ifdef EZGL_QT
-void act_on_key_press(ezgl::application *application, QKeyEvent *event)
+void act_on_key_press(ezgl::application *application, QKeyEvent *event, const char* key_name)
 {
   application->update_message("Key Pressed");
 
-  std::cout << event->text().toStdString() <<" key is pressed" << std::endl;
+  std::cout << key_name <<" key is pressed" << std::endl;
 }
 #else
 void act_on_key_press(ezgl::application *application, GdkEventKey */*event*/, char *key_name)

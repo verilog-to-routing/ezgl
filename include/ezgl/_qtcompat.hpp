@@ -20,6 +20,8 @@
 #include <QPainterPath>
 #include <QColor>
 
+#include <QMouseEvent>
+
 // gtk to std types
 using gchar = char;
 using gpointer = void*;
@@ -28,6 +30,10 @@ using gint = int;
 
 #define G_APPLICATION
 constexpr int EZGL_APPLICATION_DEFAULT_FLAGS = 0;
+
+namespace ezgl {
+class application;
+}
 
 class Application final : public QApplication {
 public:
@@ -38,8 +44,16 @@ public:
     qInfo() << "~Application()";
   }
 
-  bool eventFilter(QObject* obj, QEvent* event) override final;
+  void setApp(ezgl::application* app) {
+    m_app = app;
+  }
+
+protected:
+  // bool eventFilter(QObject* obj, QEvent* event) override final;
   bool notify(QObject* receiver, QEvent* event) override final;
+
+private:
+  ezgl::application* m_app{nullptr};
 };
 
 // tmp solution to track lifetime
@@ -67,9 +81,9 @@ public:
 
 protected:
   void paintEvent(QPaintEvent* event) override final;
-  void mousePressEvent(QMouseEvent* event) override final;
-  void mouseMoveEvent(QMouseEvent* event) override final;
-  void keyPressEvent(QKeyEvent* event) override final;
+  // void mousePressEvent(QMouseEvent* event) override final;
+  // void mouseMoveEvent(QMouseEvent* event) override final;
+  // void keyPressEvent(QKeyEvent* event) override final;
 
 private:
   Image* m_image{nullptr};

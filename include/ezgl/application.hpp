@@ -72,7 +72,7 @@ using button_callback_fn = void (*)(GtkWidget *widget, application *app);
  * The signature of a user-defined callback function for mouse events
  */
 #ifdef EZGL_QT
-using mouse_callback_fn = void (*)(application *app, QMouseEvent *event);
+using mouse_callback_fn = void (*)(application *app, QMouseEvent *event, double x, double y);
 #else
 using mouse_callback_fn = void (*)(application *app, GdkEventButton *event, double x, double y);
 #endif
@@ -80,7 +80,7 @@ using mouse_callback_fn = void (*)(application *app, GdkEventButton *event, doub
  * The signature of a user-defined callback function for keyboard events
  */
 #ifdef EZGL_QT
-using key_callback_fn = void (*)(application *app, QKeyEvent *event);
+using key_callback_fn = void (*)(application *app, QKeyEvent *event, const char *key_name);
 #else
 using key_callback_fn = void (*)(application *app, GdkEventKey *event, char *key_name);
 #endif
