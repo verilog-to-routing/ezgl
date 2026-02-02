@@ -354,11 +354,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
 #endif // HIDE_GTK_BUILDER
 
     // Reconstruct the GTK application
-#ifdef EZGL_QT
-    m_application = gtk_application_new(m_application_id.c_str());
-#else // EZGL_QT
     m_application = (gtk_application_new(m_application_id.c_str(), EZGL_APPLICATION_DEFAULT_FLAGS));
-#endif // EZGL_QT
 
 #ifndef HIDE_GTK_BUILDER
     m_builder = (gtk_builder_new());

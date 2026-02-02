@@ -92,8 +92,10 @@ void gtk_main_quit()
   QApplication::quit();
 }
 
-int g_application_run(Application* app, int, int)
+int g_application_run(Application* app, int unsed1, int unsed2)
 {
+  Q_UNUSED(unsed1);
+  Q_UNUSED(unsed2);
   g_debug("~~~ g_application_run");
   return app->exec();
 }
@@ -104,8 +106,9 @@ void g_application_quit(Application* app)
   app->exit(0);
 }
 
-Application* gtk_application_new(const char* appName)
+Application* gtk_application_new(const char* appName, int unused)
 {
+  Q_UNUSED(unused);
   g_debug("~~~ gtk_application_new RISKY");
   static int argc = 0;
   static char** argv = nullptr;

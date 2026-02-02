@@ -27,6 +27,7 @@ using gboolean = int;
 using gint = int;
 
 #define G_APPLICATION
+constexpr int EZGL_APPLICATION_DEFAULT_FLAGS = 0;
 
 class Application final : public QApplication {
 public:
@@ -228,7 +229,7 @@ void gtk_main_quit();
 
 int g_application_run(Application* app, int, int);
 void g_application_quit(Application* app);
-Application* gtk_application_new(const char* appName);
+Application* gtk_application_new(const char* appName, int);
 Application* gtk_application_new(const char* appName, int& argc, char** argv);
 void gtk_widget_destroy(QWidget* widget);
 int gtk_widget_get_allocated_width(QWidget* w);
