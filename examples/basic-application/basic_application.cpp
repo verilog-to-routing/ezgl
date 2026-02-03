@@ -108,8 +108,11 @@ int main(int argc, char **argv)
 
   // Path to the "main.ui" file that contains an XML description of the UI.
   // Edit this file with glade if you want to change the UI layout
+#ifdef EZGL_QT
+  settings.main_ui_resource = ":/main.ui";
+#else
   settings.main_ui_resource = "/ezgl/main.ui";
-
+#endif
   // Note: the "main.ui" file has a GtkWindow called "MainWindow".
   settings.window_identifier = "MainWindow";
 

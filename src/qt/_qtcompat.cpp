@@ -11,6 +11,8 @@ DrawingAreaWidget::DrawingAreaWidget(QWidget* parent): QWidget(parent)
   setFixedSize(DRAWING_AREA_WIDTH, DRAWING_AREA_HEIGHT);
   setFocusPolicy(Qt::StrongFocus);
   setMouseTracking(true); // for move events even without mouse button pressed
+
+  createSurface();
 }
 
 DrawingAreaWidget::~DrawingAreaWidget()

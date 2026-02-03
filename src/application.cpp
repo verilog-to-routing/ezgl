@@ -22,10 +22,8 @@
 #ifdef EZGL_QT
 #include <QObject>
 #include <QApplication>
-#endif
-
-#ifdef EZGL_QT
 #include <QVBoxLayout>
+#include "ezgl/qt/qtgladeloader.hpp"
 #else // EZGL_QT
 // GLib deprecated G_APPLICATION_FLAGS_NONE and replaced it with G_APPLICATION_DEFAULT_FLAGS,
 // however, this enum was not introduced until GLib 2.74. These lines of code allow EZGL
@@ -211,12 +209,15 @@ application::application(application::settings s)
 
 #ifdef EZGL_QT
   m_application->setApp(this);
-  m_window = new QWidget;
-  QVBoxLayout* layout = new QVBoxLayout;
-  layout->setContentsMargins(0,0,0,0);
-  m_window->setLayout(layout);
-  m_window->setObjectName(m_window_id.c_str());
-  m_window->resize(DRAWING_AREA_WIDTH, DRAWING_AREA_HEIGHT);
+  QtGladeLoader uiLoader;
+  m_window = uiLoader.loadFile(QString::fromStdString(s.main_ui_resource));
+
+  //m_window = new QWidget;
+  // QVBoxLayout* layout = new QVBoxLayout;
+  // layout->setContentsMargins(0,0,0,0);
+  // m_window->setLayout(layout);
+  // m_window->setObjectName(m_window_id.c_str());
+  // m_window->resize(DRAWING_AREA_WIDTH, DRAWING_AREA_HEIGHT);
   qInfo() << m_application->applicationName();
   qInfo() << m_application->arguments();
 #endif
@@ -282,9 +283,9 @@ GObject *application::get_object(gchar const *name) const
   // TODO: rename method to find_object?
   QObject* object = nullptr;
   for (QWidget* w: QApplication::allWidgets()) {
-    g_debug("~~~ iterate over", w->objectName().toStdString().c_str());
+    qDebug() <<"~~~ iterate over" << w->objectName();
     if (w->objectName() == name) {
-      g_debug("~~~ found", w->objectName().toStdString().c_str());
+      qDebug() << "~~~ found" << w->objectName();
       object = w;
       break;
     }
@@ -470,11 +471,15 @@ void application::update_message(std::string const &message)
   // Get the StatusBar Object
   QStatusBar* status_bar = qobject_cast<QStatusBar*>(get_object("StatusBar"));
 
-  // Remove all previous messages from the message stack
-  status_bar->clearMessage();
+  if (status_bar) {
+    // Remove all previous messages from the message stack
+    status_bar->clearMessage();
 
-  // Push user message to the message stack
-  status_bar->showMessage(QString::fromStdString(message));
+    // Push user message to the message stack
+    status_bar->showMessage(QString::fromStdString(message));
+  } else {
+    qCritical() << "object with name `StatusBar` wasn't found";
+  }
 #else // EZGL_QT
   // Get the StatusBar Object
   GtkStatusbar *status_bar = (GtkStatusbar *)get_object("StatusBar");

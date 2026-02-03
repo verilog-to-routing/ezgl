@@ -17,7 +17,7 @@ if(USE_QT)
     set(CMAKE_AUTOUIC ON)
     set(CMAKE_AUTORCC ON)
 
-    find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+    find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Xml)
 
     if(NOT Qt6_FOUND)
       message(FATAL_ERROR "EZGL: Failed to find required Qt library (on debian/ubuntu try 'sudo apt-get install qt6-base-dev' to install)")
@@ -59,7 +59,7 @@ add_library(
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
   include/ezgl/qt/_qtcompat.hpp
-  #include/ezgl/qt/gladeloader.hpp
+  include/ezgl/qt/qtgladeloader.hpp
   src/application.cpp
   src/camera.cpp
   src/canvas.cpp
@@ -67,7 +67,7 @@ add_library(
   src/callback.cpp
   src/graphics.cpp
   src/qt/_qtcompat.cpp
-  #src/qt/gladeloader.cpp
+  src/qt/qtgladeloader.cpp
 )
 
 target_include_directories(
@@ -82,7 +82,8 @@ if(USE_QT)
         PUBLIC
         Qt6::Core
         Qt6::Gui
-        Qt6::Widgets)
+        Qt6::Widgets
+        Qt6::Xml)
 
     target_compile_definitions(
         ${PROJECT_NAME}

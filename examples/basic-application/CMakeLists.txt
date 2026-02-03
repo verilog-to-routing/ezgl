@@ -7,7 +7,8 @@ project(
 )
 
 if (USE_QT)
-
+    set(CMAKE_AUTORCC ON)
+    set(RESOURCE_SRC resource.qrc)
 else(USE_QT)
     # create the resouce list
     set(
@@ -41,14 +42,14 @@ else(USE_QT)
 
     set(RESOURCE_SRC ${CMAKE_CURRENT_BINARY_DIR}/resources.C)
 
-endif(USE_QT)
+    # make sure that the resources are compiled when the project is built
+    add_custom_target(
+      resource-basic ALL
+      DEPENDS
+        ${RESOURCE_FILE}
+    )
 
-# make sure that the resources are compiled when the project is built
-add_custom_target(
-  resource-basic ALL
-  DEPENDS
-    ${RESOURCE_FILE}
-)
+endif(USE_QT)
 
 add_executable(
   ${PROJECT_NAME}
