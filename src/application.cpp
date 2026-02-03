@@ -43,9 +43,10 @@ namespace ezgl {
 bool disable_event_loop = false;
 
 #ifdef EZGL_QT
-void application::startup()
+void application::startup(GtkApplication *gtk_app, gpointer user_data)
 {
-  //g_return_if_fail(ezgl_app != nullptr);
+  auto ezgl_app = static_cast<application *>(user_data);
+  g_return_if_fail(ezgl_app != nullptr);
 
 #ifndef HIDE_GTK_BUILDER
   char const *main_ui_resource = ezgl_app->m_main_ui.c_str();
@@ -67,12 +68,12 @@ void application::startup()
   }
 #endif // HIDE_GTK_BUILDER
 
-  for(auto &c_pair : m_canvases) {
+  for(auto &c_pair : ezgl_app->m_canvases) {
+    qWarning() << "strange thing";
 #ifdef EZGL_QT
-    QWidget* drawing_area = new DrawingAreaWidget;
-    m_window->layout()->addWidget(drawing_area);
+    QWidget* drawing_area = ezgl_app->get_widget(c_pair.second->id());
 #else // EZGL_QT
-    GObject *drawing_area = get_object(c_pair.second->id());
+    GObject *drawing_area = ezgl_app->get_object(c_pair.second->id());
 #endif // EZGL_QT
     c_pair.second->initialize(GTK_WIDGET(drawing_area));
   }
@@ -116,21 +117,19 @@ void application::startup(GtkApplication *, gpointer user_data)
 #endif // EZGL_QT
 
 #ifdef EZGL_QT
-void application::activate()
+void application::activate(GtkApplication*, gpointer user_data)
 {
-#ifdef EZGL_QT
-  application* ezgl_app = this;
-#endif // EZGL_QT
-
+  auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);
 
   // The main parent window needs to be explicitly added to our GTK application.
-  //// OLD
-  //GObject *window = ezgl_app->get_object(ezgl_app->m_window_id.c_str());
-  //gtk_application_add_window(ezgl_app->m_application, GTK_WINDOW(window));
-  //// NEW
-  m_window->show();
-  //// NEW
+#ifdef EZGL_QT
+  QWidget *window = ezgl_app->get_widget(ezgl_app->m_window_id.c_str());
+  window->show();
+#else
+  GObject *window = ezgl_app->get_object(ezgl_app->m_window_id.c_str());
+  gtk_application_add_window(ezgl_app->m_application, GTK_WINDOW(window));
+#endif
 
   // Setup the default callbacks for the mouse and key events
   register_default_events_callbacks(ezgl_app);
@@ -314,8 +313,8 @@ int application::run(setup_callback_fn initial_setup_user_callback,
   key_press_callback = key_press_user_callback;
 
 #ifdef EZGL_QT
-  startup();
-  activate();
+  startup(nullptr, this);
+  activate(nullptr, this);
 #endif
 
   if(first_run) {

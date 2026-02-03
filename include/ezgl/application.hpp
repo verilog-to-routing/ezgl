@@ -548,6 +548,7 @@ public:
   GObject *get_object(gchar const *name) const;
 
 #ifdef EZGL_QT
+  QWidget* get_widget(gchar const *name) const { return qobject_cast<QWidget*>(get_object(name)); }
   QPushButton* get_push_button(gchar const *name) const { return qobject_cast<QPushButton*>(get_object(name)); }
 #endif // EZGL_QT
 
@@ -610,19 +611,11 @@ private:
   bool resume_run;
 
 private:
-// Called when our GtkApplication is initialized for the first time.
-#ifdef EZGL_QT
-void startup();
-#else // EZGL_QT
-static void startup(GtkApplication *gtk_app, gpointer user_data);
-#endif // EZGL_QT
+  // Called when our GtkApplication is initialized for the first time.
+  static void startup(GtkApplication *gtk_app, gpointer user_data);
 
-// Called when GTK activates our application for the first time.
-#ifdef EZGL_QT
-  void activate();
-#else // EZGL_QT
+  // Called when GTK activates our application for the first time.
   static void activate(GtkApplication *gtk_app, gpointer user_data);
-#endif // EZGL_QT
 
   // Called during application activation to setup the default callbacks for the prebuilt buttons
   static void register_default_buttons_callbacks(application *application);

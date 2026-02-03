@@ -1,10 +1,10 @@
+#ifdef EZGL_QT
+
 #include <ezgl/qt/_qtcompat.hpp>
 #include <ezgl/callback.hpp>
 
 #include <QMouseEvent>
 #include <QKeyEvent>
-
-#ifdef EZGL_QT
 
 DrawingAreaWidget::DrawingAreaWidget(QWidget* parent): QWidget(parent)
 {
