@@ -547,6 +547,10 @@ public:
    */
   GObject *get_object(gchar const *name) const;
 
+#ifdef EZGL_QT
+  QPushButton* get_push_button(gchar const *name) const { return qobject_cast<QPushButton*>(get_object(name)); }
+#endif // EZGL_QT
+
   /**
    * Get the ID of the main window
    */
@@ -594,7 +598,7 @@ private:
 #endif // HIDE_GTK_BUILDER
 
   // The function to call when the application is starting up.
-  connect_g_objects_fn m_register_callbacks;
+  connect_g_objects_fn m_register_callbacks{nullptr};
 
   // The collection of canvases added to the application.
   std::map<std::string, std::unique_ptr<canvas>> m_canvases;
@@ -628,16 +632,16 @@ static void startup(GtkApplication *gtk_app, gpointer user_data);
 
 public:
   // The user-defined initial setup callback function
-  setup_callback_fn initial_setup_callback;
+  setup_callback_fn initial_setup_callback{nullptr};
 
   // The user-defined callback function for handling mouse press
-  mouse_callback_fn mouse_press_callback;
+  mouse_callback_fn mouse_press_callback{nullptr};
 
   // The user-defined callback function for handling mouse move
-  mouse_callback_fn mouse_move_callback;
+  mouse_callback_fn mouse_move_callback{nullptr};
 
   // The user-defined callback function for handling keyboard press
-  key_callback_fn key_press_callback;
+  key_callback_fn key_press_callback{nullptr};
 };
 
 /**

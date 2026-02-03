@@ -331,7 +331,6 @@ bool scroll_mouse(QWidget*, QWheelEvent* event, void* data)
   auto canvas = application->get_canvas(main_canvas_id);
 
   const QPointF pos = event->position();
-  //GdkEventScroll *scroll_event = (GdkEventScroll *)event;
 
   ezgl::point2d scroll_point(pos.x(), pos.y());
 

@@ -118,7 +118,11 @@ void application::startup(GtkApplication *, gpointer user_data)
 #ifdef EZGL_QT
 void application::activate()
 {
-  //g_return_if_fail(ezgl_app != nullptr);
+#ifdef EZGL_QT
+  application* ezgl_app = this;
+#endif // EZGL_QT
+
+  g_return_if_fail(ezgl_app != nullptr);
 
   // The main parent window needs to be explicitly added to our GTK application.
   //// OLD
@@ -128,7 +132,6 @@ void application::activate()
   m_window->show();
   //// NEW
 
-#ifndef HIDE_GTK_EVENT
   // Setup the default callbacks for the mouse and key events
   register_default_events_callbacks(ezgl_app);
 
@@ -141,7 +144,6 @@ void application::activate()
 
   if(ezgl_app->initial_setup_callback != nullptr)
     ezgl_app->initial_setup_callback(ezgl_app, true);
-#endif // HIDE_GTK_EVENT
 
   g_info("application::activate successful.");
 }
@@ -303,11 +305,6 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     mouse_callback_fn mouse_move_user_callback,
     key_callback_fn key_press_user_callback)
 {
-#ifdef EZGL_QT
-  startup();
-  activate();
-#endif
-
   if(disable_event_loop)
     return 0;
 
@@ -315,6 +312,11 @@ int application::run(setup_callback_fn initial_setup_user_callback,
   mouse_press_callback = mouse_press_user_callback;
   mouse_move_callback = mouse_move_user_callback;
   key_press_callback = key_press_user_callback;
+
+#ifdef EZGL_QT
+  startup();
+  activate();
+#endif
 
   if(first_run) {
     // set the first_run flag to false
@@ -430,7 +432,56 @@ void application::register_default_events_callbacks(ezgl::application *applicati
 
 void application::register_default_buttons_callbacks(ezgl::application *application)
 {
-#ifndef HIDE_GTK_EVENT
+#ifdef EZGL_QT
+  // Connect press_zoom_fit function to the Zoom-fit button
+  QPushButton* zoom_fit_button = application->get_push_button("ZoomFitButton");
+  QObject::connect(zoom_fit_button, &QPushButton::clicked, [application](){
+    press_zoom_fit(/*unused*/nullptr, application);
+  });
+
+  // Connect press_zoom_in function to the Zoom-in button
+  QPushButton* zoom_in_button = application->get_push_button("ZoomInButton");
+  QObject::connect(zoom_in_button, &QPushButton::clicked, [application](){
+    press_zoom_in(/*unused*/nullptr, application);
+  });
+
+  // Connect press_zoom_out function to the Zoom-out button
+  QPushButton* zoom_out_button = application->get_push_button("ZoomOutButton");
+  QObject::connect(zoom_out_button, &QPushButton::clicked, [application](){
+    press_zoom_out(/*unused*/nullptr, application);
+  });
+
+  // Connect press_up function to the Up button
+  QPushButton* shift_up_button = application->get_push_button("UpButton");
+  QObject::connect(shift_up_button, &QPushButton::clicked, [application](){
+    press_up(/*unused*/nullptr, application);
+  });
+
+  // Connect press_down function to the Down button
+  QPushButton* shift_down_button = application->get_push_button("DownButton");
+  QObject::connect(shift_down_button, &QPushButton::clicked, [application](){
+    press_down(/*unused*/nullptr, application);
+  });
+
+  // Connect press_left function to the Left button
+  QPushButton* shift_left_button = application->get_push_button("LeftButton");
+  QObject::connect(shift_left_button, &QPushButton::clicked, [application](){
+    press_left(/*unused*/nullptr, application);
+  });
+
+  // Connect press_right function to the Right button
+  QPushButton* shift_right_button = application->get_push_button("RightButton");
+  QObject::connect(shift_right_button, &QPushButton::clicked, [application](){
+    press_right(/*unused*/nullptr, application);
+  });
+
+  // Connect press_proceed function to the Proceed button
+  QPushButton* proceed_button = application->get_push_button("ProceedButton");
+  QObject::connect(proceed_button, &QPushButton::clicked, [application](){
+    press_proceed(/*unused*/nullptr, application);
+  });
+
+#else // EZGL_QT
   // Connect press_zoom_fit function to the Zoom-fit button
   GObject *zoom_fit_button = application->get_object("ZoomFitButton");
   g_signal_connect(zoom_fit_button, "clicked", G_CALLBACK(press_zoom_fit), application);
@@ -462,7 +513,7 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   // Connect press_proceed function to the Proceed button
   GObject *proceed_button = application->get_object("ProceedButton");
   g_signal_connect(proceed_button, "clicked", G_CALLBACK(press_proceed), application);
-#endif // HIDE_GTK_EVENT
+#endif // EZGL_QT
 }
 
 void application::update_message(std::string const &message)
