@@ -1057,7 +1057,28 @@ GtkWidget* application::find_widget(const char* widget_name){
 bool application::destroy_button(const char *button_text_to_destroy)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QGridLayout* in_grid = inner_grid_layout(this);
+  if (in_grid == nullptr) {
+    return false;
+  }
+
+  QString text_to_del = QString::fromUtf8(button_text_to_destroy ? button_text_to_destroy : "");
+  for (int i = 0; i < in_grid->count(); ++i) {
+    QWidget* widget = in_grid->itemAt(i)->widget();
+    QPushButton* button = qobject_cast<QPushButton*>(widget);
+    if (button == nullptr) {
+      continue;
+    }
+    if (button->text() != text_to_del) {
+      continue;
+    }
+
+    in_grid->removeWidget(button);
+    button->deleteLater();
+    return true;
+  }
+
+  return false;
 #else
   // get the inner grid
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
