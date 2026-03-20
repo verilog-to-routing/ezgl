@@ -182,9 +182,6 @@ void draw_main_canvas(ezgl::renderer *g)
  */
 void initial_setup(ezgl::application *application, bool /*new_window*/)
 {
-#ifdef EZGL_QT
-  TODO;
-#else
   // Update the status bar message
   application->update_message("EZGL Application");
 
@@ -204,7 +201,7 @@ void initial_setup(ezgl::application *application, bool /*new_window*/)
 
   //Creating example combo box with options Yes, No, Maybe, connected to combo_box_cbk
   application->create_combo_box_text(
-    "TestComboBox", 
+    "TestComboBox",
     row++,
     combo_box_cbk,
     {"YES", "NO", "MAYBE"}
@@ -215,7 +212,6 @@ void initial_setup(ezgl::application *application, bool /*new_window*/)
   application->create_button("Create Dialog", row++, create_dialog_button_cbk);
 
   application->create_button("Create Popup Mssg", row++, create_mssg_button_cbk);
-#endif
 }
 
 /**

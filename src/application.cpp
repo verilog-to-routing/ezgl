@@ -737,7 +737,13 @@ void application::create_combo_box_text(
   std::vector<std::string> options)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QGridLayout* in_grid = inner_grid_layout(this);
+  if (in_grid == nullptr) {
+    return;
+  }
+
+  insert_grid_row(in_grid, insert_row);
+  create_combo_box_text(name, 0, insert_row, 3, 1, callback, options);
 #else // EZGL_QT
   // get the internal Gtk grid
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
@@ -760,7 +766,35 @@ void application::create_combo_box_text(
   std::vector<std::string> options)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QGridLayout* in_grid = inner_grid_layout(this);
+  if (in_grid == nullptr) {
+    return;
+  }
+
+  QString combo_name = QString::fromUtf8(name ? name : "");
+  QComboBox* new_combo_box = new QComboBox;
+  new_combo_box->setObjectName(combo_name);
+  new_combo_box->setFocusPolicy(Qt::NoFocus);
+
+  for (auto const& option : options) {
+    new_combo_box->addItem(QString::fromStdString(option));
+  }
+
+  if (combo_box_fn != nullptr) {
+    QObject::connect(new_combo_box,
+        static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+        new_combo_box,
+        [this, new_combo_box, combo_box_fn](int) {
+          combo_box_fn(new_combo_box, this);
+        });
+  }
+
+  if (!options.empty()) {
+    new_combo_box->setCurrentIndex(0);
+  }
+
+  in_grid->addWidget(new_combo_box, top, left, height, width);
+  new_combo_box->show();
 #else // EZGL_QT
     // get the internal Gtk grid
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
