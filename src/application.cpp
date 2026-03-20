@@ -25,6 +25,8 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QVBoxLayout>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include "ezgl/qt/qtgladeloader.hpp"
 #else // EZGL_QT
 // GLib deprecated G_APPLICATION_FLAGS_NONE and replaced it with G_APPLICATION_DEFAULT_FLAGS,
@@ -107,8 +109,6 @@ void application::startup(GtkApplication *gtk_app, gpointer user_data)
   auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);
 
-  qInfo() << "resolve macro ASSERT_TODO";
-  qInfo() << "resolve macro TODO";
 #ifndef HIDE_GTK_BUILDER
   char const *main_ui_resource = ezgl_app->m_main_ui.c_str();
   if (!build_ui_from_file) {
@@ -878,7 +878,31 @@ void application::create_dialog_window(
   const char *window_text)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QDialog* dialog = new QDialog(m_window);
+  dialog->setWindowTitle(dialog_title);
+  dialog->setModal(true);
+
+  QVBoxLayout* layout = new QVBoxLayout(dialog);
+
+  QLabel* label = new QLabel(window_text, dialog);
+  layout->addWidget(label);
+
+  QDialogButtonBox* buttonBox =
+      new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dialog);
+  layout->addWidget(buttonBox);
+
+  QObject::connect(buttonBox, &QDialogButtonBox::accepted,
+      dialog, &QDialog::accept);
+  QObject::connect(buttonBox, &QDialogButtonBox::rejected,
+      dialog, &QDialog::reject);
+
+  QObject::connect(dialog, &QDialog::finished, dialog,
+      [this, dialog, cbk_fn](int result) {
+        cbk_fn(dialog, result, this);
+        dialog->deleteLater();
+      });
+
+  dialog->exec();
 #else // EZGL_QT
   //getting window ptr
   GtkWindow* window = GTK_WINDOW(get_object(m_window_id.c_str()));
