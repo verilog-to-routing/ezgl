@@ -10,7 +10,57 @@
 #include <QToolButton>
 #include <QStatusBar>
 #include <QSizePolicy>
+#include <QStyle>
 #include <QDebug>
+
+namespace {
+
+QString propertyText(const QDomElement& objEl, const char* propName)
+{
+  for (QDomElement p = objEl.firstChildElement("property"); !p.isNull(); p = p.nextSiblingElement("property")) {
+    if (p.attribute("name") == propName) {
+      return p.text();
+    }
+  }
+  return {};
+}
+
+Qt::ArrowType parseGtkArrowType(const QDomElement& objEl)
+{
+  const QString arrowType = propertyText(objEl, "arrow-type").trimmed().toLower();
+  if (arrowType == "up") {
+    return Qt::UpArrow;
+  }
+  if (arrowType == "down") {
+    return Qt::DownArrow;
+  }
+  if (arrowType == "left") {
+    return Qt::LeftArrow;
+  }
+  if (arrowType.isEmpty() || arrowType == "right") {
+    return Qt::RightArrow;
+  }
+
+  qWarning() << "unsupported GtkArrow type" << arrowType << "- default to right arrow";
+  return Qt::RightArrow;
+}
+
+QStyle::StandardPixmap standardPixmapForArrow(Qt::ArrowType arrowType)
+{
+  switch (arrowType) {
+    case Qt::UpArrow:
+      return QStyle::SP_ArrowUp;
+    case Qt::DownArrow:
+      return QStyle::SP_ArrowDown;
+    case Qt::LeftArrow:
+      return QStyle::SP_ArrowLeft;
+    case Qt::RightArrow:
+    default:
+      return QStyle::SP_ArrowRight;
+  }
+}
+
+} // namespace
 
 QMainWindow* QtGladeLoader::loadFile(const QString& uiGladePath)
 {
@@ -168,6 +218,13 @@ QWidget* QtGladeLoader::buildGtkButton(const QDomElement& objEl)
     b->setText(label);
   }
 
+  const QDomElement childObj = firstChildObject(objEl.firstChildElement("child"));
+  if (!childObj.isNull() && getClass(childObj) == "GtkArrow") {
+    const Qt::ArrowType arrowType = parseGtkArrowType(childObj);
+    b->setText(QString());
+    b->setIcon(b->style()->standardIcon(standardPixmapForArrow(arrowType)));
+  }
+
   return b;
 }
 
@@ -179,11 +236,7 @@ QWidget* QtGladeLoader::buildGtkArrow(const QDomElement& objEl)
 
   applyCommonProperties(t, objEl);
 
-  const QString arrowType = propertyText(objEl, "arrow-type");
-  if (arrowType == "up")    t->setArrowType(Qt::UpArrow);
-  if (arrowType == "down")  t->setArrowType(Qt::DownArrow);
-  if (arrowType == "left")  t->setArrowType(Qt::LeftArrow);
-  if (arrowType == "right") t->setArrowType(Qt::RightArrow);
+  t->setArrowType(parseGtkArrowType(objEl));
 
   return t;
 }
