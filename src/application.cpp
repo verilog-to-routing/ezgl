@@ -1125,7 +1125,26 @@ bool application::destroy_button(const char *button_text_to_destroy)
 void application::change_button_text(const char *button_text, const char *new_button_text)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QGridLayout* in_grid = inner_grid_layout(this);
+  if (in_grid == nullptr) {
+    return;
+  }
+
+  const QString text = QString::fromUtf8(button_text ? button_text : "");
+  const QString new_text = QString::fromUtf8(new_button_text ? new_button_text : "");
+
+  const QString current_text = QString::fromUtf8(button_text);
+  for (int i = 0; i < in_grid->count(); ++i) {
+    QWidget* widget = in_grid->itemAt(i)->widget();
+    QPushButton* button = qobject_cast<QPushButton*>(widget);
+    if (button == nullptr) {
+      continue;
+    }
+    if (button->text() == text) {
+      button->setText(new_text);
+      break;
+    }
+  }
 #else
   // get the inner grid
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
