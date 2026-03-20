@@ -947,7 +947,34 @@ void application::create_popup_message(const char* title, const char *message)
 
 void application::create_popup_message_with_callback(dialog_callback_fn cbk_fn, const char* title, const char *message){
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QDialog* popup_msg = new QDialog(m_window);
+  popup_msg->setWindowTitle(title);
+  popup_msg->setModal(true);
+
+  QVBoxLayout* layout = new QVBoxLayout(popup_msg);
+
+  QLabel* label = new QLabel(message, popup_msg);
+  layout->addWidget(label);
+
+  QDialogButtonBox* buttonBox =
+      new QDialogButtonBox(QDialogButtonBox::Ok, popup_msg);
+
+  // change default text
+  QPushButton* okButton = buttonBox->button(QDialogButtonBox::Ok);
+  okButton->setText("DONE");
+
+  layout->addWidget(buttonBox);
+
+  QObject::connect(buttonBox, &QDialogButtonBox::accepted,
+      popup_msg, &QDialog::accept);
+
+  QObject::connect(popup_msg, &QDialog::finished, popup_msg,
+      [this, popup_msg, cbk_fn](int result) {
+        cbk_fn(popup_msg, result, this);
+        popup_msg->deleteLater();
+      });
+
+  popup_msg->exec();
 #else // EZGL_QT
   //getting window ptr
   GtkWindow* window = GTK_WINDOW(get_object(m_window_id.c_str()));
