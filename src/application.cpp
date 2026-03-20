@@ -331,11 +331,11 @@ canvas *application::add_canvas(std::string const &canvas_id,
   return it.first->second.get();
 }
 
+// TODO: rename method to find_object?
 GObject *application::get_object(gchar const *name) const
 {
   // Getting an object from the GTK builder does not increase its reference count.
 #ifdef EZGL_QT
-  // TODO: rename method to find_object?
   QObject* object = nullptr;
   for (QWidget* w: QApplication::allWidgets()) {
     qDebug() <<"~~~ iterate over" << w->objectName();
@@ -734,7 +734,7 @@ void application::create_combo_box_text(
   const char* name, 
   int insert_row, 
   combo_box_callback_fn callback,
-  std::vector<std::string> options)
+  const std::vector<std::string>& options)
 {
 #ifdef EZGL_QT
   QGridLayout* in_grid = inner_grid_layout(this);
@@ -763,7 +763,7 @@ void application::create_combo_box_text(
   int width,
   int height,
   combo_box_callback_fn combo_box_fn, 
-  std::vector<std::string> options)
+  const std::vector<std::string>& options)
 {
 #ifdef EZGL_QT
   QGridLayout* in_grid = inner_grid_layout(this);
@@ -789,7 +789,7 @@ void application::create_combo_box_text(
         });
   }
 
-  if (!options.empty()) {
+  if (new_combo_box->count() > 0) {
     new_combo_box->setCurrentIndex(0);
   }
 
@@ -830,9 +830,20 @@ void application::create_combo_box_text(
 #endif // EZGL_QT
 }
 
-void application::change_combo_box_text_options(const char* name, std::vector<std::string> new_options){
+void application::change_combo_box_text_options(const char* name, const std::vector<std::string>& new_options){
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QComboBox* combo_box = qobject_cast<QComboBox*>(find_widget(name));
+  if (combo_box == nullptr) {
+    return;
+  }
+
+  combo_box->clear();
+  for (const std::string& new_option: new_options) {
+    combo_box->addItem(QString::fromStdString(new_option));
+  }
+  if (combo_box->count() > 0) {
+    combo_box->setCurrentIndex(0);
+  }
 #else // EZGL_QT
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
   // the text to delete, in c++ string form
@@ -1111,6 +1122,7 @@ void application::flush_drawing()
   gtk_widget_queue_draw(drawing_area);
 
 #ifdef EZGL_QT
+  qInfo() << "TODO: gtk_events_pending...";
 #else
   // run the main loop on pending events
   while(gtk_events_pending())

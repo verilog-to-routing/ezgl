@@ -324,9 +324,9 @@ public:
    */
   void create_combo_box_text(
     const char* id_string,
-    int insert_row, 
-    combo_box_callback_fn combo_box_fn, 
-    std::vector<std::string> options);
+    int insert_row,
+    combo_box_callback_fn combo_box_fn,
+    const std::vector<std::string>& options);
 
   /**
    * @brief Create a combo box text object
@@ -355,7 +355,7 @@ public:
     int width,
     int height,
     combo_box_callback_fn combo_box_fn, 
-    std::vector<std::string> options);
+    const std::vector<std::string>& options);
 
   /**
    * @brief changes list of options to new given vector. Erases all old options. 
@@ -366,7 +366,7 @@ public:
    * @param id_string identifying string of GtkComboBoxText, given in creation
    * @param new_options new string vector of options
    */
-  void change_combo_box_text_options(const char* name, std::vector<std::string> new_options);
+  void change_combo_box_text_options(const char* name, const std::vector<std::string>& new_options);
 
   /**
    * @brief Creates a simple dialog window with "OK" and "CANCEL" buttons. 
