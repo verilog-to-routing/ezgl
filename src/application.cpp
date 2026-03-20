@@ -22,6 +22,8 @@
 #ifdef EZGL_QT
 #include <QObject>
 #include <QApplication>
+#include <QGridLayout>
+#include <QLabel>
 #include <QVBoxLayout>
 #include "ezgl/qt/qtgladeloader.hpp"
 #else // EZGL_QT
@@ -43,11 +45,70 @@ namespace ezgl {
 bool disable_event_loop = false;
 
 #ifdef EZGL_QT
+namespace {
+
+QGridLayout* inner_grid_layout(application const* app)
+{
+  QWidget* inner_grid = app->get_widget("InnerGrid");
+  g_return_val_if_fail(inner_grid != nullptr, nullptr);
+
+  QGridLayout* layout = qobject_cast<QGridLayout*>(inner_grid->layout());
+  g_return_val_if_fail(layout != nullptr, nullptr);
+  return layout;
+}
+
+void insert_grid_row(QGridLayout* layout, int insert_row)
+{
+  g_return_if_fail(layout != nullptr);
+
+  struct Placement {
+    QWidget* widget;
+    int row;
+    int column;
+    int row_span;
+    int column_span;
+    Qt::Alignment alignment;
+  };
+
+  std::vector<Placement> moved_widgets;
+  for (int i = 0; i < layout->count(); ++i) {
+    int row = 0;
+    int column = 0;
+    int row_span = 0;
+    int column_span = 0;
+    layout->getItemPosition(i, &row, &column, &row_span, &column_span);
+
+    QWidget* widget = layout->itemAt(i)->widget();
+    if (widget == nullptr || row < insert_row) {
+      continue;
+    }
+
+    moved_widgets.push_back({widget, row, column, row_span, column_span, layout->itemAt(i)->alignment()});
+  }
+
+  for (const Placement& placement : moved_widgets) {
+    layout->removeWidget(placement.widget);
+  }
+
+  for (const Placement& placement : moved_widgets) {
+    layout->addWidget(placement.widget,
+        placement.row + 1,
+        placement.column,
+        placement.row_span,
+        placement.column_span,
+        placement.alignment);
+  }
+}
+
+} // namespace
+
 void application::startup(GtkApplication *gtk_app, gpointer user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);
 
+  qInfo() << "resolve macro ASSERT_TODO";
+  qInfo() << "resolve macro TODO";
 #ifndef HIDE_GTK_BUILDER
   char const *main_ui_resource = ezgl_app->m_main_ui.c_str();
   if (!build_ui_from_file) {
@@ -543,7 +604,26 @@ void application::create_button(const char *button_text,
     button_callback_fn button_func)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QGridLayout* in_grid = inner_grid_layout(this);
+  if (in_grid == nullptr) {
+    return;
+  }
+
+  QString text = QString::fromUtf8(button_text ? button_text : "");
+  QPushButton* new_button = new QPushButton(text);
+  new_button->setObjectName(text);
+  new_button->setFocusPolicy(Qt::NoFocus);
+  new_button->setAutoDefault(false);
+  new_button->setDefault(false);
+
+  if (button_func != nullptr) {
+    QObject::connect(new_button, &QPushButton::clicked, new_button, [this, new_button, button_func]() {
+      button_func(new_button, this);
+    });
+  }
+
+  in_grid->addWidget(new_button, top, left, height, width);
+  new_button->show();
 #else // EZGL_QT
   // get the internal Gtk grid
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
@@ -577,7 +657,13 @@ void application::create_button(const char *button_text,
     button_callback_fn button_func)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QGridLayout* in_grid = inner_grid_layout(this);
+  if (in_grid == nullptr) {
+    return;
+  }
+
+  insert_grid_row(in_grid, insert_row);
+  create_button(button_text, 0, insert_row, 3, 1, button_func);
 #else // EZGL_QT
   // get the internal Gtk grid
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
@@ -592,7 +678,13 @@ void application::create_button(const char *button_text,
 
 void application::create_label(int insert_row, const char *label_text){
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QGridLayout* in_grid = inner_grid_layout(this);
+  if (in_grid == nullptr) {
+    return;
+  }
+
+  insert_grid_row(in_grid, insert_row);
+  create_label(0, insert_row, 3, 1, label_text);
 #else // EZGL_QT
   //Getting grid
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
@@ -613,7 +705,16 @@ void application::create_label(
   const char *label_text)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  QGridLayout* in_grid = inner_grid_layout(this);
+  if (in_grid == nullptr) {
+    return;
+  }
+
+  QString text = QString::fromUtf8(label_text ? label_text : "");
+  QLabel* new_label = new QLabel(text);
+  new_label->setObjectName(text);
+  in_grid->addWidget(new_label, top, left, height, width);
+  new_label->show();
 #else // EZGL_QT
   //Getting grid
   GtkGrid *in_grid = (GtkGrid *)get_object("InnerGrid");
