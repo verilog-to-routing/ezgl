@@ -485,6 +485,7 @@ public:
    *
    * @return a pointer to the created surface. This should later be freed using free_surface()
    */
+  [[deprecated]]
   static surface *load_png(const char *file_path);
 
   /**

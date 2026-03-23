@@ -60,6 +60,8 @@ private:
 // tmp solution to track lifetime
 class Image : public QImage {
 public:
+  Image(): QImage() {
+  }
   Image(const QString& str): QImage(str) {
     qInfo() << "Image()";
   }

@@ -21,6 +21,7 @@
 #include <cassert>
 
 #ifdef EZGL_QT
+#include <QFile>
 #include "ezgl/qt/_qtcompat.hpp"
 #else // EZGL_QT
 #include <glib.h>
@@ -1018,8 +1019,17 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
 surface *renderer::load_png(const char *file_path)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
-  return nullptr;
+  Image* image = new Image;
+
+  if (!QFile::exists(QString::fromLatin1(file_path))) {
+    g_warning("renderer::load_png: File %s not found.", file_path);
+  }
+
+  if (!image->load(QString::fromLatin1(file_path))) {
+    g_warning("renderer::load_png: Error loading file %s.", file_path);
+  }
+
+  return image;
 #else // EZGL_QT
   // Create an image surface from a PNG image
   cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
