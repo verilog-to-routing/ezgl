@@ -940,7 +940,10 @@ void renderer::draw_arc_path(point2d center,
 void renderer::draw_surface(surface *p_surface, point2d point, double scale_factor)
 {
 #ifdef EZGL_QT
-  ASSERT_TODO;
+  if (p_surface->isNull()) {
+    g_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", (void*) p_surface);
+    return;
+  }
 #else
   // Check if the surface is properly created
   if(cairo_surface_status(p_surface) != CAIRO_STATUS_SUCCESS) {
