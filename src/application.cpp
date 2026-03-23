@@ -1213,7 +1213,7 @@ void application::flush_drawing()
   gtk_widget_queue_draw(drawing_area);
 
 #ifdef EZGL_QT
-  qInfo() << "TODO: gtk_events_pending...";
+  QCoreApplication::processEvents();
 #else
   // run the main loop on pending events
   while(gtk_events_pending())
