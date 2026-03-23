@@ -331,7 +331,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
   return it.first->second.get();
 }
 
-// TODO: rename method to find_object?
+// FINAL_TODO: rename method to find_object?
 GObject *application::get_object(gchar const *name) const
 {
   // Getting an object from the GTK builder does not increase its reference count.
