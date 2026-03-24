@@ -407,6 +407,15 @@ using GtkToggleButton = QRadioButton;
 
 void gtk_widget_show_all(QWidget*);
 bool gtk_toggle_button_get_active(GtkToggleButton*);
+
+#ifndef GTK_CHECK_VERSION
+#define GTK_CHECK_VERSION(x,y,z) 1
+#endif
+
+void gtk_widget_set_margin_start(QWidget*, int);
+void gtk_widget_set_margin_end(QWidget*, int);
+void gtk_widget_set_margin_top(QWidget*, int);
+void gtk_widget_set_margin_bottom(QWidget*, int);
 // for VPR
 
 #endif // EZGL_QT

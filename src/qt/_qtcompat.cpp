@@ -525,6 +525,50 @@ bool gtk_toggle_button_get_active(GtkToggleButton* button)
   return button->isChecked();
 }
 
+void gtk_widget_set_margin_start(QWidget* w, int m)
+{
+  if (!w) {
+    return;
+  }
+
+  QMargins margins = w->contentsMargins();
+  margins.setLeft(m);
+  w->setContentsMargins(margins);
+}
+
+void gtk_widget_set_margin_end(QWidget* w, int m)
+{
+  if (!w) {
+    return;
+  }
+
+  QMargins margins = w->contentsMargins();
+  margins.setRight(m);
+  w->setContentsMargins(margins);
+}
+
+void gtk_widget_set_margin_top(QWidget* w, int m)
+{
+  if (!w) {
+    return;
+  }
+
+  QMargins margins = w->contentsMargins();
+  margins.setTop(m);
+  w->setContentsMargins(margins);
+}
+
+void gtk_widget_set_margin_bottom(QWidget* w, int m)
+{
+  if (!w) {
+    return;
+  }
+
+  QMargins margins = w->contentsMargins();
+  margins.setBottom(m);
+  w->setContentsMargins(margins);
+}
+
 // for VPR
 
 #endif // EZGL_QT

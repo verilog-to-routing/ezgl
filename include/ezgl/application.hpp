@@ -550,6 +550,7 @@ public:
 #ifdef EZGL_QT
   QWidget* get_widget(gchar const *name) const { return qobject_cast<QWidget*>(get_object(name)); }
   QPushButton* get_push_button(gchar const *name) const { return qobject_cast<QPushButton*>(get_object(name)); }
+  QAbstractButton* get_abstract_button(gchar const *name) const { return qobject_cast<QAbstractButton*>(get_object(name)); }
 #endif // EZGL_QT
 
   /**
