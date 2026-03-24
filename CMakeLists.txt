@@ -85,7 +85,7 @@ if(USE_QT)
         Qt6::Widgets
         Qt6::Xml)
 
-    # EZGL_QT_TODO, ASSERT_EZGL_QT_TODO
+    # QT_MIGRATION_TODO, ASSERT_QT_MIGRATION_TODO
     target_compile_definitions(
         ${PROJECT_NAME}
         PUBLIC

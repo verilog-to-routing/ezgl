@@ -94,7 +94,7 @@ static cairo_t *create_context(cairo_surface_t *p_surface)
 bool canvas::print_pdf(const char *file_name, int output_width, int output_height)
 {
 #ifdef EZGL_QT
-  ASSERT_EZGL_QT_TODO;
+  ASSERT_QT_MIGRATION_TODO;
   return false;
 #else // EZGL_QT
   cairo_surface_t *pdf_surface;
@@ -138,7 +138,7 @@ bool canvas::print_pdf(const char *file_name, int output_width, int output_heigh
 bool canvas::print_svg(const char *file_name, int output_width, int output_height)
 {
 #ifdef EZGL_QT
-  ASSERT_EZGL_QT_TODO;
+  ASSERT_QT_MIGRATION_TODO;
   return false;
 #else // EZGL_QT
   cairo_surface_t *svg_surface;
@@ -182,7 +182,7 @@ bool canvas::print_svg(const char *file_name, int output_width, int output_heigh
 bool canvas::print_png(const char *file_name, int output_width, int output_height)
 {
 #ifdef EZGL_QT
-  ASSERT_EZGL_QT_TODO;
+  ASSERT_QT_MIGRATION_TODO;
   return false;
 #else // EZGL_QT
   cairo_surface_t *png_surface;

@@ -387,14 +387,14 @@ constexpr const char* __filename_helper(const char* path)
 #define g_debug(fmt, ...) \
   log_message("DEBUG", __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
 
-#define EZGL_QT_TODO \
-  std::cerr << "EZGL_QT_TODO!!!:" \
+#define QT_MIGRATION_TODO \
+  std::cerr << "QT_MIGRATION_TODO!!!:" \
             << __FILENAME__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ \
             << std::endl; \
                                         \
 
-#define ASSERT_EZGL_QT_TODO \
-std::cerr << "ASSERT_EZGL_QT_TODO:" \
+#define ASSERT_QT_MIGRATION_TODO \
+std::cerr << "ASSERT_QT_MIGRATION_TODO:" \
           << __FILENAME__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ \
           << std::endl; \
     assert(false); \
