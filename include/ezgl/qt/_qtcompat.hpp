@@ -404,6 +404,7 @@ std::cerr << "ASSERT_QT_MIGRATION_TODO:" \
 // for VPR
 #include <QRadioButton>
 using GtkToggleButton = QRadioButton;
+using GtkWindow = QWidget;
 
 void gtk_widget_show_all(QWidget*);
 bool gtk_toggle_button_get_active(GtkToggleButton*);
@@ -416,6 +417,8 @@ void gtk_widget_set_margin_start(QWidget*, int);
 void gtk_widget_set_margin_end(QWidget*, int);
 void gtk_widget_set_margin_top(QWidget*, int);
 void gtk_widget_set_margin_bottom(QWidget*, int);
+
+void gtk_window_close(QWidget*);
 // for VPR
 
 #endif // EZGL_QT

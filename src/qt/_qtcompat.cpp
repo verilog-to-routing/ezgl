@@ -569,6 +569,14 @@ void gtk_widget_set_margin_bottom(QWidget* w, int m)
   w->setContentsMargins(margins);
 }
 
+void gtk_window_close(QWidget* w)
+{
+  if (!w) {
+    return; 
+  }
+  w->close();
+}
+
 // for VPR
 
 #endif // EZGL_QT
