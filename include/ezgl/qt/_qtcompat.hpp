@@ -124,6 +124,7 @@ using GObject = QObject;
 using GtkWidget = QWidget;
 using GtkButton = QPushButton;
 using GtkComboBoxText = QComboBox;
+using GtkComboBox = QComboBox;
 using GtkDialog = QDialog;
 using GtkApplication = Application;
 using GdkWindow = QWindow;
@@ -398,6 +399,15 @@ std::cerr << "ASSERT_QT_MIGRATION_TODO:" \
           << __FILENAME__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ \
           << std::endl; \
     assert(false); \
+
+
+// for VPR
+#include <QRadioButton>
+using GtkToggleButton = QRadioButton;
+
+void gtk_widget_show_all(QWidget*);
+bool gtk_toggle_button_get_active(GtkToggleButton*);
+// for VPR
 
 #endif // EZGL_QT
 #endif // EZGL_GTKCOMPAT_HPP

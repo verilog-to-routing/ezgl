@@ -508,4 +508,23 @@ void log_message(const char* level,
   std::fputc('\n', stderr);
 }
 
+// for VPR
+void gtk_widget_show_all(QWidget* w)
+{
+    w->show();
+    for (auto child : w->findChildren<QWidget*>()) {
+      child->show();
+    }
+}
+
+bool gtk_toggle_button_get_active(GtkToggleButton* button) 
+{
+  if (!button) {
+    return false;
+  }
+  return button->isChecked();
+}
+
+// for VPR
+
 #endif // EZGL_QT
