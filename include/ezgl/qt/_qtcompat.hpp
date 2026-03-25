@@ -488,14 +488,31 @@ void gtk_widget_set_sensitive(QWidget* w, bool flag)
   w->setEnabled(flag);
 }
 
-const gchar* gtk_button_get_label(QAbstractButton* button)
+const gchar* gtk_button_get_label(QPushButton* button)
 {
   return button->text().toStdString().c_str();
+}
+
+QPushButton* gtk_button_new_with_label(const char* text)
+{
+  QPushButton* button = new QPushButton(text);
+  return button;
 }
 
 const gchar* gtk_widget_get_name(QWidget* w)
 {
   return w->objectName().toStdString().c_str();
+}
+
+void gtk_window_set_title(QWidget* w, const char* title)
+{
+  w->setWindowTitle(title);
+}
+
+#define GTK_WINDOW_TOPLEVEL 0
+QWidget* gtk_window_new(int)
+{
+  return new QWidget;
 }
 
 #define GTK_SPIN_BUTTON(w) qobject_cast<QSpinBox*>(w)
@@ -539,6 +556,11 @@ void gtk_container_add(QWidget* container, QWidget* w)
   container->layout()->addWidget(w);
 }
 
+QGridLayout* gtk_grid_new()
+{
+  return new QGridLayout;
+}
+
 int gtk_dialog_run(QDialog* dialog)
 {
   return dialog->exec();
@@ -548,6 +570,61 @@ int gtk_spin_button_get_value_as_int(QSpinBox* spinBox)
 {
   return spinBox->value();
 }
+
+#define GTK_DIALOG_MODAL 0x1
+#include <QDialogButtonBox>
+struct GtkDialogButton {
+    const char* text;
+    int response;
+};
+GtkWidget* gtk_dialog_new_with_buttons(
+    const char* title,
+    QWidget* parent,
+    int flags,
+    const GtkDialogButton* buttons,
+    int button_count
+)
+{
+    QDialog* dialog = new QDialog(parent);
+    dialog->setWindowTitle(title);
+
+    if (flags & GTK_DIALOG_MODAL) {
+      dialog->setModal(true);
+    }
+
+    auto* layout = new QVBoxLayout(dialog);
+    auto* buttonBox = new QDialogButtonBox(dialog);
+
+    for (int i = 0; i < button_count; ++i) {
+        const auto& b = buttons[i];
+
+        QPushButton* btn =
+            buttonBox->addButton(b.text, QDialogButtonBox::ActionRole);
+
+        QObject::connect(btn, &QPushButton::clicked, dialog, [dialog, b]() {
+            dialog->done(b.response);
+        });
+    }
+
+    layout->addWidget(buttonBox);
+
+    return dialog;
+}
+
+QWidget* gtk_dialog_get_content_area(QWidget* dialog)
+{
+  if (!dialog) return nullptr;
+
+  if (!dialog->layout()) {
+    auto* layout = new QVBoxLayout(dialog);
+    layout->setContentsMargins(0,0,0,0);
+    layout->setSpacing(0);
+  }
+
+  return dialog;
+}
+
+#define g_list_free(x) ((void)0)
 
 // for VPR
 
