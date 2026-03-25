@@ -403,8 +403,17 @@ std::cerr << "ASSERT_QT_MIGRATION_TODO:" \
 
 // for VPR
 #include <QRadioButton>
+#include <QSpinBox>
+#include <QCheckBox>
+#include <QLabel>
+#include <QLineEdit>
+
 using GtkToggleButton = QRadioButton;
+using GtkSpinButton = QSpinBox;
+using GtkSwitch = QCheckBox;
 using GtkWindow = QWidget;
+using GtkEntry = QLineEdit;
+using GtkLabel = QLabel;
 
 void gtk_widget_show_all(QWidget*);
 bool gtk_toggle_button_get_active(GtkToggleButton*);
@@ -419,6 +428,80 @@ void gtk_widget_set_margin_top(QWidget*, int);
 void gtk_widget_set_margin_bottom(QWidget*, int);
 
 void gtk_window_close(QWidget*);
+int gtk_spin_button_get_value(QSpinBox* spinBox)
+{
+  return spinBox->value();
+}
+
+void gtk_combo_box_text_append_text(QComboBox* combo, const QString& item)
+{
+  combo->addItem(item);
+}
+
+void gtk_combo_box_text_remove(QComboBox* combo, int index)
+{
+  combo->removeItem(index);
+}
+
+QComboBox* gtk_combo_box_text_new()
+{
+  return new QComboBox;
+}
+
+QLabel* gtk_label_new(const QString& text) 
+{
+  return new QLabel(text);
+}
+
+void gtk_label_set_markup(QLabel* label, const QString& text)
+{
+  label->setTextFormat(Qt::RichText);
+  label->setText(text);
+}
+
+void gtk_entry_set_text(QLineEdit* lineEdit, const QString& text)
+{
+  lineEdit->setText(text);
+}
+
+QLineEdit* gtk_entry_new()
+{
+  return new QLineEdit;
+}
+
+
+const gchar* gtk_entry_get_text(QLineEdit* lineEdit)
+{
+  return lineEdit->text().toStdString().c_str();
+}
+
+void gtk_widget_set_name(QWidget* w, const QString& name) 
+{
+  w->setObjectName(name);
+}
+
+void gtk_widget_set_sensitive(QWidget* w, bool flag)
+{
+  w->setEnabled(flag);
+}
+
+const gchar* gtk_button_get_label(QAbstractButton* button)
+{
+  return button->text().toStdString().c_str();
+}
+
+const gchar* gtk_widget_get_name(QWidget* w)
+{
+  return w->objectName().toStdString().c_str();
+}
+
+#define GTK_SPIN_BUTTON(w) qobject_cast<QSpinBox*>(w)
+#define GTK_BUTTON(w) qobject_cast<QAbstractButton*>(w)
+#define GTK_TOGGLE_BUTTON(w) qobject_cast<QRadioButton*>(w)
+#define GTK_COMBO_BOX_TEXT(w) qobject_cast<QComboBox*>(w)
+#define GTK_IS_CHECK_BUTTON(w) (qobject_cast<QCheckBox*>(w) != nullptr)
+#define GTK_DIALOG(w) qobject_cast<QDialog*>(w)
+#define GTK_ENTRY(w) qobject_cast<QLineEdit*>(w)
 // for VPR
 
 #endif // EZGL_QT
