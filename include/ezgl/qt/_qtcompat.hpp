@@ -624,6 +624,21 @@ QWidget* gtk_dialog_get_content_area(QWidget* dialog)
   return dialog;
 }
 
+#define GTK_WIN_POS_CENTER 0
+void gtk_window_set_position(QWidget* w, int key) 
+{
+  if (key == GTK_WIN_POS_CENTER) {
+    QRect screenGeometry = w->screen()->availableGeometry();
+
+    int x = (screenGeometry.width() - w->width()) / 2;
+    int y = (screenGeometry.height() - w->height()) / 2;
+
+    w->move(x, y);
+  } else {
+    ASSERT_QT_MIGRATION_TODO;
+  }
+}
+
 #define g_list_free(x) ((void)0)
 
 // for VPR
