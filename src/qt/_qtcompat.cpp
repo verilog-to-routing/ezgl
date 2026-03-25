@@ -525,6 +525,14 @@ bool gtk_toggle_button_get_active(GtkToggleButton* button)
   return button->isChecked();
 }
 
+void gtk_toggle_button_set_active(GtkToggleButton* button, bool flag) 
+{
+  if (!button) {
+    return;
+  }
+  button->setChecked(flag);
+}
+
 void gtk_widget_set_margin_start(QWidget* w, int m)
 {
   if (!w) {

@@ -416,9 +416,11 @@ using GtkSwitch = QCheckBox;
 using GtkWindow = QWidget;
 using GtkEntry = QLineEdit;
 using GtkLabel = QLabel;
+using GtkGrid = QGridLayout;
 
 void gtk_widget_show_all(QWidget*);
 bool gtk_toggle_button_get_active(GtkToggleButton*);
+void gtk_toggle_button_set_active(GtkToggleButton*, bool flag);
 
 #ifndef GTK_CHECK_VERSION
 #define GTK_CHECK_VERSION(x,y,z) 1
@@ -471,7 +473,6 @@ QLineEdit* gtk_entry_new()
   return new QLineEdit;
 }
 
-
 const gchar* gtk_entry_get_text(QLineEdit* lineEdit)
 {
   return lineEdit->text().toStdString().c_str();
@@ -509,19 +510,24 @@ const gchar* gtk_widget_get_name(QWidget* w)
 
 QWidget* gtk_grid_get_child_at(QGridLayout* grid, int col, int row)
 {
-    if (!grid) return nullptr;
+  if (!grid) return nullptr;
 
-    for (int i = 0; i < grid->count(); ++i) {
-        int r, c, rs, cs;
-        grid->getItemPosition(i, &r, &c, &rs, &cs);
+  for (int i = 0; i < grid->count(); ++i) {
+    int r, c, rs, cs;
+    grid->getItemPosition(i, &r, &c, &rs, &cs);
 
-        if (r == row && c == col) {
-            if (auto item = grid->itemAt(i)) {
-                return item->widget();
-            }
-        }
+    if (r == row && c == col) {
+      if (auto item = grid->itemAt(i)) {
+          return item->widget();
+      }
     }
-    return nullptr;
+  }
+  return nullptr;
+}
+
+void gtk_grid_attach(QGridLayout* grid, QWidget* child, int col, int row, int w, int h) 
+{
+  grid->addWidget(child, row, col, h, w);
 }
 
 void gtk_container_add(QWidget* container, QWidget* w)
@@ -536,6 +542,11 @@ void gtk_container_add(QWidget* container, QWidget* w)
 int gtk_dialog_run(QDialog* dialog)
 {
   return dialog->exec();
+}
+
+int gtk_spin_button_get_value_as_int(QSpinBox* spinBox)
+{
+  return spinBox->value();
 }
 
 // for VPR
