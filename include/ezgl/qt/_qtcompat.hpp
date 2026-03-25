@@ -416,7 +416,7 @@ using GtkSwitch = QCheckBox;
 using GtkWindow = QWidget;
 using GtkEntry = QLineEdit;
 using GtkLabel = QLabel;
-using GtkGrid = QGridLayout;
+using GtkGrid = QWidget; //QGridLayout is laying inside the widget
 
 void gtk_widget_show_all(QWidget*);
 bool gtk_toggle_button_get_active(GtkToggleButton*);
@@ -522,12 +522,28 @@ QWidget* gtk_window_new(int)
 #define GTK_IS_CHECK_BUTTON(w) (qobject_cast<QCheckBox*>(w) != nullptr)
 #define GTK_DIALOG(w) qobject_cast<QDialog*>(w)
 #define GTK_ENTRY(w) qobject_cast<QLineEdit*>(w)
-#define GTK_GRID(q) qobject_cast<QGridLayout*>(q)
+#define GTK_GRID(q) qobject_cast<QWidget*>(q)
 #define GTK_CONTAINER(w) (w)
 
-QWidget* gtk_grid_get_child_at(QGridLayout* grid, int col, int row)
+QGridLayout* get_grid_layout(QWidget* grid)
 {
-  if (!grid) return nullptr;
+  if (!grid) {
+    return nullptr;
+  }
+
+  QGridLayout* gridLayout = qobject_cast<QGridLayout*>(grid->layout());
+  if (!gridLayout) {
+    return nullptr;
+  }
+  return gridLayout;
+}
+
+QWidget* gtk_grid_get_child_at(QWidget* widget, int col, int row)
+{
+  QGridLayout* grid = get_grid_layout(widget);
+  if (!grid) {
+    return nullptr;
+  }
 
   for (int i = 0; i < grid->count(); ++i) {
     int r, c, rs, cs;
@@ -542,8 +558,12 @@ QWidget* gtk_grid_get_child_at(QGridLayout* grid, int col, int row)
   return nullptr;
 }
 
-void gtk_grid_attach(QGridLayout* grid, QWidget* child, int col, int row, int w, int h) 
+void gtk_grid_attach(QWidget* widget, QWidget* child, int col, int row, int w, int h) 
 {
+  QGridLayout* grid = get_grid_layout(widget);
+  if (!grid) {
+    return;
+  }
   grid->addWidget(child, row, col, h, w);
 }
 
@@ -556,9 +576,11 @@ void gtk_container_add(QWidget* container, QWidget* w)
   container->layout()->addWidget(w);
 }
 
-QGridLayout* gtk_grid_new()
+QWidget* gtk_grid_new()
 {
-  return new QGridLayout;
+  QWidget* w = new QWidget;
+  w->setLayout(new QGridLayout);
+  return w;
 }
 
 int gtk_dialog_run(QDialog* dialog)
