@@ -407,6 +407,8 @@ std::cerr << "ASSERT_QT_MIGRATION_TODO:" \
 #include <QCheckBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QGridLayout>
+#include <QDialog>
 
 using GtkToggleButton = QRadioButton;
 using GtkSpinButton = QSpinBox;
@@ -502,6 +504,40 @@ const gchar* gtk_widget_get_name(QWidget* w)
 #define GTK_IS_CHECK_BUTTON(w) (qobject_cast<QCheckBox*>(w) != nullptr)
 #define GTK_DIALOG(w) qobject_cast<QDialog*>(w)
 #define GTK_ENTRY(w) qobject_cast<QLineEdit*>(w)
+#define GTK_GRID(q) qobject_cast<QGridLayout*>(q)
+#define GTK_CONTAINER(w) (w)
+
+QWidget* gtk_grid_get_child_at(QGridLayout* grid, int col, int row)
+{
+    if (!grid) return nullptr;
+
+    for (int i = 0; i < grid->count(); ++i) {
+        int r, c, rs, cs;
+        grid->getItemPosition(i, &r, &c, &rs, &cs);
+
+        if (r == row && c == col) {
+            if (auto item = grid->itemAt(i)) {
+                return item->widget();
+            }
+        }
+    }
+    return nullptr;
+}
+
+void gtk_container_add(QWidget* container, QWidget* w)
+{
+  if (!container->layout()) {
+    container->setLayout(new QVBoxLayout(container));
+  }
+
+  container->layout()->addWidget(w);
+}
+
+int gtk_dialog_run(QDialog* dialog)
+{
+  return dialog->exec();
+}
+
 // for VPR
 
 #endif // EZGL_QT
