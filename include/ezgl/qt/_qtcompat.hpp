@@ -522,8 +522,9 @@ QWidget* gtk_window_new(int)
 #define GTK_IS_CHECK_BUTTON(w) (qobject_cast<QCheckBox*>(w) != nullptr)
 #define GTK_DIALOG(w) qobject_cast<QDialog*>(w)
 #define GTK_ENTRY(w) qobject_cast<QLineEdit*>(w)
-#define GTK_GRID(q) qobject_cast<QWidget*>(q)
+#define GTK_GRID(w) qobject_cast<QWidget*>(w)
 #define GTK_CONTAINER(w) (w)
+#define GTK_BOX(l) qobject_cast<QBoxLayout*>(l)
 
 QGridLayout* get_grid_layout(QWidget* grid)
 {
@@ -662,6 +663,28 @@ void gtk_window_set_position(QWidget* w, int key)
 }
 
 #define g_list_free(x) ((void)0)
+
+QList<QWidget*> gtk_container_get_children(QWidget* container)
+{
+  return container->findChildren<QWidget*>(
+      QString(),
+      Qt::FindDirectChildrenOnly
+  );
+}
+
+#define GTK_ALIGN_CENTER 1
+void gtk_widget_set_halign(QWidget* w, int flag)
+{
+  ASSERT_QT_MIGRATION_TODO;
+  //layout->setAlignment(w, Qt::AlignHCenter);
+}
+
+void gtk_window_set_transient_for(QWidget* dialog, QWidget* parent)
+{
+  dialog->setParent(parent);
+  dialog->setWindowFlag(Qt::Dialog);
+  dialog->setWindowModality(Qt::WindowModal);
+}
 
 // for VPR
 
