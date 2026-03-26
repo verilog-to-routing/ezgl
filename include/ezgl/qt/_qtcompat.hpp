@@ -238,7 +238,7 @@ using key_callback_fn = void*;
 // gtk wrapper
 QWidget* GTK_WIDGET(QObject* obj);
 QComboBox* GTK_COMBO_BOX(QObject* obj);
-QWindow* GTK_WINDOW(QObject* obj);
+QWidget* GTK_WINDOW(QObject* obj);
 
 bool GTK_IS_BUTTON(QObject* obj);
 QWidget* gtk_application_get_active_window(Application* app);
@@ -684,6 +684,23 @@ void gtk_window_set_transient_for(QWidget* dialog, QWidget* parent)
   dialog->setParent(parent);
   dialog->setWindowFlag(Qt::Dialog);
   dialog->setWindowModality(Qt::WindowModal);
+}
+
+void gtk_widget_show(QWidget* widget)
+{
+  widget->show();
+}
+
+void gtk_widget_hide(QWidget* widget)
+{
+  widget->hide();
+}
+
+QSpinBox* gtk_spin_button_new_with_range(int min, int max, int step)
+{
+  QSpinBox* spin_box = new QSpinBox();
+  spin_box->setRange(min, max);
+  spin_box->setSingleStep(step);
 }
 
 // for VPR

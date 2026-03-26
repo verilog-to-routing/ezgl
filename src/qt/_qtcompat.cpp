@@ -73,8 +73,8 @@ QComboBox* GTK_COMBO_BOX(QObject* obj) {
   return qobject_cast<QComboBox*>(obj);
 }
 
-QWindow* GTK_WINDOW(QObject* obj) {
-  return qobject_cast<QWindow*>(obj);
+QWidget* GTK_WINDOW(QObject* obj) {
+  return qobject_cast<QWidget*>(obj);
 }
 
 bool GTK_IS_BUTTON(QObject* obj) {
