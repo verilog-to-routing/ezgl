@@ -23,7 +23,7 @@
 #ifdef EZGL_QT
 #include <QWidget>
 #include <QPainter>
-#include "ezgl/qt/_qtcompat.hpp"
+#include "ezgl/qt/ezgl_qtcompat.hpp"
 #else // EZGL_QT
 #include <gtk/gtk.h>
 #endif // EZGL_QT

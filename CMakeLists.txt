@@ -58,7 +58,7 @@ add_library(
   include/ezgl/graphics.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
-  include/ezgl/qt/_qtcompat.hpp
+  include/ezgl/qt/ezgl_qtcompat.hpp
   include/ezgl/qt/qtgladeloader.hpp
   src/application.cpp
   src/camera.cpp
@@ -66,7 +66,7 @@ add_library(
   src/control.cpp
   src/callback.cpp
   src/graphics.cpp
-  src/qt/_qtcompat.cpp
+  src/qt/ezgl_qtcompat.cpp
   src/qt/qtgladeloader.cpp
 )
 

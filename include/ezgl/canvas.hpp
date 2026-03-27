@@ -25,7 +25,7 @@
 #include "ezgl/color.hpp"
 
 #ifdef EZGL_QT
-#include "ezgl/qt/_qtcompat.hpp"
+#include "ezgl/qt/ezgl_qtcompat.hpp"
 #else // EZGL_QT
 #include <cairo.h>
 #include <cairo-pdf.h>

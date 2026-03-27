@@ -19,7 +19,7 @@
 #include "ezgl/callback.hpp"
 
 #ifdef EZGL_QT
-#include "ezgl/qt/_qtcompat.hpp"
+#include "ezgl/qt/ezgl_qtcompat.hpp"
 #endif
 
 namespace ezgl {

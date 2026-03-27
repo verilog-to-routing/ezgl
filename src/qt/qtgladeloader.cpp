@@ -1,7 +1,7 @@
 #ifdef EZGL_QT
 
 #include "ezgl/qt/qtgladeloader.hpp"
-#include "ezgl/qt/_qtcompat.hpp"
+#include "ezgl/qt/ezgl_qtcompat.hpp"
 
 #include <QFile>
 #include <QWidget>

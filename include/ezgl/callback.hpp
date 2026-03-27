@@ -28,7 +28,7 @@
 #include <iostream>
 
 #ifdef EZGL_QT
-#include "qt/_qtcompat.hpp"
+#include "qt/ezgl_qtcompat.hpp"
 #define PANNING_MOUSE_BUTTON Qt::LeftButton
 #else
 // Mouse button used for panning (left button (1) - middle button (2) - right button (3))
