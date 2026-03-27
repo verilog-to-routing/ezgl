@@ -38,16 +38,10 @@ class application;
 
 class Application final : public QApplication {
 public:
-  Application(int& argc, char** argv): QApplication(argc, argv) {
-    qInfo() << "Application()";
-  }
-  virtual ~Application() {
-    qInfo() << "~Application()";
-  }
+  Application(int& argc, char** argv);
+  virtual ~Application();
 
-  void setApp(ezgl::application* app) {
-    m_app = app;
-  }
+  void setApp(ezgl::application* app);
 
 protected:
   // bool eventFilter(QObject* obj, QEvent* event) override final;
@@ -60,18 +54,10 @@ private:
 // tmp solution to track lifetime
 class Image : public QImage {
 public:
-  Image(): QImage() {
-  }
-  Image(const QString& str): QImage(str) {
-    qInfo() << "Image()";
-  }
-  Image(int width, int height, QImage::Format format): QImage(width, height, format) {
-    qInfo() << "Image()" << width << height << format;
-  }
-
-  virtual ~Image() {
-    qInfo() << "~Image()";
-  }
+  Image();
+  Image(const QString& str);
+  Image(int width, int height, QImage::Format format);
+  virtual ~Image();
 };
 // tmp solution to track lifetime
 
@@ -102,20 +88,8 @@ private:
   Painter& operator=(const Painter&) = delete;
 
 public:
-  Painter(Image* image): QPainter(image) {
-    m_id = Painter::nextid++;
-    Painter::counter++;
-    //qInfo() << "Painter(" << m_id << ")";
-    assert(image);
-    assert(!image->isNull());
-    assert(isActive());
-    assert(Painter::counter == 1);
-  }
-
-  virtual ~Painter() {
-    //qInfo() << "~Painter(" << m_id << ")";
-    Painter::counter--;
-  }
+  Painter(Image* image);
+  virtual ~Painter();
 };
 //
 
@@ -131,34 +105,12 @@ using GdkWindow = QWindow;
 
 class Pen : public QPen {
 public:
-  Pen(): QPen(Qt::SolidLine) {}
+  Pen();
 
-  void setWidth(double width) {
-    QPen::setWidthF(width);
-    m_width = width;
-    if (!isSolid()) {
-      applyNormalizedDashPattern();
-    }
-  }
-
-  void setDashPattern(const QList<double>& dashPattern) {
-    QPen::setStyle(Qt::CustomDashLine);
-    m_dashPatternOrig = dashPattern;
-    applyNormalizedDashPattern();
-  }
-
-  void setSolid() {
-    if (!isSolid()) {
-      QPen::setStyle(Qt::SolidLine);
-      m_dashPatternOrig.clear();
-      QPen::setDashPattern(m_dashPatternOrig);
-      QPen::setDashOffset(0.0);
-    }
-  }
-
-  bool isSolid() const { // in some reason QPen::isSOlid() doesn't return valid value
-    return (style() == Qt::SolidLine);
-  }
+  void setWidth(double width);
+  void setDashPattern(const QList<double>& dashPattern);
+  void setSolid();
+  bool isSolid() const;
 
 private:
   double m_width = 1.0;
@@ -166,53 +118,18 @@ private:
   double m_offset = 0.0;
 
   void setWidthF(double width)=delete;
-  void applyNormalizedDashPattern() {
-    if (m_width > 1.0f) {
-      QList<double> normalizedDashPattern;
-      for (double p: m_dashPatternOrig) {
-        // pattern[] is in “cairo units” (pixels/user space),
-        // Qt expects “pen-width units”, so normalize:
-        normalizedDashPattern.append(p/double(m_width));
-      }
-      QPen::setDashPattern(normalizedDashPattern);
-    } else {
-      QPen::setDashPattern(m_dashPatternOrig);
-    }
-  }
+  void applyNormalizedDashPattern();
 };
 
 // cairo fake types
 struct cairo_t {
 public:
-  cairo_t(Image* image): surface(image) {
-    qInfo() << "~~~ cairo_t()";
-  }
-  ~cairo_t() {
-    qInfo() << "~~~ ~cairo_t()";
-  }
+  cairo_t(Image* image);
+  ~cairo_t();
 
-  void setAntialias(bool enabled) {
-    if (enabled) {
-      renderHints |= QPainter::Antialiasing;
-    } else {
-      renderHints &= ~QPainter::Antialiasing;
-    }
-  }
-
-  void setSmoothPixmap(bool enabled) {
-    if (enabled) {
-      renderHints |= QPainter::SmoothPixmapTransform;
-    } else {
-      renderHints &= ~QPainter::SmoothPixmapTransform;
-    }
-  }
-
-  void setColor(const QColor& color)
-  {
-    this->color = color;
-    pen.setColor(color);
-    brush.setColor(color);
-  }
+  void setAntialias(bool enabled);
+  void setSmoothPixmap(bool enabled);
+  void setColor(const QColor& color);
 
   QPainter::RenderHints renderHints;
   Image* surface{nullptr};

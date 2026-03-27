@@ -6,6 +6,128 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 
+// Application
+Application::Application(int& argc, char** argv): QApplication(argc, argv) {
+  qInfo() << "Application()";
+}
+
+Application::~Application() {
+  qInfo() << "~Application()";
+}
+
+void Application::setApp(ezgl::application* app) {
+  m_app = app;
+}
+
+// Image
+Image::Image(): QImage() {
+}
+
+Image::Image(const QString& str): QImage(str) {
+  qInfo() << "Image()";
+}
+
+Image::Image(int width, int height, QImage::Format format): QImage(width, height, format) {
+  qInfo() << "Image()" << width << height << format;
+}
+
+Image::~Image() {
+  qInfo() << "~Image()";
+}
+
+// Painter
+Painter::Painter(Image* image): QPainter(image) {
+  m_id = Painter::nextid++;
+  Painter::counter++;
+  //qInfo() << "Painter(" << m_id << ")";
+  assert(image);
+  assert(!image->isNull());
+  assert(isActive());
+  assert(Painter::counter == 1);
+}
+
+Painter::~Painter() {
+  //qInfo() << "~Painter(" << m_id << ")";
+  Painter::counter--;
+}
+
+// Pen
+Pen::Pen(): QPen(Qt::SolidLine) {}
+
+void Pen::setWidth(double width) {
+  QPen::setWidthF(width);
+  m_width = width;
+  if (!isSolid()) {
+    applyNormalizedDashPattern();
+  }
+}
+
+void Pen::setDashPattern(const QList<double>& dashPattern) {
+  QPen::setStyle(Qt::CustomDashLine);
+  m_dashPatternOrig = dashPattern;
+  applyNormalizedDashPattern();
+}
+
+void Pen::setSolid() {
+  if (!isSolid()) {
+    QPen::setStyle(Qt::SolidLine);
+    m_dashPatternOrig.clear();
+    QPen::setDashPattern(m_dashPatternOrig);
+    QPen::setDashOffset(0.0);
+  }
+}
+
+bool Pen::isSolid() const { // in some reason QPen::isSOlid() doesn't return valid value
+  return (style() == Qt::SolidLine);
+}
+
+void Pen::applyNormalizedDashPattern() {
+  if (m_width > 1.0f) {
+    QList<double> normalizedDashPattern;
+    for (double p: m_dashPatternOrig) {
+      // pattern[] is in "cairo units" (pixels/user space),
+      // Qt expects "pen-width units", so normalize:
+      normalizedDashPattern.append(p/double(m_width));
+    }
+    QPen::setDashPattern(normalizedDashPattern);
+  } else {
+    QPen::setDashPattern(m_dashPatternOrig);
+  }
+}
+
+// cairo_t
+cairo_t::cairo_t(Image* image): surface(image) {
+  qInfo() << "~~~ cairo_t()";
+}
+
+cairo_t::~cairo_t() {
+  qInfo() << "~~~ ~cairo_t()";
+}
+
+void cairo_t::setAntialias(bool enabled) {
+  if (enabled) {
+    renderHints |= QPainter::Antialiasing;
+  } else {
+    renderHints &= ~QPainter::Antialiasing;
+  }
+}
+
+void cairo_t::setSmoothPixmap(bool enabled) {
+  if (enabled) {
+    renderHints |= QPainter::SmoothPixmapTransform;
+  } else {
+    renderHints &= ~QPainter::SmoothPixmapTransform;
+  }
+}
+
+void cairo_t::setColor(const QColor& color)
+{
+  this->color = color;
+  pen.setColor(color);
+  brush.setColor(color);
+}
+
+// DrawingAreaWidget
 DrawingAreaWidget::DrawingAreaWidget(QWidget* parent): QWidget(parent)
 {
   setFixedSize(DRAWING_AREA_WIDTH, DRAWING_AREA_HEIGHT);
