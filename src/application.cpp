@@ -109,7 +109,9 @@ void application::startup(GtkApplication *gtk_app, gpointer user_data)
   auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);
 
-#ifndef HIDE_GTK_BUILDER
+#ifdef EZGL_QT
+
+#else // EZGL_QT
   char const *main_ui_resource = ezgl_app->m_main_ui.c_str();
   if (!build_ui_from_file) {
     // Build the main user interface from the XML resource.
@@ -127,15 +129,15 @@ void application::startup(GtkApplication *gtk_app, gpointer user_data)
       g_error("%s.", error->message);
     }
   }
-#endif // HIDE_GTK_BUILDER
+#endif // EZGL_QT
 
   for(auto &c_pair : ezgl_app->m_canvases) {
     qWarning() << "strange thing";
-#ifdef EZGL_QT
-    QWidget* drawing_area = ezgl_app->get_widget(c_pair.second->id());
-#else // EZGL_QT
+// #ifdef EZGL_QT
+    // QWidget* drawing_area = ezgl_app->get_widget(c_pair.second->id());
+// #else // EZGL_QT
     GObject *drawing_area = ezgl_app->get_object(c_pair.second->id());
-#endif // EZGL_QT
+// #endif // EZGL_QT
     c_pair.second->initialize(GTK_WIDGET(drawing_area));
   }
 

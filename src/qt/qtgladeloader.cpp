@@ -64,9 +64,10 @@ QStyle::StandardPixmap standardPixmapForArrow(Qt::ArrowType arrowType)
 
 QMainWindow* QtGladeLoader::loadFile(const QString& uiGladePath)
 {
+  qDebug() << "~~~ loadFile=" << uiGladePath;
   QFile f(uiGladePath);
   if (!f.open(QIODevice::ReadOnly)) {
-    qCritical() << "cannot open" << uiGladePath;
+    qCritical() << "cannot open ui glade file" << uiGladePath;
     return nullptr;
   }
 
