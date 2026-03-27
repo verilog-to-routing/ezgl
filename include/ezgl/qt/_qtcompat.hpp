@@ -1,5 +1,5 @@
-#ifndef EZGL_GTKCOMPAT_HPP
-#define EZGL_GTKCOMPAT_HPP
+#ifndef EZGL_QTCOMPAT_HPP
+#define EZGL_QTCOMPAT_HPP
 
 #ifdef EZGL_QT
 
@@ -518,7 +518,8 @@ QWidget* gtk_window_new(int)
 #define GTK_SPIN_BUTTON(w) qobject_cast<QSpinBox*>(w)
 #define GTK_BUTTON(w) qobject_cast<QAbstractButton*>(w)
 #define GTK_TOGGLE_BUTTON(w) qobject_cast<QRadioButton*>(w)
-#define GTK_COMBO_BOX_TEXT(w) qobject_cast<QComboBox*>(w)
+// #define GTK_COMBO_BOX_TEXT(w) qobject_cast<QComboBox*>(w)
+#define GTK_COMBO_BOX_TEXT(w) qobject_cast<QComboBox*>(reinterpret_cast<QObject*>(w))
 #define GTK_IS_CHECK_BUTTON(w) (qobject_cast<QCheckBox*>(w) != nullptr)
 #define GTK_DIALOG(w) qobject_cast<QDialog*>(w)
 #define GTK_ENTRY(w) qobject_cast<QLineEdit*>(w)
@@ -703,7 +704,41 @@ QSpinBox* gtk_spin_button_new_with_range(int min, int max, int step)
   spin_box->setSingleStep(step);
 }
 
+QWidget* gtk_widget_get_parent_window(QWidget* w)
+{
+  return qobject_cast<QWidget*>(w->parent());
+}
+
+void gtk_spin_button_set_increments(QSpinBox* spin_box, int step, int page)
+{
+  if (!spin_box) {
+    return;
+  }
+
+  spin_box->setSingleStep(step);
+
+  QT_MIGRATION_TODO; // there is no analog for page in Qt
+}
+
+void gtk_spin_button_set_range(QSpinBox* spin_box, double min, double max)
+{
+  if (!spin_box) {
+    return;
+  }
+  
+  spin_box->setRange(min, max);
+}
+
+void gtk_spin_button_set_value(QSpinBox* spin_box, double value)
+{
+  if (!spin_box) {
+    return;
+  }
+
+  spin_box->setValue(value);
+}
+
 // for VPR
 
 #endif // EZGL_QT
-#endif // EZGL_GTKCOMPAT_HPP
+#endif // EZGL_QTCOMPAT_HPP
