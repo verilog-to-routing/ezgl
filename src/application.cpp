@@ -273,10 +273,13 @@ application::application(application::settings s)
 
 #ifdef EZGL_QT
   m_application->setApp(this);
-  QtGladeLoader uiLoader;
-  m_window = uiLoader.loadFile(QString::fromStdString(s.main_ui_resource));
   qInfo() << m_application->applicationName();
   qInfo() << m_application->arguments();
+  // NOTE: do NOT load the UI file here. This constructor runs as a static
+  // initializer (before main()), so Qt resources registered by the
+  // application's .qrc file are not yet available.  Loading is deferred to
+  // run(), which is called from main() after all static initializers have
+  // completed.
 #endif
 
   first_run = true;
@@ -369,6 +372,14 @@ int application::run(setup_callback_fn initial_setup_user_callback,
   key_press_callback = key_press_user_callback;
 
 #ifdef EZGL_QT
+  // Load the UI file here, not in the constructor.  The constructor runs as a
+  // static initializer before main(), so Qt resources are not yet registered
+  // at that point (static initialization order fiasco).  By the time run() is
+  // called from main(), all .qrc static initializers have completed.
+  if (!m_window) {
+    QtGladeLoader uiLoader;
+    m_window = uiLoader.loadFile(QString::fromStdString(m_main_ui));
+  }
   startup(nullptr, this);
   activate(nullptr, this);
 #endif
