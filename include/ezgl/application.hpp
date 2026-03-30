@@ -545,6 +545,7 @@ public:
    *
    * @see application::run
    */
+  [[deprecated("rename to find_object, move to EZGL lib")]]
   GObject *get_object(gchar const *name) const;
 
 #ifdef EZGL_QT

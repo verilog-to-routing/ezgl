@@ -336,16 +336,15 @@ canvas *application::add_canvas(std::string const &canvas_id,
   return it.first->second.get();
 }
 
-// FINAL_TODO: rename method to find_object?
 GObject *application::get_object(gchar const *name) const
 {
   // Getting an object from the GTK builder does not increase its reference count.
 #ifdef EZGL_QT
   QObject* object = nullptr;
   for (QWidget* w: QApplication::allWidgets()) {
-    qDebug() <<"~~~ iterate over" << w->objectName();
+    //qDebug() <<"~~~ iterate over" << w->objectName();
     if (w->objectName() == name) {
-      qDebug() << "~~~ found" << w->objectName();
+      //qDebug() << "~~~ found" << w->objectName();
       object = w;
       break;
     }
