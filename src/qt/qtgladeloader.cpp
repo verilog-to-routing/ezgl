@@ -5,9 +5,18 @@
 
 #include <QFile>
 #include <QWidget>
+#include <QFrame>
 #include <QGridLayout>
+#include <QBoxLayout>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QPushButton>
 #include <QToolButton>
+#include <QLabel>
+#include <QDoubleSpinBox>
+#include <QComboBox>
+#include <QCheckBox>
+#include <QLineEdit>
 #include <QStatusBar>
 #include <QSizePolicy>
 #include <QStyle>
@@ -81,21 +90,56 @@ QMainWindow* QtGladeLoader::loadFile(const QString& uiGladePath)
   }
 
   QDomElement iface = doc.documentElement();
-  QDomElement topObj = iface.firstChildElement("object");
 
-  QWidget* w = buildObjectElement(topObj);
-  QMainWindow* window = qobject_cast<QMainWindow*>(w);
-  return window;
+  // Pass 1: build all GtkPopover objects first so that GtkMenuButton widgets
+  // can look them up by ID when the main window is constructed.
+  for (QDomElement obj = iface.firstChildElement("object");
+       !obj.isNull();
+       obj = obj.nextSiblingElement("object"))
+  {
+    if (getClass(obj) == "GtkPopover") {
+      buildObjectElement(obj);
+    }
+  }
+
+  // Pass 2: build the GtkWindow and return it.
+  for (QDomElement obj = iface.firstChildElement("object");
+       !obj.isNull();
+       obj = obj.nextSiblingElement("object"))
+  {
+    if (getClass(obj) == "GtkWindow") {
+      QWidget* w = buildObjectElement(obj);
+      return qobject_cast<QMainWindow*>(w);
+    }
+  }
+
+  qCritical() << uiGladePath << "contains no GtkWindow";
+  return nullptr;
 }
 
 QWidget* QtGladeLoader::buildObjectElement(const QDomElement& objEl)
 {
   const QString cls = getClass(objEl);
-  if (cls == "GtkWindow")      return buildGtkWindow(objEl);
-  if (cls == "GtkGrid")        return buildGtkGrid(objEl);
-  if (cls == "GtkDrawingArea") return buildGtkDrawingArea(objEl);
-  if (cls == "GtkButton")      return buildGtkButton(objEl);
-  if (cls == "GtkArrow")       return buildGtkArrow(objEl);
+  if (cls == "GtkWindow")       return buildGtkWindow(objEl);
+  if (cls == "GtkPopover")      return buildGtkPopover(objEl);
+  if (cls == "GtkGrid")         return buildGtkGrid(objEl);
+  if (cls == "GtkBox")          return buildGtkBox(objEl);
+  if (cls == "GtkDrawingArea")  return buildGtkDrawingArea(objEl);
+  if (cls == "GtkButton")       return buildGtkButton(objEl);
+  if (cls == "GtkMenuButton")   return buildGtkMenuButton(objEl);
+  if (cls == "GtkArrow")        return buildGtkArrow(objEl);
+  if (cls == "GtkLabel")        return buildGtkLabel(objEl);
+  if (cls == "GtkSpinButton")   return buildGtkSpinButton(objEl);
+  if (cls == "GtkComboBoxText") return buildGtkComboBoxText(objEl);
+  if (cls == "GtkCheckButton")  return buildGtkCheckButton(objEl);
+  if (cls == "GtkSwitch")       return buildGtkSwitch(objEl);
+  if (cls == "GtkSeparator")    return buildGtkSeparator(objEl);
+  if (cls == "GtkEntry")        return buildGtkEntry(objEl);
+
+  // Non-widget model/data types — silently skip, callers handle nullptr.
+  if (cls == "GtkListStore" || cls == "GtkEntryCompletion" || cls == "GtkCellRendererText") {
+    return nullptr;
+  }
 
   qCritical() << "unsupported class" << cls;
   return nullptr;
@@ -132,6 +176,39 @@ QWidget* QtGladeLoader::buildGtkWindow(const QDomElement& objEl)
   win->setStatusBar(status_bar);
 
   return win;
+}
+
+QWidget* QtGladeLoader::buildGtkPopover(const QDomElement& objEl)
+{
+  const QString id = getId(objEl);
+
+  // Re-use an already-built popover (happens when pass 2 encounters one built in pass 1).
+  if (m_widgets.contains(id)) {
+    return m_widgets.value(id);
+  }
+
+  // GtkPopover → frameless popup widget that auto-closes on outside click.
+  QFrame* frame = new QFrame(nullptr, Qt::Popup | Qt::FramelessWindowHint);
+  frame->setObjectName(id);
+  frame->setFrameShape(QFrame::StyledPanel);
+  frame->setFrameShadow(QFrame::Raised);
+  m_widgets.insert(id, frame);
+
+  QDomElement childEl = objEl.firstChildElement("child");
+  if (!childEl.isNull()) {
+    QDomElement childObj = firstChildObject(childEl);
+    if (!childObj.isNull()) {
+      QWidget* content = buildObjectElement(childObj);
+      if (content) {
+        QVBoxLayout* layout = new QVBoxLayout(frame);
+        layout->setContentsMargins(4, 4, 4, 4);
+        layout->addWidget(content);
+      }
+    }
+  }
+
+  frame->hide(); // always start hidden
+  return frame;
 }
 
 QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl)
@@ -186,6 +263,44 @@ QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl)
   return container;
 }
 
+QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl)
+{
+  QWidget* container = new QWidget;
+  const QString id = getId(objEl);
+  container->setObjectName(id);
+  if (!id.isEmpty())
+    m_widgets.insert(id, container);
+
+  applyCommonProperties(container, objEl);
+
+  const QString orientation = propertyText(objEl, "orientation");
+  QBoxLayout* layout;
+  if (orientation == "vertical") {
+    layout = new QVBoxLayout(container);
+  } else {
+    layout = new QHBoxLayout(container);
+  }
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(2);
+
+  for (QDomElement childEl = objEl.firstChildElement("child");
+       !childEl.isNull();
+       childEl = childEl.nextSiblingElement("child"))
+  {
+    QDomElement childObj = firstChildObject(childEl);
+    if (childObj.isNull()) continue; // <placeholder/>
+
+    QWidget* childW = buildObjectElement(childObj);
+    if (!childW) continue;
+
+    QDomElement packEl = findPacking(childEl);
+    const bool expand = propertyBool(packEl, "expand", false);
+    layout->addWidget(childW, expand ? 1 : 0);
+  }
+
+  return container;
+}
+
 QWidget* QtGladeLoader::buildGtkDrawingArea(const QDomElement& objEl)
 {
   DrawingAreaWidget* w = new DrawingAreaWidget;
@@ -232,6 +347,59 @@ QWidget* QtGladeLoader::buildGtkButton(const QDomElement& objEl)
   return b;
 }
 
+QWidget* QtGladeLoader::buildGtkMenuButton(const QDomElement& objEl)
+{
+  QPushButton* btn = new QPushButton;
+  const QString id = getId(objEl);
+  btn->setObjectName(id);
+  m_widgets.insert(id, btn);
+
+  applyCommonProperties(btn, objEl);
+
+  const bool hexpand = propertyBool(objEl, "hexpand", false);
+  if (hexpand) {
+    btn->setSizePolicy(QSizePolicy::Expanding, btn->sizePolicy().verticalPolicy());
+  }
+
+  // The label is a GtkLabel child of the GtkMenuButton.
+  for (QDomElement childEl = objEl.firstChildElement("child");
+       !childEl.isNull();
+       childEl = childEl.nextSiblingElement("child"))
+  {
+    QDomElement childObj = firstChildObject(childEl);
+    if (!childObj.isNull() && getClass(childObj) == "GtkLabel") {
+      const QString text = propertyText(childObj, "label");
+      if (!text.isEmpty()) {
+        btn->setText(text);
+        break;
+      }
+    }
+  }
+
+  // Connect button to show/hide its associated GtkPopover.
+  const QString popoverName = propertyText(objEl, "popover");
+  if (!popoverName.isEmpty()) {
+    QWidget* popover = m_widgets.value(popoverName);
+    if (popover) {
+      QObject::connect(btn, &QPushButton::clicked, [btn, popover]() {
+        if (popover->isVisible()) {
+          popover->hide();
+        } else {
+          const QPoint globalPos = btn->mapToGlobal(QPoint(0, btn->height()));
+          popover->move(globalPos);
+          popover->show();
+          popover->raise();
+          popover->activateWindow();
+        }
+      });
+    } else {
+      qWarning() << "GtkMenuButton" << id << "refers to popover" << popoverName << "which was not found";
+    }
+  }
+
+  return btn;
+}
+
 QWidget* QtGladeLoader::buildGtkArrow(const QDomElement& objEl)
 {
   QToolButton* t = new QToolButton;
@@ -243,6 +411,131 @@ QWidget* QtGladeLoader::buildGtkArrow(const QDomElement& objEl)
   t->setArrowType(parseGtkArrowType(objEl));
 
   return t;
+}
+
+QWidget* QtGladeLoader::buildGtkLabel(const QDomElement& objEl)
+{
+  QLabel* label = new QLabel;
+  const QString id = getId(objEl);
+  label->setObjectName(id);
+  if (!id.isEmpty())
+    m_widgets.insert(id, label);
+
+  applyCommonProperties(label, objEl);
+
+  label->setText(propertyText(objEl, "label"));
+
+  return label;
+}
+
+QWidget* QtGladeLoader::buildGtkSpinButton(const QDomElement& objEl)
+{
+  QDoubleSpinBox* spin = new QDoubleSpinBox;
+  const QString id = getId(objEl);
+  spin->setObjectName(id);
+  if (!id.isEmpty())
+    m_widgets.insert(id, spin);
+
+  applyCommonProperties(spin, objEl);
+
+  const QString digits = propertyText(objEl, "digits");
+  if (!digits.isEmpty()) {
+    bool ok = false;
+    int d = digits.toInt(&ok);
+    if (ok) spin->setDecimals(d);
+  }
+
+  return spin;
+}
+
+QWidget* QtGladeLoader::buildGtkComboBoxText(const QDomElement& objEl)
+{
+  QComboBox* combo = new QComboBox;
+  const QString id = getId(objEl);
+  combo->setObjectName(id);
+  if (!id.isEmpty())
+    m_widgets.insert(id, combo);
+
+  applyCommonProperties(combo, objEl);
+
+  QDomElement itemsEl = objEl.firstChildElement("items");
+  for (QDomElement item = itemsEl.firstChildElement("item");
+       !item.isNull();
+       item = item.nextSiblingElement("item"))
+  {
+    combo->addItem(item.text());
+  }
+
+  return combo;
+}
+
+QWidget* QtGladeLoader::buildGtkCheckButton(const QDomElement& objEl)
+{
+  QCheckBox* cb = new QCheckBox;
+  const QString id = getId(objEl);
+  cb->setObjectName(id);
+  if (!id.isEmpty())
+    m_widgets.insert(id, cb);
+
+  applyCommonProperties(cb, objEl);
+
+  cb->setText(propertyText(objEl, "label"));
+  cb->setChecked(propertyBool(objEl, "active", false));
+
+  return cb;
+}
+
+QWidget* QtGladeLoader::buildGtkSwitch(const QDomElement& objEl)
+{
+  // GtkSwitch is a toggle switch; QPushButton with setCheckable is a reasonable Qt equivalent.
+  QPushButton* sw = new QPushButton;
+  const QString id = getId(objEl);
+  sw->setObjectName(id);
+  sw->setCheckable(true);
+  if (!id.isEmpty())
+    m_widgets.insert(id, sw);
+
+  applyCommonProperties(sw, objEl);
+
+  sw->setChecked(propertyBool(objEl, "active", false));
+
+  return sw;
+}
+
+QWidget* QtGladeLoader::buildGtkSeparator(const QDomElement& objEl)
+{
+  QFrame* sep = new QFrame;
+  const QString id = getId(objEl);
+  sep->setObjectName(id);
+  if (!id.isEmpty())
+    m_widgets.insert(id, sep);
+
+  const QString orientation = propertyText(objEl, "orientation");
+  if (orientation == "vertical") {
+    sep->setFrameShape(QFrame::VLine);
+  } else {
+    sep->setFrameShape(QFrame::HLine);
+  }
+  sep->setFrameShadow(QFrame::Sunken);
+
+  return sep;
+}
+
+QWidget* QtGladeLoader::buildGtkEntry(const QDomElement& objEl)
+{
+  QLineEdit* entry = new QLineEdit;
+  const QString id = getId(objEl);
+  entry->setObjectName(id);
+  if (!id.isEmpty())
+    m_widgets.insert(id, entry);
+
+  applyCommonProperties(entry, objEl);
+
+  const QString placeholder = propertyText(objEl, "placeholder-text");
+  if (!placeholder.isEmpty())
+    entry->setPlaceholderText(placeholder);
+
+  return entry;
 }
 
 void QtGladeLoader::applyCommonProperties(QWidget* w, const QDomElement& objEl)

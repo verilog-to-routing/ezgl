@@ -18,10 +18,20 @@ public:
 private:
   QWidget* buildObjectElement(const QDomElement& objEl);
   QWidget* buildGtkWindow(const QDomElement& objEl);
+  QWidget* buildGtkPopover(const QDomElement& objEl);
   QWidget* buildGtkGrid(const QDomElement& objEl);
+  QWidget* buildGtkBox(const QDomElement& objEl);
   QWidget* buildGtkDrawingArea(const QDomElement& objEl);
   QWidget* buildGtkButton(const QDomElement& objEl);
+  QWidget* buildGtkMenuButton(const QDomElement& objEl);
   QWidget* buildGtkArrow(const QDomElement& objEl);
+  QWidget* buildGtkLabel(const QDomElement& objEl);
+  QWidget* buildGtkSpinButton(const QDomElement& objEl);
+  QWidget* buildGtkComboBoxText(const QDomElement& objEl);
+  QWidget* buildGtkCheckButton(const QDomElement& objEl);
+  QWidget* buildGtkSwitch(const QDomElement& objEl);
+  QWidget* buildGtkSeparator(const QDomElement& objEl);
+  QWidget* buildGtkEntry(const QDomElement& objEl);
 
   void applyCommonProperties(QWidget* w, const QDomElement& objEl);
   static QString getId(const QDomElement& objEl);
