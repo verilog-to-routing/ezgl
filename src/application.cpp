@@ -345,7 +345,7 @@ GObject *application::get_object(gchar const *name) const
   for (QWidget* w: QApplication::allWidgets()) {
     //qDebug() <<"~~~ iterate over" << w->objectName();
     if (w->objectName() == name) {
-      qDebug() << "~~~ [+] found" << w->objectName();
+      //qDebug() << "~~~ [+] found" << w->objectName();
       object = w;
       break;
     }
