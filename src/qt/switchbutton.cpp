@@ -45,9 +45,10 @@ void SwitchButton::paintEvent(QPaintEvent*)
     const qreal h = r.height();
     const qreal radius = h / 2.0;
 
-    // Interpolate track colour: gray (#c0bfbc) → GTK Adwaita accent blue (#3584e4)
-    const QColor offColor(0xc0, 0xbf, 0xbc);
-    const QColor onColor (0x35, 0x84, 0xe4);
+    // Interpolate track colour: gray (#c0bfbc) → GTK Adwaita accent blue (#3584e4).
+    // When disabled, both states use a muted gray to match Fusion style conventions.
+    const QColor offColor = isEnabled() ? QColor(0xc0, 0xbf, 0xbc) : QColor(0xd0, 0xd0, 0xd0);
+    const QColor onColor  = isEnabled() ? QColor(0x35, 0x84, 0xe4) : QColor(0xa0, 0xa0, 0xa0);
     const QColor trackColor(
         offColor.red()   + static_cast<int>(m_position * (onColor.red()   - offColor.red())),
         offColor.green() + static_cast<int>(m_position * (onColor.green() - offColor.green())),

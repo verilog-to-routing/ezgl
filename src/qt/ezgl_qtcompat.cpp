@@ -5,10 +5,14 @@
 
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QStyleFactory>
 
 // Application
 Application::Application(int& argc, char** argv): QApplication(argc, argv) {
   qInfo() << "Application()";
+  // Use Fusion style for consistent disabled-widget rendering across platforms.
+  // System styles (gtk2, breeze) often don't visually distinguish disabled widgets.
+  setStyle(QStyleFactory::create("Fusion"));
 }
 
 Application::~Application() {
