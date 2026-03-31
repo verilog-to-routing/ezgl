@@ -262,6 +262,7 @@ do {                                         \
         << #expr << "' failed at "           \
         << __FILE__ << ":" << __LINE__       \
         << std::endl;                        \
+        std::exit(1);                        \
         return (val);                        \
   }                                          \
 } while (0)
@@ -273,6 +274,7 @@ do {                                         \
         << #expr << "' failed at "           \
         << __FILE__ << ":" << __LINE__       \
         << std::endl;                        \
+        std::exit(1);                        \
         return;                              \
   }                                          \
 } while (0)
@@ -309,13 +311,12 @@ constexpr const char* __filename_helper(const char* path)
   std::cerr << "QT_MIGRATION_TODO!!!:" \
             << __FILENAME__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ \
             << std::endl; \
-                                        \
 
 #define ASSERT_QT_MIGRATION_TODO \
-std::cerr << "ASSERT_QT_MIGRATION_TODO:" \
-          << __FILENAME__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ \
-          << std::endl; \
-    assert(false); \
+  std::cerr << "ASSERT_QT_MIGRATION_TODO:" \
+            << __FILENAME__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ \
+            << std::endl; \
+  std::exit(1);
 
 #endif // EZGL_QT
 #endif // EZGL_QTCOMPAT_HPP

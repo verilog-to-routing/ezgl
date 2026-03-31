@@ -341,10 +341,11 @@ GObject *application::get_object(gchar const *name) const
   // Getting an object from the GTK builder does not increase its reference count.
 #ifdef EZGL_QT
   QObject* object = nullptr;
+  qDebug() <<"~~~ " << "searching" << name;
   for (QWidget* w: QApplication::allWidgets()) {
-    //qDebug() <<"~~~ iterate over" << w->objectName();
+    qDebug() <<"~~~ iterate over" << w->objectName();
     if (w->objectName() == name) {
-      //qDebug() << "~~~ found" << w->objectName();
+      qDebug() << "~~~ found" << w->objectName();
       object = w;
       break;
     }
