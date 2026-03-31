@@ -132,12 +132,7 @@ void application::startup(GtkApplication *gtk_app, gpointer user_data)
 #endif // EZGL_QT
 
   for(auto &c_pair : ezgl_app->m_canvases) {
-    qWarning() << "strange thing";
-// #ifdef EZGL_QT
-    // QWidget* drawing_area = ezgl_app->get_widget(c_pair.second->id());
-// #else // EZGL_QT
     GObject *drawing_area = ezgl_app->get_object(c_pair.second->id());
-// #endif // EZGL_QT
     c_pair.second->initialize(GTK_WIDGET(drawing_area));
   }
 
