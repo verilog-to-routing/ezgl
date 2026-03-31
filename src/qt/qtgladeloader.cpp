@@ -2,6 +2,7 @@
 
 #include "ezgl/qt/qtgladeloader.hpp"
 #include "ezgl/qt/ezgl_qtcompat.hpp"
+#include "ezgl/qt/switchbutton.hpp"
 
 #include <QFile>
 #include <QWidget>
@@ -485,11 +486,9 @@ QWidget* QtGladeLoader::buildGtkCheckButton(const QDomElement& objEl)
 
 QWidget* QtGladeLoader::buildGtkSwitch(const QDomElement& objEl)
 {
-  // GtkSwitch is a toggle switch; QPushButton with setCheckable is a reasonable Qt equivalent.
-  QPushButton* sw = new QPushButton;
+  SwitchButton* sw = new SwitchButton;
   const QString id = getId(objEl);
   sw->setObjectName(id);
-  sw->setCheckable(true);
   if (!id.isEmpty())
     m_widgets.insert(id, sw);
 
