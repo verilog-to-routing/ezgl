@@ -285,7 +285,12 @@ application::~application()
 {
 #ifdef EZGL_QT
   g_debug("application::~application");
-  delete m_application;
+  // Do NOT delete m_application here.  ezgl::application is typically a
+  // file-scope static, so its destructor runs during static teardown.
+  // Deleting QApplication at that point crashes because Qt's own internal
+  // statics (font cache, style engine, etc.) may already be destroyed.
+  // The process is exiting; the OS reclaims the memory.
+  m_application->quit();
 #else
   // GTK uses reference counting to track object lifetime. Since we called *_new() for our application and builder, we
   // need to unreference them. This should set their reference count to 0, letting GTK know that they should be cleaned
@@ -514,53 +519,41 @@ void application::register_default_events_callbacks(ezgl::application *applicati
 void application::register_default_buttons_callbacks(ezgl::application *application)
 {
 #ifdef EZGL_QT
-  // Connect press_zoom_fit function to the Zoom-fit button
-  QPushButton* zoom_fit_button = application->get_push_button("ZoomFitButton");
-  QObject::connect(zoom_fit_button, &QPushButton::clicked, [application](){
-    press_zoom_fit(/*unused*/nullptr, application);
-  });
+  // Helper: only connect if the button exists in this UI (VPR's main.ui omits
+  // several navigation buttons that the basic-application example has).
+  auto connect_if_present = [&](const char* name, auto slot) {
+    QPushButton* btn = application->get_push_button(name);
+    if (btn) {
+      QObject::connect(btn, &QPushButton::clicked, btn, slot);
+    }
+  };
 
-  // Connect press_zoom_in function to the Zoom-in button
-  QPushButton* zoom_in_button = application->get_push_button("ZoomInButton");
-  QObject::connect(zoom_in_button, &QPushButton::clicked, [application](){
-    press_zoom_in(/*unused*/nullptr, application);
-  });
+  connect_if_present("ZoomFitButton", [application](){ press_zoom_fit(nullptr, application); });
+  connect_if_present("ZoomInButton",  [application](){ press_zoom_in(nullptr, application); });
+  connect_if_present("ZoomOutButton", [application](){ press_zoom_out(nullptr, application); });
+  connect_if_present("UpButton",      [application](){ press_up(nullptr, application); });
+  connect_if_present("DownButton",    [application](){ press_down(nullptr, application); });
+  connect_if_present("LeftButton",    [application](){ press_left(nullptr, application); });
+  connect_if_present("RightButton",   [application](){ press_right(nullptr, application); });
+  connect_if_present("ProceedButton", [application](){ press_proceed(nullptr, application); });
 
-  // Connect press_zoom_out function to the Zoom-out button
-  QPushButton* zoom_out_button = application->get_push_button("ZoomOutButton");
-  QObject::connect(zoom_out_button, &QPushButton::clicked, [application](){
-    press_zoom_out(/*unused*/nullptr, application);
-  });
+  // Connect the window's close (X button) to press_proceed so that closing
+  // the window exits the event loop, matching the GTK "destroy" signal behaviour.
+  // Qt quits the event loop automatically when the last window closes
+  // (quitOnLastWindowClosed=true by default), which is equivalent to GTK's
+  // "destroy" → press_proceed path.  We just need to ensure press_proceed is
+  // also called so VPR's internal state advances to the next stage.
+  QWidget* window = application->get_widget(application->get_main_window_id().c_str());
+  if (window) {
+    // Prevent Qt from deleting the window on close so it can be reused
+    // across stages (m_window->show() in subsequent run() calls).
+    window->setAttribute(Qt::WA_DeleteOnClose, false);
 
-  // Connect press_up function to the Up button
-  QPushButton* shift_up_button = application->get_push_button("UpButton");
-  QObject::connect(shift_up_button, &QPushButton::clicked, [application](){
-    press_up(/*unused*/nullptr, application);
-  });
-
-  // Connect press_down function to the Down button
-  QPushButton* shift_down_button = application->get_push_button("DownButton");
-  QObject::connect(shift_down_button, &QPushButton::clicked, [application](){
-    press_down(/*unused*/nullptr, application);
-  });
-
-  // Connect press_left function to the Left button
-  QPushButton* shift_left_button = application->get_push_button("LeftButton");
-  QObject::connect(shift_left_button, &QPushButton::clicked, [application](){
-    press_left(/*unused*/nullptr, application);
-  });
-
-  // Connect press_right function to the Right button
-  QPushButton* shift_right_button = application->get_push_button("RightButton");
-  QObject::connect(shift_right_button, &QPushButton::clicked, [application](){
-    press_right(/*unused*/nullptr, application);
-  });
-
-  // Connect press_proceed function to the Proceed button
-  QPushButton* proceed_button = application->get_push_button("ProceedButton");
-  QObject::connect(proceed_button, &QPushButton::clicked, [application](){
-    press_proceed(/*unused*/nullptr, application);
-  });
+    QObject::connect(application->m_application, &QApplication::lastWindowClosed,
+                     application->m_application, [application](){
+      press_proceed(nullptr, application);
+    });
+  }
 
 #else // EZGL_QT
   // Connect press_zoom_fit function to the Zoom-fit button
