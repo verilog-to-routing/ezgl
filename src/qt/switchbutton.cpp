@@ -12,6 +12,7 @@ SwitchButton::SwitchButton(QWidget* parent)
 {
     setCheckable(true);
     setCursor(Qt::PointingHandCursor);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     m_animation->setDuration(150);
     m_animation->setEasingCurve(QEasingCurve::InOutQuad);
