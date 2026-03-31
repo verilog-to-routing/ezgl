@@ -14,7 +14,7 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QLabel>
-#include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QComboBox>
 #include <QCheckBox>
 #include <QLineEdit>
@@ -429,20 +429,13 @@ QWidget* QtGladeLoader::buildGtkLabel(const QDomElement& objEl)
 
 QWidget* QtGladeLoader::buildGtkSpinButton(const QDomElement& objEl)
 {
-  QDoubleSpinBox* spin = new QDoubleSpinBox;
+  QSpinBox* spin = new QSpinBox;
   const QString id = getId(objEl);
   spin->setObjectName(id);
   if (!id.isEmpty())
     m_widgets.insert(id, spin);
 
   applyCommonProperties(spin, objEl);
-
-  const QString digits = propertyText(objEl, "digits");
-  if (!digits.isEmpty()) {
-    bool ok = false;
-    int d = digits.toInt(&ok);
-    if (ok) spin->setDecimals(d);
-  }
 
   return spin;
 }
