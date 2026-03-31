@@ -370,17 +370,35 @@ int application::run(setup_callback_fn initial_setup_user_callback,
   key_press_callback = key_press_user_callback;
 
 #ifdef EZGL_QT
-  // Load the UI file here, not in the constructor.  The constructor runs as a
-  // static initializer before main(), so Qt resources are not yet registered
-  // at that point (static initialization order fiasco).  By the time run() is
-  // called from main(), all .qrc static initializers have completed.
-  if (!m_window) {
-    QtGladeLoader uiLoader;
-    m_window = uiLoader.loadFile(QString::fromStdString(m_main_ui));
+  // Qt cannot create a second QApplication, so the application object is reused
+  // across all stages.  The window is loaded once on the first run and reused
+  // (reshown) for every subsequent stage.
+  if (first_run) {
+    // Load the UI file here, not in the constructor.  The constructor runs as a
+    // static initializer before main(), so Qt resources are not yet registered
+    // at that point (static initialization order fiasco).  By the time run() is
+    // called from main(), all .qrc static initializers have completed.
+    if (!m_window) {
+      QtGladeLoader uiLoader;
+      m_window = uiLoader.loadFile(QString::fromStdString(m_main_ui));
+    }
+    startup(nullptr, this);
+    activate(nullptr, this);
+    first_run = false;
+    g_info("The event loop is now starting.");
+    return g_application_run(m_application, 0, 0);
+  } else {
+    // Subsequent stage: reuse the existing window.
+    // activate() is NOT called again to avoid double-registering callbacks.
+    m_window->show();
+    if (initial_setup_callback != nullptr)
+      initial_setup_callback(this, false);
+    resume_run = true;
+    g_info("The event loop is now resuming.");
+    return g_application_run(m_application, 0, 0);
   }
-  startup(nullptr, this);
-  activate(nullptr, this);
-#endif
+
+#else // EZGL_QT
 
   if(first_run) {
     // set the first_run flag to false
@@ -412,10 +430,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
   // But if the GTK window is closed, we will have to destruct and reconstruct the GTKApplication
   else {
     // Destroy the GTK application
-#ifdef EZGL_QT
-#else // EZGL_QT
     g_object_unref(m_application);
-#endif // EZGL_QT
 
 #ifndef HIDE_GTK_BUILDER
     g_object_unref(m_builder);
@@ -441,6 +456,8 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     // see: https://developer.gnome.org/gio/stable/GApplication.html#g-application-run
     return g_application_run(G_APPLICATION(m_application), 0, 0);
   }
+
+#endif // EZGL_QT
 }
 
 void application::quit()
