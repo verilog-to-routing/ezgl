@@ -17,7 +17,7 @@ if(USE_QT)
     set(CMAKE_AUTOUIC ON)
     set(CMAKE_AUTORCC ON)
 
-    find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Xml)
+    find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Xml Svg)
 
     if(NOT Qt6_FOUND)
       message(FATAL_ERROR "EZGL: Failed to find required Qt library (on debian/ubuntu try 'sudo apt-get install qt6-base-dev' to install)")
@@ -85,7 +85,8 @@ if(USE_QT)
         Qt6::Core
         Qt6::Gui
         Qt6::Widgets
-        Qt6::Xml)
+        Qt6::Xml
+        Qt6::Svg)
 
     # QT_MIGRATION_TODO, ASSERT_QT_MIGRATION_TODO
     target_compile_definitions(

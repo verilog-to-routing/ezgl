@@ -23,6 +23,9 @@
 #ifdef EZGL_QT
 #include <QWidget>
 #include <QPainter>
+#include <QPdfWriter>
+#include <QPageSize>
+#include <QSvgGenerator>
 #include "ezgl/qt/ezgl_qtcompat.hpp"
 #else // EZGL_QT
 #include <gtk/gtk.h>
@@ -91,11 +94,54 @@ static cairo_t *create_context(cairo_surface_t *p_surface)
 
 }
 
+#ifdef EZGL_QT
+// Renders the canvas into an off-screen QImage of the given dimensions,
+// shared by print_pdf / print_svg / print_png.
+Image canvas::render_to_image(int surface_width, int surface_height)
+{
+  Image surface(surface_width, surface_height, QImage::Format_ARGB32);
+  cairo_t* context = create_context(&surface);
+
+  cairo_set_source_rgb(context, m_background_color.red / 255.0,
+      m_background_color.green / 255.0, m_background_color.blue / 255.0);
+  {
+    Painter painter(context->surface);
+    cairo_paint(context, painter);
+  }
+
+  using namespace std::placeholders;
+  camera cam = m_camera;
+  cam.update_widget(surface_width, surface_height);
+  renderer g(context, std::bind(&camera::world_to_screen, cam, _1), &cam, &surface);
+  m_draw_callback(&g);
+
+  cairo_destroy(context);
+  return surface;
+}
+#endif // EZGL_QT
+
 bool canvas::print_pdf(const char *file_name, int output_width, int output_height)
 {
 #ifdef EZGL_QT
-  ASSERT_QT_MIGRATION_TODO;
-  return false;
+  const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
+  const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
+
+  const Image surface = render_to_image(w, h);
+
+  // QPdfWriter lives in Qt::Gui — no PrintSupport module needed.
+  // At 72 DPI, 1 point == 1 pixel, so pixel dimensions map directly to page points.
+  QPdfWriter writer(file_name);
+  writer.setResolution(72);
+  writer.setPageSize(QPageSize(QSizeF(w, h), QPageSize::Point));
+  writer.setPageMargins(QMarginsF(0, 0, 0, 0));
+
+  QPainter pdfPainter(&writer);
+  if (!pdfPainter.isActive())
+    return false;
+  pdfPainter.drawImage(pdfPainter.window(), surface);
+  pdfPainter.end();
+
+  return true;
 #else // EZGL_QT
   cairo_surface_t *pdf_surface;
   cairo_t *context;
@@ -138,8 +184,23 @@ bool canvas::print_pdf(const char *file_name, int output_width, int output_heigh
 bool canvas::print_svg(const char *file_name, int output_width, int output_height)
 {
 #ifdef EZGL_QT
-  ASSERT_QT_MIGRATION_TODO;
-  return false;
+  const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
+  const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
+
+  const Image surface = render_to_image(w, h);
+
+  QSvgGenerator generator;
+  generator.setFileName(file_name);
+  generator.setSize(QSize(w, h));
+  generator.setViewBox(QRect(0, 0, w, h));
+
+  QPainter svgPainter(&generator);
+  if (!svgPainter.isActive())
+    return false;
+  svgPainter.drawImage(0, 0, surface);
+  svgPainter.end();
+
+  return true;
 #else // EZGL_QT
   cairo_surface_t *svg_surface;
   cairo_t *context;
@@ -182,8 +243,11 @@ bool canvas::print_svg(const char *file_name, int output_width, int output_heigh
 bool canvas::print_png(const char *file_name, int output_width, int output_height)
 {
 #ifdef EZGL_QT
-  ASSERT_QT_MIGRATION_TODO;
-  return false;
+  const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
+  const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
+
+  const Image surface = render_to_image(w, h);
+  return surface.save(file_name, "PNG");
 #else // EZGL_QT
   cairo_surface_t *png_surface;
   cairo_t *context;

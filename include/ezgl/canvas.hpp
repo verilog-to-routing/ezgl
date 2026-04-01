@@ -119,8 +119,7 @@ public:
   bool print_pdf(const char *file_name, int width = 0, int height = 0);
   bool print_svg(const char *file_name, int width = 0, int height = 0);
   bool print_png(const char *file_name, int width = 0, int height = 0);
-  
-  
+
 protected:
   // Only the ezgl::application can create and initialize a canvas object.
   friend class application;
@@ -163,7 +162,11 @@ private:
   // The animation renderer
   renderer *m_animation_renderer = nullptr;
 
-private:
+#ifdef EZGL_QT
+  // Renders the canvas into an off-screen QImage; shared by print_pdf/print_svg/print_png.
+  Image render_to_image(int surface_width, int surface_height);
+#endif
+
 #ifndef HIDE_GTK_EVENT
   // Called each time our drawing area widget has changed (e.g., in size).
   static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *event, gpointer data);
