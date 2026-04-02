@@ -153,13 +153,13 @@ using key_callback_fn = void*;
 #define FALSE 0
 
 // gtk wrapper
-QWidget* Q_WIDGET(QObject* obj);
-QComboBox* Q_COMBO_BOX(QObject* obj);
-QDialog* Q_DIALOG(QObject* obj);
+#define Q_WIDGET(w) qobject_cast<QWidget*>(w)
+#define Q_COMBO_BOX(w) qobject_cast<QComboBox*>(w)
+#define Q_DIALOG(w) qobject_cast<QDialog*>(w)
 
-QWidget* GTK_WIDGET(QObject* obj);
-QComboBox* GTK_COMBO_BOX(QObject* obj);
-QWidget* GTK_WINDOW(QObject* obj);
+#define GTK_WIDGET(w) qobject_cast<QWidget*>(w)
+#define GTK_COMBO_BOX(w) qobject_cast<QComboBox*>(w)
+#define GTK_WINDOW(w) qobject_cast<QWidget*>(w)
 
 bool GTK_IS_BUTTON(QObject* obj);
 QWidget* gtk_application_get_active_window(Application* app);
