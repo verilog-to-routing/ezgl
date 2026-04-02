@@ -190,6 +190,18 @@ void DrawingAreaWidget::paintEvent(QPaintEvent* event)
 // }
 
 
+QWidget* Q_WIDGET(QObject* obj) {
+  return qobject_cast<QWidget*>(obj);
+}
+
+QComboBox* Q_COMBO_BOX(QObject* obj) {
+  return qobject_cast<QComboBox*>(obj);
+}
+
+QDialog* Q_DIALOG(QObject* obj) {
+  return qobject_cast<QDialog*>(obj);
+}
+
 // gtk wrapper
 QWidget* GTK_WIDGET(QObject* obj) {
   return qobject_cast<QWidget*>(obj);

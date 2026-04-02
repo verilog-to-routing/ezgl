@@ -153,6 +153,10 @@ using key_callback_fn = void*;
 #define FALSE 0
 
 // gtk wrapper
+QWidget* Q_WIDGET(QObject* obj);
+QComboBox* Q_COMBO_BOX(QObject* obj);
+QDialog* Q_DIALOG(QObject* obj);
+
 QWidget* GTK_WIDGET(QObject* obj);
 QComboBox* GTK_COMBO_BOX(QObject* obj);
 QWidget* GTK_WINDOW(QObject* obj);
