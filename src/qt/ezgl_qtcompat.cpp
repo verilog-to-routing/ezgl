@@ -345,7 +345,6 @@ void gtk_combo_box_set_active(QComboBox* combo, int idx)
 
 void gtk_widget_queue_draw(QWidget* widget)
 {
-  g_debug("~~~ gtk_widget_queue_draw");
   widget->update();
 }
 
