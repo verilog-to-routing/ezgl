@@ -8,20 +8,6 @@
 #include <QColor>
 #include <QFont>
 
-#define LINE_CAP_BUTT	Qt::FlatCap
-#define LINE_CAP_ROUND Qt::RoundCap
-#define LINE_CAP_SQUARE	Qt::SquareCap
-using line_cap_t = Qt::PenCapStyle;
-
-#define FONT_SLANT_NORMAL QFont::StyleNormal
-#define FONT_SLANT_ITALIC QFont::StyleItalic
-#define FONT_SLANT_OBLIQUE QFont::StyleOblique
-using font_slant_t = QFont::Style;
-
-#define FONT_WEIGHT_NORMAL QFont::Normal
-#define FONT_WEIGHT_BOLD QFont::Bold
-using font_weight_t = QFont::Weight;
-
 class Pen : public QPen {
 public:
   Pen();

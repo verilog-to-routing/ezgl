@@ -116,17 +116,17 @@ enum class font_slant : int {
   /**
    * No slant.
    */
-  normal = CAIRO_FONT_SLANT_NORMAL,
+  normal = QFont::StyleNormal,
 
   /**
    * Slant is more calligraphic. Make sure the font you're using has an italic design, otherwise it may look ugly.
    */
-  italic = CAIRO_FONT_SLANT_ITALIC,
+  italic = QFont::StyleItalic,
 
   /**
    * Slanted to the right.
    */
-  oblique = CAIRO_FONT_SLANT_OBLIQUE
+  oblique = QFont::StyleOblique
 };
 
 /**
@@ -136,12 +136,12 @@ enum class font_weight : int {
 /**
    * No additional weight.
    */
-  normal = CAIRO_FONT_WEIGHT_NORMAL,
+  normal = QFont::Normal,
 
 /**
    * Bold font weight.
    */
-  bold = CAIRO_FONT_WEIGHT_BOLD
+  bold = QFont::Bold
 };
 
 /**
@@ -151,13 +151,13 @@ enum class line_cap : int {
   /**
    * Start and stop the line exactly where it begins/ends.
    */
-  butt = CAIRO_LINE_CAP_BUTT,
+  butt = Qt::FlatCap,
 
   /**
    * Each end of the line has circles. This is useful to ensure polylines formed of multiple line segments
    * do not have gaps in them.
    */
-  round = CAIRO_LINE_CAP_ROUND
+  round = Qt::RoundCap
 };
 
 /**
