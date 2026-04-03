@@ -19,6 +19,7 @@
 #include <QCheckBox>
 #include <QLineEdit>
 #include <QStatusBar>
+#include <QHash>
 #include <QSizePolicy>
 #include <QStyle>
 #include <QDebug>
@@ -221,6 +222,21 @@ QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl)
 
   applyCommonProperties(container, objEl);
 
+  // First pass: count how many non-placeholder children start at each row.
+  // Rows with more than one child are "horizontal rows" — multiple widgets
+  // sit side-by-side there, so their expand flags should not drive the
+  // grid's row/column stretch (that would distort the horizontal layout).
+  QHash<int, int> rowChildCount;
+  for (QDomElement childEl = objEl.firstChildElement("child");
+       !childEl.isNull();
+       childEl = childEl.nextSiblingElement("child"))
+  {
+    if (firstChildObject(childEl).isNull()) continue; // <placeholder/>
+    QDomElement packEl = findPacking(childEl);
+    rowChildCount[packingInt(packEl, "top-attach", 0)]++;
+  }
+
+  // Second pass: build and add children.
   for (QDomElement childEl = objEl.firstChildElement("child");
       !childEl.isNull();
       childEl = childEl.nextSiblingElement("child"))
@@ -257,6 +273,25 @@ QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl)
     const int rowSpan = packingInt(packingEl, "height", 1);
 
     layout->addWidget(childW, row, col, rowSpan, colSpan);
+
+    // Propagate GTK expand flags to QGridLayout stretch factors, but only
+    // when this widget is the sole occupant of its row (i.e. it is in a
+    // vertical slot, not part of a horizontal row of sibling widgets).
+    // Applying stretch to a shared row would affect all widgets in that row
+    // and distort their relative sizing.
+    const bool inHorizontalRow = (rowChildCount.value(row, 0) > 1);
+    if (!inHorizontalRow) {
+      if (childW->sizePolicy().verticalPolicy() == QSizePolicy::Expanding ||
+          childW->sizePolicy().verticalPolicy() == QSizePolicy::MinimumExpanding) {
+        for (int r = row; r < row + rowSpan; ++r)
+          layout->setRowStretch(r, 1);
+      }
+      if (childW->sizePolicy().horizontalPolicy() == QSizePolicy::Expanding ||
+          childW->sizePolicy().horizontalPolicy() == QSizePolicy::MinimumExpanding) {
+        for (int c = col; c < col + colSpan; ++c)
+          layout->setColumnStretch(c, 1);
+      }
+    }
   }
 
   return container;
