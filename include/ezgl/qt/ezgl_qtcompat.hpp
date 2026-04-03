@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <ctime>
 #include <functional>
+#include <iostream>
 
 #include <QObject>
 #include <QApplication>

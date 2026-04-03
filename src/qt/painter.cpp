@@ -2,8 +2,10 @@
 
 #include <ezgl/qt/painter.hpp>
 
+namespace ezgl {
+
 // Painter
-Painter::Painter(QImage* image): QPainter(image), m_surface(image) {
+Painter::Painter(QImage* image): QPainter(image)/*, m_surface(image)*/ {
   m_id = Painter::s_nextid++;
   Painter::s_counter++;
   //qInfo() << "Painter(" << m_id << ")";
@@ -240,7 +242,7 @@ void Painter::arc_negative(double xc, double yc,
   }
 }
 
-void Painter::select_font_face(const char* family, font_slant_t slant, font_weight_t weight)
+void Painter::select_font_face(const char* family, QFont::Style slant, QFont::Weight weight)
 {
   if (family) {
     m_font.setFamily(QString::fromUtf8(family));
@@ -274,7 +276,7 @@ void Painter::set_line_width(int width)
   m_pen.setWidth(width == 0 ? 1.0 : width);
 }
 
-void Painter::set_line_cap(line_cap_t cap) {
+void Painter::set_line_cap(Qt::PenCapStyle cap) {
   m_pen.setCapStyle(cap);
 }
 
@@ -301,6 +303,6 @@ void Painter::surface_destroy(QImage* surface) {
   delete surface;
 }
 
-// cairo wrapper
+} // namespace ezgl
 
 #endif // EZGL_QT

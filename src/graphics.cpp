@@ -23,6 +23,7 @@
 #ifdef EZGL_QT
 #include <QFile>
 #include "ezgl/qt/ezgl_qtcompat.hpp"
+#include "ezgl/qt/painter.hpp"
 #else // EZGL_QT
 #include <glib.h>
 #endif // EZGL_QT
@@ -143,11 +144,11 @@ static bool clip_line(const rectangle& clip_window,
     return true;
 }
 
-renderer::renderer(cairo_t *cairo,
+renderer::renderer(Painter *painter,
     transform_fn transform,
     camera *p_camera,
     QImage *m_surface)
-    : m_cairo(cairo), m_transform(std::move(transform)), m_camera(p_camera), rotation_angle(0)
+    : m_painter(painter), m_transform(std::move(transform)), m_camera(p_camera), rotation_angle(0)
 {
 #ifdef EZGL_USE_X11
   // Check if the created cairo surface is an XLIB surface
@@ -176,10 +177,10 @@ renderer::~renderer()
 #endif
 }
 
-void renderer::update_renderer(cairo_t *cairo, QImage *m_surface)
+void renderer::update_renderer(Painter *painter, QImage *m_surface)
 {
   // Update Cairo Context
-  m_cairo = cairo;
+  m_painter = painter;
 
   // Update X11 Context
 #ifdef EZGL_USE_X11
@@ -309,7 +310,7 @@ void renderer::set_color(uint_fast8_t red,
     uint_fast8_t alpha)
 {
   // set color for cairo
-  cairo_set_source_rgba(m_cairo, red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0);
+  m_painter->set_source_rgba(red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0);
 
   // set current_color
   current_color = {red, green, blue, alpha};
@@ -335,8 +336,8 @@ void renderer::set_color(uint_fast8_t red,
 
 void renderer::set_line_cap(line_cap cap)
 {
-  auto cairo_cap = static_cast<cairo_line_cap_t>(cap);
-  cairo_set_line_cap(m_cairo, cairo_cap);
+  auto cairo_cap = static_cast<Qt::PenCapStyle>(cap);
+  m_painter->set_line_cap(cairo_cap);
 
   current_line_cap = cap;
 
@@ -354,12 +355,12 @@ void renderer::set_line_dash(line_dash dash)
   if(dash == line_dash::none) {
     int num_dashes = 0; // disables dashing
 
-    cairo_set_dash(m_cairo, nullptr, num_dashes, 0);
+    m_painter->set_dash(nullptr, num_dashes, 0);
   } else if(dash == line_dash::asymmetric_5_3) {
     static double dashes[] = {5.0, 3.0};
     int num_dashes = 2; // asymmetric dashing
 
-    cairo_set_dash(m_cairo, dashes, num_dashes, 0);
+    m_painter->set_dash(dashes, num_dashes, 0);
   }
 
   current_line_dash = dash;
@@ -375,7 +376,7 @@ void renderer::set_line_dash(line_dash dash)
 
 void renderer::set_line_width(int width)
 {
-  cairo_set_line_width(m_cairo, width == 0 ? 1 : width);
+  m_painter->set_line_width(width == 0 ? 1 : width);
 
   current_line_width = width;
 
@@ -390,13 +391,13 @@ void renderer::set_line_width(int width)
 
 void renderer::set_font_size(double new_size)
 {
-  cairo_set_font_size(m_cairo, new_size);
+  m_painter->set_font_size(new_size);
 }
 
 void renderer::format_font(std::string const &family, font_slant slant, font_weight weight)
 {
-  cairo_select_font_face(m_cairo, family.c_str(), static_cast<cairo_font_slant_t>(slant),
-      static_cast<cairo_font_weight_t>(weight));
+  m_painter->select_font_face(family.c_str(), static_cast<QFont::Style>(slant),
+      static_cast<QFont::Weight>(weight));
 }
 
 void renderer::format_font(std::string const &family,
@@ -463,14 +464,11 @@ void renderer::draw_line(point2d start, point2d end)
   }
 #endif
 
-  cairo_move_to(m_cairo, start.x, start.y);
-  cairo_line_to(m_cairo, end.x, end.y);
+  m_painter->move_to(start.x, start.y);
+  m_painter->line_to(end.x, end.y);
 
 #ifdef EZGL_QT
-  {
-    Painter painter(m_cairo->surface);
-    cairo_stroke(m_cairo, painter);
-  }
+  m_painter->stroke();
 #else
   cairo_stroke(m_cairo);
 #endif
@@ -580,22 +578,19 @@ void renderer::fill_poly(std::vector<point2d> const &points)
   if(current_coordinate_system == WORLD)
     next_point = m_transform(points[0]);
 
-  cairo_move_to(m_cairo, next_point.x, next_point.y);
+  m_painter->move_to(next_point.x, next_point.y);
 
   for(std::size_t i = 1; i < points.size(); ++i) {
     if(current_coordinate_system == WORLD)
       next_point = m_transform(points[i]);
     else
       next_point = points[i];
-    cairo_line_to(m_cairo, next_point.x, next_point.y);
+    m_painter->line_to(next_point.x, next_point.y);
   }
 
-  cairo_close_path(m_cairo);
+  m_painter->close_path();
 #ifdef EZGL_QT
-  {
-  Painter painter(m_cairo->surface);
-  cairo_fill(m_cairo, painter);
-  }
+  m_painter->fill();
 #else
   cairo_fill(m_cairo);
 #endif
@@ -676,12 +671,12 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
     return;
 
   // get the width and height of the drawn text
-  cairo_text_extents_t text_extents{0,0,0,0,0,0};
-  cairo_text_extents(m_cairo, text.c_str(), &text_extents);
+  text_extents_t text_extents{0,0,0,0,0,0};
+  m_painter->text_extents(text.c_str(), &text_extents);
 
   // get more information about the font used
-  cairo_font_extents_t font_extents{0,0,0,0,0};
-  cairo_font_extents(m_cairo, &font_extents);
+  font_extents_t font_extents{0,0,0,0,0};
+  m_painter->font_extents(&font_extents);
 
   // get text width and height in the current coordinate system to check against the bounds
   // Note: text width and height are constant in widget coordinates
@@ -708,18 +703,13 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
     else
       center = point;
 
-    Painter painter(m_cairo->surface);
-
-    painter.setFont(m_cairo->font);
-    painter.setPen(m_cairo->pen);
-
     QString qtext = QString::fromStdString(text);
-    QFontMetricsF fm(painter.font());
+    QFontMetricsF fm(m_painter->font());
     QRectF br = fm.boundingRect(qtext);
 
     // We will rotate around the desired visual text center = `center`
-    painter.translate(center.x, center.y);
-    painter.rotate(rotation_angle * 180.0 / std::numbers::pi);
+    m_painter->translate(center.x, center.y);
+    m_painter->rotate(rotation_angle * 180.0 / std::numbers::pi);
 
     // Compute offset so that text is centered at (0,0) *before* justification
     double baseline_shift = (fm.ascent() - fm.descent()) / 2.0;
@@ -740,7 +730,7 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
       offset.ry() += br.height() / 2.0;       // anchor at bottom -> move center down
     }
 
-    painter.drawText(offset, qtext);
+    m_painter->drawText(offset, qtext);
   }
 #else
   // save the current state to undo the rotation needed for drawing rotated text
@@ -790,7 +780,7 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
 #endif
 
   // restore the old state to undo the performed rotation
-  cairo_restore(m_cairo);
+  m_painter->restore();
 }
 
 void renderer::draw_rectangle_path(point2d start, point2d end, bool fill_flag)

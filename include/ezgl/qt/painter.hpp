@@ -8,6 +8,8 @@
 #include <QColor>
 #include <QFont>
 
+namespace ezgl {
+
 class Pen : public QPen {
 public:
   Pen();
@@ -26,27 +28,27 @@ private:
   void applyNormalizedDashPattern();
 };
 
+// text
+struct text_extents_t {
+  double x_bearing;
+  double y_bearing;
+  double width;
+  double height;
+  double x_advance;
+  double y_advance;
+};
+
+struct font_extents_t {
+  double ascent;
+  double descent;
+  double height;
+  double max_x_advance;
+  double max_y_advance;
+};
+
 class Painter : public QPainter {
   static int s_nextid;
   static int s_counter;
-
-  // text
-  struct text_extents_t {
-    double x_bearing;
-    double y_bearing;
-    double width;
-    double height;
-    double x_advance;
-    double y_advance;
-  };
-
-  struct font_extents_t {
-    double ascent;
-    double descent;
-    double height;
-    double max_x_advance;
-    double max_y_advance;
-  };
 
 private:
   Painter(const Painter&) = delete;
@@ -71,15 +73,14 @@ public:
   void line_to(double x, double y);
   void arc(double xc, double yc, double radius, double angle1, double angle2);
   void arc_negative(double xc, double yc, double radius, double angle1, double angle2);
-  void select_font_face(const char* family, font_slant_t slant, font_weight_t weight);
+  void select_font_face(const char* family, QFont::Style slant, QFont::Weight weight);
   void set_dash(const double* pattern, int count, double offset);
   void set_font_size(int size);
   void set_line_width(int width);
-  void set_line_cap(line_cap_t cap);
+  void set_line_cap(Qt::PenCapStyle cap);
   void set_source_rgb(double r, double g, double b);
   void set_source_rgba(double r, double g, double b, double a);
-  [[deprecated("use QImage not a pointer")]]
-  void surface_destroy(QImage*);
+  void surface_destroy(QImage* surface);
   // draw low level api
 
   // QTransform specific
@@ -93,12 +94,12 @@ public:
   void font_extents(font_extents_t* extents);
   // text
 
-  QImage* surface() const { return m_surface; }
+  // QImage* surface() const { return m_surface; }
 
 private:
   int m_id = 0;
   QPainter::RenderHints m_renderHints;
-  QImage* m_surface{nullptr};
+  // QImage* m_surface{nullptr};
   QColor m_color;
   Pen m_pen;
   QBrush m_brush = QBrush(Qt::SolidPattern);
@@ -106,5 +107,7 @@ private:
   QFont m_font;
   std::optional<QTransform> m_transform;
 };
+
+} // namespace ezgl
 
 #endif // EZGL_QT

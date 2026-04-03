@@ -38,13 +38,12 @@
 namespace ezgl {
 
 #if EZGL_QT
-Image *create_surface(QWidget* widget)
+QImage *create_surface(QWidget* widget)
 {
   DrawingAreaWidget* drawableAreaWidget = qobject_cast<DrawingAreaWidget*>(widget);
   if (drawableAreaWidget) {
     return drawableAreaWidget->createSurface();
   }
-  assert(false);
   return nullptr;
 }
 #else
@@ -73,14 +72,14 @@ static QImage *create_surface(GtkWidget *widget)
 }
 #endif
 
-static cairo_t *create_context(QImage *p_surface)
+static Painter *create_painter(QImage *p_surface)
 {
 #ifdef EZGL_QT
-  cairo_t *context = new cairo_t(p_surface);
+  Painter *painter = new Painter(p_surface);
 
   // Equivalent to CAIRO_ANTIALIAS_NONE
-  context->setAntialias(false);
-  context->setSmoothPixmap(false);
+  painter->setAntialias(false);
+  painter->setSmoothPixmap(false);
 
 #else // EZGL_QT
   cairo_t *context = cairo_create(p_surface);
@@ -90,32 +89,29 @@ static cairo_t *create_context(QImage *p_surface)
   // See https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-antialias-t
   cairo_set_antialias(context, CAIRO_ANTIALIAS_NONE);
 #endif // EZGL_QT
-  return context;
+  return painter;
 
 }
 
 #ifdef EZGL_QT
 // Renders the canvas into an off-screen QImage of the given dimensions,
 // shared by print_pdf / print_svg / print_png.
-Image canvas::render_to_image(int surface_width, int surface_height)
+QImage canvas::render_to_image(int surface_width, int surface_height)
 {
-  Image surface(surface_width, surface_height, QImage::Format_ARGB32);
-  cairo_t* context = create_context(&surface);
+  QImage surface(surface_width, surface_height, QImage::Format_ARGB32);
+  Painter painter(&surface);
 
-  cairo_set_source_rgb(context, m_background_color.red / 255.0,
-      m_background_color.green / 255.0, m_background_color.blue / 255.0);
-  {
-    Painter painter(context->surface);
-    cairo_paint(context, painter);
-  }
+  painter.set_source_rgb(m_background_color.red / 255.0,
+                         m_background_color.green / 255.0,
+                         m_background_color.blue / 255.0);
+  painter.paint();
 
   using namespace std::placeholders;
   camera cam = m_camera;
   cam.update_widget(surface_width, surface_height);
-  renderer g(context, std::bind(&camera::world_to_screen, cam, _1), &cam, &surface);
+  renderer g(&painter, std::bind(&camera::world_to_screen, cam, _1), &cam, &surface);
   m_draw_callback(&g);
 
-  cairo_destroy(context);
   return surface;
 }
 #endif // EZGL_QT
@@ -126,7 +122,7 @@ bool canvas::print_pdf(const char *file_name, int output_width, int output_heigh
   const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
   const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
 
-  const Image surface = render_to_image(w, h);
+  const QImage surface = render_to_image(w, h);
 
   // QPdfWriter lives in Qt::Gui — no PrintSupport module needed.
   // At 72 DPI, 1 point == 1 pixel, so pixel dimensions map directly to page points.
@@ -187,7 +183,7 @@ bool canvas::print_svg(const char *file_name, int output_width, int output_heigh
   const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
   const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
 
-  const Image surface = render_to_image(w, h);
+  const QImage surface = render_to_image(w, h);
 
   QSvgGenerator generator;
   generator.setFileName(file_name);
@@ -246,7 +242,7 @@ bool canvas::print_png(const char *file_name, int output_width, int output_heigh
   const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
   const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
 
-  const Image surface = render_to_image(w, h);
+  const QImage surface = render_to_image(w, h);
   return surface.save(file_name, "PNG");
 #else // EZGL_QT
   QImage *png_surface;
@@ -329,16 +325,15 @@ gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointe
 }
 #endif // #ifndef HIDE_GTK_EVENT
 
-gboolean canvas::draw_surface(GtkWidget *, cairo_t *context, gpointer data)
+gboolean canvas::draw_surface(GtkWidget *, Painter *painter, gpointer data)
 {
   // Assume context and data are non-null.
   auto &p_surface = static_cast<canvas *>(data)->m_surface;
 
   // Assume surface is non-null.
 #ifdef EZGL_QT
-  Painter painter(context->surface);
-  cairo_set_source_surface(context, p_surface, 0, 0, painter);
-  cairo_paint(context, painter);
+  painter->set_source_surface(p_surface, 0, 0);
+  painter->paint();
 #else
   cairo_set_source_surface(context, p_surface, 0, 0);
   cairo_paint(context);
@@ -361,11 +356,11 @@ canvas::canvas(std::string canvas_id,
 canvas::~canvas()
 {
   if(m_surface != nullptr) {
-    cairo_surface_destroy(m_surface);
+    delete m_surface;
   }
 
-  if(m_context != nullptr) {
-    cairo_destroy(m_context);
+  if(m_painter != nullptr) {
+    delete m_painter;
   }
 
   if(m_animation_renderer != nullptr) {
@@ -390,7 +385,7 @@ void canvas::initialize(GtkWidget *drawing_area)
 
   m_drawing_area = drawing_area;
   m_surface = create_surface(m_drawing_area);
-  m_context = create_context(m_surface);
+  m_painter = new Painter(m_surface);
 
 #ifdef EZGL_QT
   // Before show(), the widget may have zero size (layout not yet resolved).
@@ -407,16 +402,16 @@ void canvas::initialize(GtkWidget *drawing_area)
   // the DrawingAreaWidget is resized (including the initial show()).
   if (DrawingAreaWidget* daw = qobject_cast<DrawingAreaWidget*>(drawing_area)) {
     daw->setResizeCallback([this](int /*w*/, int /*h*/) {
-      if (m_context != nullptr) {
-        cairo_destroy(m_context);
-        m_context = nullptr;
+      if (m_painter != nullptr) {
+        delete m_painter;
+        m_painter = nullptr;
       }
       m_surface = create_surface(m_drawing_area);
-      m_context = create_context(m_surface);
+      m_painter = new Painter(m_surface);
       m_camera.update_widget(width(), height());
       redraw();
       if (m_animation_renderer != nullptr)
-        m_animation_renderer->update_renderer(m_context, m_surface);
+        m_animation_renderer->update_renderer(m_painter, m_surface);
     });
   }
 #else
@@ -444,19 +439,17 @@ void canvas::initialize(GtkWidget *drawing_area)
 void canvas::redraw()
 {
   // Clear the screen and set the background color
-  cairo_set_source_rgb(m_context, m_background_color.red / 255.0, m_background_color.green / 255.0,
+  m_painter->set_source_rgb(m_background_color.red / 255.0,
+      m_background_color.green / 255.0,
       m_background_color.blue / 255.0);
 #ifdef EZGL_QT
-  {
-  Painter painter(m_context->surface);
-  cairo_paint(m_context, painter);
-  }
+  m_painter->paint();
 #else
   cairo_paint(m_context);
 #endif
 
   using namespace std::placeholders;
-  renderer g(m_context, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
+  renderer g(m_painter, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
   m_draw_callback(&g);
 
   gtk_widget_queue_draw(m_drawing_area);
@@ -468,7 +461,7 @@ renderer *canvas::create_animation_renderer()
 {
   if(m_animation_renderer == nullptr) {
     using namespace std::placeholders;
-    m_animation_renderer = new renderer(m_context, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
+    m_animation_renderer = new renderer(m_painter, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
   }
 
   return m_animation_renderer;

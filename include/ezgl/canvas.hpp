@@ -157,14 +157,14 @@ private:
   QImage *m_surface = nullptr;
 
   // The off-screen cairo context that can be drawn to
-  cairo_t *m_context = nullptr;
+  Painter *m_painter = nullptr;
 
   // The animation renderer
   renderer *m_animation_renderer = nullptr;
 
 #ifdef EZGL_QT
   // Renders the canvas into an off-screen QImage; shared by print_pdf/print_svg/print_png.
-  Image render_to_image(int surface_width, int surface_height);
+  QImage render_to_image(int surface_width, int surface_height);
 #endif
 
 #ifndef HIDE_GTK_EVENT
@@ -173,7 +173,7 @@ private:
 #endif // #ifndef HIDE_GTK_EVENT
 
   // Called each time we need to draw to our drawing area widget.
-  static gboolean draw_surface(GtkWidget *widget, cairo_t *context, gpointer data);
+  static gboolean draw_surface(GtkWidget *widget, Painter *painter, gpointer data);
 };
 }
 

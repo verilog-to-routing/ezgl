@@ -26,8 +26,7 @@
 
 #ifdef EZGL_QT
 #include <ezgl/qt/ezgl_qtcompat.hpp>
-#include <QFont>
-class QImage;
+#include <ezgl/qt/painter.hpp>
 #else // EZGL_QT
 #include <cairo.h>
 #include <gdk/gdk.h>
@@ -62,7 +61,7 @@ typedef QImage surface;
 /**
  * define ezgl::surface type used for drawing png bitmaps
  */
-typedef QImage surface;
+typedef cairo_surface_t surface;
 #endif // EZGL_QT
 
 /**
@@ -71,7 +70,7 @@ typedef QImage surface;
 enum t_coordinate_system {
   /**
    * Default coordinate system; specified by the user as any desired range. Graphics drawn in world coordinates
-   * will be transformed to screen pixels by ezgl. Panning and zooming change the transformation from 
+   * will be transformed to screen pixels by ezgl. Panning and zooming change the transformation from
    * world to screen coordinates, so they automatically work for any graphics drawn in wrld coordinates.
    */
   WORLD,
@@ -133,12 +132,12 @@ enum class font_slant : int {
  * The weight of the font.
  */
 enum class font_weight : int {
-/**
+  /**
    * No additional weight.
    */
   normal = QFont::Normal,
 
-/**
+  /**
    * Bold font weight.
    */
   bold = QFont::Bold
@@ -515,7 +514,7 @@ protected:
    * @param cairo The cairo graphics state.
    * @param transform The function to use to transform points to cairo's coordinate system.
    */
-  renderer(cairo_t *cairo, transform_fn transform, camera *m_camera, QImage *m_surface);
+  renderer(Painter* painter, transform_fn transform, camera *m_camera, QImage *m_surface);
 
   /**
    * Update the renderer when the cairo surface/context changes
@@ -523,7 +522,7 @@ protected:
    * @param cairo The new cairo graphics state
    * @param m_surface The new cairo surface
    */
-  void update_renderer(cairo_t *cairo, QImage *m_surface);
+  void update_renderer(Painter* painter, QImage *m_surface);
 
 private:
   void draw_rectangle_path(point2d start, point2d end, bool fill_flag);
@@ -542,8 +541,7 @@ private:
   t_coordinate_system current_coordinate_system = WORLD;
 
 #ifdef EZGL_QT
-  // A non-owning pointer to a cairo graphics context.
-  cairo_t *m_cairo; // we use fake tpe for now
+  Painter* m_painter{nullptr};
 #else
   // A non-owning pointer to a cairo graphics context.
   cairo_t *m_cairo;
