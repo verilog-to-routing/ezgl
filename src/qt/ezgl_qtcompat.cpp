@@ -24,22 +24,6 @@ void Application::setApp(ezgl::application* app) {
   m_app = app;
 }
 
-// Image
-Image::Image(): QImage() {
-}
-
-Image::Image(const QString& str): QImage(str) {
-  qInfo() << "Image()";
-}
-
-Image::Image(int width, int height, QImage::Format format): QImage(width, height, format) {
-  qInfo() << "Image()" << width << height << format;
-}
-
-Image::~Image() {
-  qInfo() << "~Image()";
-}
-
 // Painter
 Painter::Painter(Image* image): QPainter(image) {
   m_id = Painter::nextid++;
@@ -474,12 +458,12 @@ void cairo_font_extents(cairo_t* ctx, cairo_font_extents_t* extents)
 }
 // text
 
-int cairo_image_surface_get_width(cairo_surface_t* surface)
+int cairo_image_surface_get_width(QImage* surface)
 {
   return surface->width();
 }
 
-int cairo_image_surface_get_height(cairo_surface_t* surface)
+int cairo_image_surface_get_height(QImage* surface)
 {
   return surface->height();
 }
@@ -601,7 +585,7 @@ void cairo_set_source_rgba(cairo_t* ctx, double r, double g, double b, double a)
   ctx->setColor(c);
 }
 
-void cairo_surface_destroy(cairo_surface_t* surface) {
+void cairo_surface_destroy(QImage* surface) {
   g_debug("~~~cairo_surface_destroy");
   delete surface;
 }

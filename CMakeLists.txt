@@ -61,6 +61,7 @@ add_library(
   include/ezgl/qt/ezgl_qtcompat.hpp
   include/ezgl/qt/qtgladeloader.hpp
   include/ezgl/qt/switchbutton.hpp
+  include/ezgl/qt/painter.hpp
   src/application.cpp
   src/camera.cpp
   src/canvas.cpp
@@ -70,6 +71,7 @@ add_library(
   src/qt/ezgl_qtcompat.cpp
   src/qt/qtgladeloader.cpp
   src/qt/switchbutton.cpp
+  src/qt/painter.cpp
 )
 
 target_include_directories(

@@ -57,12 +57,12 @@ namespace ezgl {
 /**
  * define ezgl::surface type used for drawing png bitmaps
  */
-typedef Image surface;
+typedef QImage surface;
 #else // EZGL_QT
 /**
  * define ezgl::surface type used for drawing png bitmaps
  */
-typedef cairo_surface_t surface;
+typedef QImage surface;
 #endif // EZGL_QT
 
 /**
@@ -515,7 +515,7 @@ protected:
    * @param cairo The cairo graphics state.
    * @param transform The function to use to transform points to cairo's coordinate system.
    */
-  renderer(cairo_t *cairo, transform_fn transform, camera *m_camera, cairo_surface_t *m_surface);
+  renderer(cairo_t *cairo, transform_fn transform, camera *m_camera, QImage *m_surface);
 
   /**
    * Update the renderer when the cairo surface/context changes
@@ -523,7 +523,7 @@ protected:
    * @param cairo The new cairo graphics state
    * @param m_surface The new cairo surface
    */
-  void update_renderer(cairo_t *cairo, cairo_surface_t *m_surface);
+  void update_renderer(cairo_t *cairo, QImage *m_surface);
 
 private:
   void draw_rectangle_path(point2d start, point2d end, bool fill_flag);

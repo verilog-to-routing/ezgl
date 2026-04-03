@@ -154,7 +154,7 @@ private:
   GtkWidget *m_drawing_area = nullptr;
 
   // The off-screen surface that can be drawn to.
-  cairo_surface_t *m_surface = nullptr;
+  QImage *m_surface = nullptr;
 
   // The off-screen cairo context that can be drawn to
   cairo_t *m_context = nullptr;

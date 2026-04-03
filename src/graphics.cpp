@@ -146,7 +146,7 @@ static bool clip_line(const rectangle& clip_window,
 renderer::renderer(cairo_t *cairo,
     transform_fn transform,
     camera *p_camera,
-    cairo_surface_t *m_surface)
+    QImage *m_surface)
     : m_cairo(cairo), m_transform(std::move(transform)), m_camera(p_camera), rotation_angle(0)
 {
 #ifdef EZGL_USE_X11
@@ -176,7 +176,7 @@ renderer::~renderer()
 #endif
 }
 
-void renderer::update_renderer(cairo_t *cairo, cairo_surface_t *m_surface)
+void renderer::update_renderer(cairo_t *cairo, QImage *m_surface)
 {
   // Update Cairo Context
   m_cairo = cairo;
@@ -1035,7 +1035,7 @@ surface *renderer::load_png(const char *file_path)
   return image;
 #else // EZGL_QT
   // Create an image surface from a PNG image
-  cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
+  QImage *png_surface = cairo_image_surface_create_from_png(file_path);
 
   cairo_status_t status = cairo_surface_status(png_surface);
 

@@ -1,0 +1,306 @@
+#ifdef EZGL_QT
+
+#include <ezgl/qt/painter.hpp>
+
+// Painter
+Painter::Painter(QImage* image): QPainter(image), m_surface(image) {
+  m_id = Painter::s_nextid++;
+  Painter::s_counter++;
+  //qInfo() << "Painter(" << m_id << ")";
+  assert(image);
+  assert(!image->isNull());
+  assert(isActive());
+  assert(Painter::counter == 1);
+}
+
+Painter::~Painter() {
+  //qInfo() << "~Painter(" << m_id << ")";
+  Painter::s_counter--;
+}
+
+// Pen
+Pen::Pen(): QPen(Qt::SolidLine) {}
+
+void Pen::setWidth(double width) {
+  QPen::setWidthF(width);
+  m_width = width;
+  if (!isSolid()) {
+    applyNormalizedDashPattern();
+  }
+}
+
+void Pen::setDashPattern(const QList<double>& dashPattern) {
+  QPen::setStyle(Qt::CustomDashLine);
+  m_dashPatternOrig = dashPattern;
+  applyNormalizedDashPattern();
+}
+
+void Pen::setSolid() {
+  if (!isSolid()) {
+    QPen::setStyle(Qt::SolidLine);
+    m_dashPatternOrig.clear();
+    QPen::setDashPattern(m_dashPatternOrig);
+    QPen::setDashOffset(0.0);
+  }
+}
+
+bool Pen::isSolid() const { // in some reason QPen::isSOlid() doesn't return valid value
+  return (style() == Qt::SolidLine);
+}
+
+void Pen::applyNormalizedDashPattern() {
+  if (m_width > 1.0f) {
+    QList<double> normalizedDashPattern;
+    for (double p: m_dashPatternOrig) {
+      // pattern[] is in "cairo units" (pixels/user space),
+      // Qt expects "pen-width units", so normalize:
+      normalizedDashPattern.append(p/double(m_width));
+    }
+    QPen::setDashPattern(normalizedDashPattern);
+  } else {
+    QPen::setDashPattern(m_dashPatternOrig);
+  }
+}
+
+int Painter::s_counter = 0;
+int Painter::s_nextid = 0;
+
+void Painter::setAntialias(bool enabled) {
+  if (enabled) {
+    m_renderHints |= QPainter::Antialiasing;
+  } else {
+    m_renderHints &= ~QPainter::Antialiasing;
+  }
+}
+
+void Painter::setSmoothPixmap(bool enabled) {
+  if (enabled) {
+    m_renderHints |= QPainter::SmoothPixmapTransform;
+  } else {
+    m_renderHints &= ~QPainter::SmoothPixmapTransform;
+  }
+}
+
+void Painter::setColor(const QColor& color)
+{
+  m_color = color;
+  m_pen.setColor(color);
+  m_brush.setColor(color);
+}
+
+// QPainter specific
+void Painter::fill()
+{
+  // deactivate pen while fill
+  setPen(Qt::NoPen);
+
+  // refresh brush
+  setBrush(m_brush);
+
+  // draw path
+  drawPath(m_path);
+
+  // clear path after drawing
+  m_path = QPainterPath();
+}
+
+void Painter::stroke()
+{
+  // deactivate brush while fill
+  setBrush(Qt::NoBrush);
+
+  // refresh pen
+  setPen(m_pen);
+
+  // draw stroke path
+  strokePath(m_path, m_pen);
+
+  // clear path after drawing
+  m_path = QPainterPath();
+}
+
+void Painter::paint()
+{
+  fillRect(viewport(), m_color);
+}
+
+void Painter::set_source_surface(QImage* surface, double x, double y)
+{
+  drawImage(QPointF(x, y), *surface);
+}
+
+// QTransform specific
+void Painter::save()
+{
+  m_transform = QTransform();
+}
+
+void Painter::restore()
+{
+  m_transform = std::nullopt;
+}
+
+void Painter::scale(double sx, double sy)
+{
+  assert(m_transform.has_value());
+  m_transform.value().scale(sx, sy);
+}
+
+void Painter::text_extents(const char* utf8, text_extents_t* extents)
+{
+  QString text = QString::fromUtf8(utf8);
+  QFontMetricsF fm(m_font);
+
+  // QRectF is given in logical coords, origin at baseline (like Cairo)
+  QRectF br = fm.boundingRect(text);
+
+  extents->x_bearing = br.x();
+  extents->y_bearing = br.y();
+  extents->width     = br.width();
+  extents->height    = br.height();
+
+  // Advance: how much the current point moves along the baseline
+  extents->x_advance = fm.horizontalAdvance(text);
+  extents->y_advance = 0.0;  // Qt is horizontal layout, so y-advance is 0
+}
+
+void Painter::font_extents(font_extents_t* extents)
+{
+  QFontMetricsF fm(m_font);
+
+  extents->ascent  = fm.ascent();
+  extents->descent = fm.descent();
+  extents->height  = fm.height();
+
+  // rough equivalent: the maximum advance of any glyph in the font
+  extents->max_x_advance = fm.maxWidth();
+
+  // Cairo's max_y_advance is for vertical layouts. For Latin text it's 0.
+  extents->max_y_advance = 0.0;
+}
+// text
+
+void Painter::new_path()
+{
+  m_path = QPainterPath();
+}
+
+void Painter::close_path()
+{
+  m_path.closeSubpath();
+}
+
+void Painter::move_to(double x, double y)
+{
+  // Add 0.5 for extra half-pixel accuracy
+  m_path.moveTo(x+0.5, y+0.5);
+}
+
+void Painter::line_to(double x, double y)
+{
+  // Add 0.5 for extra half-pixel accuracy
+  m_path.lineTo(x+0.5, y+0.5);
+}
+
+void Painter::arc(double xc, double yc,
+    double radius,
+    double angle1, double angle2)
+{
+  // radians → degrees
+  double startDeg = -angle1 * 180.0 / std::numbers::pi;
+  double endDeg   = -angle2 * 180.0 / std::numbers::pi;
+
+  double spanDeg = endDeg - startDeg;
+
+  double d = radius * 2.0;
+  QRectF rect(xc - radius, yc - radius, d, d);
+
+  m_path.arcTo(rect, startDeg, spanDeg);
+  if (m_transform.has_value()) {
+    m_path = m_path * m_transform.value();
+  }
+}
+
+void Painter::arc_negative(double xc, double yc,
+    double radius,
+    double angle1, double angle2)
+{
+  // radians → degrees
+  double startDeg = -angle1 * 180.0 / std::numbers::pi;
+  double endDeg   = -angle2 * 180.0 / std::numbers::pi;
+
+  double spanDeg = endDeg - startDeg; // negative sweep
+
+  double d = radius * 2.0;
+  QRectF rect(xc - radius, yc - radius, d, d);
+
+  m_path.arcTo(rect, startDeg, spanDeg);
+  if (m_transform.has_value()) {
+    m_path = m_path * m_transform.value();
+  }
+}
+
+void Painter::select_font_face(const char* family, font_slant_t slant, font_weight_t weight)
+{
+  if (family) {
+    m_font.setFamily(QString::fromUtf8(family));
+  }
+
+  m_font.setStyle(slant);
+  m_font.setWeight(weight);
+}
+
+void Painter::set_dash(const double* pattern, int count, double offset)
+{
+  if (pattern == nullptr || count == 0) {
+    m_pen.setSolid();
+  } else {
+    QList<double> dashes(count);
+    for (int i=0; i < count; ++i) {
+      dashes[i] = pattern[i];
+    }
+    m_pen.setDashPattern(dashes);
+    m_pen.setDashOffset(offset);
+  }
+}
+
+void Painter::set_font_size(int size)
+{
+  m_font.setPointSizeF(size);
+}
+
+void Painter::set_line_width(int width)
+{
+  m_pen.setWidth(width == 0 ? 1.0 : width);
+}
+
+void Painter::set_line_cap(line_cap_t cap) {
+  m_pen.setCapStyle(cap);
+}
+
+void Painter::set_source_rgb(double r, double g, double b) {
+  QColor c;
+  c.setRedF(r);
+  c.setGreenF(g);
+  c.setBlueF(b);
+  c.setAlphaF(1.0);
+  setColor(c);
+}
+
+void Painter::set_source_rgba(double r, double g, double b, double a) {
+  QColor c;
+  c.setRedF(r);
+  c.setGreenF(g);
+  c.setBlueF(b);
+  c.setAlphaF(a);
+  setColor(c);
+}
+
+void Painter::surface_destroy(QImage* surface) {
+  qDebug("~~~cairo_surface_destroy");
+  delete surface;
+}
+
+// cairo wrapper
+
+#endif // EZGL_QT

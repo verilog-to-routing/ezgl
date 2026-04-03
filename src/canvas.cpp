@@ -48,7 +48,7 @@ Image *create_surface(QWidget* widget)
   return nullptr;
 }
 #else
-static cairo_surface_t *create_surface(GtkWidget *widget)
+static QImage *create_surface(GtkWidget *widget)
 {
   GdkWindow *parent_window = gtk_widget_get_window(widget);
   int const width = gtk_widget_get_allocated_width(widget);
@@ -57,10 +57,10 @@ static cairo_surface_t *create_surface(GtkWidget *widget)
   // Cairo image surfaces are more efficient than normal Cairo surfaces
   // However, you cannot use X11 functions to draw on image surfaces
   #ifdef EZGL_USE_X11
-  cairo_surface_t *p_surface = gdk_window_create_similar_surface(
+  QImage *p_surface = gdk_window_create_similar_surface(
       parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
   #else
-  cairo_surface_t *p_surface = gdk_window_create_similar_image_surface(
+  QImage *p_surface = gdk_window_create_similar_image_surface(
       parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
   #endif
 
@@ -73,7 +73,7 @@ static cairo_surface_t *create_surface(GtkWidget *widget)
 }
 #endif
 
-static cairo_t *create_context(cairo_surface_t *p_surface)
+static cairo_t *create_context(QImage *p_surface)
 {
 #ifdef EZGL_QT
   cairo_t *context = new cairo_t(p_surface);
@@ -143,7 +143,7 @@ bool canvas::print_pdf(const char *file_name, int output_width, int output_heigh
 
   return true;
 #else // EZGL_QT
-  cairo_surface_t *pdf_surface;
+  QImage *pdf_surface;
   cairo_t *context;
   int surface_width = 0;
   int surface_height = 0;
@@ -202,7 +202,7 @@ bool canvas::print_svg(const char *file_name, int output_width, int output_heigh
 
   return true;
 #else // EZGL_QT
-  cairo_surface_t *svg_surface;
+  QImage *svg_surface;
   cairo_t *context;
   int surface_width = 0;
   int surface_height = 0;
@@ -249,7 +249,7 @@ bool canvas::print_png(const char *file_name, int output_width, int output_heigh
   const Image surface = render_to_image(w, h);
   return surface.save(file_name, "PNG");
 #else // EZGL_QT
-  cairo_surface_t *png_surface;
+  QImage *png_surface;
   cairo_t *context;
   int surface_width = 0;
   int surface_height = 0;

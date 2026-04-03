@@ -7,7 +7,6 @@
 #include <cstdio>
 #include <ctime>
 #include <functional>
-#include <iostream>
 
 #include <QObject>
 #include <QApplication>
@@ -17,9 +16,6 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QDialog>
-#include <QPainter>
-#include <QPainterPath>
-#include <QColor>
 #include <QStatusBar>
 
 #include <QMouseEvent>
@@ -53,22 +49,12 @@ private:
   ezgl::application* m_app{nullptr};
 };
 
-// tmp solution to track lifetime
-class Image : public QImage {
-public:
-  Image();
-  Image(const QString& str);
-  Image(int width, int height, QImage::Format format);
-  virtual ~Image();
-};
-// tmp solution to track lifetime
-
 class DrawingAreaWidget final : public QWidget {
   Q_OBJECT
 public:
   explicit DrawingAreaWidget(QWidget* parent = nullptr);
   virtual ~DrawingAreaWidget();
-  Image* createSurface();
+  QImage* createSurface();
 
   // Register a callback invoked on every resize (including the initial show).
   // The canvas uses this to recreate its surface/context and update the camera.
@@ -83,24 +69,9 @@ protected:
   // void keyPressEvent(QKeyEvent* event) override final;
 
 private:
-  Image* m_image{nullptr};
+  QImage* m_image{nullptr};
   std::function<void(int, int)> m_resize_callback;
 };
-
-class Painter : public QPainter {
-private:
-  static int nextid;
-  static int counter;
-  int m_id = 0;
-
-  Painter(const Painter&) = delete;
-  Painter& operator=(const Painter&) = delete;
-
-public:
-  Painter(Image* image);
-  virtual ~Painter();
-};
-//
 
 // gtk to qt types
 using GObject = QObject;
@@ -111,46 +82,6 @@ using GtkComboBox = QComboBox;
 using GtkDialog = QDialog;
 using GtkApplication = Application;
 using GdkWindow = QWindow;
-
-class Pen : public QPen {
-public:
-  Pen();
-
-  void setWidth(double width);
-  void setDashPattern(const QList<double>& dashPattern);
-  void setSolid();
-  bool isSolid() const;
-
-private:
-  double m_width = 1.0;
-  QList<double> m_dashPatternOrig;
-  double m_offset = 0.0;
-
-  void setWidthF(double width)=delete;
-  void applyNormalizedDashPattern();
-};
-
-// cairo fake types
-struct cairo_t {
-public:
-  cairo_t(Image* image);
-  ~cairo_t();
-
-  void setAntialias(bool enabled);
-  void setSmoothPixmap(bool enabled);
-  void setColor(const QColor& color);
-
-  QPainter::RenderHints renderHints;
-  Image* surface{nullptr};
-  QColor color;
-  Pen pen;
-  QBrush brush = QBrush(Qt::SolidPattern);
-  QPainterPath path;
-  QFont font;
-  std::optional<QTransform> transform;
-};
-
-using cairo_surface_t = Image;
 
 // cairo fake types
 using mouse_callback_fn = void*;
@@ -195,78 +126,6 @@ enum {
 };
 
 // gtk wrapper
-
-// cairo wrapper
-#define CAIRO_LINE_CAP_BUTT	Qt::FlatCap
-#define CAIRO_LINE_CAP_ROUND Qt::RoundCap
-#define CAIRO_LINE_CAP_SQUARE	Qt::SquareCap
-using cairo_line_cap_t = Qt::PenCapStyle;
-
-#define CAIRO_FONT_SLANT_NORMAL QFont::StyleNormal
-#define CAIRO_FONT_SLANT_ITALIC QFont::StyleItalic
-#define CAIRO_FONT_SLANT_OBLIQUE QFont::StyleOblique
-using cairo_font_slant_t = QFont::Style;
-
-#define CAIRO_FONT_WEIGHT_NORMAL QFont::Normal
-#define CAIRO_FONT_WEIGHT_BOLD QFont::Bold
-using cairo_font_weight_t = QFont::Weight;
-
-// QPainter specific
-void cairo_fill(cairo_t* ctx, Painter&);
-void cairo_stroke(cairo_t* ctx, Painter&);
-[[deprecated("OBSOLETE")]]
-void cairo_paint(cairo_t* ctx, Painter&);
-[[deprecated("OBSOLETE")]]
-void cairo_set_source_surface(cairo_t* cairo, Image* surface, double x, double y, Painter&);
-// QPainter specific
-
-// QTransform specific
-void cairo_save(cairo_t* ctx);
-void cairo_restore(cairo_t* ctx);
-void cairo_scale(cairo_t* ctx, double sx, double sy);
-// QTransform specific
-
-
-// text
-struct cairo_text_extents_t {
-  double x_bearing;
-  double y_bearing;
-  double width;
-  double height;
-  double x_advance;
-  double y_advance;
-};
-
-struct cairo_font_extents_t {
-  double ascent;
-  double descent;
-  double height;
-  double max_x_advance;
-  double max_y_advance;
-};
-
-void cairo_text_extents(cairo_t* ctx, const char* utf8, cairo_text_extents_t* extents);
-void cairo_font_extents(cairo_t* ctx, cairo_font_extents_t* extents);
-// text
-
-int cairo_image_surface_get_width(cairo_surface_t* image);
-int cairo_image_surface_get_height(cairo_surface_t* image);
-void cairo_new_path(cairo_t* ctx);
-void cairo_close_path(cairo_t* ctx);
-void cairo_move_to(cairo_t* ctx, double x, double y);
-void cairo_line_to(cairo_t* ctx, double x, double y);
-void cairo_arc(cairo_t* cr, double xc, double yc, double radius, double angle1, double angle2);
-void cairo_arc_negative(cairo_t* ctx, double xc, double yc, double radius, double angle1, double angle2);
-void cairo_select_font_face(cairo_t* ctx, const char* family, cairo_font_slant_t slant, cairo_font_weight_t weight);
-void cairo_set_dash(cairo_t* ctx, const double* pattern, int count, double offset);
-void cairo_set_font_size(cairo_t* ctx, int size);
-void cairo_set_line_width(cairo_t* ctx, int width);
-void cairo_set_line_cap(cairo_t* ctx, cairo_line_cap_t cap);
-void cairo_set_source_rgb(cairo_t* ctx, double r, double g, double b);
-void cairo_set_source_rgba(cairo_t* ctx, double r, double g, double b, double a);
-void cairo_surface_destroy(cairo_surface_t* surface);
-void cairo_destroy(cairo_t* cairo);
-// cairo wrapper
 
 #define g_return_val_if_fail(expr, val)      \
 do {                                         \
