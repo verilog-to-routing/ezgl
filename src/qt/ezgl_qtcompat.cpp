@@ -5,6 +5,7 @@
 
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QShowEvent>
 #include <QStyleFactory>
 
 // Application
@@ -169,6 +170,21 @@ void DrawingAreaWidget::resizeEvent(QResizeEvent* event)
   createSurface();
   // Notify the canvas so it can recreate its context and update the camera.
   if (m_resize_callback)
+    m_resize_callback(width(), height());
+}
+
+void DrawingAreaWidget::showEvent(QShowEvent* event)
+{
+  QWidget::showEvent(event);
+  // GTK fires configure-event every time the widget becomes visible, even
+  // when the size has not changed.  This ensures the canvas is redrawn when
+  // the window is re-shown for a new VPR stage (without a resize).
+  // Mirror that behaviour: trigger the resize callback so the canvas redraws
+  // with the current draw-state (camera/world already updated by VPR before
+  // application::run() is called).
+  // Guard against zero-size: the widget may not have its final layout size
+  // yet on the very first show; resizeEvent will handle that case.
+  if (width() > 0 && height() > 0 && m_resize_callback)
     m_resize_callback(width(), height());
 }
 

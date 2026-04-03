@@ -77,6 +77,7 @@ public:
 protected:
   void paintEvent(QPaintEvent* event) override final;
   void resizeEvent(QResizeEvent* event) override final;
+  void showEvent(QShowEvent* event) override final;
   // void mousePressEvent(QMouseEvent* event) override final;
   // void mouseMoveEvent(QMouseEvent* event) override final;
   // void keyPressEvent(QKeyEvent* event) override final;
