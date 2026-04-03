@@ -391,10 +391,39 @@ void canvas::initialize(GtkWidget *drawing_area)
   m_drawing_area = drawing_area;
   m_surface = create_surface(m_drawing_area);
   m_context = create_context(m_surface);
-  m_camera.update_widget(width(), height());
 
+#ifdef EZGL_QT
+  // Before show(), the widget may have zero size (layout not yet resolved).
+  // Guard against division-by-zero in camera::update_scale_factors().
+  // The resize callback below fires as soon as the widget receives its real
+  // size (first QResizeEvent after show()), which mirrors GTK's configure-event.
+  if (width() > 0 && height() > 0) {
+    m_camera.update_widget(width(), height());
+    redraw();
+  }
+
+  // Register a resize callback — the Qt equivalent of GTK's configure-event.
+  // It recreates the backing surface/context and updates the camera every time
+  // the DrawingAreaWidget is resized (including the initial show()).
+  if (DrawingAreaWidget* daw = qobject_cast<DrawingAreaWidget*>(drawing_area)) {
+    daw->setResizeCallback([this](int /*w*/, int /*h*/) {
+      if (m_context != nullptr) {
+        cairo_destroy(m_context);
+        m_context = nullptr;
+      }
+      m_surface = create_surface(m_drawing_area);
+      m_context = create_context(m_surface);
+      m_camera.update_widget(width(), height());
+      redraw();
+      if (m_animation_renderer != nullptr)
+        m_animation_renderer->update_renderer(m_context, m_surface);
+    });
+  }
+#else
+  m_camera.update_widget(width(), height());
   // Draw to the newly created surface for the first time.
   redraw();
+#endif
 
 #ifndef HIDE_GTK_EVENT
   // Connect to configure events in case our widget changes shape.

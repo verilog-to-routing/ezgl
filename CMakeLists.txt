@@ -95,10 +95,7 @@ if(USE_QT)
         EZGL_QT
         HIDE_GTK_EVENT
         HIDE_GTK_BUILDER
-        HARDCODE_DRAWING_AREA_SIZE
     )
-    add_definitions(-DDRAWING_AREA_WIDTH=1028)
-    add_definitions(-DDRAWING_AREA_HEIGHT=768)
 else(USE_QT)
 
     #Treat GTK/X11 headers as system headers so they

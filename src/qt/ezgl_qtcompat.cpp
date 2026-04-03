@@ -134,11 +134,8 @@ void cairo_t::setColor(const QColor& color)
 // DrawingAreaWidget
 DrawingAreaWidget::DrawingAreaWidget(QWidget* parent): QWidget(parent)
 {
-  setFixedSize(DRAWING_AREA_WIDTH, DRAWING_AREA_HEIGHT);
   setFocusPolicy(Qt::StrongFocus);
   setMouseTracking(true); // for move events even without mouse button pressed
-
-  createSurface();
 }
 
 DrawingAreaWidget::~DrawingAreaWidget()
@@ -149,19 +146,30 @@ DrawingAreaWidget::~DrawingAreaWidget()
 Image* DrawingAreaWidget::createSurface() {
   if (!m_image) {
     const double dpr = devicePixelRatioF();
-
-#ifndef HARDCODE_DRAWING_AREA_SIZE
     const int w = std::max(1, int(width()  * dpr));
     const int h = std::max(1, int(height() * dpr));
-#else
-    const int w = DRAWING_AREA_WIDTH;
-    const int h = DRAWING_AREA_HEIGHT;
-#endif
     m_image = new Image(w, h, QImage::Format_ARGB32_Premultiplied);
     m_image->setDevicePixelRatio(dpr);
     m_image->fill(Qt::transparent);
   }
   return m_image;
+}
+
+void DrawingAreaWidget::setResizeCallback(std::function<void(int, int)> cb)
+{
+  m_resize_callback = std::move(cb);
+}
+
+void DrawingAreaWidget::resizeEvent(QResizeEvent* event)
+{
+  QWidget::resizeEvent(event);
+  // Recreate the backing image at the new widget size.
+  delete m_image;
+  m_image = nullptr;
+  createSurface();
+  // Notify the canvas so it can recreate its context and update the camera.
+  if (m_resize_callback)
+    m_resize_callback(width(), height());
 }
 
 void DrawingAreaWidget::paintEvent(QPaintEvent* event)

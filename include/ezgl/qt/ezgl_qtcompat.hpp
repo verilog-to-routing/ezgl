@@ -6,6 +6,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
+#include <functional>
 #include <iostream>
 
 #include <QObject>
@@ -22,6 +23,7 @@
 #include <QStatusBar>
 
 #include <QMouseEvent>
+#include <QResizeEvent>
 
 // gtk to std types
 using gchar = char;
@@ -68,14 +70,20 @@ public:
   virtual ~DrawingAreaWidget();
   Image* createSurface();
 
+  // Register a callback invoked on every resize (including the initial show).
+  // The canvas uses this to recreate its surface/context and update the camera.
+  void setResizeCallback(std::function<void(int, int)> cb);
+
 protected:
   void paintEvent(QPaintEvent* event) override final;
+  void resizeEvent(QResizeEvent* event) override final;
   // void mousePressEvent(QMouseEvent* event) override final;
   // void mouseMoveEvent(QMouseEvent* event) override final;
   // void keyPressEvent(QKeyEvent* event) override final;
 
 private:
   Image* m_image{nullptr};
+  std::function<void(int, int)> m_resize_callback;
 };
 
 class Painter : public QPainter {
