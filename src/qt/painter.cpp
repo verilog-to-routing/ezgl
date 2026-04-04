@@ -12,7 +12,7 @@ Painter::Painter(QImage* image): QPainter(image)/*, m_surface(image)*/ {
   assert(image);
   assert(!image->isNull());
   assert(isActive());
-  assert(Painter::counter == 1);
+  assert(Painter::s_counter == 1);
 }
 
 Painter::~Painter() {

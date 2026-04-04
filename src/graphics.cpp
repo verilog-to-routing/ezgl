@@ -790,46 +790,18 @@ void renderer::draw_rectangle_path(point2d start, point2d end, bool fill_flag)
     end = m_transform(end);
   }
 
-#ifdef EZGL_USE_X11
-  if(!transparency_flag && x11_display != nullptr) {
-    // Add 0.5 for extra half-pixel accuracy
-    int start_x = static_cast<int>(start.x + 0.5);
-    int start_y = static_cast<int>(start.y + 0.5);
-    int end_x = static_cast<int>(end.x + 0.5);
-    int end_y = static_cast<int>(end.y + 0.5);
+  m_painter->move_to(start.x, start.y);
+  m_painter->line_to(start.x, end.y);
+  m_painter->line_to(end.x, end.y);
+  m_painter->line_to(end.x, start.y);
 
-    if(fill_flag)
-      XFillRectangle(x11_display, x11_drawable, x11_context, std::min(start_x, end_x),
-          std::min(start_y, end_y), std::abs(end_x - start_x), std::abs(end_y - start_y));
-    else
-      XDrawRectangle(x11_display, x11_drawable, x11_context, std::min(start_x, end_x),
-          std::min(start_y, end_y), std::abs(end_x - start_x), std::abs(end_y - start_y));
-    return;
-  }
-#endif
-
-  cairo_move_to(m_cairo, start.x, start.y);
-  cairo_line_to(m_cairo, start.x, end.y);
-  cairo_line_to(m_cairo, end.x, end.y);
-  cairo_line_to(m_cairo, end.x, start.y);
-
-  cairo_close_path(m_cairo);
+  m_painter->close_path();
 
   // actual drawing
-#ifdef EZGL_QT
-  {
-  Painter painter(m_cairo->surface);
   if(fill_flag)
-    cairo_fill(m_cairo, painter);
+    m_painter->fill();
   else
-    cairo_stroke(m_cairo, painter);
-  }
-#else
-  if(fill_flag)
-    cairo_fill(m_cairo);
-  else
-    cairo_stroke(m_cairo);
-#endif
+    m_painter->stroke();
 }
 
 void renderer::draw_arc_path(point2d center,
@@ -866,26 +838,26 @@ void renderer::draw_arc_path(point2d center,
 #endif
 
   // save the current state to undo the scaling needed for drawing ellipse
-  cairo_save(m_cairo);
+  m_painter->save();
 
   // scale the drawing by the stretch factor to draw elliptic circles
-  cairo_scale(m_cairo, 1 / stretch_factor, 1);
+  m_painter->scale(1 / stretch_factor, 1);
   center.x = center.x * stretch_factor;
   radius = radius * stretch_factor;
 
   // start a new path (forget the current point). Alternative for cairo_move_to() for drawing non-filled arc
-  cairo_new_path(m_cairo);
+  m_painter->new_path();
 
   // if the arc will be filled in, start drawing from the center of the arc
   if(fill_flag)
-    cairo_move_to(m_cairo, center.x, center.y);
+    m_painter->move_to(center.x, center.y);
 #ifdef EZGL_QT
   else {
     // this step is not needed for cairo but is needed for QPainter
     double start_angle_radians = -start_angle * std::numbers::pi / 180;
     double startx = center.x + radius * std::cos(start_angle_radians);
     double starty = center.y + radius * std::sin(start_angle_radians);
-    cairo_move_to(m_cairo, startx, starty);
+    m_painter->move_to(startx, starty);
   }
 #endif
 
@@ -894,37 +866,27 @@ void renderer::draw_arc_path(point2d center,
 
   // draw the arc in counter clock-wise direction if the extent angle is positive
   if(extent_angle >= 0) {
-    cairo_arc_negative(
-        m_cairo, center.x, center.y, radius, -start_angle * std::numbers::pi / 180, -end_angle * std::numbers::pi / 180);
+    m_painter->arc_negative(
+        center.x, center.y, radius, -start_angle * std::numbers::pi / 180, -end_angle * std::numbers::pi / 180);
   }
   // draw the arc in clock-wise direction if the extent angle is negative
   else {
-    cairo_arc(
-        m_cairo, center.x, center.y, radius, -start_angle * std::numbers::pi / 180, -end_angle * std::numbers::pi / 180);
+    m_painter->arc(
+        center.x, center.y, radius, -start_angle * std::numbers::pi / 180, -end_angle * std::numbers::pi / 180);
   }
 
   // if the arc will be filled in, return back to the center of the arc
   if(fill_flag)
-    cairo_close_path(m_cairo);
+    m_painter->close_path();
 
   // restore the old state to undo the scaling needed for drawing ellipse
-  cairo_restore(m_cairo);
+  m_painter->restore();
 
   // actual drawing
-#ifdef EZGL_QT
-  {
-  Painter painter(m_cairo->surface);
   if(fill_flag)
-    cairo_fill(m_cairo, painter);
+    m_painter->fill();
   else
-    cairo_stroke(m_cairo, painter);
-  }
-#else // EZGL_QT
-  if(fill_flag)
-    cairo_fill(m_cairo);
-  else
-    cairo_stroke(m_cairo);
-#endif // EZGL_QT
+    m_painter->stroke();
 }
 
 void renderer::draw_surface(surface *p_surface, point2d point, double scale_factor)
@@ -943,8 +905,8 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
 #endif
 
   // calculate surface width and height in screen coordinates
-  double s_width = (double)cairo_image_surface_get_width(p_surface) * scale_factor;
-  double s_height = (double)cairo_image_surface_get_height(p_surface) * scale_factor;
+  double s_width = (double)p_surface->width() * scale_factor;
+  double s_height = (double)p_surface->height() * scale_factor;
 
   // calculate surface width and height in world coordinates
   if (current_coordinate_system == WORLD) {
@@ -975,10 +937,10 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
 
   if (scale_factor != 1) {
     // save the current state to undo the scaling
-    cairo_save(m_cairo);
+    m_painter->save();
 
     // scale the cairo context with the given scale factor
-    cairo_scale(m_cairo, scale_factor, scale_factor);
+    m_painter->scale(scale_factor, scale_factor);
 
     // adjust the corner point based on the context scaling
     top_left.x /= scale_factor;
@@ -986,15 +948,11 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
   }
 
 #ifdef EZGL_QT
-  {
-  Painter painter(m_cairo->surface);
-
   // Create a source for painting from the surface
-  cairo_set_source_surface(m_cairo, p_surface, top_left.x, top_left.y, painter);
+  m_painter->set_source_surface(p_surface, top_left.x, top_left.y);
 
   // Actual drawing
-  cairo_paint(m_cairo, painter);
-  }
+  m_painter->paint();
 #else
   // Create a source for painting from the surface
   cairo_set_source_surface(m_cairo, p_surface, top_left.x, top_left.y);
@@ -1005,14 +963,14 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
 
   if (scale_factor != 1) {
     // restore the old state to undo the performed scaling
-    cairo_restore(m_cairo);
+    m_painter->restore();
   }
 }
 
 surface *renderer::load_png(const char *file_path)
 {
 #ifdef EZGL_QT
-  Image* image = new Image;
+  QImage* image = new QImage;
 
   if (!QFile::exists(QString::fromLatin1(file_path))) {
     g_warning("renderer::load_png: File %s not found.", file_path);
@@ -1025,7 +983,7 @@ surface *renderer::load_png(const char *file_path)
   return image;
 #else // EZGL_QT
   // Create an image surface from a PNG image
-  QImage *png_surface = cairo_image_surface_create_from_png(file_path);
+  cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
 
   cairo_status_t status = cairo_surface_status(png_surface);
 
