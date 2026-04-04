@@ -4,22 +4,6 @@
 
 namespace ezgl {
 
-// Painter
-Painter::Painter(QImage* image): QPainter(image)/*, m_surface(image)*/ {
-  m_id = Painter::s_nextid++;
-  Painter::s_counter++;
-  //qInfo() << "Painter(" << m_id << ")";
-  assert(image);
-  assert(!image->isNull());
-  assert(isActive());
-  assert(Painter::s_counter == 1);
-}
-
-Painter::~Painter() {
-  //qInfo() << "~Painter(" << m_id << ")";
-  Painter::s_counter--;
-}
-
 // Pen
 Pen::Pen(): QPen(Qt::SolidLine) {}
 
@@ -46,7 +30,7 @@ void Pen::setSolid() {
   }
 }
 
-bool Pen::isSolid() const { // in some reason QPen::isSOlid() doesn't return valid value
+bool Pen::isSolid() const { // in some reason QPen::isSolid() doesn't return valid value
   return (style() == Qt::SolidLine);
 }
 
@@ -64,8 +48,15 @@ void Pen::applyNormalizedDashPattern() {
   }
 }
 
-int Painter::s_counter = 0;
-int Painter::s_nextid = 0;
+// Painter
+Painter::Painter(QImage* image): QPainter(image) {
+  assert(image);
+  assert(!image->isNull());
+  assert(isActive());
+}
+
+Painter::~Painter() {
+}
 
 void Painter::setAntialias(bool enabled) {
   if (enabled) {
@@ -90,7 +81,6 @@ void Painter::setColor(const QColor& color)
   m_brush.setColor(color);
 }
 
-// QPainter specific
 void Painter::fill()
 {
   // deactivate pen while fill

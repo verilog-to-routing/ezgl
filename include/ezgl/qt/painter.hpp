@@ -47,9 +47,6 @@ struct font_extents_t {
 };
 
 class Painter : public QPainter {
-  static int s_nextid;
-  static int s_counter;
-
 private:
   Painter(const Painter&) = delete;
   Painter& operator=(const Painter&) = delete;
@@ -80,6 +77,7 @@ public:
   void set_line_cap(Qt::PenCapStyle cap);
   void set_source_rgb(double r, double g, double b);
   void set_source_rgba(double r, double g, double b, double a);
+  [[deprecated]]
   void surface_destroy(QImage* surface);
   // draw low level api
 
@@ -89,7 +87,6 @@ public:
   // text
 
 private:
-  int m_id = 0;
   QPainter::RenderHints m_renderHints;
   QColor m_color;
   Pen m_pen;
