@@ -1,8 +1,8 @@
 #ifdef EZGL_QT
 
 #include "ezgl/qt/qtgladeloader.hpp"
-#include "ezgl/qt/ezgl_qtcompat.hpp"
 #include "ezgl/qt/switchbutton.hpp"
+#include "ezgl/qt/drawingareawidget.hpp"
 
 #include <QFile>
 #include <QWidget>
@@ -337,7 +337,7 @@ QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl)
 
 QWidget* QtGladeLoader::buildGtkDrawingArea(const QDomElement& objEl)
 {
-  DrawingAreaWidget* w = new DrawingAreaWidget;
+  ezgl::DrawingAreaWidget* w = new ezgl::DrawingAreaWidget;
   w->setObjectName(getId(objEl));
   m_widgets.insert(w->objectName(), w);
 

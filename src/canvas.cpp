@@ -27,6 +27,7 @@
 #include <QPageSize>
 #include <QSvgGenerator>
 #include "ezgl/qt/ezgl_qtcompat.hpp"
+#include "ezgl/qt/drawingareawidget.hpp"
 #else // EZGL_QT
 #include <gtk/gtk.h>
 #endif // EZGL_QT
@@ -40,7 +41,7 @@ namespace ezgl {
 #if EZGL_QT
 QImage *create_surface(QWidget* widget)
 {
-  DrawingAreaWidget* drawableAreaWidget = qobject_cast<DrawingAreaWidget*>(widget);
+  ezgl::DrawingAreaWidget* drawableAreaWidget = qobject_cast<ezgl::DrawingAreaWidget*>(widget);
   if (drawableAreaWidget) {
     return drawableAreaWidget->createSurface();
   }
@@ -355,12 +356,14 @@ canvas::canvas(std::string canvas_id,
 
 canvas::~canvas()
 {
-  if(m_surface != nullptr) {
-    delete m_surface;
-  }
-
+  // Painter must be destroyed before the surface it is painting on.
   if(m_painter != nullptr) {
     delete m_painter;
+    m_painter = nullptr;
+  }
+
+  if(m_surface != nullptr) {
+    delete m_surface;
   }
 
   if(m_animation_renderer != nullptr) {
@@ -401,7 +404,15 @@ void canvas::initialize(GtkWidget *drawing_area)
   // It recreates the backing surface/context and updates the camera every time
   // the DrawingAreaWidget is resized (including the initial show()).
   if (DrawingAreaWidget* daw = qobject_cast<DrawingAreaWidget*>(drawing_area)) {
+    // End the painter before the backing image is deleted on resize (resizeEvent path).
+    daw->setPreResizeCallback([this]() {
+      if (m_painter != nullptr) {
+        delete m_painter;
+        m_painter = nullptr;
+      }
+    });
     daw->setResizeCallback([this](int /*w*/, int /*h*/) {
+      // For showEvent (no pre-resize): painter is still alive, end it first.
       if (m_painter != nullptr) {
         delete m_painter;
         m_painter = nullptr;
