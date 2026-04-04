@@ -83,29 +83,19 @@ public:
   void surface_destroy(QImage* surface);
   // draw low level api
 
-  // QTransform specific
-  void save();
-  void restore();
-  void scale(double sx, double sy);
-  // QTransform specific
-
   // text
   void text_extents(const char* utf8, text_extents_t* extents);
   void font_extents(font_extents_t* extents);
   // text
 
-  // QImage* surface() const { return m_surface; }
-
 private:
   int m_id = 0;
   QPainter::RenderHints m_renderHints;
-  // QImage* m_surface{nullptr};
   QColor m_color;
   Pen m_pen;
   QBrush m_brush = QBrush(Qt::SolidPattern);
   QPainterPath m_path;
   QFont m_font;
-  std::optional<QTransform> m_transform;
 };
 
 } // namespace ezgl

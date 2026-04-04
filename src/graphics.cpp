@@ -885,14 +885,12 @@ void renderer::draw_arc_path(point2d center,
   if(fill_flag)
     m_painter->close_path();
 
-  // restore the old state to undo the scaling needed for drawing ellipse
-  m_painter->restore();
-
-  // actual drawing
   if(fill_flag)
     m_painter->fill();
   else
     m_painter->stroke();
+
+  m_painter->restore();
 }
 
 void renderer::draw_surface(surface *p_surface, point2d point, double scale_factor)

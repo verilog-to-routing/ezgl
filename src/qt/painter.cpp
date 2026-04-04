@@ -131,25 +131,6 @@ void Painter::set_source_surface(QImage* surface, double x, double y)
   drawImage(QPointF(x, y), *surface);
 }
 
-// QTransform specific
-void Painter::save()
-{
-  QPainter::save();
-  m_transform = QTransform();
-}
-
-void Painter::restore()
-{
-  QPainter::restore();
-  m_transform = std::nullopt;
-}
-
-void Painter::scale(double sx, double sy)
-{
-  assert(m_transform.has_value());
-  m_transform.value().scale(sx, sy);
-}
-
 void Painter::text_extents(const char* utf8, text_extents_t* extents)
 {
   QString text = QString::fromUtf8(utf8);
@@ -220,9 +201,6 @@ void Painter::arc(double xc, double yc,
   QRectF rect(xc - radius, yc - radius, d, d);
 
   m_path.arcTo(rect, startDeg, spanDeg);
-  if (m_transform.has_value()) {
-    m_path = m_path * m_transform.value();
-  }
 }
 
 void Painter::arc_negative(double xc, double yc,
@@ -239,9 +217,6 @@ void Painter::arc_negative(double xc, double yc,
   QRectF rect(xc - radius, yc - radius, d, d);
 
   m_path.arcTo(rect, startDeg, spanDeg);
-  if (m_transform.has_value()) {
-    m_path = m_path * m_transform.value();
-  }
 }
 
 void Painter::select_font_face(const char* family, QFont::Style slant, QFont::Weight weight)
