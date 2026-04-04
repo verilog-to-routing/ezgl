@@ -134,11 +134,13 @@ void Painter::set_source_surface(QImage* surface, double x, double y)
 // QTransform specific
 void Painter::save()
 {
+  QPainter::save();
   m_transform = QTransform();
 }
 
 void Painter::restore()
 {
+  QPainter::restore();
   m_transform = std::nullopt;
 }
 
@@ -250,6 +252,7 @@ void Painter::select_font_face(const char* family, QFont::Style slant, QFont::We
 
   m_font.setStyle(slant);
   m_font.setWeight(weight);
+  QPainter::setFont(m_font);
 }
 
 void Painter::set_dash(const double* pattern, int count, double offset)
@@ -269,6 +272,7 @@ void Painter::set_dash(const double* pattern, int count, double offset)
 void Painter::set_font_size(int size)
 {
   m_font.setPointSizeF(size);
+  QPainter::setFont(m_font);
 }
 
 void Painter::set_line_width(int width)

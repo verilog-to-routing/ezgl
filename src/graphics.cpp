@@ -707,6 +707,9 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
     QFontMetricsF fm(m_painter->font());
     QRectF br = fm.boundingRect(qtext);
 
+    // Save QPainter state so that translate/rotate are undone after drawing.
+    m_painter->save();
+
     // We will rotate around the desired visual text center = `center`
     m_painter->translate(center.x, center.y);
     m_painter->rotate(rotation_angle * 180.0 / std::numbers::pi);
@@ -730,6 +733,9 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
       offset.ry() += br.height() / 2.0;       // anchor at bottom -> move center down
     }
 
+    // Set pen color for text — QPainter::drawText() uses the pen color.
+    // m_pen is only applied to QPainter by stroke()/fill(), so set it explicitly here.
+    m_painter->setPen(QColor(current_color.red, current_color.green, current_color.blue, current_color.alpha));
     m_painter->drawText(offset, qtext);
   }
 #else
