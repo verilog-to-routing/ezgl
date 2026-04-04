@@ -271,7 +271,8 @@ void Painter::set_dash(const double* pattern, int count, double offset)
 
 void Painter::set_font_size(int size)
 {
-  m_font.setPointSizeF(size);
+  // Cairo treats font size as pixels; use setPixelSize to match that behaviour.
+  m_font.setPixelSize(std::max(1, size));
   QPainter::setFont(m_font);
 }
 
