@@ -157,12 +157,9 @@ static int                g_current_test  = 0;
 static ezgl::application *g_app           = nullptr;
 static double             g_last_frame_ms = -1.0;
 
-// Dispatcher: updates the status bar with the PREVIOUS frame's timing
-// (called at the top, before painting — safe to update widgets here),
-// then measures and stores the current frame's time for next call.
 static void draw_dispatch(ezgl::renderer *g)
 {
-  if (g_app && g_last_frame_ms >= 0.0) {
+  if (g_app) {
     std::ostringstream oss;
     oss << TESTS[g_current_test].label
         << " | " << N << " primitives"
@@ -178,7 +175,8 @@ static void draw_dispatch(ezgl::renderer *g)
 
 static void switch_test(ezgl::application *app, int delta)
 {
-  g_current_test = (g_current_test + delta + N_TESTS) % N_TESTS;
+  g_current_test  = (g_current_test + delta + N_TESTS) % N_TESTS;
+  g_last_frame_ms = -1.0;   // reset so stale timing from previous test is not shown
   app->change_canvas_world_coordinates("MainCanvas", WORLD);
   app->refresh_drawing();
 }
@@ -194,9 +192,6 @@ static void ui_setup(ezgl::application *app, bool /*new_window*/)
   app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) {
     switch_test(a, +1);
   });
-
-  // Trigger a second redraw so the timing from the first frame appears in the status bar.
-  app->refresh_drawing();
 }
 
 static void run_ui(int initial_test)
