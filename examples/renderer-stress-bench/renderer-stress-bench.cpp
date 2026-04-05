@@ -113,7 +113,7 @@ static const TestCase TESTS[] = {
   { "lines transparen ", draw_lines_transparent,     "bench_lines_transparent", "bench_lines_transparent.png" },
   { "rects solid      ", draw_rectangles_solid,      "bench_rects_solid",       "bench_rects_solid.png"       },
   { "rects transparen ", draw_rectangles_transparent,"bench_rects_transparent", "bench_rects_transparent.png" },
-  { "chars            ", draw_chars,                 "bench_chars",             "bench_chars.png"             },
+  //{ "chars            ", draw_chars,                 "bench_chars",             "bench_chars.png"             },
 };
 static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
 
@@ -159,6 +159,11 @@ static double             g_last_frame_ms = -1.0;
 
 static void draw_dispatch(ezgl::renderer *g)
 {
+  auto t0 = std::chrono::high_resolution_clock::now();
+  TESTS[g_current_test].fn(g);
+  auto t1 = std::chrono::high_resolution_clock::now();
+  g_last_frame_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+
   if (g_app) {
     std::ostringstream oss;
     oss << TESTS[g_current_test].label
@@ -166,17 +171,11 @@ static void draw_dispatch(ezgl::renderer *g)
         << " | " << std::fixed << std::setprecision(2) << g_last_frame_ms << " ms";
     g_app->update_message(oss.str());
   }
-
-  auto t0 = std::chrono::high_resolution_clock::now();
-  TESTS[g_current_test].fn(g);
-  auto t1 = std::chrono::high_resolution_clock::now();
-  g_last_frame_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 }
 
 static void switch_test(ezgl::application *app, int delta)
 {
   g_current_test  = (g_current_test + delta + N_TESTS) % N_TESTS;
-  g_last_frame_ms = -1.0;   // reset so stale timing from previous test is not shown
   app->change_canvas_world_coordinates("MainCanvas", WORLD);
   app->refresh_drawing();
 }
@@ -184,7 +183,6 @@ static void switch_test(ezgl::application *app, int delta)
 static void ui_setup(ezgl::application *app, bool /*new_window*/)
 {
   g_app = app;
-  app->update_message(TESTS[g_current_test].label);
 
   app->create_button("Prev", 6, [](GtkWidget *, ezgl::application *a) {
     switch_test(a, -1);
@@ -192,6 +190,8 @@ static void ui_setup(ezgl::application *app, bool /*new_window*/)
   app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) {
     switch_test(a, +1);
   });
+
+  app->refresh_drawing();
 }
 
 static void run_ui(int initial_test)
