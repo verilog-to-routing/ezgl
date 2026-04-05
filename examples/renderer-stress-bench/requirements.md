@@ -12,11 +12,11 @@ renderer-stress-bench
 ```
 Runs all 5 test cases sequentially without opening any window. Saves one PNG per test and prints wall-clock time to stdout:
 ```
-lines solid       (10000): X.XX ms  ->  bench_lines_solid.png
-lines transparen  (10000): X.XX ms  ->  bench_lines_transparent.png
-rects solid       (10000): X.XX ms  ->  bench_rects_solid.png
-rects transparen  (10000): X.XX ms  ->  bench_rects_transparent.png
-chars             (10000): X.XX ms  ->  bench_chars.png
+lines solid       (1000000): X.XX ms  ->  bench_lines_solid.png
+lines transparen  (1000000): X.XX ms  ->  bench_lines_transparent.png
+rects solid       (1000000): X.XX ms  ->  bench_rects_solid.png
+rects transparen  (1000000): X.XX ms  ->  bench_rects_transparent.png
+chars             (1000000): X.XX ms  ->  bench_chars.png
 ```
 
 ### UI
@@ -25,14 +25,14 @@ renderer-stress-bench --ui [N]
 ```
 Opens a window showing test case N (default 0). The status bar shows:
 ```
-<test label> | 10000 primitives | X.XX ms
+<test label> | 1000000 primitives | X.XX ms
 ```
 The timing is updated every frame (every redraw). **Prev** / **Next** sidebar buttons cycle through test cases.
 
 ## Requirements
 
 ### R1 — Primitive test cases
-Five isolated test cases, each drawing **10 000** primitives of one type:
+Five isolated test cases, each drawing **1 000 000** primitives of one type:
 
 | N | Label                | Output file                    | Primitive         | Alpha        |
 |---|----------------------|--------------------------------|-------------------|--------------|
@@ -43,7 +43,7 @@ Five isolated test cases, each drawing **10 000** primitives of one type:
 | 4 | chars                | `bench_chars.png`              | single characters | 255 (opaque) |
 
 ### R2 — Non-overlapping layout
-Primitives are placed in a 100 × 100 grid of 10 × 10 world-unit cells.
+Primitives are placed in a 1000 × 1000 grid of 1 × 1 world-unit cells.
 Output image size: **1000 × 1000** pixels. Every cell contains exactly one primitive.
 
 ### R3 — Isolated canvases (headless)

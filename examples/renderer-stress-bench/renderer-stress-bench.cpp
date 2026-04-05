@@ -32,10 +32,11 @@
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
 
-// Layout: 100 cols x 100 rows = 10 000 cells, each 10x10 world units → 1000x1000 image.
-static constexpr int    N    = 10000;
-static constexpr int    COLS = 100;
-static constexpr double CELL = 10.0;
+// Layout: 1000 cols x 1000 rows = 1 000 000 cells, each 1x1 world unit → 1000x1000 image.
+static constexpr int    N    = 1000000;
+static constexpr int    COLS = 1000;
+static constexpr double CELL = 1.0;
+static constexpr double PAD  = CELL * 0.2;   // inset for lines/rects within each cell
 static constexpr int    IMG_W = static_cast<int>(COLS * CELL);
 static constexpr int    IMG_H = static_cast<int>(COLS * CELL);
 static const ezgl::rectangle WORLD{{0, 0}, (double)IMG_W, (double)IMG_H};
@@ -48,9 +49,9 @@ void draw_lines_solid(ezgl::renderer *g)
   g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < N; ++i) {
-    double x0 = (i % COLS) * CELL + 2;
-    double y0 = (i / COLS) * CELL + 2;
-    g->draw_line({x0, y0}, {x0 + CELL - 4, y0 + CELL - 4});
+    double x0 = (i % COLS) * CELL + PAD;
+    double y0 = (i / COLS) * CELL + PAD;
+    g->draw_line({x0, y0}, {x0 + CELL - 2 * PAD, y0 + CELL - 2 * PAD});
   }
 }
 
@@ -60,9 +61,9 @@ void draw_lines_transparent(ezgl::renderer *g)
   g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < N; ++i) {
-    double x0 = (i % COLS) * CELL + 2;
-    double y0 = (i / COLS) * CELL + 2;
-    g->draw_line({x0, y0}, {x0 + CELL - 4, y0 + CELL - 4});
+    double x0 = (i % COLS) * CELL + PAD;
+    double y0 = (i / COLS) * CELL + PAD;
+    g->draw_line({x0, y0}, {x0 + CELL - 2 * PAD, y0 + CELL - 2 * PAD});
   }
 }
 
@@ -70,9 +71,9 @@ void draw_rectangles_solid(ezgl::renderer *g)
 {
   g->set_color(ezgl::RED);
   for (int i = 0; i < N; ++i) {
-    double x = (i % COLS) * CELL + 2;
-    double y = (i / COLS) * CELL + 2;
-    g->fill_rectangle({x, y}, {x + CELL - 4, y + CELL - 4});
+    double x = (i % COLS) * CELL + PAD;
+    double y = (i / COLS) * CELL + PAD;
+    g->fill_rectangle({x, y}, {x + CELL - 2 * PAD, y + CELL - 2 * PAD});
   }
 }
 
@@ -80,16 +81,16 @@ void draw_rectangles_transparent(ezgl::renderer *g)
 {
   g->set_color(ezgl::RED, 128);
   for (int i = 0; i < N; ++i) {
-    double x = (i % COLS) * CELL + 2;
-    double y = (i / COLS) * CELL + 2;
-    g->fill_rectangle({x, y}, {x + CELL - 4, y + CELL - 4});
+    double x = (i % COLS) * CELL + PAD;
+    double y = (i / COLS) * CELL + PAD;
+    g->fill_rectangle({x, y}, {x + CELL - 2 * PAD, y + CELL - 2 * PAD});
   }
 }
 
 void draw_chars(ezgl::renderer *g)
 {
   g->set_color(ezgl::BLACK);
-  g->set_font_size(10);
+  g->set_font_size(std::max(1, static_cast<int>(CELL)));
   for (int i = 0; i < N; ++i) {
     double cx = (i % COLS) * CELL + CELL / 2.0;
     double cy = (i / COLS) * CELL + CELL / 2.0;
