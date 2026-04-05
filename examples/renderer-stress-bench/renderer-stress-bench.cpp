@@ -16,12 +16,20 @@
  * Authors: Mario Badr, Sameh Attia, Tanner Young-Schultz and Vaughn Betz
  */
 
+/**
+ * Usage:
+ *   renderer-stress-bench           — headless: run all benchmarks, print timing, save PNGs
+ *   renderer-stress-bench --ui      — UI: open window showing first test case
+ *   renderer-stress-bench --ui <n>  — UI: open window showing test case n (0-based)
+ */
+
 #include <iostream>
 #include <chrono>
+#include <string>
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
 
-// Layout: 100 cols x 100 rows = 10 000 cells, each 4x4 world units → 1000x1000 image.
+// Layout: 100 cols x 100 rows = 10 000 cells, each 10x10 world units → 1000x1000 image.
 static constexpr int    N    = 10000;
 static constexpr int    COLS = 100;
 static constexpr double CELL = 10.0;
@@ -37,9 +45,9 @@ void draw_lines_solid(ezgl::renderer *g)
   g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < N; ++i) {
-    double x0 = (i % COLS) * CELL + 4;
-    double y0 = (i / COLS) * CELL + 4;
-    g->draw_line({x0, y0}, {x0 + CELL - 8, y0 + CELL - 8});
+    double x0 = (i % COLS) * CELL + 2;
+    double y0 = (i / COLS) * CELL + 2;
+    g->draw_line({x0, y0}, {x0 + CELL - 4, y0 + CELL - 4});
   }
 }
 
@@ -49,9 +57,9 @@ void draw_lines_transparent(ezgl::renderer *g)
   g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < N; ++i) {
-    double x0 = (i % COLS) * CELL + 4;
-    double y0 = (i / COLS) * CELL + 4;
-    g->draw_line({x0, y0}, {x0 + CELL - 8, y0 + CELL - 8});
+    double x0 = (i % COLS) * CELL + 2;
+    double y0 = (i / COLS) * CELL + 2;
+    g->draw_line({x0, y0}, {x0 + CELL - 4, y0 + CELL - 4});
   }
 }
 
@@ -59,9 +67,9 @@ void draw_rectangles_solid(ezgl::renderer *g)
 {
   g->set_color(ezgl::RED);
   for (int i = 0; i < N; ++i) {
-    double x = (i % COLS) * CELL + 4;
-    double y = (i / COLS) * CELL + 4;
-    g->fill_rectangle({x, y}, {x + CELL - 8, y + CELL - 8});
+    double x = (i % COLS) * CELL + 2;
+    double y = (i / COLS) * CELL + 2;
+    g->fill_rectangle({x, y}, {x + CELL - 4, y + CELL - 4});
   }
 }
 
@@ -69,9 +77,9 @@ void draw_rectangles_transparent(ezgl::renderer *g)
 {
   g->set_color(ezgl::RED, 128);
   for (int i = 0; i < N; ++i) {
-    double x = (i % COLS) * CELL + 4;
-    double y = (i / COLS) * CELL + 4;
-    g->fill_rectangle({x, y}, {x + CELL - 8, y + CELL - 8});
+    double x = (i % COLS) * CELL + 2;
+    double y = (i / COLS) * CELL + 2;
+    g->fill_rectangle({x, y}, {x + CELL - 4, y + CELL - 4});
   }
 }
 
@@ -87,43 +95,177 @@ void draw_chars(ezgl::renderer *g)
   }
 }
 
-// ---- bench helper ---------------------------------------------------------
+// ---- test case table -------------------------------------------------------
 
-static void run_bench(ezgl::application &app,
-                      const char *label,
-                      ezgl::draw_canvas_fn fn,
-                      const char *output_file,
-                      const char *canvas_id)
-{
-  app.add_canvas(canvas_id, fn, WORLD, ezgl::WHITE);
-  ezgl::canvas *c = app.get_canvas(canvas_id);
+struct TestCase {
+  const char          *label;
+  ezgl::draw_canvas_fn fn;
+  const char          *canvas_id;
+  const char          *output_file;
+};
 
-  auto t0 = std::chrono::high_resolution_clock::now();
-  c->print_png(output_file, IMG_W, IMG_H);
-  auto t1 = std::chrono::high_resolution_clock::now();
+static const TestCase TESTS[] = {
+  { "lines solid      ", draw_lines_solid,         "bench_lines_solid",        "bench_lines_solid.png"        },
+  { "lines transparen ", draw_lines_transparent,   "bench_lines_transparent",  "bench_lines_transparent.png"  },
+  { "rects solid      ", draw_rectangles_solid,    "bench_rects_solid",        "bench_rects_solid.png"        },
+  { "rects transparen ", draw_rectangles_transparent, "bench_rects_transparent", "bench_rects_transparent.png"},
+  { "chars            ", draw_chars,               "bench_chars",              "bench_chars.png"              },
+};
+static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
 
-  double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-  std::cout << label << "(" << N << "): " << ms << " ms  ->  " << output_file << "\n";
-}
+// ---- headless mode ---------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-
-int main(int argc, char **argv)
+static void run_headless()
 {
   ezgl::application::settings s;
-  // We never call run(), so main_ui_resource is never loaded.
-  // canvas::print_png() with explicit dimensions is self-contained.
 #ifdef EZGL_QT
-  ezgl::application app(s, argc, argv);
+  s.main_ui_resource = ":/main.ui";
+#else
+  s.main_ui_resource = "/ezgl/main.ui";
+#endif
+
+  // argc/argv placeholders — application is never run(), just used as a factory.
+#ifdef EZGL_QT
+  static int    fake_argc = 1;
+  static char   fake_argv0[] = "renderer-stress-bench";
+  static char  *fake_argv[]  = { fake_argv0, nullptr };
+  ezgl::application app(s, fake_argc, fake_argv);
 #else
   ezgl::application app(s);
 #endif
 
-  run_bench(app, "lines solid       ", draw_lines_solid,        "bench_lines_solid.png",        "bench_lines_solid");
-  run_bench(app, "lines transparent ", draw_lines_transparent,  "bench_lines_transparent.png",  "bench_lines_transparent");
-  run_bench(app, "rects solid       ", draw_rectangles_solid,   "bench_rects_solid.png",        "bench_rects_solid");
-  run_bench(app, "rects transparent ", draw_rectangles_transparent, "bench_rects_transparent.png", "bench_rects_transparent");
-  run_bench(app, "chars             ", draw_chars,              "bench_chars.png",              "bench_chars");
+  for (int t = 0; t < N_TESTS; ++t) {
+    const TestCase &tc = TESTS[t];
+    app.add_canvas(tc.canvas_id, tc.fn, WORLD, ezgl::WHITE);
+    ezgl::canvas *c = app.get_canvas(tc.canvas_id);
+
+    auto t0 = std::chrono::high_resolution_clock::now();
+    c->print_png(tc.output_file, IMG_W, IMG_H);
+    auto t1 = std::chrono::high_resolution_clock::now();
+
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    std::cout << tc.label << "(" << N << "): " << ms << " ms  ->  " << tc.output_file << "\n";
+  }
+}
+
+// ---- UI mode ---------------------------------------------------------------
+
+// Index of the currently displayed test case (used by the UI setup callback).
+static int g_current_test = 0;
+
+static void ui_setup(ezgl::application *app, bool /*new_window*/)
+{
+  app->update_message(TESTS[g_current_test].label);
+
+  app->create_button("Prev", 6, [](GtkWidget *, ezgl::application *a) {
+    g_current_test = (g_current_test - 1 + N_TESTS) % N_TESTS;
+    a->change_canvas_world_coordinates("MainCanvas", WORLD);
+    // Swap the draw callback by re-adding with the same id is not supported,
+    // so we just refresh — the canvas draw_callback is fixed at add_canvas time.
+    // Instead, use a dispatcher that reads g_current_test at draw time.
+    a->refresh_drawing();
+    a->update_message(TESTS[g_current_test].label);
+  });
+
+  app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) {
+    g_current_test = (g_current_test + 1) % N_TESTS;
+    a->change_canvas_world_coordinates("MainCanvas", WORLD);
+    a->refresh_drawing();
+    a->update_message(TESTS[g_current_test].label);
+  });
+}
+
+// Dispatcher: always calls the currently selected test's draw function.
+static void draw_dispatch(ezgl::renderer *g)
+{
+  TESTS[g_current_test].fn(g);
+}
+
+static void run_ui(int initial_test)
+{
+  g_current_test = initial_test;
+
+  ezgl::application::settings s;
+#ifdef EZGL_QT
+  s.main_ui_resource = ":/main.ui";
+#else
+  s.main_ui_resource = "/ezgl/main.ui";
+#endif
+  s.window_identifier = "MainWindow";
+  s.canvas_identifier = "MainCanvas";
+
+#ifdef EZGL_QT
+  static int    fake_argc = 1;
+  static char   fake_argv0[] = "renderer-stress-bench";
+  static char  *fake_argv[]  = { fake_argv0, nullptr };
+  ezgl::application app(s, fake_argc, fake_argv);
+#else
+  ezgl::application app(s);
+#endif
+
+  app.add_canvas("MainCanvas", draw_dispatch, WORLD, ezgl::WHITE);
+  app.run(ui_setup, nullptr, nullptr, nullptr);
+}
+
+// ---------------------------------------------------------------------------
+
+static void print_help(const char *prog)
+{
+  std::cout <<
+    "Usage:\n"
+    "  " << prog << "              Run all benchmarks headless, print timing, save PNGs\n"
+    "  " << prog << " --ui [N]    Open UI window showing test case N (default 0)\n"
+    "\n"
+    "Test cases (N):\n";
+  for (int i = 0; i < N_TESTS; ++i)
+    std::cout << "  " << i << "  " << TESTS[i].label << "\n";
+  std::cout <<
+    "\n"
+    "Options:\n"
+    "  --ui [N]   Open interactive window for test N\n"
+    "  --help     Show this message\n";
+}
+
+int main(int argc, char **argv)
+{
+  bool ui_mode      = false;
+  int  initial_test = 0;
+  bool got_index    = false;
+
+  for (int i = 1; i < argc; ++i) {
+    std::string arg(argv[i]);
+    if (arg == "--help" || arg == "-h") {
+      print_help(argv[0]);
+      return 0;
+    } else if (arg == "--ui") {
+      ui_mode = true;
+    } else if (ui_mode && !got_index) {
+      try {
+        int n = std::stoi(arg);
+        if (n < 0 || n >= N_TESTS) {
+          std::cerr << "Error: test index " << n
+                    << " out of range [0," << N_TESTS - 1 << "]\n\n";
+          print_help(argv[0]);
+          return 1;
+        }
+        initial_test = n;
+        got_index    = true;
+      } catch (...) {
+        std::cerr << "Error: unknown argument '" << arg << "'\n\n";
+        print_help(argv[0]);
+        return 1;
+      }
+    } else {
+      std::cerr << "Error: unknown argument '" << arg << "'\n\n";
+      print_help(argv[0]);
+      return 1;
+    }
+  }
+
+  if (ui_mode)
+    run_ui(initial_test);
+  else
+    run_headless();
 
   return 0;
 }
