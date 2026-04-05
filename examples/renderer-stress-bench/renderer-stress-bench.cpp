@@ -152,25 +152,27 @@ static void run_headless()
 
 // ---- UI mode ---------------------------------------------------------------
 
-static int                g_current_test = 0;
-static ezgl::application *g_app          = nullptr;
+static int                g_current_test  = 0;
+static ezgl::application *g_app           = nullptr;
+static double             g_last_frame_ms = -1.0;
 
-// Dispatcher: times the actual draw call and updates the status bar.
+// Dispatcher: updates the status bar with the PREVIOUS frame's timing
+// (called at the top, before painting — safe to update widgets here),
+// then measures and stores the current frame's time for next call.
 static void draw_dispatch(ezgl::renderer *g)
 {
-  auto t0 = std::chrono::high_resolution_clock::now();
-  TESTS[g_current_test].fn(g);
-  auto t1 = std::chrono::high_resolution_clock::now();
-
-  double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-
-  if (g_app) {
+  if (g_app && g_last_frame_ms >= 0.0) {
     std::ostringstream oss;
     oss << TESTS[g_current_test].label
         << " | " << N << " primitives"
-        << " | " << std::fixed << std::setprecision(2) << ms << " ms";
+        << " | " << std::fixed << std::setprecision(2) << g_last_frame_ms << " ms";
     g_app->update_message(oss.str());
   }
+
+  auto t0 = std::chrono::high_resolution_clock::now();
+  TESTS[g_current_test].fn(g);
+  auto t1 = std::chrono::high_resolution_clock::now();
+  g_last_frame_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 }
 
 static void switch_test(ezgl::application *app, int delta)
@@ -191,6 +193,9 @@ static void ui_setup(ezgl::application *app, bool /*new_window*/)
   app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) {
     switch_test(a, +1);
   });
+
+  // Trigger a second redraw so the timing from the first frame appears in the status bar.
+  app->refresh_drawing();
 }
 
 static void run_ui(int initial_test)
