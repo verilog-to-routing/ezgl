@@ -74,12 +74,8 @@ static void write_result(const std::string &key, double ms)
     out << std::left << std::setw(static_cast<int>(col)) << kv.first << kv.second << " ms\n";
 }
 
-// N values to sweep in headless mode (smallest → largest).
-static constexpr int N_SWEEP[]     = {1000, 10000, 100000, 1000000};
-static constexpr int N_SWEEP_COUNT = static_cast<int>(sizeof(N_SWEEP) / sizeof(N_SWEEP[0]));
-
-// Current primitive count used by draw callbacks; changed per sweep iteration.
-static int g_bench_n = N_SWEEP[N_SWEEP_COUNT - 1];
+// Current primitive count used by draw callbacks.
+static int g_bench_n = 1000000;
 
 // Layout: 1000 cols x 1000 rows = 1 000 000 cells, each 1x1 world unit → 1000x1000 image.
 static constexpr int    COLS = 1000;
@@ -152,16 +148,27 @@ void draw_chars(ezgl::renderer *g)
 struct TestCase {
   const char          *label;
   ezgl::draw_canvas_fn fn;
-  const char          *canvas_id;
+  int                  count;
   const char          *output_file;
 };
 
 static const TestCase TESTS[] = {
-  { "solid lines      ", draw_lines_solid,           "bench_lines_solid",       "bench_lines_solid.png"       },
-  { "transparen lines ", draw_lines_transparent,     "bench_lines_transparent", "bench_lines_transparent.png" },
-  { "solid rects      ", draw_rectangles_solid,      "bench_rects_solid",       "bench_rects_solid.png"       },
-  { "transparen rects ", draw_rectangles_transparent,"bench_rects_transparent", "bench_rects_transparent.png" },
-  //{ "chars            ", draw_chars,                 "bench_chars",             "bench_chars.png"             },
+  { "solid lines      ", draw_lines_solid,              1000, "bench_lines_solid.png"       },
+  { "solid lines      ", draw_lines_solid,             10000, "bench_lines_solid.png"       },
+  { "solid lines      ", draw_lines_solid,            100000, "bench_lines_solid.png"       },
+  { "solid lines      ", draw_lines_solid,           1000000, "bench_lines_solid.png"       },
+  { "transparen lines ", draw_lines_transparent,        1000, "bench_lines_transparent.png" },
+  { "transparen lines ", draw_lines_transparent,       10000, "bench_lines_transparent.png" },
+  { "transparen lines ", draw_lines_transparent,      100000, "bench_lines_transparent.png" },
+  { "transparen lines ", draw_lines_transparent,     1000000, "bench_lines_transparent.png" },
+  { "solid rects      ", draw_rectangles_solid,         1000, "bench_rects_solid.png"       },
+  { "solid rects      ", draw_rectangles_solid,        10000, "bench_rects_solid.png"       },
+  { "solid rects      ", draw_rectangles_solid,       100000, "bench_rects_solid.png"       },
+  { "solid rects      ", draw_rectangles_solid,      1000000, "bench_rects_solid.png"       },
+  { "transparen rects ", draw_rectangles_transparent,   1000, "bench_rects_transparent.png" },
+  { "transparen rects ", draw_rectangles_transparent,  10000, "bench_rects_transparent.png" },
+  { "transparen rects ", draw_rectangles_transparent, 100000, "bench_rects_transparent.png" },
+  { "transparen rects ", draw_rectangles_transparent,1000000, "bench_rects_transparent.png" },
 };
 static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
 
@@ -185,29 +192,29 @@ static void run_headless()
   ezgl::application app(s);
 #endif
 
-  // Add all canvases once; draw callbacks read g_bench_n at call time.
-  for (int t = 0; t < N_TESTS; ++t)
-    app.add_canvas(TESTS[t].canvas_id, TESTS[t].fn, WORLD, ezgl::WHITE);
+  static int g_headless_t = 0;
+  auto headless_dispatch = [](ezgl::renderer *g) {
+    TESTS[g_headless_t].fn(g);
+  };
 
-  // Sweep over primitive counts.
-  for (int ni = 0; ni < N_SWEEP_COUNT; ++ni) {
-    g_bench_n = N_SWEEP[ni];
+  app.add_canvas("headless_canvas", headless_dispatch, WORLD, ezgl::WHITE);
+  ezgl::canvas *c = app.get_canvas("headless_canvas");
 
-    for (int t = 0; t < N_TESTS; ++t) {
-      const TestCase &tc = TESTS[t];
-      ezgl::canvas *c = app.get_canvas(tc.canvas_id);
+  for (int t = 0; t < N_TESTS; ++t) {
+    const TestCase &tc = TESTS[t];
+    g_headless_t = t;
+    g_bench_n    = tc.count;
 
-      auto t0 = std::chrono::high_resolution_clock::now();
-      c->print_png(tc.output_file, IMG_W, IMG_H);
-      auto t1 = std::chrono::high_resolution_clock::now();
+    auto t0 = std::chrono::high_resolution_clock::now();
+    c->print_png(tc.output_file, IMG_W, IMG_H);
+    auto t1 = std::chrono::high_resolution_clock::now();
 
-      double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-      std::cout << tc.label << "(" << g_bench_n << "): " << ms << " ms\n";
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    std::cout << tc.label << "(" << g_bench_n << "): " << ms << " ms\n";
 
-      std::string label(tc.label);
-      label.erase(label.find_last_not_of(" \t") + 1);
-      write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
-    }
+    std::string label(tc.label);
+    label.erase(label.find_last_not_of(" \t") + 1);
+    write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
   }
 }
 
@@ -219,6 +226,8 @@ static double             g_last_frame_ms = -1.0;
 
 static void draw_dispatch(ezgl::renderer *g)
 {
+  g_bench_n = TESTS[g_current_test].count;
+
   auto t0 = std::chrono::high_resolution_clock::now();
   TESTS[g_current_test].fn(g);
   auto t1 = std::chrono::high_resolution_clock::now();
@@ -241,7 +250,7 @@ static void draw_dispatch(ezgl::renderer *g)
 
 static void switch_test(ezgl::application *app, int delta)
 {
-  g_current_test  = (g_current_test + delta + N_TESTS) % N_TESTS;
+  g_current_test = (g_current_test + delta + N_TESTS) % N_TESTS;
   app->change_canvas_world_coordinates("MainCanvas", WORLD);
   app->refresh_drawing();
 }
@@ -250,12 +259,8 @@ static void ui_setup(ezgl::application *app, bool /*new_window*/)
 {
   g_app = app;
 
-  app->create_button("Prev", 6, [](GtkWidget *, ezgl::application *a) {
-    switch_test(a, -1);
-  });
-  app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) {
-    switch_test(a, +1);
-  });
+  app->create_button("Prev", 6, [](GtkWidget *, ezgl::application *a) { switch_test(a, -1); });
+  app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) { switch_test(a, +1); });
 
   app->refresh_drawing();
 }
