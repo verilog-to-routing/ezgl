@@ -36,23 +36,26 @@
 
 static const char *RESULTS_FILE = "renderer-stress-bench-results.txt";
 
-// Write (or overwrite) a key=iterations entry in the results file.
-static void write_result(const std::string &key, int iterations)
+// Write (or overwrite) an entry in the results file.
+// Line format: "headless:1000000 lines solid took 142.37 ms to render"
+static void write_result(const std::string &key, double ms)
 {
-  std::map<std::string, int> results;
+  static const std::string SEP = " took ";
+  std::map<std::string, double> results;
   {
     std::ifstream in(RESULTS_FILE);
     std::string line;
     while (std::getline(in, line)) {
-      auto eq = line.find('=');
-      if (eq != std::string::npos)
-        results[line.substr(0, eq)] = std::stoi(line.substr(eq + 1));
+      auto pos = line.find(SEP);
+      if (pos != std::string::npos)
+        results[line.substr(0, pos)] = std::stod(line.substr(pos + SEP.size()));
     }
   }
-  results[key] = iterations;
+  results[key] = ms;
   std::ofstream out(RESULTS_FILE);
+  out << std::fixed << std::setprecision(2);
   for (const auto &kv : results)
-    out << kv.first << "=" << kv.second << "\n";
+    out << kv.first << SEP << kv.second << " ms to render\n";
 }
 
 // Layout: 1000 cols x 1000 rows = 1 000 000 cells, each 1x1 world unit → 1000x1000 image.
@@ -172,9 +175,9 @@ static void run_headless()
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     std::cout << tc.label << "(" << N << "): " << ms << " ms  ->  " << tc.output_file << "\n";
 
-    std::string key = "headless:" + std::string(tc.label);
-    key.erase(key.find_last_not_of(" \t") + 1);
-    write_result(key, N);
+    std::string label(tc.label);
+    label.erase(label.find_last_not_of(" \t") + 1);
+    write_result("headless:" + std::to_string(N) + " " + label, ms);
   }
 }
 
@@ -192,9 +195,9 @@ static void draw_dispatch(ezgl::renderer *g)
   g_last_frame_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
   {
-    std::string key = "ui:" + std::string(TESTS[g_current_test].label);
-    key.erase(key.find_last_not_of(" \t") + 1);
-    write_result(key, N);
+    std::string label(TESTS[g_current_test].label);
+    label.erase(label.find_last_not_of(" \t") + 1);
+    write_result("ui:" + std::to_string(N) + " " + label, g_last_frame_ms);
   }
 
   if (g_app) {
