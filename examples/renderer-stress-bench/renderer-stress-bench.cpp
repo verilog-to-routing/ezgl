@@ -37,25 +37,34 @@
 static const char *RESULTS_FILE = "renderer-stress-bench-results.txt";
 
 // Write (or overwrite) an entry in the results file.
-// Line format: "headless:1000000 lines solid took 142.37 ms to render"
+// Line format: "headless:1000000 solid lines   \t  957.25 ms"
+// Keys are padded to a uniform width so the ms column aligns.
 static void write_result(const std::string &key, double ms)
 {
-  static const std::string SEP = " took ";
   std::map<std::string, double> results;
   {
     std::ifstream in(RESULTS_FILE);
     std::string line;
     while (std::getline(in, line)) {
-      auto pos = line.find(SEP);
-      if (pos != std::string::npos)
-        results[line.substr(0, pos)] = std::stod(line.substr(pos + SEP.size()));
+      // split on the tab separator; trim trailing spaces from the key
+      auto tab = line.find('\t');
+      if (tab != std::string::npos) {
+        std::string k = line.substr(0, tab);
+        k.erase(k.find_last_not_of(' ') + 1);
+        results[k] = std::stod(line.substr(tab + 1));
+      }
     }
   }
   results[key] = ms;
+
+  std::size_t col = 0;
+  for (const auto &kv : results)
+    col = std::max(col, kv.first.size());
+
   std::ofstream out(RESULTS_FILE);
   out << std::fixed << std::setprecision(2);
   for (const auto &kv : results)
-    out << kv.first << SEP << kv.second << " ms to render\n";
+    out << std::left << std::setw(static_cast<int>(col)) << kv.first << "\t" << kv.second << " ms\n";
 }
 
 // Layout: 1000 cols x 1000 rows = 1 000 000 cells, each 1x1 world unit → 1000x1000 image.
@@ -135,10 +144,10 @@ struct TestCase {
 };
 
 static const TestCase TESTS[] = {
-  { "lines solid      ", draw_lines_solid,           "bench_lines_solid",       "bench_lines_solid.png"       },
-  { "lines transparen ", draw_lines_transparent,     "bench_lines_transparent", "bench_lines_transparent.png" },
-  { "rects solid      ", draw_rectangles_solid,      "bench_rects_solid",       "bench_rects_solid.png"       },
-  { "rects transparen ", draw_rectangles_transparent,"bench_rects_transparent", "bench_rects_transparent.png" },
+  { "solid lines      ", draw_lines_solid,           "bench_lines_solid",       "bench_lines_solid.png"       },
+  { "transparen lines ", draw_lines_transparent,     "bench_lines_transparent", "bench_lines_transparent.png" },
+  { "solid rects      ", draw_rectangles_solid,      "bench_rects_solid",       "bench_rects_solid.png"       },
+  { "transparen rects ", draw_rectangles_transparent,"bench_rects_transparent", "bench_rects_transparent.png" },
   //{ "chars            ", draw_chars,                 "bench_chars",             "bench_chars.png"             },
 };
 static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
