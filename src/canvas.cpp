@@ -184,6 +184,35 @@ bool canvas::print_png(const char *file_name, int output_width, int output_heigh
   return true;
 }
 
+void canvas::draw_offscreen(int output_width, int output_height)
+{
+#ifdef EZGL_QT
+  // Qt path: render_to_image already does draw-only; just discard the result.
+  render_to_image(output_width, output_height);
+#else
+  cairo_surface_t *surface = cairo_image_surface_create(
+      CAIRO_FORMAT_ARGB32, output_width, output_height);
+  if(!surface)
+    return;
+  cairo_t *context = create_context(surface);
+
+  cairo_set_source_rgb(context,
+      m_background_color.red   / 255.0,
+      m_background_color.green / 255.0,
+      m_background_color.blue  / 255.0);
+  cairo_paint(context);
+
+  using namespace std::placeholders;
+  camera cam = m_camera;
+  cam.update_widget(output_width, output_height);
+  renderer g(context, std::bind(&camera::world_to_screen, cam, _1), &cam, surface);
+  m_draw_callback(&g);
+
+  cairo_surface_destroy(surface);
+  cairo_destroy(context);
+#endif
+}
+
 gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointer data)
 {
   // User data should have been set during the signal connection.

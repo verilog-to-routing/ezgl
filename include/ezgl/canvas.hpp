@@ -115,6 +115,13 @@ public:
   bool print_pdf(const char *file_name, int width = 0, int height = 0);
   bool print_svg(const char *file_name, int width = 0, int height = 0);
   bool print_png(const char *file_name, int width = 0, int height = 0);
+
+  /**
+   * Run the draw callback on an offscreen surface of the given size without
+   * saving any file. Use this to measure pure render time, separate from
+   * PNG/PDF encoding overhead.
+   */
+  void draw_offscreen(int width, int height);
   
   
 protected:
