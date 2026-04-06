@@ -25,12 +25,35 @@
  */
 
 #include <iostream>
+#include <fstream>
+#include <map>
 #include <chrono>
 #include <string>
 #include <iomanip>
 #include <sstream>
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
+
+static const char *RESULTS_FILE = "renderer-stress-bench-results.txt";
+
+// Write (or overwrite) a key=iterations entry in the results file.
+static void write_result(const std::string &key, int iterations)
+{
+  std::map<std::string, int> results;
+  {
+    std::ifstream in(RESULTS_FILE);
+    std::string line;
+    while (std::getline(in, line)) {
+      auto eq = line.find('=');
+      if (eq != std::string::npos)
+        results[line.substr(0, eq)] = std::stoi(line.substr(eq + 1));
+    }
+  }
+  results[key] = iterations;
+  std::ofstream out(RESULTS_FILE);
+  for (const auto &kv : results)
+    out << kv.first << "=" << kv.second << "\n";
+}
 
 // Layout: 1000 cols x 1000 rows = 1 000 000 cells, each 1x1 world unit → 1000x1000 image.
 static constexpr int    N    = 1000000;
@@ -148,6 +171,10 @@ static void run_headless()
 
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     std::cout << tc.label << "(" << N << "): " << ms << " ms  ->  " << tc.output_file << "\n";
+
+    std::string key = "headless:" + std::string(tc.label);
+    key.erase(key.find_last_not_of(" \t") + 1);
+    write_result(key, N);
   }
 }
 
@@ -163,6 +190,12 @@ static void draw_dispatch(ezgl::renderer *g)
   TESTS[g_current_test].fn(g);
   auto t1 = std::chrono::high_resolution_clock::now();
   g_last_frame_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+
+  {
+    std::string key = "ui:" + std::string(TESTS[g_current_test].label);
+    key.erase(key.find_last_not_of(" \t") + 1);
+    write_result(key, N);
+  }
 
   if (g_app) {
     std::ostringstream oss;
