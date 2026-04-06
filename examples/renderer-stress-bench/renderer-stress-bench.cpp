@@ -131,6 +131,67 @@ void draw_rectangles_transparent(ezgl::renderer *g)
   }
 }
 
+// ---- variadic-style palettes (deterministic, index-based) ----------------
+
+struct LineStyle {
+  ezgl::color  color;
+  uint_fast8_t alpha;
+  int          width;
+};
+
+struct RectStyle {
+  ezgl::color  color;
+  uint_fast8_t alpha;
+};
+
+static const LineStyle LINE_PALETTE[] = {
+  { ezgl::BLUE,   255, 1 },
+  { ezgl::RED,    255, 1 },
+  { ezgl::GREEN,  255, 1 },
+  { ezgl::ORANGE, 255, 2 },
+  { ezgl::BLUE,   128, 1 },
+  { ezgl::RED,    128, 1 },
+  { ezgl::GREEN,  128, 1 },
+  { ezgl::ORANGE, 128, 2 },
+};
+static constexpr int LINE_PALETTE_SIZE = static_cast<int>(sizeof(LINE_PALETTE) / sizeof(LINE_PALETTE[0]));
+
+static const RectStyle RECT_PALETTE[] = {
+  { ezgl::BLUE,  255 },
+  { ezgl::RED,   255 },
+  { ezgl::GREEN, 255 },
+  { ezgl::CYAN,  255 },
+  { ezgl::BLUE,  128 },
+  { ezgl::RED,   128 },
+  { ezgl::GREEN, 128 },
+  { ezgl::CYAN,  128 },
+};
+static constexpr int RECT_PALETTE_SIZE = static_cast<int>(sizeof(RECT_PALETTE) / sizeof(RECT_PALETTE[0]));
+
+void draw_lines_variadic(ezgl::renderer *g)
+{
+  g->set_line_dash(ezgl::line_dash::none);
+  for (int i = 0; i < g_bench_n; ++i) {
+    const LineStyle &s = LINE_PALETTE[i % LINE_PALETTE_SIZE];
+    g->set_color(s.color, s.alpha);
+    g->set_line_width(s.width);
+    double x0 = (i % COLS) * CELL + PAD;
+    double y0 = (i / COLS) * CELL + PAD;
+    g->draw_line({x0, y0}, {x0 + CELL - 2 * PAD, y0 + CELL - 2 * PAD});
+  }
+}
+
+void draw_rectangles_variadic(ezgl::renderer *g)
+{
+  for (int i = 0; i < g_bench_n; ++i) {
+    const RectStyle &s = RECT_PALETTE[i % RECT_PALETTE_SIZE];
+    g->set_color(s.color, s.alpha);
+    double x = (i % COLS) * CELL + PAD;
+    double y = (i / COLS) * CELL + PAD;
+    g->fill_rectangle({x, y}, {x + CELL - 2 * PAD, y + CELL - 2 * PAD});
+  }
+}
+
 void draw_chars(ezgl::renderer *g)
 {
   g->set_color(ezgl::BLACK);
@@ -169,6 +230,14 @@ static const TestCase TESTS[] = {
   { "transparen rects ", draw_rectangles_transparent,  10000, "bench_rects_transparent.png" },
   { "transparen rects ", draw_rectangles_transparent, 100000, "bench_rects_transparent.png" },
   { "transparen rects ", draw_rectangles_transparent,1000000, "bench_rects_transparent.png" },
+  { "variadic lines   ", draw_lines_variadic,            1000, "bench_lines_variadic.png"    },
+  { "variadic lines   ", draw_lines_variadic,           10000, "bench_lines_variadic.png"    },
+  { "variadic lines   ", draw_lines_variadic,          100000, "bench_lines_variadic.png"    },
+  { "variadic lines   ", draw_lines_variadic,         1000000, "bench_lines_variadic.png"    },
+  { "variadic rects   ", draw_rectangles_variadic,       1000, "bench_rects_variadic.png"    },
+  { "variadic rects   ", draw_rectangles_variadic,      10000, "bench_rects_variadic.png"    },
+  { "variadic rects   ", draw_rectangles_variadic,     100000, "bench_rects_variadic.png"    },
+  { "variadic rects   ", draw_rectangles_variadic,    1000000, "bench_rects_variadic.png"    },
 };
 static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
 
@@ -205,8 +274,11 @@ static void run_headless()
     g_headless_t = t;
     g_bench_n    = tc.count;
 
+    // Warm-up: one throwaway render to prime caches.
+    c->draw_offscreen(IMG_W, IMG_H);
+
     auto t0 = std::chrono::high_resolution_clock::now();
-    c->print_png(tc.output_file, IMG_W, IMG_H);
+    c->draw_offscreen(IMG_W, IMG_H);
     auto t1 = std::chrono::high_resolution_clock::now();
 
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -215,6 +287,9 @@ static void run_headless()
     std::string label(tc.label);
     label.erase(label.find_last_not_of(" \t") + 1);
     write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
+
+    // Save PNG once (untimed) for visual verification.
+    c->print_png(tc.output_file, IMG_W, IMG_H);
   }
 }
 

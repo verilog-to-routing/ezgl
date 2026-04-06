@@ -56,13 +56,13 @@ static cairo_surface_t *create_surface(GtkWidget *widget)
 
   // Cairo image surfaces are more efficient than normal Cairo surfaces
   // However, you cannot use X11 functions to draw on image surfaces
-  #ifdef EZGL_USE_X11
+#ifdef EZGL_USE_X11
   cairo_surface_t *p_surface = gdk_window_create_similar_surface(
       parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
-  #else
+#else
   cairo_surface_t *p_surface = gdk_window_create_similar_image_surface(
       parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
-  #endif
+#endif
 
   // On HiDPI displays, Cairos surfaces are scaled to 2x or more
   // However, EZGL doesn't support scaling yet
@@ -91,7 +91,6 @@ static cairo_t *create_context(cairo_surface_t *p_surface)
   cairo_set_antialias(context, CAIRO_ANTIALIAS_NONE);
 #endif // EZGL_QT
   return context;
-
 }
 
 #ifdef EZGL_QT
@@ -287,7 +286,35 @@ bool canvas::print_png(const char *file_name, int output_width, int output_heigh
   cairo_destroy(context);
 
   return true;
-#endif // EZGL_QT
+}
+
+void canvas::draw_offscreen(int output_width, int output_height)
+{
+#ifdef EZGL_QT
+  // Qt path: render_to_image already does draw-only; just discard the result.
+  render_to_image(output_width, output_height);
+#else
+  cairo_surface_t *surface = cairo_image_surface_create(
+      CAIRO_FORMAT_ARGB32, output_width, output_height);
+  if(!surface)
+    return;
+  cairo_t *context = create_context(surface);
+
+  cairo_set_source_rgb(context,
+      m_background_color.red   / 255.0,
+      m_background_color.green / 255.0,
+      m_background_color.blue  / 255.0);
+  cairo_paint(context);
+
+  using namespace std::placeholders;
+  camera cam = m_camera;
+  cam.update_widget(output_width, output_height);
+  renderer g(context, std::bind(&camera::world_to_screen, cam, _1), &cam, surface);
+  m_draw_callback(&g);
+
+  cairo_surface_destroy(surface);
+  cairo_destroy(context);
+#endif
 }
 
 #ifndef HIDE_GTK_EVENT
