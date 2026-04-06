@@ -46,13 +46,19 @@ static void write_result(const std::string &key, double ms)
     std::ifstream in(RESULTS_FILE);
     std::string line;
     while (std::getline(in, line)) {
-      // split on the tab separator; trim trailing spaces from the key
-      auto tab = line.find('\t');
-      if (tab != std::string::npos) {
-        std::string k = line.substr(0, tab);
-        k.erase(k.find_last_not_of(' ') + 1);
-        results[k] = std::stod(line.substr(tab + 1));
-      }
+      // format: "key<whitespace>142.37 ms"
+      // locate number by scanning backwards from " ms"
+      auto ms_pos = line.rfind(" ms");
+      if (ms_pos == std::string::npos) continue;
+      auto num_end = ms_pos;
+      auto num_start = num_end;
+      while (num_start > 0 && (std::isdigit(line[num_start - 1]) || line[num_start - 1] == '.'))
+        --num_start;
+      if (num_start == num_end) continue;
+      std::string k = line.substr(0, num_start);
+      k.erase(k.find_last_not_of(" \t") + 1);
+      if (k.empty()) continue;
+      results[k] = std::stod(line.substr(num_start, num_end - num_start));
     }
   }
   results[key] = ms;
@@ -60,15 +66,18 @@ static void write_result(const std::string &key, double ms)
   std::size_t col = 0;
   for (const auto &kv : results)
     col = std::max(col, kv.first.size());
+  col += 2; // minimum gap between key and value
 
   std::ofstream out(RESULTS_FILE);
   out << std::fixed << std::setprecision(2);
   for (const auto &kv : results)
-    out << std::left << std::setw(static_cast<int>(col)) << kv.first << "\t" << kv.second << " ms\n";
+    out << std::left << std::setw(static_cast<int>(col)) << kv.first << kv.second << " ms\n";
 }
 
+// Current primitive count used by draw callbacks.
+static int g_bench_n = 1000000;
+
 // Layout: 1000 cols x 1000 rows = 1 000 000 cells, each 1x1 world unit → 1000x1000 image.
-static constexpr int    N    = 1000000;
 static constexpr int    COLS = 1000;
 static constexpr double CELL = 1.0;
 static constexpr double PAD  = CELL * 0.2;   // inset for lines/rects within each cell
@@ -83,7 +92,7 @@ void draw_lines_solid(ezgl::renderer *g)
   g->set_color(ezgl::BLUE);
   g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
-  for (int i = 0; i < N; ++i) {
+  for (int i = 0; i < g_bench_n; ++i) {
     double x0 = (i % COLS) * CELL + PAD;
     double y0 = (i / COLS) * CELL + PAD;
     g->draw_line({x0, y0}, {x0 + CELL - 2 * PAD, y0 + CELL - 2 * PAD});
@@ -95,7 +104,7 @@ void draw_lines_transparent(ezgl::renderer *g)
   g->set_color(ezgl::BLUE, 128);
   g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
-  for (int i = 0; i < N; ++i) {
+  for (int i = 0; i < g_bench_n; ++i) {
     double x0 = (i % COLS) * CELL + PAD;
     double y0 = (i / COLS) * CELL + PAD;
     g->draw_line({x0, y0}, {x0 + CELL - 2 * PAD, y0 + CELL - 2 * PAD});
@@ -105,7 +114,7 @@ void draw_lines_transparent(ezgl::renderer *g)
 void draw_rectangles_solid(ezgl::renderer *g)
 {
   g->set_color(ezgl::RED);
-  for (int i = 0; i < N; ++i) {
+  for (int i = 0; i < g_bench_n; ++i) {
     double x = (i % COLS) * CELL + PAD;
     double y = (i / COLS) * CELL + PAD;
     g->fill_rectangle({x, y}, {x + CELL - 2 * PAD, y + CELL - 2 * PAD});
@@ -115,7 +124,7 @@ void draw_rectangles_solid(ezgl::renderer *g)
 void draw_rectangles_transparent(ezgl::renderer *g)
 {
   g->set_color(ezgl::RED, 128);
-  for (int i = 0; i < N; ++i) {
+  for (int i = 0; i < g_bench_n; ++i) {
     double x = (i % COLS) * CELL + PAD;
     double y = (i / COLS) * CELL + PAD;
     g->fill_rectangle({x, y}, {x + CELL - 2 * PAD, y + CELL - 2 * PAD});
@@ -126,7 +135,7 @@ void draw_chars(ezgl::renderer *g)
 {
   g->set_color(ezgl::BLACK);
   g->set_font_size(std::max(1, static_cast<int>(CELL)));
-  for (int i = 0; i < N; ++i) {
+  for (int i = 0; i < g_bench_n; ++i) {
     double cx = (i % COLS) * CELL + CELL / 2.0;
     double cy = (i / COLS) * CELL + CELL / 2.0;
     char ch[2] = {static_cast<char>('A' + (i % 26)), '\0'};
@@ -139,16 +148,27 @@ void draw_chars(ezgl::renderer *g)
 struct TestCase {
   const char          *label;
   ezgl::draw_canvas_fn fn;
-  const char          *canvas_id;
+  int                  count;
   const char          *output_file;
 };
 
 static const TestCase TESTS[] = {
-  { "solid lines      ", draw_lines_solid,           "bench_lines_solid",       "bench_lines_solid.png"       },
-  { "transparen lines ", draw_lines_transparent,     "bench_lines_transparent", "bench_lines_transparent.png" },
-  { "solid rects      ", draw_rectangles_solid,      "bench_rects_solid",       "bench_rects_solid.png"       },
-  { "transparen rects ", draw_rectangles_transparent,"bench_rects_transparent", "bench_rects_transparent.png" },
-  //{ "chars            ", draw_chars,                 "bench_chars",             "bench_chars.png"             },
+  { "solid lines      ", draw_lines_solid,              1000, "bench_lines_solid.png"       },
+  { "solid lines      ", draw_lines_solid,             10000, "bench_lines_solid.png"       },
+  { "solid lines      ", draw_lines_solid,            100000, "bench_lines_solid.png"       },
+  { "solid lines      ", draw_lines_solid,           1000000, "bench_lines_solid.png"       },
+  { "transparen lines ", draw_lines_transparent,        1000, "bench_lines_transparent.png" },
+  { "transparen lines ", draw_lines_transparent,       10000, "bench_lines_transparent.png" },
+  { "transparen lines ", draw_lines_transparent,      100000, "bench_lines_transparent.png" },
+  { "transparen lines ", draw_lines_transparent,     1000000, "bench_lines_transparent.png" },
+  { "solid rects      ", draw_rectangles_solid,         1000, "bench_rects_solid.png"       },
+  { "solid rects      ", draw_rectangles_solid,        10000, "bench_rects_solid.png"       },
+  { "solid rects      ", draw_rectangles_solid,       100000, "bench_rects_solid.png"       },
+  { "solid rects      ", draw_rectangles_solid,      1000000, "bench_rects_solid.png"       },
+  { "transparen rects ", draw_rectangles_transparent,   1000, "bench_rects_transparent.png" },
+  { "transparen rects ", draw_rectangles_transparent,  10000, "bench_rects_transparent.png" },
+  { "transparen rects ", draw_rectangles_transparent, 100000, "bench_rects_transparent.png" },
+  { "transparen rects ", draw_rectangles_transparent,1000000, "bench_rects_transparent.png" },
 };
 static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
 
@@ -172,21 +192,29 @@ static void run_headless()
   ezgl::application app(s);
 #endif
 
+  static int g_headless_t = 0;
+  auto headless_dispatch = [](ezgl::renderer *g) {
+    TESTS[g_headless_t].fn(g);
+  };
+
+  app.add_canvas("headless_canvas", headless_dispatch, WORLD, ezgl::WHITE);
+  ezgl::canvas *c = app.get_canvas("headless_canvas");
+
   for (int t = 0; t < N_TESTS; ++t) {
     const TestCase &tc = TESTS[t];
-    app.add_canvas(tc.canvas_id, tc.fn, WORLD, ezgl::WHITE);
-    ezgl::canvas *c = app.get_canvas(tc.canvas_id);
+    g_headless_t = t;
+    g_bench_n    = tc.count;
 
     auto t0 = std::chrono::high_resolution_clock::now();
     c->print_png(tc.output_file, IMG_W, IMG_H);
     auto t1 = std::chrono::high_resolution_clock::now();
 
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-    std::cout << tc.label << "(" << N << "): " << ms << " ms  ->  " << tc.output_file << "\n";
+    std::cout << tc.label << "(" << g_bench_n << "): " << ms << " ms\n";
 
     std::string label(tc.label);
     label.erase(label.find_last_not_of(" \t") + 1);
-    write_result("headless:" + std::to_string(N) + " " + label, ms);
+    write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
   }
 }
 
@@ -198,6 +226,8 @@ static double             g_last_frame_ms = -1.0;
 
 static void draw_dispatch(ezgl::renderer *g)
 {
+  g_bench_n = TESTS[g_current_test].count;
+
   auto t0 = std::chrono::high_resolution_clock::now();
   TESTS[g_current_test].fn(g);
   auto t1 = std::chrono::high_resolution_clock::now();
@@ -206,13 +236,13 @@ static void draw_dispatch(ezgl::renderer *g)
   {
     std::string label(TESTS[g_current_test].label);
     label.erase(label.find_last_not_of(" \t") + 1);
-    write_result("ui:" + std::to_string(N) + " " + label, g_last_frame_ms);
+    write_result("ui:" + std::to_string(g_bench_n) + " " + label, g_last_frame_ms);
   }
 
   if (g_app) {
     std::ostringstream oss;
     oss << TESTS[g_current_test].label
-        << " | " << N << " primitives"
+        << " | " << g_bench_n << " primitives"
         << " | " << std::fixed << std::setprecision(2) << g_last_frame_ms << " ms";
     g_app->update_message(oss.str());
   }
@@ -220,7 +250,7 @@ static void draw_dispatch(ezgl::renderer *g)
 
 static void switch_test(ezgl::application *app, int delta)
 {
-  g_current_test  = (g_current_test + delta + N_TESTS) % N_TESTS;
+  g_current_test = (g_current_test + delta + N_TESTS) % N_TESTS;
   app->change_canvas_world_coordinates("MainCanvas", WORLD);
   app->refresh_drawing();
 }
@@ -229,12 +259,8 @@ static void ui_setup(ezgl::application *app, bool /*new_window*/)
 {
   g_app = app;
 
-  app->create_button("Prev", 6, [](GtkWidget *, ezgl::application *a) {
-    switch_test(a, -1);
-  });
-  app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) {
-    switch_test(a, +1);
-  });
+  app->create_button("Prev", 6, [](GtkWidget *, ezgl::application *a) { switch_test(a, -1); });
+  app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) { switch_test(a, +1); });
 
   app->refresh_drawing();
 }
