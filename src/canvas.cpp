@@ -286,6 +286,7 @@ bool canvas::print_png(const char *file_name, int output_width, int output_heigh
   cairo_destroy(context);
 
   return true;
+#endif
 }
 
 void canvas::draw_offscreen(int output_width, int output_height)
