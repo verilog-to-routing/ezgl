@@ -177,6 +177,11 @@ renderer::~renderer()
 #endif
 }
 
+bool renderer::clip_line_world(const rectangle &clip_window, point2d &start, point2d &end)
+{
+  return clip_line(clip_window, start, end);
+}
+
 void renderer::update_renderer(Painter *painter, QImage *m_surface)
 {
   // Update Cairo Context

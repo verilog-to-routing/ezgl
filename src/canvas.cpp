@@ -28,6 +28,7 @@
 #include <QSvgGenerator>
 #include "ezgl/qt/ezgl_qtcompat.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
+#include "ezgl/qt/deferred_renderer.hpp"
 #else // EZGL_QT
 #include <gtk/gtk.h>
 #endif // EZGL_QT
@@ -110,8 +111,9 @@ QImage canvas::render_to_image(int surface_width, int surface_height)
   using namespace std::placeholders;
   camera cam = m_camera;
   cam.update_widget(surface_width, surface_height);
-  renderer g(&painter, std::bind(&camera::world_to_screen, cam, _1), &cam, &surface);
+  deferred_renderer g(&painter, std::bind(&camera::world_to_screen, cam, _1), &cam, &surface);
   m_draw_callback(&g);
+  g.flush();
 
   return surface;
 }
@@ -460,8 +462,9 @@ void canvas::redraw()
 #endif
 
   using namespace std::placeholders;
-  renderer g(m_painter, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
+  deferred_renderer g(m_painter, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
   m_draw_callback(&g);
+  g.flush();
 
   gtk_widget_queue_draw(m_drawing_area);
 

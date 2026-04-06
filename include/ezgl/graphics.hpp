@@ -524,18 +524,14 @@ protected:
    */
   void update_renderer(Painter* painter, QImage *m_surface);
 
-private:
-  void draw_rectangle_path(point2d start, point2d end, bool fill_flag);
-
-  void draw_arc_path(point2d center,
-      double radius,
-      double start_angle,
-      double extent_angle,
-      double stretch_factor,
-      bool fill_flag);
-
-  // Pre-clipping function
+protected:
+  // Pre-clipping function — also used by deferred_renderer
   bool rectangle_off_screen(rectangle rect);
+
+  // Clip a line in world coordinates (Liang-Barsky); returns false if fully clipped.
+  // Exposed as a protected method so deferred_renderer can call it without
+  // duplicating the algorithm.
+  bool clip_line_world(const rectangle &clip_window, point2d &start, point2d &end);
 
   // Current coordinate system (World is the default)
   t_coordinate_system current_coordinate_system = WORLD;
@@ -587,6 +583,16 @@ private:
 
   // Current color
   color current_color = {0, 0, 0, 255};
+
+private:
+  void draw_rectangle_path(point2d start, point2d end, bool fill_flag);
+
+  void draw_arc_path(point2d center,
+      double radius,
+      double start_angle,
+      double extent_angle,
+      double stretch_factor,
+      bool fill_flag);
 };
 }
 

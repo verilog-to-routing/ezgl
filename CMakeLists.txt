@@ -63,6 +63,7 @@ add_library(
   include/ezgl/qt/switchbutton.hpp
   include/ezgl/qt/drawingareawidget.hpp
   include/ezgl/qt/painter.hpp
+  include/ezgl/qt/deferred_renderer.hpp
   src/application.cpp
   src/camera.cpp
   src/canvas.cpp
@@ -74,6 +75,7 @@ add_library(
   src/qt/switchbutton.cpp
   src/qt/drawingareawidget.cpp
   src/qt/painter.cpp
+  src/qt/deferred_renderer.cpp
 )
 
 target_include_directories(
