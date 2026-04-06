@@ -48,7 +48,7 @@ QImage *create_surface(QWidget* widget)
   return nullptr;
 }
 #else
-static QImage *create_surface(GtkWidget *widget)
+static cairo_surface_t *create_surface(GtkWidget *widget)
 {
   GdkWindow *parent_window = gtk_widget_get_window(widget);
   int const width = gtk_widget_get_allocated_width(widget);
@@ -56,13 +56,13 @@ static QImage *create_surface(GtkWidget *widget)
 
   // Cairo image surfaces are more efficient than normal Cairo surfaces
   // However, you cannot use X11 functions to draw on image surfaces
-  #ifdef EZGL_USE_X11
-  QImage *p_surface = gdk_window_create_similar_surface(
+#ifdef EZGL_USE_X11
+  cairo_surface_t *p_surface = gdk_window_create_similar_surface(
       parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
-  #else
-  QImage *p_surface = gdk_window_create_similar_image_surface(
+#else
+  cairo_surface_t *p_surface = gdk_window_create_similar_image_surface(
       parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
-  #endif
+#endif
 
   // On HiDPI displays, Cairos surfaces are scaled to 2x or more
   // However, EZGL doesn't support scaling yet
@@ -91,7 +91,6 @@ static Painter *create_painter(QImage *p_surface)
   cairo_set_antialias(context, CAIRO_ANTIALIAS_NONE);
 #endif // EZGL_QT
   return painter;
-
 }
 
 #ifdef EZGL_QT
@@ -140,7 +139,7 @@ bool canvas::print_pdf(const char *file_name, int output_width, int output_heigh
 
   return true;
 #else // EZGL_QT
-  QImage *pdf_surface;
+  cairo_surface_t *pdf_surface;
   cairo_t *context;
   int surface_width = 0;
   int surface_height = 0;
@@ -199,7 +198,7 @@ bool canvas::print_svg(const char *file_name, int output_width, int output_heigh
 
   return true;
 #else // EZGL_QT
-  QImage *svg_surface;
+  cairo_surface_t *svg_surface;
   cairo_t *context;
   int surface_width = 0;
   int surface_height = 0;
@@ -246,7 +245,7 @@ bool canvas::print_png(const char *file_name, int output_width, int output_heigh
   const QImage surface = render_to_image(w, h);
   return surface.save(file_name, "PNG");
 #else // EZGL_QT
-  QImage *png_surface;
+  cairo_surface_t *png_surface;
   cairo_t *context;
   int surface_width = 0;
   int surface_height = 0;
@@ -285,6 +284,35 @@ bool canvas::print_png(const char *file_name, int output_width, int output_heigh
 
   return true;
 #endif // EZGL_QT
+}
+
+void canvas::draw_offscreen(int output_width, int output_height)
+{
+#ifdef EZGL_QT
+  // Qt path: render_to_image already does draw-only; just discard the result.
+  render_to_image(output_width, output_height);
+#else
+  cairo_surface_t *surface = cairo_image_surface_create(
+      CAIRO_FORMAT_ARGB32, output_width, output_height);
+  if(!surface)
+    return;
+  cairo_t *context = create_context(surface);
+
+  cairo_set_source_rgb(context,
+      m_background_color.red   / 255.0,
+      m_background_color.green / 255.0,
+      m_background_color.blue  / 255.0);
+  cairo_paint(context);
+
+  using namespace std::placeholders;
+  camera cam = m_camera;
+  cam.update_widget(output_width, output_height);
+  renderer g(context, std::bind(&camera::world_to_screen, cam, _1), &cam, surface);
+  m_draw_callback(&g);
+
+  cairo_surface_destroy(surface);
+  cairo_destroy(context);
+#endif
 }
 
 #ifndef HIDE_GTK_EVENT
