@@ -335,7 +335,7 @@ public:
    * @param start The start point of the line, in the current coordinate system
    * @param end The end point of the line
    */
-  void draw_line(point2d start, point2d end);
+  virtual void draw_line(point2d start, point2d end);
 
   /**
    * Draw the outline a rectangle.
@@ -343,7 +343,7 @@ public:
    * @param start A corner point of the rectangle, in the current coordinate system
    * @param end The diagonally opposite point of the rectangle
    */
-  void draw_rectangle(point2d start, point2d end);
+  virtual void draw_rectangle(point2d start, point2d end);
 
   /**
    * Draw the outline of a rectangle.
@@ -352,14 +352,14 @@ public:
    * @param width How wide the rectangle is, in the current coordinate system
    * @param height How high the rectangle is
    */
-  void draw_rectangle(point2d start, double width, double height);
+  virtual void draw_rectangle(point2d start, double width, double height);
 
   /**
    * Draw the outline of a rectangle
    *
    * @param r The rectangle
    */
-  void draw_rectangle(rectangle r);
+  virtual void draw_rectangle(rectangle r);
 
   /**
    * Draw a filled in rectangle.
@@ -367,7 +367,7 @@ public:
    * @param start One corner of the rectangle, in the current coordinate system
    * @param end The diagonally opposite corner of the rectangle
    */
-  void fill_rectangle(point2d start, point2d end);
+  virtual void fill_rectangle(point2d start, point2d end);
 
   /**
    * Draw a filled in rectangle.
@@ -376,14 +376,14 @@ public:
    * @param width How wide the rectangle is, in the current coordinate system
    * @param height How high the rectangle is
    */
-  void fill_rectangle(point2d start, double width, double height);
+  virtual void fill_rectangle(point2d start, double width, double height);
 
   /**
    * Draw a filled in rectangle.
    *
    * @param r The rectangle
    */
-  void fill_rectangle(rectangle r);
+  virtual void fill_rectangle(rectangle r);
 
   /**
    * Draw a filled polygon 
@@ -497,7 +497,7 @@ public:
   /**
    * Destructor.
    */
-  ~renderer();
+  virtual ~renderer();
 
 protected:
   // Only the canvas class can create a renderer.

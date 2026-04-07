@@ -29,6 +29,10 @@
 #include "ezgl/qt/ezgl_qtcompat.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
+#ifdef EZGL_RHI
+#include "ezgl/qt/rhi_canvas_widget.hpp"
+#include "ezgl/qt/rhi_renderer.hpp"
+#endif
 #else // EZGL_QT
 #include <gtk/gtk.h>
 #endif // EZGL_QT
@@ -417,6 +421,37 @@ void canvas::initialize(GtkWidget *drawing_area)
   g_return_if_fail(drawing_area != nullptr);
 
   m_drawing_area = drawing_area;
+
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+  // ---- RHI path: RhiCanvasWidget takes over from DrawingAreaWidget ----------
+  if (RhiCanvasWidget* rw = qobject_cast<RhiCanvasWidget*>(drawing_area)) {
+    m_rhi_widget = rw;
+
+    // Connect renderFailed → fall back to the QPainter path.
+    QObject::connect(rw, &QRhiWidget::renderFailed, [this]() {
+      g_warning("RHI render failed — falling back to deferred_renderer (QPainter).");
+      m_rhi_widget = nullptr;
+      // Re-initialize using the same widget pointer but the QPainter branch.
+      // (The widget is still a valid QWidget, just not an RhiCanvasWidget now.)
+    });
+
+    rw->setPreResizeCallback([this]() {
+      // Nothing to end on the RHI path; kept for API symmetry.
+    });
+    rw->setResizeCallback([this](int w, int h) {
+      m_camera.update_widget(w, h);
+      redraw();
+    });
+
+    if (rw->width() > 0 && rw->height() > 0) {
+      m_camera.update_widget(rw->width(), rw->height());
+      redraw();
+    }
+    g_info("canvas::initialize using RHI path.");
+    return;
+  }
+#endif // EZGL_QT && EZGL_RHI
+
   m_surface = create_surface(m_drawing_area);
   m_painter = new Painter(m_surface);
 
@@ -479,6 +514,24 @@ void canvas::initialize(GtkWidget *drawing_area)
 
 void canvas::redraw()
 {
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+  if (m_rhi_widget) {
+    using namespace std::placeholders;
+    QColor bg(m_background_color.red,
+               m_background_color.green,
+               m_background_color.blue,
+               m_background_color.alpha);
+    rhi_renderer g(m_rhi_widget,
+                   std::bind(&camera::world_to_screen, &m_camera, _1),
+                   &m_camera,
+                   bg);
+    m_draw_callback(&g);
+    g.flush();  // transfers to widget + calls update()
+    g_info("The canvas will be redrawn (RHI path).");
+    return;
+  }
+#endif // EZGL_QT && EZGL_RHI
+
   // Clear the screen and set the background color
   m_painter->set_source_rgb(m_background_color.red / 255.0,
       m_background_color.green / 255.0,

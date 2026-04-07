@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/ezgl">
+        <file>line.vert.qsb</file>
+        <file>line.frag.qsb</file>
+    </qresource>
+</RCC>

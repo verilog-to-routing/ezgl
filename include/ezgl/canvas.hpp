@@ -26,6 +26,9 @@
 
 #ifdef EZGL_QT
 #include "ezgl/qt/ezgl_qtcompat.hpp"
+#ifdef EZGL_RHI
+#include "ezgl/qt/rhi_canvas_widget.hpp"
+#endif
 #else // EZGL_QT
 #include <cairo.h>
 #include <cairo-pdf.h>
@@ -169,6 +172,11 @@ private:
 
   // The animation renderer
   renderer *m_animation_renderer = nullptr;
+
+#ifdef EZGL_RHI
+  // Non-owning pointer to the RHI drawing widget (set when EZGL_RHI is active).
+  RhiCanvasWidget *m_rhi_widget = nullptr;
+#endif
 
 #ifdef EZGL_QT
   // Renders the canvas into an off-screen QImage; shared by print_pdf/print_svg/print_png.

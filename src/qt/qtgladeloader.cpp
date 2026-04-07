@@ -3,6 +3,9 @@
 #include "ezgl/qt/qtgladeloader.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
+#ifdef EZGL_RHI
+#include "ezgl/qt/rhi_canvas_widget.hpp"
+#endif
 
 #include <QFile>
 #include <QWidget>
@@ -337,7 +340,12 @@ QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl)
 
 QWidget* QtGladeLoader::buildGtkDrawingArea(const QDomElement& objEl)
 {
-  ezgl::DrawingAreaWidget* w = new ezgl::DrawingAreaWidget;
+  // When RHI is enabled, use the GPU-backed widget instead of the QPainter one.
+#ifdef EZGL_RHI
+  QWidget* w = new ezgl::RhiCanvasWidget;
+#else
+  QWidget* w = new ezgl::DrawingAreaWidget;
+#endif
   w->setObjectName(getId(objEl));
   m_widgets.insert(w->objectName(), w);
 

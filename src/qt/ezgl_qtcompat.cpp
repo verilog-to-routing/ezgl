@@ -2,6 +2,9 @@
 
 #include <ezgl/qt/ezgl_qtcompat.hpp>
 #include <ezgl/qt/drawingareawidget.hpp>
+#ifdef EZGL_RHI
+#include <ezgl/qt/rhi_canvas_widget.hpp>
+#endif
 #include <ezgl/callback.hpp>
 
 #include <QPainter>
@@ -100,7 +103,12 @@ Application* gtk_application_new(const char* appName, int& argc, char** argv)
 // }
 
 bool Application::notify(QObject* obj, QEvent* event) {
-    auto* w = qobject_cast<ezgl::DrawingAreaWidget*>(obj);
+    // Accept events from either widget type (QPainter path or RHI path).
+    QWidget* w = qobject_cast<ezgl::DrawingAreaWidget*>(obj);
+#ifdef EZGL_RHI
+    if (!w)
+      w = qobject_cast<ezgl::RhiCanvasWidget*>(obj);
+#endif
     if (!w) {
       return QApplication::notify(obj, event);
     }

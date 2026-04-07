@@ -10,6 +10,13 @@ project(
 # we rely on GTK3 for the GUI, so make sure the system has it
 find_package(PkgConfig REQUIRED)
 
+# --------------------------------------------------------------------------
+# EZGL_USE_RHI — opt-in GPU renderer via Qt RHI (requires Qt >= 6.7).
+# Default: ON when Qt 6.7 or newer is detected.  Set -DEZGL_USE_RHI=OFF to
+# force the QPainter (deferred_renderer) path on all platforms.
+# --------------------------------------------------------------------------
+option(EZGL_USE_RHI "Enable Qt RHI GPU renderer (requires Qt >= 6.7)" ON)
+
 set(USE_QT 1)
 if(USE_QT)
     # Enable Qt automatic code generation
@@ -70,6 +77,7 @@ add_library(
   src/control.cpp
   src/callback.cpp
   src/graphics.cpp
+  src/spatial_grid.cpp
   src/qt/ezgl_qtcompat.cpp
   src/qt/qtgladeloader.cpp
   src/qt/switchbutton.cpp
@@ -102,6 +110,36 @@ if(USE_QT)
         HIDE_GTK_EVENT
         HIDE_GTK_BUILDER
     )
+
+    # ---- Qt RHI GPU renderer (optional, Qt >= 6.7) --------------------------
+    if(EZGL_USE_RHI)
+        if(Qt6_VERSION VERSION_GREATER_EQUAL "6.7.0")
+            message(STATUS "ezgl: Enabling Qt RHI renderer (Qt ${Qt6_VERSION})")
+
+            # QRhi / QShader live in Qt6::Gui private headers.
+            find_package(Qt6 QUIET COMPONENTS Gui)
+            target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::GuiPrivate)
+
+            # RHI sources
+            target_sources(${PROJECT_NAME} PRIVATE
+                include/ezgl/qt/rhi_canvas_widget.hpp
+                include/ezgl/qt/rhi_renderer.hpp
+                src/qt/rhi_canvas_widget.cpp
+                src/qt/rhi_renderer.cpp
+                shaders/shaders.qrc
+            )
+
+            target_compile_definitions(${PROJECT_NAME} PUBLIC EZGL_RHI)
+
+            # Qt 6.7 ships QRhiWidget inside Qt6::Widgets (no extra module needed).
+            # QRhi itself lives in Qt6::Gui — already linked above.
+        else()
+            message(WARNING
+                "ezgl: EZGL_USE_RHI=ON but Qt ${Qt6_VERSION} < 6.7 — "
+                "QRhiWidget unavailable.  Falling back to deferred_renderer.")
+        endif()
+    endif()
+
 else(USE_QT)
 
     #Treat GTK/X11 headers as system headers so they

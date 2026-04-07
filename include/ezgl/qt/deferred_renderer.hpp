@@ -63,15 +63,15 @@ public:
                       QImage *surface);
 
     // Hot-path overrides — collect into batches instead of drawing immediately.
-    void draw_line(point2d start, point2d end);
+    void draw_line(point2d start, point2d end) override;
 
-    void fill_rectangle(point2d start, point2d end);
-    void fill_rectangle(point2d start, double width, double height);
-    void fill_rectangle(rectangle r);
+    void fill_rectangle(point2d start, point2d end) override;
+    void fill_rectangle(point2d start, double width, double height) override;
+    void fill_rectangle(rectangle r) override;
 
-    void draw_rectangle(point2d start, point2d end);
-    void draw_rectangle(point2d start, double width, double height);
-    void draw_rectangle(rectangle r);
+    void draw_rectangle(point2d start, point2d end) override;
+    void draw_rectangle(point2d start, double width, double height) override;
+    void draw_rectangle(rectangle r) override;
 
     // Flush all batches to the underlying QPainter, then reset.
     void flush();
