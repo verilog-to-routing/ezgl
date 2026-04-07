@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace {
 
@@ -40,6 +41,8 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
                 QImage::Format_ARGB32_Premultiplied)
     , m_overlay_painter(&m_overlay)
 {
+    ensure_tile_grid();
+    clear_tile_geometry();
     m_overlay.fill(Qt::transparent);
     m_painter = &m_overlay_painter;
     m_overlay_painter.setAntialias(false);
@@ -50,12 +53,8 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
 
 void rhi_renderer::begin_frame()
 {
-    m_lines.clear();
-    m_line_styles.clear();
-    m_fill_verts.clear();
-    m_fill_styles.clear();
-    m_draw_verts.clear();
-    m_draw_styles.clear();
+    ensure_tile_grid();
+    clear_tile_geometry();
     m_palette_rgba.clear();
     m_palette_index.clear();
 
@@ -107,11 +106,186 @@ StyleIndex rhi_renderer::current_style_index()
     return next;
 }
 
-void rhi_renderer::append_style_indices(std::vector<StyleIndex>& styles,
-                                        StyleIndex               style_index,
-                                        std::size_t              count)
+void rhi_renderer::append_segment(std::vector<PosVertex>&  verts,
+                                  std::vector<StyleIndex>& styles,
+                                  point2d                  start,
+                                  point2d                  end,
+                                  StyleIndex               style_index)
 {
-    styles.insert(styles.end(), count, style_index);
+    verts.push_back(make_vertex(start));
+    verts.push_back(make_vertex(end));
+    styles.push_back(style_index);
+    styles.push_back(style_index);
+}
+
+void rhi_renderer::append_fill_rect(RhiTileBatch& tile,
+                                    point2d       p0,
+                                    point2d       p1,
+                                    StyleIndex    style_index)
+{
+    if (p1.x <= p0.x || p1.y <= p0.y)
+        return;
+
+    const point2d a{p0.x, p0.y};
+    const point2d b{p1.x, p0.y};
+    const point2d c{p0.x, p1.y};
+    const point2d d{p1.x, p1.y};
+
+    tile.fill_verts.push_back(make_vertex(a));
+    tile.fill_verts.push_back(make_vertex(b));
+    tile.fill_verts.push_back(make_vertex(c));
+
+    tile.fill_verts.push_back(make_vertex(b));
+    tile.fill_verts.push_back(make_vertex(d));
+    tile.fill_verts.push_back(make_vertex(c));
+
+    tile.fill_styles.insert(tile.fill_styles.end(), 6, style_index);
+}
+
+void rhi_renderer::ensure_tile_grid()
+{
+    const rectangle scene = m_camera->get_initial_world();
+    const double scene_width = std::max(scene.width(), std::numeric_limits<double>::epsilon());
+    const double scene_height = std::max(scene.height(), std::numeric_limits<double>::epsilon());
+    const rectangle normalized_scene{{scene.left(), scene.bottom()}, scene_width, scene_height};
+
+    if (m_tiles.size() == std::size_t(kTileGridDimension * kTileGridDimension)
+        && normalized_scene == m_scene_bounds) {
+        return;
+    }
+
+    m_scene_bounds = normalized_scene;
+    m_tile_width = m_scene_bounds.width() / double(kTileGridDimension);
+    m_tile_height = m_scene_bounds.height() / double(kTileGridDimension);
+    m_tiles.clear();
+    m_tiles.resize(std::size_t(kTileGridDimension * kTileGridDimension));
+
+    for (int ty = 0; ty < kTileGridDimension; ++ty) {
+        const double bottom = m_scene_bounds.bottom() + double(ty) * m_tile_height;
+        const double top = (ty + 1 == kTileGridDimension)
+            ? m_scene_bounds.top()
+            : (bottom + m_tile_height);
+
+        for (int tx = 0; tx < kTileGridDimension; ++tx) {
+            const double left = m_scene_bounds.left() + double(tx) * m_tile_width;
+            const double right = (tx + 1 == kTileGridDimension)
+                ? m_scene_bounds.right()
+                : (left + m_tile_width);
+            m_tiles[std::size_t(tile_index(tx, ty))].world_bounds =
+                rectangle{{left, bottom}, {right, top}};
+        }
+    }
+}
+
+void rhi_renderer::clear_tile_geometry()
+{
+    for (RhiTileBatch& tile : m_tiles) {
+        tile.line_verts.clear();
+        tile.line_styles.clear();
+        tile.fill_verts.clear();
+        tile.fill_styles.clear();
+        tile.draw_verts.clear();
+        tile.draw_styles.clear();
+    }
+}
+
+int rhi_renderer::clamp_tile_x(double x) const
+{
+    const double normalized = (x - m_scene_bounds.left()) / m_tile_width;
+    return std::clamp(int(std::floor(normalized)), 0, kTileGridDimension - 1);
+}
+
+int rhi_renderer::clamp_tile_y(double y) const
+{
+    const double normalized = (y - m_scene_bounds.bottom()) / m_tile_height;
+    return std::clamp(int(std::floor(normalized)), 0, kTileGridDimension - 1);
+}
+
+int rhi_renderer::tile_index(int tile_x, int tile_y) const
+{
+    return tile_y * kTileGridDimension + tile_x;
+}
+
+RhiTileBatch& rhi_renderer::tile_at(int tile_x, int tile_y)
+{
+    return m_tiles[std::size_t(tile_index(tile_x, tile_y))];
+}
+
+void rhi_renderer::append_line_to_tiles(point2d start,
+                                        point2d end,
+                                        StyleIndex style_index)
+{
+    const rectangle bounds{start, end};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            point2d clipped_start = start;
+            point2d clipped_end = end;
+            RhiTileBatch& tile = tile_at(tx, ty);
+            if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
+                continue;
+            append_segment(tile.line_verts,
+                           tile.line_styles,
+                           clipped_start,
+                           clipped_end,
+                           style_index);
+        }
+    }
+}
+
+void rhi_renderer::append_draw_segment_to_tiles(point2d start,
+                                                point2d end,
+                                                StyleIndex style_index)
+{
+    const rectangle bounds{start, end};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            point2d clipped_start = start;
+            point2d clipped_end = end;
+            RhiTileBatch& tile = tile_at(tx, ty);
+            if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
+                continue;
+            append_segment(tile.draw_verts,
+                           tile.draw_styles,
+                           clipped_start,
+                           clipped_end,
+                           style_index);
+        }
+    }
+}
+
+void rhi_renderer::append_fill_rect_to_tiles(point2d p0,
+                                             point2d p1,
+                                             StyleIndex style_index)
+{
+    const rectangle bounds{p0, p1};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            RhiTileBatch& tile = tile_at(tx, ty);
+            const double left = std::max(bounds.left(), tile.world_bounds.left());
+            const double right = std::min(bounds.right(), tile.world_bounds.right());
+            const double bottom = std::max(bounds.bottom(), tile.world_bounds.bottom());
+            const double top = std::min(bounds.top(), tile.world_bounds.top());
+            append_fill_rect(tile,
+                             {left, bottom},
+                             {right, top},
+                             style_index);
+        }
+    }
 }
 
 // World→NDC matrix derived from camera state and widget dimensions.
@@ -154,55 +328,6 @@ QMatrix4x4 rhi_renderer::compute_mvp() const
     return m;
 }
 
-void rhi_renderer::push_fill_rect(point2d p0, point2d p1)
-{
-    // Two counter-clockwise triangles covering the axis-aligned rectangle
-    // defined by corners p0 and p1 (world coords; y-flip handled by MVP).
-    //
-    //  (p0.x, p1.y) --- (p1.x, p1.y)
-    //       |         \       |
-    //  (p0.x, p0.y) --- (p1.x, p0.y)
-    const point2d a{p0.x, p0.y};
-    const point2d b{p1.x, p0.y};
-    const point2d c{p0.x, p1.y};
-    const point2d d{p1.x, p1.y};
-    const StyleIndex style_index = current_style_index();
-
-    m_fill_verts.push_back(make_vertex(a));
-    m_fill_verts.push_back(make_vertex(b));
-    m_fill_verts.push_back(make_vertex(c));
-
-    m_fill_verts.push_back(make_vertex(b));
-    m_fill_verts.push_back(make_vertex(d));
-    m_fill_verts.push_back(make_vertex(c));
-    append_style_indices(m_fill_styles, style_index, 6);
-}
-
-void rhi_renderer::push_draw_rect(point2d p0, point2d p1)
-{
-    // Four line segments (8 vertices) for the rectangle outline.
-    const point2d a{p0.x, p0.y};
-    const point2d b{p1.x, p0.y};
-    const point2d c{p1.x, p1.y};
-    const point2d d{p0.x, p1.y};
-    const StyleIndex style_index = current_style_index();
-
-    m_draw_verts.push_back(make_vertex(a));
-    m_draw_verts.push_back(make_vertex(b));
-
-    m_draw_verts.push_back(make_vertex(b));
-    m_draw_verts.push_back(make_vertex(c));
-
-    m_draw_verts.push_back(make_vertex(c));
-    m_draw_verts.push_back(make_vertex(d));
-
-    m_draw_verts.push_back(make_vertex(d));
-    m_draw_verts.push_back(make_vertex(a));
-    append_style_indices(m_draw_styles, style_index, 8);
-}
-
-// ---- draw_line override ----------------------------------------------------
-
 void rhi_renderer::draw_line(point2d start, point2d end)
 {
     if (current_coordinate_system != WORLD) {
@@ -211,12 +336,8 @@ void rhi_renderer::draw_line(point2d start, point2d end)
         return;
     }
 
-    // GPU path: store world-space coords — the MVP handles the transform and
-    // the GPU clips against the viewport.
     const StyleIndex style_index = current_style_index();
-    m_lines.push_back(make_vertex(start));
-    m_lines.push_back(make_vertex(end));
-    append_style_indices(m_line_styles, style_index, 2);
+    append_line_to_tiles(start, end, style_index);
 }
 
 // ---- fill_rectangle overrides ----------------------------------------------
@@ -228,10 +349,9 @@ void rhi_renderer::fill_rectangle(point2d start, point2d end)
         return;
     }
 
-    // Normalise corners: p0 = (min_x, min_y), p1 = (max_x, max_y) in world.
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
-    push_fill_rect(p0, p1);
+    append_fill_rect_to_tiles(p0, p1, current_style_index());
 }
 
 void rhi_renderer::fill_rectangle(point2d start, double width, double height)
@@ -255,7 +375,11 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
 
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
-    push_draw_rect(p0, p1);
+    const StyleIndex style_index = current_style_index();
+    append_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_index);
+    append_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_index);
+    append_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_index);
+    append_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_index);
 }
 
 void rhi_renderer::draw_rectangle(point2d start, double width, double height)
@@ -276,26 +400,30 @@ void rhi_renderer::flush()
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
 
-    double total_mb =
-        ((m_lines.size() +
-          m_fill_verts.size() +
-          m_draw_verts.size()) * sizeof(PosVertex)
-         + (m_line_styles.size() +
-            m_fill_styles.size() +
-            m_draw_styles.size()) * sizeof(StyleIndex))
-        / (1024.0 * 1024.0);
+    std::vector<RhiTileBatch> non_empty_tiles;
+    double total_mb = 0.0;
+    for (RhiTileBatch& tile : m_tiles) {
+        if (tile.empty())
+            continue;
+
+        total_mb +=
+            ((tile.line_verts.size() +
+              tile.fill_verts.size() +
+              tile.draw_verts.size()) * sizeof(PosVertex)
+             + (tile.line_styles.size() +
+                tile.fill_styles.size() +
+                tile.draw_styles.size()) * sizeof(StyleIndex))
+            / (1024.0 * 1024.0);
+        non_empty_tiles.push_back(std::move(tile));
+    }
 
     std::cout << "~~~ sending to GPU " << total_mb << " mb" << std::endl;
 
     m_rhi_widget->set_frame_data(
-        std::move(m_lines),
-        std::move(m_line_styles),
-        std::move(m_fill_verts),
-        std::move(m_fill_styles),
-        std::move(m_draw_verts),
-        std::move(m_draw_styles),
+        std::move(non_empty_tiles),
         std::move(m_palette_rgba),
         compute_mvp(),
+        get_visible_world(),
         m_overlay,
         m_bg_color);
 
@@ -308,7 +436,7 @@ void rhi_renderer::flush_mvp_only()
 {
     // The overlay painter is already inactive (no begin_frame was called).
     // Vertex buffers in the widget are reused; only the MVP uniform changes.
-    m_rhi_widget->set_mvp_only(compute_mvp());
+    m_rhi_widget->set_mvp_only(compute_mvp(), get_visible_world());
     m_rhi_widget->update();
 }
 

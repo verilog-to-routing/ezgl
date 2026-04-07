@@ -2,6 +2,8 @@
 
 #if defined(EZGL_QT) && defined(EZGL_RHI)
 
+#include "ezgl/rectangle.hpp"
+
 #include <QRhiWidget>
 #include <QImage>
 #include <QMatrix4x4>
@@ -35,6 +37,23 @@ static_assert(sizeof(PosVertex) == 8, "PosVertex must be 8 bytes");
 using StyleIndex = std::uint8_t;
 static constexpr std::size_t kMaxRhiStyleEntries = 256;
 
+struct RhiTileBatch {
+    rectangle               world_bounds;
+    std::vector<PosVertex>  line_verts;
+    std::vector<StyleIndex> line_styles;
+    std::vector<PosVertex>  fill_verts;
+    std::vector<StyleIndex> fill_styles;
+    std::vector<PosVertex>  draw_verts;
+    std::vector<StyleIndex> draw_styles;
+
+    bool empty() const
+    {
+        return line_verts.empty()
+            && fill_verts.empty()
+            && draw_verts.empty();
+    }
+};
+
 /**
  * QWidget subclass (via QRhiWidget) that renders line and rect primitives on
  * the GPU (Vulkan / Metal / D3D12 / OpenGL via Qt RHI), then composites a
@@ -58,25 +77,17 @@ public:
      * Vertex coordinates are in world space; the GPU applies world_to_ndc to
      * transform them. Call this when scene geometry has changed.
      *
-     * @param lines          Two PosVertex entries per line segment (world coords).
-     * @param line_styles    One style index per line vertex.
-     * @param fill_verts     Six PosVertex entries per filled rectangle (world coords).
-     * @param fill_styles    One style index per fill vertex.
-     * @param draw_verts     Eight PosVertex entries per outline rectangle (world coords).
-     * @param draw_styles    One style index per outline vertex.
-     * @param palette_rgba   Packed RGBA palette referenced by the style indices.
-     * @param world_to_ndc  Matrix mapping world coords → NDC.
-     * @param overlay     Transparent QImage with text / arcs drawn by QPainter.
-     * @param bg_color    Clear color for the render target.
+     * @param tiles           Non-empty scene tiles, each with its own geometry streams.
+     * @param palette_rgba    Packed RGBA palette referenced by the style indices.
+     * @param world_to_ndc    Matrix mapping world coords → NDC.
+     * @param visible_world   Current visible world bounds used for tile selection.
+     * @param overlay         Transparent QImage with text / arcs drawn by QPainter.
+     * @param bg_color        Clear color for the render target.
      */
-    void set_frame_data(std::vector<PosVertex>   lines,
-                        std::vector<StyleIndex>  line_styles,
-                        std::vector<PosVertex>   fill_verts,
-                        std::vector<StyleIndex>  fill_styles,
-                        std::vector<PosVertex>   draw_verts,
-                        std::vector<StyleIndex>  draw_styles,
+    void set_frame_data(std::vector<RhiTileBatch> tiles,
                         std::vector<std::uint32_t> palette_rgba,
                         const QMatrix4x4&         world_to_ndc,
+                        const rectangle&          visible_world,
                         const QImage&             overlay,
                         QColor                    bg_color);
 
@@ -86,7 +97,8 @@ public:
      * Call this when the camera has panned or zoomed but no primitives changed.
      * The widget re-renders with the existing vertex buffers and the new MVP.
      */
-    void set_mvp_only(const QMatrix4x4& world_to_ndc);
+    void set_mvp_only(const QMatrix4x4& world_to_ndc,
+                      const rectangle&  visible_world);
 
     /** Register a callback invoked on every resize (mirrors DrawingAreaWidget). */
     void setResizeCallback(std::function<void(int,int)> cb);
@@ -105,16 +117,24 @@ protected:
     void resizeEvent(QResizeEvent* e) override;
 
 private:
+    struct StreamChunk {
+        std::unique_ptr<QRhiBuffer> pos_vbuf;
+        std::unique_ptr<QRhiBuffer> style_vbuf;
+        quint32                     count = 0;
+    };
+
+    struct GpuTileBatch {
+        rectangle                world_bounds;
+        std::vector<StreamChunk> line_chunks;
+        std::vector<StreamChunk> fill_chunks;
+        std::vector<StreamChunk> draw_chunks;
+    };
+
     // GPU resources — unique_ptr keeps them alive between initialize/release.
     // Complete type required only in .cpp.
     std::unique_ptr<QRhiBuffer>                 m_mvp_ubuf;
     std::unique_ptr<QRhiBuffer>                 m_palette_ubuf;
-    std::unique_ptr<QRhiBuffer>                 m_line_vbuf;
-    std::unique_ptr<QRhiBuffer>                 m_line_style_vbuf;
-    std::unique_ptr<QRhiBuffer>                 m_fill_vbuf;
-    std::unique_ptr<QRhiBuffer>                 m_fill_style_vbuf;
-    std::unique_ptr<QRhiBuffer>                 m_draw_vbuf;
-    std::unique_ptr<QRhiBuffer>                 m_draw_style_vbuf;
+    std::vector<GpuTileBatch>                   m_gpu_tiles;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline>       m_line_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_fill_pso;
@@ -122,24 +142,17 @@ private:
     bool m_initialized = false;
 
     // Pending frame (written by set_frame_data / set_mvp_only, consumed by render())
-    mutable QMutex           m_frame_mutex;
-    std::vector<PosVertex>   m_pending_lines;
-    std::vector<StyleIndex>  m_pending_line_styles;
-    std::vector<PosVertex>   m_pending_fill;
-    std::vector<StyleIndex>  m_pending_fill_styles;
-    std::vector<PosVertex>   m_pending_draw;
-    std::vector<StyleIndex>  m_pending_draw_styles;
+    mutable QMutex             m_frame_mutex;
+    std::vector<RhiTileBatch>  m_pending_tiles;
     std::vector<std::uint32_t> m_pending_palette_rgba;
-    QMatrix4x4               m_pending_mvp;
-    QImage                   m_pending_overlay;
-    QColor                   m_pending_bg  { Qt::white };
-    bool                     m_frame_dirty = false;  // geometry + MVP changed
-    bool                     m_mvp_dirty   = false;  // only MVP changed
+    QMatrix4x4                 m_pending_mvp;
+    rectangle                  m_pending_visible_world;
+    QImage                     m_pending_overlay;
+    QColor                     m_pending_bg  { Qt::white };
+    bool                       m_frame_dirty = false;  // geometry + MVP changed
+    bool                       m_mvp_dirty   = false;  // only MVP changed
 
-    // Cached vertex counts for camera-only frames (no geometry re-upload).
-    quint32                  m_line_count  = 0;
-    quint32                  m_fill_count  = 0;
-    quint32                  m_draw_count  = 0;
+    // Cached tiled GPU streams for camera-only frames (no geometry re-upload).
 
     // Canvas hooks
     std::function<void(int,int)> m_resize_cb;

@@ -214,7 +214,7 @@ struct TestCase {
 };
 
 static const TestCase TESTS[] = {
-  { "variadic lines   ", draw_lines_variadic,         1000000, "bench_lines_variadic.png"    },
+  { "variadic lines   ", draw_lines_variadic,         200000000, "bench_lines_variadic.png"    },
   //{ "variadic rects   ", draw_rectangles_variadic,    100000000, "bench_rects_variadic.png"    },
     //////////////////
     // { "solid lines      ", draw_lines_solid,              1000, "bench_lines_solid.png"       },
