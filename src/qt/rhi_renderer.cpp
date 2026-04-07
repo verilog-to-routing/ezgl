@@ -3,6 +3,8 @@
 #include "ezgl/qt/rhi_renderer.hpp"
 #include "ezgl/camera.hpp"
 
+#include <QtGlobal>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -49,11 +51,13 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
 void rhi_renderer::begin_frame()
 {
     m_lines.clear();
-    m_line_batches.clear();
+    m_line_styles.clear();
     m_fill_verts.clear();
-    m_fill_batches.clear();
+    m_fill_styles.clear();
     m_draw_verts.clear();
-    m_draw_batches.clear();
+    m_draw_styles.clear();
+    m_palette_rgba.clear();
+    m_palette_index.clear();
 
     // End painter if still active (shouldn't normally happen).
     if (m_overlay_painter.isActive())
@@ -85,23 +89,29 @@ std::uint32_t rhi_renderer::current_packed_color() const
     return pack_color_rgba(current_color);
 }
 
-void rhi_renderer::append_batch(std::vector<ColorBatch>& batches,
-                                std::uint32_t            first,
-                                std::uint32_t            count) const
+StyleIndex rhi_renderer::current_style_index()
 {
-    if (count == 0)
-        return;
-
     const std::uint32_t color = current_packed_color();
-    if (!batches.empty()) {
-        ColorBatch& last = batches.back();
-        if (last.color_rgba == color && last.first + last.count == first) {
-            last.count += count;
-            return;
-        }
+    auto it = m_palette_index.find(color);
+    if (it != m_palette_index.end())
+        return it->second;
+
+    if (m_palette_rgba.size() >= kMaxRhiStyleEntries) {
+        qFatal("rhi_renderer: palette exceeded %zu RGBA entries; compact style-index path exhausted",
+               kMaxRhiStyleEntries);
     }
 
-    batches.push_back(ColorBatch{first, count, color});
+    const StyleIndex next = StyleIndex(m_palette_rgba.size());
+    m_palette_rgba.push_back(color);
+    m_palette_index.emplace(color, next);
+    return next;
+}
+
+void rhi_renderer::append_style_indices(std::vector<StyleIndex>& styles,
+                                        StyleIndex               style_index,
+                                        std::size_t              count)
+{
+    styles.insert(styles.end(), count, style_index);
 }
 
 // World→NDC matrix derived from camera state and widget dimensions.
@@ -156,7 +166,7 @@ void rhi_renderer::push_fill_rect(point2d p0, point2d p1)
     const point2d b{p1.x, p0.y};
     const point2d c{p0.x, p1.y};
     const point2d d{p1.x, p1.y};
-    const std::uint32_t first = std::uint32_t(m_fill_verts.size());
+    const StyleIndex style_index = current_style_index();
 
     m_fill_verts.push_back(make_vertex(a));
     m_fill_verts.push_back(make_vertex(b));
@@ -165,8 +175,7 @@ void rhi_renderer::push_fill_rect(point2d p0, point2d p1)
     m_fill_verts.push_back(make_vertex(b));
     m_fill_verts.push_back(make_vertex(d));
     m_fill_verts.push_back(make_vertex(c));
-
-    append_batch(m_fill_batches, first, 6);
+    append_style_indices(m_fill_styles, style_index, 6);
 }
 
 void rhi_renderer::push_draw_rect(point2d p0, point2d p1)
@@ -176,7 +185,7 @@ void rhi_renderer::push_draw_rect(point2d p0, point2d p1)
     const point2d b{p1.x, p0.y};
     const point2d c{p1.x, p1.y};
     const point2d d{p0.x, p1.y};
-    const std::uint32_t first = std::uint32_t(m_draw_verts.size());
+    const StyleIndex style_index = current_style_index();
 
     m_draw_verts.push_back(make_vertex(a));
     m_draw_verts.push_back(make_vertex(b));
@@ -189,8 +198,7 @@ void rhi_renderer::push_draw_rect(point2d p0, point2d p1)
 
     m_draw_verts.push_back(make_vertex(d));
     m_draw_verts.push_back(make_vertex(a));
-
-    append_batch(m_draw_batches, first, 8);
+    append_style_indices(m_draw_styles, style_index, 8);
 }
 
 // ---- draw_line override ----------------------------------------------------
@@ -216,10 +224,10 @@ void rhi_renderer::draw_line(point2d start, point2d end)
 
     // GPU path: store world-space coords — MVP handles the transform.
     // No CPU clipping: the GPU viewport clips at NDC boundaries.
-    const std::uint32_t first = std::uint32_t(m_lines.size());
+    const StyleIndex style_index = current_style_index();
     m_lines.push_back(make_vertex(start));
     m_lines.push_back(make_vertex(end));
-    append_batch(m_line_batches, first, 2);
+    append_style_indices(m_line_styles, style_index, 2);
 }
 
 // ---- fill_rectangle overrides ----------------------------------------------
@@ -280,19 +288,24 @@ void rhi_renderer::flush()
         m_overlay_painter.end();
 
     double total_mb =
-        (m_lines.size() +
-         m_fill_verts.size() +
-         m_draw_verts.size()) * sizeof(PosVertex) / (1024.0 * 1024.0);
+        ((m_lines.size() +
+          m_fill_verts.size() +
+          m_draw_verts.size()) * sizeof(PosVertex)
+         + (m_line_styles.size() +
+            m_fill_styles.size() +
+            m_draw_styles.size()) * sizeof(StyleIndex))
+        / (1024.0 * 1024.0);
 
     std::cout << "~~~ sending to GPU " << total_mb << " mb" << std::endl;
 
     m_rhi_widget->set_frame_data(
         std::move(m_lines),
-        std::move(m_line_batches),
+        std::move(m_line_styles),
         std::move(m_fill_verts),
-        std::move(m_fill_batches),
+        std::move(m_fill_styles),
         std::move(m_draw_verts),
-        std::move(m_draw_batches),
+        std::move(m_draw_styles),
+        std::move(m_palette_rgba),
         compute_mvp(),
         m_overlay,
         m_bg_color);

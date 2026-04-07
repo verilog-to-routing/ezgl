@@ -8,6 +8,7 @@
 
 #include <QMatrix4x4>
 #include <QImage>
+#include <unordered_map>
 #include <vector>
 
 namespace ezgl {
@@ -16,7 +17,7 @@ namespace ezgl {
  * GPU-backed renderer (Phase 1+2).
  *
  * Hot-path primitives (lines, rectangles) are collected into position-only
- * vertex vectors plus color batches and submitted to the GPU via
+ * vertex vectors plus compact style-index streams and submitted to the GPU via
  * RhiCanvasWidget.
  *
  * Non-overridden primitives (fill_poly, draw_arc, draw_text, draw_surface, …)
@@ -70,9 +71,10 @@ private:
 
     PosVertex make_vertex(point2d world_pt) const;
     std::uint32_t current_packed_color() const;
-    void append_batch(std::vector<ColorBatch>& batches,
-                      std::uint32_t            first,
-                      std::uint32_t            count) const;
+    StyleIndex current_style_index();
+    void append_style_indices(std::vector<StyleIndex>& styles,
+                              StyleIndex               style_index,
+                              std::size_t              count);
 
     /** Transform a world/screen point to screen-pixel coords. */
     point2d to_screen(point2d p) const;
@@ -91,13 +93,15 @@ private:
     RhiCanvasWidget*         m_rhi_widget;
     QColor                   m_bg_color;
 
-    // GPU geometry collections (world coords) + per-run colors.
+    // GPU geometry collections (world coords) + palette-backed style indices.
     std::vector<PosVertex>   m_lines;
-    std::vector<ColorBatch>  m_line_batches;
+    std::vector<StyleIndex>  m_line_styles;
     std::vector<PosVertex>   m_fill_verts;
-    std::vector<ColorBatch>  m_fill_batches;
+    std::vector<StyleIndex>  m_fill_styles;
     std::vector<PosVertex>   m_draw_verts;
-    std::vector<ColorBatch>  m_draw_batches;
+    std::vector<StyleIndex>  m_draw_styles;
+    std::vector<std::uint32_t> m_palette_rgba;
+    std::unordered_map<std::uint32_t, StyleIndex> m_palette_index;
 
     // QPainter overlay — base-class draw calls (text, arcs, …) write here.
     QImage   m_overlay;

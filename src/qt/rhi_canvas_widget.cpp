@@ -9,7 +9,6 @@
 #include <QResizeEvent>
 #include <QFile>
 #include <QMutexLocker>
-#include <cstring>
 
 // Q_INIT_RESOURCE must be called at global scope (not inside a namespace).
 // For static libraries, Qt resources are not automatically registered, so
@@ -57,16 +56,22 @@ bool ensureDynamicBuf(QRhi*                        rhi,
     return true;
 }
 
-struct ColorUniformBlock {
+struct ColorUniform {
     float rgba[4];
 };
-static_assert(sizeof(ColorUniformBlock) == 16,
-              "ColorUniformBlock must match a std140 vec4");
+static_assert(sizeof(ColorUniform) == 16,
+              "ColorUniform must match a std140 vec4");
 
-ColorUniformBlock makeColorUniform(std::uint32_t rgba)
+struct PaletteUniformBlock {
+    ColorUniform colors[ezgl::kMaxRhiStyleEntries];
+};
+static_assert(sizeof(PaletteUniformBlock) == ezgl::kMaxRhiStyleEntries * sizeof(ColorUniform),
+              "PaletteUniformBlock must be tightly packed std140 vec4 entries");
+
+ColorUniform makeColorUniform(std::uint32_t rgba)
 {
     constexpr float kScale = 1.0f / 255.0f;
-    return ColorUniformBlock{{
+    return ColorUniform{{
         float((rgba >>  0) & 0xFF) * kScale,
         float((rgba >>  8) & 0xFF) * kScale,
         float((rgba >> 16) & 0xFF) * kScale,
@@ -83,10 +88,14 @@ void buildPipeline(QRhi*                                    rhi,
                    QRhiRenderPassDescriptor*                  rpDesc)
 {
     QRhiVertexInputLayout layout;
-    layout.setBindings({ QRhiVertexInputBinding(sizeof(ezgl::PosVertex)) });
+    layout.setBindings({
+        QRhiVertexInputBinding(sizeof(ezgl::PosVertex)),
+        QRhiVertexInputBinding(sizeof(ezgl::StyleIndex))
+    });
     layout.setAttributes({
         QRhiVertexInputAttribute(0, 0, QRhiVertexInputAttribute::Float2,
-                                 offsetof(ezgl::PosVertex, x))
+                                 offsetof(ezgl::PosVertex, x)),
+        QRhiVertexInputAttribute(1, 1, QRhiVertexInputAttribute::UNormByte, 0)
     });
 
     QRhiGraphicsPipeline::TargetBlend blend;
@@ -132,23 +141,25 @@ RhiCanvasWidget::~RhiCanvasWidget() = default;
 
 // ---- public API ------------------------------------------------------------
 
-void RhiCanvasWidget::set_frame_data(std::vector<PosVertex>   lines,
-                                     std::vector<ColorBatch>  line_batches,
-                                     std::vector<PosVertex>   fill_verts,
-                                     std::vector<ColorBatch>  fill_batches,
-                                     std::vector<PosVertex>   draw_verts,
-                                     std::vector<ColorBatch>  draw_batches,
-                                     const QMatrix4x4&       world_to_ndc,
-                                     const QImage&           overlay,
-                                     QColor                  bg_color)
+void RhiCanvasWidget::set_frame_data(std::vector<PosVertex>     lines,
+                                     std::vector<StyleIndex>    line_styles,
+                                     std::vector<PosVertex>     fill_verts,
+                                     std::vector<StyleIndex>    fill_styles,
+                                     std::vector<PosVertex>     draw_verts,
+                                     std::vector<StyleIndex>    draw_styles,
+                                     std::vector<std::uint32_t> palette_rgba,
+                                     const QMatrix4x4&          world_to_ndc,
+                                     const QImage&              overlay,
+                                     QColor                     bg_color)
 {
     QMutexLocker lock(&m_frame_mutex);
     m_pending_lines        = std::move(lines);
-    m_pending_line_batches = std::move(line_batches);
+    m_pending_line_styles  = std::move(line_styles);
     m_pending_fill         = std::move(fill_verts);
-    m_pending_fill_batches = std::move(fill_batches);
+    m_pending_fill_styles  = std::move(fill_styles);
     m_pending_draw         = std::move(draw_verts);
-    m_pending_draw_batches = std::move(draw_batches);
+    m_pending_draw_styles  = std::move(draw_styles);
+    m_pending_palette_rgba = std::move(palette_rgba);
     m_pending_mvp          = world_to_ndc;
     m_pending_overlay      = overlay;
     m_pending_bg           = bg_color;
@@ -181,18 +192,17 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     QShader vs = loadShader(":/ezgl/line.vert.qsb");
     QShader fs = loadShader(":/ezgl/line.frag.qsb");
 
-    // Uniform buffers: one MVP block plus dynamically-offset color blocks.
+    // Uniform buffers: one MVP block plus a small shared palette.
     m_mvp_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
                                       QRhiBuffer::UniformBuffer,
                                       64));
     m_mvp_ubuf->create();
-    m_color_ubuf_stride = quint32(rhi()->ubufAligned(sizeof(ColorUniformBlock)));
-    m_color_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
-                                        QRhiBuffer::UniformBuffer,
-                                        int(m_color_ubuf_stride * 256)));
-    m_color_ubuf->create();
+    m_palette_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
+                                          QRhiBuffer::UniformBuffer,
+                                          sizeof(PaletteUniformBlock)));
+    m_palette_ubuf->create();
 
-    // Vertex buffers: start at 1 MB, grow on demand in render().
+    // Vertex buffers: start at 1 MB for positions, style streams grow as needed.
     auto makeVBuf = [&]() {
         auto* b = rhi()->newBuffer(QRhiBuffer::Dynamic,
                                     QRhiBuffer::VertexBuffer,
@@ -200,22 +210,31 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
         b->create();
         return b;
     };
+    auto makeStyleBuf = [&]() {
+        auto* b = rhi()->newBuffer(QRhiBuffer::Dynamic,
+                                   QRhiBuffer::VertexBuffer,
+                                   128 * 1024);
+        b->create();
+        return b;
+    };
     m_line_vbuf.reset(makeVBuf());
+    m_line_style_vbuf.reset(makeStyleBuf());
     m_fill_vbuf.reset(makeVBuf());
+    m_fill_style_vbuf.reset(makeStyleBuf());
     m_draw_vbuf.reset(makeVBuf());
+    m_draw_style_vbuf.reset(makeStyleBuf());
 
-    // Shader resource bindings: MVP at binding 0, per-batch color at binding 1.
+    // Shader resource bindings: MVP at binding 0, palette at binding 1.
     m_srb.reset(rhi()->newShaderResourceBindings());
     m_srb->setBindings({
         QRhiShaderResourceBinding::uniformBuffer(
             0,
             QRhiShaderResourceBinding::VertexStage,
             m_mvp_ubuf.get()),
-        QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
+        QRhiShaderResourceBinding::uniformBuffer(
             1,
             QRhiShaderResourceBinding::FragmentStage,
-            m_color_ubuf.get(),
-            sizeof(ColorUniformBlock))
+            m_palette_ubuf.get())
     });
     m_srb->create();
 
@@ -234,7 +253,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
     // --- Snapshot pending frame under lock -----------------------------------
     std::vector<PosVertex>  lines, fill_verts, draw_verts;
-    std::vector<ColorBatch> line_batches, fill_batches, draw_batches;
+    std::vector<StyleIndex> line_styles, fill_styles, draw_styles;
+    std::vector<std::uint32_t> palette_rgba;
     QMatrix4x4 mvp;
     QColor     bg;
     bool       geom_dirty;
@@ -250,11 +270,12 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
         if (geom_dirty) {
             lines        = std::move(m_pending_lines);
-            line_batches = std::move(m_pending_line_batches);
+            line_styles  = std::move(m_pending_line_styles);
             fill_verts   = std::move(m_pending_fill);
-            fill_batches = std::move(m_pending_fill_batches);
+            fill_styles  = std::move(m_pending_fill_styles);
             draw_verts   = std::move(m_pending_draw);
-            draw_batches = std::move(m_pending_draw_batches);
+            draw_styles  = std::move(m_pending_draw_styles);
+            palette_rgba = std::move(m_pending_palette_rgba);
         }
         m_frame_dirty = false;
         m_mvp_dirty   = false;
@@ -268,99 +289,74 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     u->updateDynamicBuffer(m_mvp_ubuf.get(), 0, 64, mvp.constData());
 
     if (geom_dirty) {
-        // Geometry changed — upload position buffers and cache batches.
+        if (line_styles.size() != lines.size()
+            || fill_styles.size() != fill_verts.size()
+            || draw_styles.size() != draw_verts.size()) {
+            qFatal("RhiCanvasWidget: style-stream size mismatch with vertex stream");
+        }
+        if (palette_rgba.size() > kMaxRhiStyleEntries) {
+            qFatal("RhiCanvasWidget: palette size %zu exceeds limit %zu",
+                   palette_rgba.size(), kMaxRhiStyleEntries);
+        }
+
+        // Geometry changed — upload positions, compact style indices, and palette.
         auto uploadVBuf = [&](std::unique_ptr<QRhiBuffer>& buf,
-                              const std::vector<PosVertex>& verts) {
+                              const auto&                    verts,
+                              int                            initial_bytes) {
             if (verts.empty())
                 return;
 
-            const int bytes = int(verts.size() * sizeof(PosVertex));
-            ensureDynamicBuf(rhi(), buf, QRhiBuffer::VertexBuffer, bytes, 1 * 1024 * 1024);
+            const int bytes = int(verts.size() * sizeof(verts[0]));
+            ensureDynamicBuf(rhi(), buf, QRhiBuffer::VertexBuffer, bytes, initial_bytes);
             u->updateDynamicBuffer(buf.get(), 0, bytes, verts.data());
         };
-        uploadVBuf(m_line_vbuf, lines);
-        uploadVBuf(m_fill_vbuf, fill_verts);
-        uploadVBuf(m_draw_vbuf, draw_verts);
+        uploadVBuf(m_line_vbuf, lines, 1 * 1024 * 1024);
+        uploadVBuf(m_line_style_vbuf, line_styles, 128 * 1024);
+        uploadVBuf(m_fill_vbuf, fill_verts, 1 * 1024 * 1024);
+        uploadVBuf(m_fill_style_vbuf, fill_styles, 128 * 1024);
+        uploadVBuf(m_draw_vbuf, draw_verts, 1 * 1024 * 1024);
+        uploadVBuf(m_draw_style_vbuf, draw_styles, 128 * 1024);
 
-        const std::size_t total_batches =
-            line_batches.size() + fill_batches.size() + draw_batches.size();
-        const int needed_color_bytes = int(std::max<std::size_t>(1, total_batches) * m_color_ubuf_stride);
-        const bool color_resized = ensureDynamicBuf(
-            rhi(), m_color_ubuf, QRhiBuffer::UniformBuffer, needed_color_bytes, needed_color_bytes);
+        PaletteUniformBlock palette_data{};
+        const std::size_t palette_count =
+            std::min<std::size_t>(palette_rgba.size(), kMaxRhiStyleEntries);
+        for (std::size_t i = 0; i < palette_count; ++i)
+            palette_data.colors[i] = makeColorUniform(palette_rgba[i]);
+        u->updateDynamicBuffer(m_palette_ubuf.get(),
+                               0,
+                               sizeof(PaletteUniformBlock),
+                               &palette_data);
 
-        if (color_resized) {
-            m_srb->setBindings({
-                QRhiShaderResourceBinding::uniformBuffer(
-                    0,
-                    QRhiShaderResourceBinding::VertexStage,
-                    m_mvp_ubuf.get()),
-                QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
-                    1,
-                    QRhiShaderResourceBinding::FragmentStage,
-                    m_color_ubuf.get(),
-                    sizeof(ColorUniformBlock))
-            });
-            m_srb->create();
-        }
-
-        if (total_batches > 0) {
-            std::vector<char> color_data(total_batches * m_color_ubuf_stride, 0);
-            std::size_t batch_index = 0;
-            auto appendColorData = [&](const std::vector<ColorBatch>& batches) {
-                for (const ColorBatch& batch : batches) {
-                    const ColorUniformBlock uniform = makeColorUniform(batch.color_rgba);
-                    std::memcpy(color_data.data() + batch_index * m_color_ubuf_stride,
-                                &uniform,
-                                sizeof(uniform));
-                    ++batch_index;
-                }
-            };
-            appendColorData(line_batches);
-            appendColorData(fill_batches);
-            appendColorData(draw_batches);
-            u->updateDynamicBuffer(m_color_ubuf.get(),
-                                   0,
-                                   int(color_data.size()),
-                                   color_data.data());
-        }
-
-        m_line_batches = std::move(line_batches);
-        m_fill_batches = std::move(fill_batches);
-        m_draw_batches = std::move(draw_batches);
+        m_line_count = quint32(lines.size());
+        m_fill_count = quint32(fill_verts.size());
+        m_draw_count = quint32(draw_verts.size());
     }
-    // Camera-only frame: vertex buffers and batch metadata are reused.
+    // Camera-only frame: vertex/style buffers and palette are reused.
 
     // --- Record draw commands ------------------------------------------------
     cb->beginPass(renderTarget(), bg, { 1.0f, 0 }, u);
     cb->setViewport(QRhiViewport(0, 0, float(width()), float(height())));
 
-    auto drawBatches = [&](std::unique_ptr<QRhiGraphicsPipeline>& pso,
-                           std::unique_ptr<QRhiBuffer>&           vbuf,
-                           const std::vector<ColorBatch>&         batches,
-                           quint32                                batch_base) {
-        if (batches.empty())
+    auto drawBatch = [&](std::unique_ptr<QRhiGraphicsPipeline>& pso,
+                         std::unique_ptr<QRhiBuffer>&           pos_vbuf,
+                         std::unique_ptr<QRhiBuffer>&           style_vbuf,
+                         quint32                                count) {
+        if (count == 0)
             return;
 
         cb->setGraphicsPipeline(pso.get());
-        const QRhiCommandBuffer::VertexInput vi(vbuf.get(), 0);
-        cb->setVertexInput(0, 1, &vi);
-
-        for (std::size_t i = 0; i < batches.size(); ++i) {
-            const ColorBatch& batch = batches[i];
-            const QRhiCommandBuffer::DynamicOffset offset(
-                1, (batch_base + quint32(i)) * m_color_ubuf_stride);
-            cb->setShaderResources(m_srb.get(), 1, &offset);
-            cb->draw(batch.count, 1, batch.first);
-        }
+        cb->setShaderResources(m_srb.get());
+        const QRhiCommandBuffer::VertexInput inputs[] = {
+            { pos_vbuf.get(), 0 },
+            { style_vbuf.get(), 0 }
+        };
+        cb->setVertexInput(0, 2, inputs);
+        cb->draw(count);
     };
 
-    const quint32 line_batch_base = 0;
-    const quint32 fill_batch_base = quint32(m_line_batches.size());
-    const quint32 draw_batch_base = fill_batch_base + quint32(m_fill_batches.size());
-
-    drawBatches(m_line_pso, m_line_vbuf, m_line_batches, line_batch_base);
-    drawBatches(m_fill_pso, m_fill_vbuf, m_fill_batches, fill_batch_base);
-    drawBatches(m_draw_pso, m_draw_vbuf, m_draw_batches, draw_batch_base);
+    drawBatch(m_line_pso, m_line_vbuf, m_line_style_vbuf, m_line_count);
+    drawBatch(m_fill_pso, m_fill_vbuf, m_fill_style_vbuf, m_fill_count);
+    drawBatch(m_draw_pso, m_draw_vbuf, m_draw_style_vbuf, m_draw_count);
 
     cb->endPass();
 }
@@ -371,15 +367,17 @@ void RhiCanvasWidget::releaseResources()
     m_fill_pso.reset();
     m_line_pso.reset();
     m_srb.reset();
+    m_draw_style_vbuf.reset();
     m_draw_vbuf.reset();
+    m_fill_style_vbuf.reset();
     m_fill_vbuf.reset();
+    m_line_style_vbuf.reset();
     m_line_vbuf.reset();
-    m_color_ubuf.reset();
+    m_palette_ubuf.reset();
     m_mvp_ubuf.reset();
-    m_line_batches.clear();
-    m_fill_batches.clear();
-    m_draw_batches.clear();
-    m_color_ubuf_stride = 0;
+    m_line_count = 0;
+    m_fill_count = 0;
+    m_draw_count = 0;
     m_initialized = false;
 }
 
