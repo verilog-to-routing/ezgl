@@ -120,24 +120,24 @@ QMainWindow* QtGladeLoader::loadFile(const QString& uiGladePath)
   return nullptr;
 }
 
-QWidget* QtGladeLoader::buildObjectElement(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildObjectElement(const QDomElement& objEl, QWidget* parent)
 {
   const QString cls = getClass(objEl);
-  if (cls == "GtkWindow")       return buildGtkWindow(objEl);
-  if (cls == "GtkPopover")      return buildGtkPopover(objEl);
-  if (cls == "GtkGrid")         return buildGtkGrid(objEl);
-  if (cls == "GtkBox")          return buildGtkBox(objEl);
-  if (cls == "GtkDrawingArea")  return buildGtkDrawingArea(objEl);
-  if (cls == "GtkButton")       return buildGtkButton(objEl);
-  if (cls == "GtkMenuButton")   return buildGtkMenuButton(objEl);
-  if (cls == "GtkArrow")        return buildGtkArrow(objEl);
-  if (cls == "GtkLabel")        return buildGtkLabel(objEl);
-  if (cls == "GtkSpinButton")   return buildGtkSpinButton(objEl);
-  if (cls == "GtkComboBoxText") return buildGtkComboBoxText(objEl);
-  if (cls == "GtkCheckButton")  return buildGtkCheckButton(objEl);
-  if (cls == "GtkSwitch")       return buildGtkSwitch(objEl);
-  if (cls == "GtkSeparator")    return buildGtkSeparator(objEl);
-  if (cls == "GtkEntry")        return buildGtkEntry(objEl);
+  if (cls == "GtkWindow")       return buildGtkWindow(objEl, parent);
+  if (cls == "GtkPopover")      return buildGtkPopover(objEl, parent);
+  if (cls == "GtkGrid")         return buildGtkGrid(objEl, parent);
+  if (cls == "GtkBox")          return buildGtkBox(objEl, parent);
+  if (cls == "GtkDrawingArea")  return buildGtkDrawingArea(objEl, parent);
+  if (cls == "GtkButton")       return buildGtkButton(objEl, parent);
+  if (cls == "GtkMenuButton")   return buildGtkMenuButton(objEl, parent);
+  if (cls == "GtkArrow")        return buildGtkArrow(objEl, parent);
+  if (cls == "GtkLabel")        return buildGtkLabel(objEl, parent);
+  if (cls == "GtkSpinButton")   return buildGtkSpinButton(objEl, parent);
+  if (cls == "GtkComboBoxText") return buildGtkComboBoxText(objEl, parent);
+  if (cls == "GtkCheckButton")  return buildGtkCheckButton(objEl, parent);
+  if (cls == "GtkSwitch")       return buildGtkSwitch(objEl, parent);
+  if (cls == "GtkSeparator")    return buildGtkSeparator(objEl, parent);
+  if (cls == "GtkEntry")        return buildGtkEntry(objEl, parent);
 
   // Non-widget model/data types — silently skip, callers handle nullptr.
   if (cls == "GtkListStore" || cls == "GtkEntryCompletion" || cls == "GtkCellRendererText") {
@@ -148,9 +148,9 @@ QWidget* QtGladeLoader::buildObjectElement(const QDomElement& objEl)
   return nullptr;
 }
 
-QWidget* QtGladeLoader::buildGtkWindow(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkWindow(const QDomElement& objEl, QWidget* parent)
 {
-  QMainWindow* win = new QMainWindow;
+  QMainWindow* win = new QMainWindow(parent);
   win->setObjectName(getId(objEl));
   m_widgets.insert(win->objectName(), win);
 
@@ -167,21 +167,21 @@ QWidget* QtGladeLoader::buildGtkWindow(const QDomElement& objEl)
   // child: the root grid
   QDomElement childEl = objEl.firstChildElement("child");
   QDomElement childObj = firstChildObject(childEl);
-  QWidget* central = buildObjectElement(childObj);
+  QWidget* central = buildObjectElement(childObj, win);
   if (!central) {
-    central = new QWidget;
+    central = new QWidget(win);
   }
 
   win->setCentralWidget(central);
 
-  QStatusBar* status_bar = new QStatusBar();
+  QStatusBar* status_bar = new QStatusBar(win);
   status_bar->setObjectName("StatusBar"); // don't change the object name for status bar
   win->setStatusBar(status_bar);
 
   return win;
 }
 
-QWidget* QtGladeLoader::buildGtkPopover(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkPopover(const QDomElement& objEl, QWidget* parent)
 {
   const QString id = getId(objEl);
 
@@ -191,7 +191,7 @@ QWidget* QtGladeLoader::buildGtkPopover(const QDomElement& objEl)
   }
 
   // GtkPopover → frameless popup widget that auto-closes on outside click.
-  QFrame* frame = new QFrame(nullptr, Qt::Popup | Qt::FramelessWindowHint);
+  QFrame* frame = new QFrame(parent, Qt::Popup | Qt::FramelessWindowHint);
   frame->setObjectName(id);
   frame->setFrameShape(QFrame::StyledPanel);
   frame->setFrameShadow(QFrame::Raised);
@@ -201,7 +201,7 @@ QWidget* QtGladeLoader::buildGtkPopover(const QDomElement& objEl)
   if (!childEl.isNull()) {
     QDomElement childObj = firstChildObject(childEl);
     if (!childObj.isNull()) {
-      QWidget* content = buildObjectElement(childObj);
+      QWidget* content = buildObjectElement(childObj, frame);
       if (content) {
         QVBoxLayout* layout = new QVBoxLayout(frame);
         layout->setContentsMargins(4, 4, 4, 4);
@@ -214,9 +214,9 @@ QWidget* QtGladeLoader::buildGtkPopover(const QDomElement& objEl)
   return frame;
 }
 
-QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl, QWidget* parent)
 {
-  QWidget* container = new QWidget;
+  QWidget* container = new QWidget(parent);
   container->setObjectName(getId(objEl));
   m_widgets.insert(container->objectName(), container);
 
@@ -264,7 +264,7 @@ QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl)
       continue;
     }
 
-    QWidget* childW = buildObjectElement(childObj);
+    QWidget* childW = buildObjectElement(childObj, container);
     if (!childW) {
       continue;
     }
@@ -300,9 +300,9 @@ QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl)
   return container;
 }
 
-QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl, QWidget* parent)
 {
-  QWidget* container = new QWidget;
+  QWidget* container = new QWidget(parent);
   const QString id = getId(objEl);
   container->setObjectName(id);
   if (!id.isEmpty())
@@ -327,7 +327,7 @@ QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl)
     QDomElement childObj = firstChildObject(childEl);
     if (childObj.isNull()) continue; // <placeholder/>
 
-    QWidget* childW = buildObjectElement(childObj);
+    QWidget* childW = buildObjectElement(childObj, container);
     if (!childW) continue;
 
     QDomElement packEl = findPacking(childEl);
@@ -338,13 +338,14 @@ QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl)
   return container;
 }
 
-QWidget* QtGladeLoader::buildGtkDrawingArea(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkDrawingArea(const QDomElement& objEl, QWidget* parent)
 {
-  // When RHI is enabled, use the GPU-backed widget instead of the QPainter one.
+  // Create the canvas with its final parent so QRhiWidget never exists as a
+  // transient top-level widget before layouts and visibility are applied.
 #ifdef EZGL_RHI
-  QWidget* w = new ezgl::RhiCanvasWidget;
+  QWidget* w = new ezgl::RhiCanvasWidget(parent);
 #else
-  QWidget* w = new ezgl::DrawingAreaWidget;
+  QWidget* w = new ezgl::DrawingAreaWidget(parent);
 #endif
   w->setObjectName(getId(objEl));
   m_widgets.insert(w->objectName(), w);
@@ -366,9 +367,9 @@ QWidget* QtGladeLoader::buildGtkDrawingArea(const QDomElement& objEl)
   return w;
 }
 
-QWidget* QtGladeLoader::buildGtkButton(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkButton(const QDomElement& objEl, QWidget* parent)
 {
-  QPushButton* b = new QPushButton;
+  QPushButton* b = new QPushButton(parent);
   b->setObjectName(getId(objEl));
   m_widgets.insert(b->objectName(), b);
 
@@ -389,9 +390,9 @@ QWidget* QtGladeLoader::buildGtkButton(const QDomElement& objEl)
   return b;
 }
 
-QWidget* QtGladeLoader::buildGtkMenuButton(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkMenuButton(const QDomElement& objEl, QWidget* parent)
 {
-  QPushButton* btn = new QPushButton;
+  QPushButton* btn = new QPushButton(parent);
   const QString id = getId(objEl);
   btn->setObjectName(id);
   m_widgets.insert(id, btn);
@@ -442,9 +443,9 @@ QWidget* QtGladeLoader::buildGtkMenuButton(const QDomElement& objEl)
   return btn;
 }
 
-QWidget* QtGladeLoader::buildGtkArrow(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkArrow(const QDomElement& objEl, QWidget* parent)
 {
-  QToolButton* t = new QToolButton;
+  QToolButton* t = new QToolButton(parent);
   t->setObjectName(getId(objEl));
   m_widgets.insert(t->objectName(), t);
 
@@ -455,9 +456,9 @@ QWidget* QtGladeLoader::buildGtkArrow(const QDomElement& objEl)
   return t;
 }
 
-QWidget* QtGladeLoader::buildGtkLabel(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkLabel(const QDomElement& objEl, QWidget* parent)
 {
-  QLabel* label = new QLabel;
+  QLabel* label = new QLabel(parent);
   const QString id = getId(objEl);
   label->setObjectName(id);
   if (!id.isEmpty())
@@ -470,9 +471,9 @@ QWidget* QtGladeLoader::buildGtkLabel(const QDomElement& objEl)
   return label;
 }
 
-QWidget* QtGladeLoader::buildGtkSpinButton(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkSpinButton(const QDomElement& objEl, QWidget* parent)
 {
-  QSpinBox* spin = new QSpinBox;
+  QSpinBox* spin = new QSpinBox(parent);
   const QString id = getId(objEl);
   spin->setObjectName(id);
   if (!id.isEmpty())
@@ -483,9 +484,9 @@ QWidget* QtGladeLoader::buildGtkSpinButton(const QDomElement& objEl)
   return spin;
 }
 
-QWidget* QtGladeLoader::buildGtkComboBoxText(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkComboBoxText(const QDomElement& objEl, QWidget* parent)
 {
-  QComboBox* combo = new QComboBox;
+  QComboBox* combo = new QComboBox(parent);
   const QString id = getId(objEl);
   combo->setObjectName(id);
   if (!id.isEmpty())
@@ -504,9 +505,9 @@ QWidget* QtGladeLoader::buildGtkComboBoxText(const QDomElement& objEl)
   return combo;
 }
 
-QWidget* QtGladeLoader::buildGtkCheckButton(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkCheckButton(const QDomElement& objEl, QWidget* parent)
 {
-  QCheckBox* cb = new QCheckBox;
+  QCheckBox* cb = new QCheckBox(parent);
   const QString id = getId(objEl);
   cb->setObjectName(id);
   if (!id.isEmpty())
@@ -520,9 +521,9 @@ QWidget* QtGladeLoader::buildGtkCheckButton(const QDomElement& objEl)
   return cb;
 }
 
-QWidget* QtGladeLoader::buildGtkSwitch(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkSwitch(const QDomElement& objEl, QWidget* parent)
 {
-  SwitchButton* sw = new SwitchButton;
+  SwitchButton* sw = new SwitchButton(parent);
   const QString id = getId(objEl);
   sw->setObjectName(id);
   if (!id.isEmpty())
@@ -535,9 +536,9 @@ QWidget* QtGladeLoader::buildGtkSwitch(const QDomElement& objEl)
   return sw;
 }
 
-QWidget* QtGladeLoader::buildGtkSeparator(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkSeparator(const QDomElement& objEl, QWidget* parent)
 {
-  QFrame* sep = new QFrame;
+  QFrame* sep = new QFrame(parent);
   const QString id = getId(objEl);
   sep->setObjectName(id);
   if (!id.isEmpty())
@@ -554,9 +555,9 @@ QWidget* QtGladeLoader::buildGtkSeparator(const QDomElement& objEl)
   return sep;
 }
 
-QWidget* QtGladeLoader::buildGtkEntry(const QDomElement& objEl)
+QWidget* QtGladeLoader::buildGtkEntry(const QDomElement& objEl, QWidget* parent)
 {
-  QLineEdit* entry = new QLineEdit;
+  QLineEdit* entry = new QLineEdit(parent);
   const QString id = getId(objEl);
   entry->setObjectName(id);
   if (!id.isEmpty())

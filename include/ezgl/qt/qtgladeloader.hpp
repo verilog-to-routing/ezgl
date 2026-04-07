@@ -16,22 +16,22 @@ public:
   QMainWindow* loadFile(const QString& uiGladePath);
 
 private:
-  QWidget* buildObjectElement(const QDomElement& objEl);
-  QWidget* buildGtkWindow(const QDomElement& objEl);
-  QWidget* buildGtkPopover(const QDomElement& objEl);
-  QWidget* buildGtkGrid(const QDomElement& objEl);
-  QWidget* buildGtkBox(const QDomElement& objEl);
-  QWidget* buildGtkDrawingArea(const QDomElement& objEl);
-  QWidget* buildGtkButton(const QDomElement& objEl);
-  QWidget* buildGtkMenuButton(const QDomElement& objEl);
-  QWidget* buildGtkArrow(const QDomElement& objEl);
-  QWidget* buildGtkLabel(const QDomElement& objEl);
-  QWidget* buildGtkSpinButton(const QDomElement& objEl);
-  QWidget* buildGtkComboBoxText(const QDomElement& objEl);
-  QWidget* buildGtkCheckButton(const QDomElement& objEl);
-  QWidget* buildGtkSwitch(const QDomElement& objEl);
-  QWidget* buildGtkSeparator(const QDomElement& objEl);
-  QWidget* buildGtkEntry(const QDomElement& objEl);
+  QWidget* buildObjectElement(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkWindow(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkPopover(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkGrid(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkBox(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkDrawingArea(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkButton(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkMenuButton(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkArrow(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkLabel(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkSpinButton(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkComboBoxText(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkCheckButton(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkSwitch(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkSeparator(const QDomElement& objEl, QWidget* parent = nullptr);
+  QWidget* buildGtkEntry(const QDomElement& objEl, QWidget* parent = nullptr);
 
   void applyCommonProperties(QWidget* w, const QDomElement& objEl);
   static QString getId(const QDomElement& objEl);
