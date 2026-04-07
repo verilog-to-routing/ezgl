@@ -50,21 +50,32 @@ public:
     ~RhiCanvasWidget() override;
 
     /**
-     * Push a new frame.  Thread-safe: may be called from any thread.
+     * Push a full frame (geometry + transform).  Thread-safe.
      *
-     * @param lines       Two LineVertex entries per line segment.
-     * @param fill_verts  Six LineVertex entries per filled rectangle (2 triangles).
-     * @param draw_verts  Eight LineVertex entries per outline rectangle (4 line segs).
-     * @param screen_to_ndc Orthographic matrix mapping pixel coords → NDC.
+     * Vertex coordinates are in world space; the GPU applies world_to_ndc to
+     * transform them. Call this when scene geometry has changed.
+     *
+     * @param lines       Two LineVertex entries per line segment (world coords).
+     * @param fill_verts  Six LineVertex entries per filled rectangle (world coords).
+     * @param draw_verts  Eight LineVertex entries per outline rectangle (world coords).
+     * @param world_to_ndc  Matrix mapping world coords → NDC.
      * @param overlay     Transparent QImage with text / arcs drawn by QPainter.
      * @param bg_color    Clear color for the render target.
      */
     void set_frame_data(std::vector<LineVertex> lines,
                         std::vector<LineVertex> fill_verts,
                         std::vector<LineVertex> draw_verts,
-                        const QMatrix4x4&       screen_to_ndc,
+                        const QMatrix4x4&       world_to_ndc,
                         const QImage&           overlay,
                         QColor                  bg_color);
+
+    /**
+     * Update only the camera transform (no geometry re-upload).  Thread-safe.
+     *
+     * Call this when the camera has panned or zoomed but no primitives changed.
+     * The widget re-renders with the existing vertex buffers and the new MVP.
+     */
+    void set_mvp_only(const QMatrix4x4& world_to_ndc);
 
     /** Register a callback invoked on every resize (mirrors DrawingAreaWidget). */
     void setResizeCallback(std::function<void(int,int)> cb);
@@ -95,7 +106,7 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline>       m_draw_pso;
     bool m_initialized = false;
 
-    // Pending frame (written by set_frame_data, consumed by render())
+    // Pending frame (written by set_frame_data / set_mvp_only, consumed by render())
     mutable QMutex           m_frame_mutex;
     std::vector<LineVertex>  m_pending_lines;
     std::vector<LineVertex>  m_pending_fill;
@@ -103,7 +114,13 @@ private:
     QMatrix4x4               m_pending_mvp;
     QImage                   m_pending_overlay;
     QColor                   m_pending_bg  { Qt::white };
-    bool                     m_frame_dirty = false;
+    bool                     m_frame_dirty = false;  // geometry + MVP changed
+    bool                     m_mvp_dirty   = false;  // only MVP changed
+
+    // Cached vertex counts for camera-only frames (no geometry re-upload).
+    quint32                  m_line_count  = 0;
+    quint32                  m_fill_count  = 0;
+    quint32                  m_draw_count  = 0;
 
     // Canvas hooks
     std::function<void(int,int)> m_resize_cb;

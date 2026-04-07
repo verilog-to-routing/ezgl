@@ -36,6 +36,7 @@
 #include <gtk/gtk.h>
 #endif // EZGL_QT
 
+#include <memory>
 #include <string>
 
 namespace ezgl {
@@ -43,6 +44,9 @@ namespace ezgl {
 /**** Functions in this class are for ezgl internal use; application code doesn't need to call them ****/
 
 class renderer;
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+class rhi_renderer;
+#endif
 
 /**
  * The signature of a function that draws to an ezgl::canvas.
@@ -89,6 +93,15 @@ public:
    * This will invoke the ezgl::draw_canvas_fn callback and queue a redraw of the GtkWidget.
    */
   void redraw();
+
+  /**
+   * Redraw using only a camera (MVP) update — no geometry re-upload.
+   *
+   * On the RHI path this is cheaper than a full redraw: only the world→NDC
+   * matrix is pushed to the GPU; vertex buffers are reused from the last frame.
+   * Falls back to a full redraw on non-RHI paths or before the first frame.
+   */
+  void redraw_camera_only();
 
   /**
    * Get an immutable reference to this canvas' camera.
@@ -176,6 +189,8 @@ private:
 #ifdef EZGL_RHI
   // Non-owning pointer to the RHI drawing widget (set when EZGL_RHI is active).
   RhiCanvasWidget *m_rhi_widget = nullptr;
+  // Owning RHI renderer — created on first redraw(), reused across frames.
+  std::unique_ptr<rhi_renderer> m_rhi_renderer;
 #endif
 
 #ifdef EZGL_QT

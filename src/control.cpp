@@ -51,7 +51,7 @@ void zoom_in(canvas *cnv, double zoom_factor)
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_in_world(zoom_point, world, zoom_factor));
-  cnv->redraw();
+  cnv->redraw_camera_only();
 }
 
 void zoom_in(canvas *cnv, point2d zoom_point, double zoom_factor)
@@ -60,7 +60,7 @@ void zoom_in(canvas *cnv, point2d zoom_point, double zoom_factor)
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_in_world(zoom_point, world, zoom_factor));
-  cnv->redraw();
+  cnv->redraw_camera_only();
 }
 
 void zoom_out(canvas *cnv, double zoom_factor)
@@ -69,7 +69,7 @@ void zoom_out(canvas *cnv, double zoom_factor)
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_out_world(zoom_point, world, zoom_factor));
-  cnv->redraw();
+  cnv->redraw_camera_only();
 }
 
 void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor)
@@ -78,13 +78,13 @@ void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor)
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_out_world(zoom_point, world, zoom_factor));
-  cnv->redraw();
+  cnv->redraw_camera_only();
 }
 
 void zoom_fit(canvas *cnv, rectangle region)
 {
   cnv->get_camera().set_world(region);
-  cnv->redraw();
+  cnv->redraw();  // major viewport jump — rebuild geometry
 }
 
 void translate(canvas *cnv, double dx, double dy)
@@ -93,7 +93,7 @@ void translate(canvas *cnv, double dx, double dy)
   new_world += ezgl::point2d(dx, dy);
 
   cnv->get_camera().set_world(new_world);
-  cnv->redraw();
+  cnv->redraw_camera_only();
 }
 
 void translate_up(canvas *cnv, double translate_factor)

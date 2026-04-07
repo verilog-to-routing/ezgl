@@ -114,7 +114,7 @@ RhiCanvasWidget::~RhiCanvasWidget() = default;
 void RhiCanvasWidget::set_frame_data(std::vector<LineVertex> lines,
                                       std::vector<LineVertex> fill_verts,
                                       std::vector<LineVertex> draw_verts,
-                                      const QMatrix4x4&       screen_to_ndc,
+                                      const QMatrix4x4&       world_to_ndc,
                                       const QImage&           overlay,
                                       QColor                  bg_color)
 {
@@ -122,10 +122,19 @@ void RhiCanvasWidget::set_frame_data(std::vector<LineVertex> lines,
     m_pending_lines   = std::move(lines);
     m_pending_fill    = std::move(fill_verts);
     m_pending_draw    = std::move(draw_verts);
-    m_pending_mvp     = screen_to_ndc;
+    m_pending_mvp     = world_to_ndc;
     m_pending_overlay = overlay;
     m_pending_bg      = bg_color;
     m_frame_dirty     = true;
+    m_mvp_dirty       = false;  // superseded by full frame
+}
+
+void RhiCanvasWidget::set_mvp_only(const QMatrix4x4& world_to_ndc)
+{
+    QMutexLocker lock(&m_frame_mutex);
+    m_pending_mvp = world_to_ndc;
+    m_mvp_dirty   = true;
+    // m_frame_dirty intentionally NOT set — vertex buffers are reused.
 }
 
 void RhiCanvasWidget::setResizeCallback(std::function<void(int,int)> cb)
@@ -189,36 +198,51 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     std::vector<LineVertex> lines, fill_verts, draw_verts;
     QMatrix4x4 mvp;
     QColor     bg;
+    bool       geom_dirty;
 
     {
         QMutexLocker lock(&m_frame_mutex);
-        if (!m_frame_dirty)
+        if (!m_frame_dirty && !m_mvp_dirty)
             return;
-        lines      = std::move(m_pending_lines);
-        fill_verts = std::move(m_pending_fill);
-        draw_verts = std::move(m_pending_draw);
+
+        geom_dirty = m_frame_dirty;
         mvp        = m_pending_mvp;
         bg         = m_pending_bg;
+
+        if (geom_dirty) {
+            lines      = std::move(m_pending_lines);
+            fill_verts = std::move(m_pending_fill);
+            draw_verts = std::move(m_pending_draw);
+        }
         m_frame_dirty = false;
+        m_mvp_dirty   = false;
         // m_pending_overlay stays; paintEvent() reads it via the mutex.
     }
 
     // --- Upload to GPU -------------------------------------------------------
     QRhiResourceUpdateBatch* u = rhi()->nextResourceUpdateBatch();
 
-    // MVP (column-major, as OpenGL/SPIR-V expect).
+    // Always update MVP (column-major, as OpenGL/SPIR-V expect).
     u->updateDynamicBuffer(m_ubuf.get(), 0, 64, mvp.constData());
 
-    auto uploadVBuf = [&](std::unique_ptr<QRhiBuffer>& buf,
-                          const std::vector<LineVertex>& verts) {
-        if (verts.empty()) return;
-        const int bytes = int(verts.size() * sizeof(LineVertex));
-        ensureVBuf(rhi(), buf, bytes);
-        u->updateDynamicBuffer(buf.get(), 0, bytes, verts.data());
-    };
-    uploadVBuf(m_line_vbuf, lines);
-    uploadVBuf(m_fill_vbuf, fill_verts);
-    uploadVBuf(m_draw_vbuf, draw_verts);
+    if (geom_dirty) {
+        // Geometry changed — upload vertex buffers and cache counts.
+        auto uploadVBuf = [&](std::unique_ptr<QRhiBuffer>& buf,
+                              const std::vector<LineVertex>& verts) {
+            if (verts.empty()) return;
+            const int bytes = int(verts.size() * sizeof(LineVertex));
+            ensureVBuf(rhi(), buf, bytes);
+            u->updateDynamicBuffer(buf.get(), 0, bytes, verts.data());
+        };
+        uploadVBuf(m_line_vbuf, lines);
+        uploadVBuf(m_fill_vbuf, fill_verts);
+        uploadVBuf(m_draw_vbuf, draw_verts);
+
+        m_line_count = quint32(lines.size());
+        m_fill_count = quint32(fill_verts.size());
+        m_draw_count = quint32(draw_verts.size());
+    }
+    // Camera-only frame: m_line/fill/draw_count and vertex buffers are reused.
 
     // --- Record draw commands ------------------------------------------------
     cb->beginPass(renderTarget(), bg, { 1.0f, 0 }, u);
@@ -226,18 +250,18 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
     auto drawBatch = [&](std::unique_ptr<QRhiGraphicsPipeline>& pso,
                           std::unique_ptr<QRhiBuffer>&           vbuf,
-                          const std::vector<LineVertex>&         verts) {
-        if (verts.empty()) return;
+                          quint32                                count) {
+        if (count == 0) return;
         cb->setGraphicsPipeline(pso.get());
         cb->setShaderResources();
         const QRhiCommandBuffer::VertexInput vi(vbuf.get(), 0);
         cb->setVertexInput(0, 1, &vi);
-        cb->draw(quint32(verts.size()));
+        cb->draw(count);
     };
 
-    drawBatch(m_line_pso, m_line_vbuf, lines);
-    drawBatch(m_fill_pso, m_fill_vbuf, fill_verts);
-    drawBatch(m_draw_pso, m_draw_vbuf, draw_verts);
+    drawBatch(m_line_pso, m_line_vbuf, m_line_count);
+    drawBatch(m_fill_pso, m_fill_vbuf, m_fill_count);
+    drawBatch(m_draw_pso, m_draw_vbuf, m_draw_count);
 
     cb->endPass();
 }

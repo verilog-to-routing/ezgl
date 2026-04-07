@@ -31,7 +31,7 @@
 #include "ezgl/qt/deferred_renderer.hpp"
 #ifdef EZGL_RHI
 #include "ezgl/qt/rhi_canvas_widget.hpp"
-#include "ezgl/qt/rhi_renderer.hpp"
+#include "ezgl/qt/rhi_renderer.hpp"   // full type needed for unique_ptr destruction
 #endif
 #else // EZGL_QT
 #include <gtk/gtk.h>
@@ -430,9 +430,8 @@ void canvas::initialize(GtkWidget *drawing_area)
     // Connect renderFailed → fall back to the QPainter path.
     QObject::connect(rw, &QRhiWidget::renderFailed, [this]() {
       g_warning("RHI render failed — falling back to deferred_renderer (QPainter).");
-      m_rhi_widget = nullptr;
-      // Re-initialize using the same widget pointer but the QPainter branch.
-      // (The widget is still a valid QWidget, just not an RhiCanvasWidget now.)
+      m_rhi_widget   = nullptr;
+      m_rhi_renderer.reset();
     });
 
     rw->setPreResizeCallback([this]() {
@@ -521,12 +520,21 @@ void canvas::redraw()
                m_background_color.green,
                m_background_color.blue,
                m_background_color.alpha);
-    rhi_renderer g(m_rhi_widget,
-                   std::bind(&camera::world_to_screen, &m_camera, _1),
-                   &m_camera,
-                   bg);
-    m_draw_callback(&g);
-    g.flush();  // transfers to widget + calls update()
+
+    if (!m_rhi_renderer) {
+      // First draw: create the persistent renderer.
+      m_rhi_renderer = std::make_unique<rhi_renderer>(
+          m_rhi_widget,
+          std::bind(&camera::world_to_screen, &m_camera, _1),
+          &m_camera,
+          bg);
+    } else {
+      // Subsequent draws: reset per-frame state and reuse GPU resources.
+      m_rhi_renderer->begin_frame();
+    }
+
+    m_draw_callback(m_rhi_renderer.get());
+    m_rhi_renderer->flush();  // uploads geometry + MVP, calls widget->update()
     g_info("The canvas will be redrawn (RHI path).");
     return;
   }
@@ -550,6 +558,20 @@ void canvas::redraw()
   gtk_widget_queue_draw(m_drawing_area);
 
   g_info("The canvas will be redrawn.");
+}
+
+void canvas::redraw_camera_only()
+{
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+  if (m_rhi_widget && m_rhi_renderer) {
+    // Geometry unchanged — only push a new world→NDC MVP to the widget.
+    m_rhi_renderer->flush_mvp_only();
+    g_info("The canvas MVP will be updated (camera-only RHI path).");
+    return;
+  }
+#endif
+  // No cached GPU geometry yet, or non-RHI path: fall back to full redraw.
+  redraw();
 }
 
 renderer *canvas::create_animation_renderer()

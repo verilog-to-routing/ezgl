@@ -35,6 +35,11 @@ public:
 
     ~rhi_renderer() = default;
 
+    // ---- Frame lifecycle ---------------------------------------------------
+
+    /** Reset per-frame state (vertex buffers, overlay) ready for a new draw. */
+    void begin_frame();
+
     // ---- Hot-path overrides -------------------------------------------------
 
     void draw_line(point2d start, point2d end) override;
@@ -52,6 +57,12 @@ public:
      * Also ends the overlay painter so the QImage is fully flushed.
      */
     void flush();
+
+    /**
+     * Update only the camera MVP in RhiCanvasWidget (no geometry re-upload).
+     * Call this after a pan/zoom when primitives have not changed.
+     */
+    void flush_mvp_only();
 
 private:
     // ---- helpers ------------------------------------------------------------
