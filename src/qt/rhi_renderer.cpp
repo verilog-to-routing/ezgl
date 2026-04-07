@@ -211,17 +211,6 @@ void rhi_renderer::draw_line(point2d start, point2d end)
         return;
     }
 
-    // Sub-pixel LOD: skip lines whose projected screen length is < 0.4 px.
-    // Compute without a full world_to_screen transform by using the camera
-    // scale factors directly.
-    {
-        const point2d s = m_camera->get_world_scale_factor(); // world/screen
-        const double dx = (end.x - start.x) / s.x;
-        const double dy = (end.y - start.y) / s.y;
-        if (dx * dx + dy * dy < 0.16)
-            return;
-    }
-
     // GPU path: store world-space coords — the MVP handles the transform and
     // the GPU clips against the viewport.
     const StyleIndex style_index = current_style_index();
