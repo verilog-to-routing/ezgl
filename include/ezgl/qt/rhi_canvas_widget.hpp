@@ -7,6 +7,7 @@
 #include <QMatrix4x4>
 #include <QMutex>
 #include <QColor>
+#include <cstdint>
 #include <memory>
 #include <vector>
 #include <functional>
@@ -20,17 +21,26 @@ QT_FORWARD_DECLARE_CLASS(QRhiGraphicsPipeline)
 namespace ezgl {
 
 /**
- * Packed GPU vertex: screen-space pixel coords (float32) + RGBA color (uint8×4).
+ * Packed GPU vertex: world-space position only.
  * Layout matches the QRhiVertexInputAttribute setup in RhiCanvasWidget.
  *   Offset 0: float x, y   (8 bytes)
- *   Offset 8: uint8 r,g,b,a (4 bytes) — uploaded as UNormByte4
- * Total: 12 bytes per vertex.
  */
-struct LineVertex {
-    float   x, y;
-    uint8_t r, g, b, a;
+struct PosVertex {
+    float x, y;
 };
-static_assert(sizeof(LineVertex) == 12, "LineVertex must be 12 bytes");
+static_assert(sizeof(PosVertex) == 8, "PosVertex must be 8 bytes");
+
+/**
+ * Draw range with a single RGBA color.
+ *
+ * first/count address a contiguous run inside one vertex buffer. The color is
+ * packed as r | g<<8 | b<<16 | a<<24 to match ezgl::color storage elsewhere.
+ */
+struct ColorBatch {
+    std::uint32_t first      = 0;
+    std::uint32_t count      = 0;
+    std::uint32_t color_rgba = 0;
+};
 
 /**
  * QWidget subclass (via QRhiWidget) that renders line and rect primitives on
@@ -55,16 +65,22 @@ public:
      * Vertex coordinates are in world space; the GPU applies world_to_ndc to
      * transform them. Call this when scene geometry has changed.
      *
-     * @param lines       Two LineVertex entries per line segment (world coords).
-     * @param fill_verts  Six LineVertex entries per filled rectangle (world coords).
-     * @param draw_verts  Eight LineVertex entries per outline rectangle (world coords).
+     * @param lines         Two PosVertex entries per line segment (world coords).
+     * @param line_batches  Contiguous line runs that share one color each.
+     * @param fill_verts    Six PosVertex entries per filled rectangle (world coords).
+     * @param fill_batches  Contiguous fill-rect runs that share one color each.
+     * @param draw_verts    Eight PosVertex entries per outline rectangle (world coords).
+     * @param draw_batches  Contiguous outline-rect runs that share one color each.
      * @param world_to_ndc  Matrix mapping world coords → NDC.
      * @param overlay     Transparent QImage with text / arcs drawn by QPainter.
      * @param bg_color    Clear color for the render target.
      */
-    void set_frame_data(std::vector<LineVertex> lines,
-                        std::vector<LineVertex> fill_verts,
-                        std::vector<LineVertex> draw_verts,
+    void set_frame_data(std::vector<PosVertex>   lines,
+                        std::vector<ColorBatch>  line_batches,
+                        std::vector<PosVertex>   fill_verts,
+                        std::vector<ColorBatch>  fill_batches,
+                        std::vector<PosVertex>   draw_verts,
+                        std::vector<ColorBatch>  draw_batches,
                         const QMatrix4x4&       world_to_ndc,
                         const QImage&           overlay,
                         QColor                  bg_color);
@@ -96,7 +112,8 @@ protected:
 private:
     // GPU resources — unique_ptr keeps them alive between initialize/release.
     // Complete type required only in .cpp.
-    std::unique_ptr<QRhiBuffer>                 m_ubuf;
+    std::unique_ptr<QRhiBuffer>                 m_mvp_ubuf;
+    std::unique_ptr<QRhiBuffer>                 m_color_ubuf;
     std::unique_ptr<QRhiBuffer>                 m_line_vbuf;
     std::unique_ptr<QRhiBuffer>                 m_fill_vbuf;
     std::unique_ptr<QRhiBuffer>                 m_draw_vbuf;
@@ -108,19 +125,23 @@ private:
 
     // Pending frame (written by set_frame_data / set_mvp_only, consumed by render())
     mutable QMutex           m_frame_mutex;
-    std::vector<LineVertex>  m_pending_lines;
-    std::vector<LineVertex>  m_pending_fill;
-    std::vector<LineVertex>  m_pending_draw;
+    std::vector<PosVertex>   m_pending_lines;
+    std::vector<ColorBatch>  m_pending_line_batches;
+    std::vector<PosVertex>   m_pending_fill;
+    std::vector<ColorBatch>  m_pending_fill_batches;
+    std::vector<PosVertex>   m_pending_draw;
+    std::vector<ColorBatch>  m_pending_draw_batches;
     QMatrix4x4               m_pending_mvp;
     QImage                   m_pending_overlay;
     QColor                   m_pending_bg  { Qt::white };
     bool                     m_frame_dirty = false;  // geometry + MVP changed
     bool                     m_mvp_dirty   = false;  // only MVP changed
 
-    // Cached vertex counts for camera-only frames (no geometry re-upload).
-    quint32                  m_line_count  = 0;
-    quint32                  m_fill_count  = 0;
-    quint32                  m_draw_count  = 0;
+    // Cached batch state for camera-only frames (no geometry re-upload).
+    std::vector<ColorBatch>  m_line_batches;
+    std::vector<ColorBatch>  m_fill_batches;
+    std::vector<ColorBatch>  m_draw_batches;
+    quint32                  m_color_ubuf_stride = 0;
 
     // Canvas hooks
     std::function<void(int,int)> m_resize_cb;

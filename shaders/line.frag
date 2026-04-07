@@ -1,9 +1,12 @@
 #version 440
 
-layout(location = 0) in vec4 v_color;
+layout(std140, binding = 1) uniform draw_buf {
+    vec4 color;
+} draw_ubo;
+
 layout(location = 0) out vec4 fragColor;
 
 void main()
 {
-    fragColor = v_color;
+    fragColor = draw_ubo.color;
 }

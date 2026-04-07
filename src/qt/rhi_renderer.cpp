@@ -5,6 +5,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+
+namespace {
+
+std::uint32_t pack_color_rgba(const ezgl::color& c)
+{
+    return std::uint32_t(c.red)
+         | (std::uint32_t(c.green) << 8)
+         | (std::uint32_t(c.blue)  << 16)
+         | (std::uint32_t(c.alpha) << 24);
+}
+
+} // namespace
 
 namespace ezgl {
 
@@ -36,8 +49,11 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
 void rhi_renderer::begin_frame()
 {
     m_lines.clear();
+    m_line_batches.clear();
     m_fill_verts.clear();
+    m_fill_batches.clear();
     m_draw_verts.clear();
+    m_draw_batches.clear();
 
     // End painter if still active (shouldn't normally happen).
     if (m_overlay_painter.isActive())
@@ -59,15 +75,33 @@ void rhi_renderer::begin_frame()
 
 // ---- helpers ---------------------------------------------------------------
 
-inline LineVertex rhi_renderer::make_vertex(point2d p) const
+inline PosVertex rhi_renderer::make_vertex(point2d p) const
 {
-    return LineVertex{
-        float(p.x), float(p.y),
-        current_color.red,
-        current_color.green,
-        current_color.blue,
-        current_color.alpha
-    };
+    return PosVertex{float(p.x), float(p.y)};
+}
+
+std::uint32_t rhi_renderer::current_packed_color() const
+{
+    return pack_color_rgba(current_color);
+}
+
+void rhi_renderer::append_batch(std::vector<ColorBatch>& batches,
+                                std::uint32_t            first,
+                                std::uint32_t            count) const
+{
+    if (count == 0)
+        return;
+
+    const std::uint32_t color = current_packed_color();
+    if (!batches.empty()) {
+        ColorBatch& last = batches.back();
+        if (last.color_rgba == color && last.first + last.count == first) {
+            last.count += count;
+            return;
+        }
+    }
+
+    batches.push_back(ColorBatch{first, count, color});
 }
 
 // World→NDC matrix derived from camera state and widget dimensions.
@@ -122,6 +156,7 @@ void rhi_renderer::push_fill_rect(point2d p0, point2d p1)
     const point2d b{p1.x, p0.y};
     const point2d c{p0.x, p1.y};
     const point2d d{p1.x, p1.y};
+    const std::uint32_t first = std::uint32_t(m_fill_verts.size());
 
     m_fill_verts.push_back(make_vertex(a));
     m_fill_verts.push_back(make_vertex(b));
@@ -130,6 +165,8 @@ void rhi_renderer::push_fill_rect(point2d p0, point2d p1)
     m_fill_verts.push_back(make_vertex(b));
     m_fill_verts.push_back(make_vertex(d));
     m_fill_verts.push_back(make_vertex(c));
+
+    append_batch(m_fill_batches, first, 6);
 }
 
 void rhi_renderer::push_draw_rect(point2d p0, point2d p1)
@@ -139,6 +176,7 @@ void rhi_renderer::push_draw_rect(point2d p0, point2d p1)
     const point2d b{p1.x, p0.y};
     const point2d c{p1.x, p1.y};
     const point2d d{p0.x, p1.y};
+    const std::uint32_t first = std::uint32_t(m_draw_verts.size());
 
     m_draw_verts.push_back(make_vertex(a));
     m_draw_verts.push_back(make_vertex(b));
@@ -151,6 +189,8 @@ void rhi_renderer::push_draw_rect(point2d p0, point2d p1)
 
     m_draw_verts.push_back(make_vertex(d));
     m_draw_verts.push_back(make_vertex(a));
+
+    append_batch(m_draw_batches, first, 8);
 }
 
 // ---- draw_line override ----------------------------------------------------
@@ -176,8 +216,10 @@ void rhi_renderer::draw_line(point2d start, point2d end)
 
     // GPU path: store world-space coords — MVP handles the transform.
     // No CPU clipping: the GPU viewport clips at NDC boundaries.
+    const std::uint32_t first = std::uint32_t(m_lines.size());
     m_lines.push_back(make_vertex(start));
     m_lines.push_back(make_vertex(end));
+    append_batch(m_line_batches, first, 2);
 }
 
 // ---- fill_rectangle overrides ----------------------------------------------
@@ -240,14 +282,17 @@ void rhi_renderer::flush()
     double total_mb =
         (m_lines.size() +
          m_fill_verts.size() +
-         m_draw_verts.size()) * sizeof(LineVertex) / (1024.0 * 1024.0);
+         m_draw_verts.size()) * sizeof(PosVertex) / (1024.0 * 1024.0);
 
     std::cout << "~~~ sending to GPU " << total_mb << " mb" << std::endl;
 
     m_rhi_widget->set_frame_data(
         std::move(m_lines),
+        std::move(m_line_batches),
         std::move(m_fill_verts),
+        std::move(m_fill_batches),
         std::move(m_draw_verts),
+        std::move(m_draw_batches),
         compute_mvp(),
         m_overlay,
         m_bg_color);

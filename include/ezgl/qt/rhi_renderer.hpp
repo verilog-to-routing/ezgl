@@ -15,8 +15,9 @@ namespace ezgl {
 /**
  * GPU-backed renderer (Phase 1+2).
  *
- * Hot-path primitives (lines, rectangles) are collected into LineVertex vectors
- * and submitted to the GPU via RhiCanvasWidget.
+ * Hot-path primitives (lines, rectangles) are collected into position-only
+ * vertex vectors plus color batches and submitted to the GPU via
+ * RhiCanvasWidget.
  *
  * Non-overridden primitives (fill_poly, draw_arc, draw_text, draw_surface, …)
  * fall through to the renderer base class which draws them into m_overlay via
@@ -67,7 +68,11 @@ public:
 private:
     // ---- helpers ------------------------------------------------------------
 
-    LineVertex make_vertex(point2d screen_pt) const;
+    PosVertex make_vertex(point2d world_pt) const;
+    std::uint32_t current_packed_color() const;
+    void append_batch(std::vector<ColorBatch>& batches,
+                      std::uint32_t            first,
+                      std::uint32_t            count) const;
 
     /** Transform a world/screen point to screen-pixel coords. */
     point2d to_screen(point2d p) const;
@@ -86,10 +91,13 @@ private:
     RhiCanvasWidget*         m_rhi_widget;
     QColor                   m_bg_color;
 
-    // GPU vertex collections (screen-pixel coords).
-    std::vector<LineVertex>  m_lines;
-    std::vector<LineVertex>  m_fill_verts;
-    std::vector<LineVertex>  m_draw_verts;
+    // GPU geometry collections (world coords) + per-run colors.
+    std::vector<PosVertex>   m_lines;
+    std::vector<ColorBatch>  m_line_batches;
+    std::vector<PosVertex>   m_fill_verts;
+    std::vector<ColorBatch>  m_fill_batches;
+    std::vector<PosVertex>   m_draw_verts;
+    std::vector<ColorBatch>  m_draw_batches;
 
     // QPainter overlay — base-class draw calls (text, arcs, …) write here.
     QImage   m_overlay;
