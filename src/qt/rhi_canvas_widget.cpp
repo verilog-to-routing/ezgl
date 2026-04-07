@@ -9,6 +9,9 @@
 #include <QResizeEvent>
 #include <QFile>
 #include <QMutexLocker>
+#include <chrono>
+
+#include "ezgl/qt/ezgl_qtcompat.hpp"
 
 // Q_INIT_RESOURCE must be called at global scope (not inside a namespace).
 // For static libraries, Qt resources are not automatically registered, so
@@ -251,6 +254,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     if (!m_initialized)
         return;
 
+    const auto frame_start = std::chrono::steady_clock::now();
+
     // --- Snapshot pending frame under lock -----------------------------------
     std::vector<PosVertex>  lines, fill_verts, draw_verts;
     std::vector<StyleIndex> line_styles, fill_styles, draw_styles;
@@ -359,6 +364,15 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     drawBatch(m_draw_pso, m_draw_vbuf, m_draw_style_vbuf, m_draw_count);
 
     cb->endPass();
+
+    const auto frame_end = std::chrono::steady_clock::now();
+    const double frame_ms = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
+    g_debug("RHI render() CPU time %.3f ms (geom_dirty=%d, line_verts=%u, fill_verts=%u, draw_verts=%u)",
+            frame_ms,
+            int(geom_dirty),
+            m_line_count,
+            m_fill_count,
+            m_draw_count);
 }
 
 void RhiCanvasWidget::releaseResources()
