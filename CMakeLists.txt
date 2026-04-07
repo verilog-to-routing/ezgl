@@ -77,7 +77,7 @@ add_library(
   src/control.cpp
   src/callback.cpp
   src/graphics.cpp
-  src/spatial_grid.cpp
+
   src/qt/ezgl_qtcompat.cpp
   src/qt/qtgladeloader.cpp
   src/qt/switchbutton.cpp
