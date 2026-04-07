@@ -118,9 +118,9 @@ protected:
 
 private:
     struct StreamChunk {
-        std::unique_ptr<QRhiBuffer> pos_vbuf;
-        std::unique_ptr<QRhiBuffer> style_vbuf;
-        quint32                     count = 0;
+        quint32 pos_offset = 0;
+        quint32 style_offset = 0;
+        quint32 count = 0;
     };
 
     struct GpuTileBatch {
@@ -134,6 +134,12 @@ private:
     // Complete type required only in .cpp.
     std::unique_ptr<QRhiBuffer>                 m_mvp_ubuf;
     std::unique_ptr<QRhiBuffer>                 m_palette_ubuf;
+    std::unique_ptr<QRhiBuffer>                 m_line_vbuf;
+    std::unique_ptr<QRhiBuffer>                 m_line_style_vbuf;
+    std::unique_ptr<QRhiBuffer>                 m_fill_vbuf;
+    std::unique_ptr<QRhiBuffer>                 m_fill_style_vbuf;
+    std::unique_ptr<QRhiBuffer>                 m_draw_vbuf;
+    std::unique_ptr<QRhiBuffer>                 m_draw_style_vbuf;
     std::vector<GpuTileBatch>                   m_gpu_tiles;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline>       m_line_pso;

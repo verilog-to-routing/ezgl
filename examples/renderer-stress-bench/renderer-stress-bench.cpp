@@ -25,9 +25,11 @@
  */
 
 #include <iostream>
+#include <algorithm>
 #include <fstream>
 #include <map>
 #include <chrono>
+#include <cmath>
 #include <string>
 #include <iomanip>
 #include <sstream>
@@ -77,57 +79,102 @@ static void write_result(const std::string &key, double ms)
 // Current primitive count used by draw callbacks.
 static int g_bench_n = 1000000;
 
-// Layout: 1000 cols x 1000 rows = 1 000 000 cells, each 1x1 world unit → 1000x1000 image.
-static constexpr int    COLS = 1000;
-static constexpr double CELL = 1.0;
-static constexpr double PAD  = CELL * 0.2;   // inset for lines/rects within each cell
-static constexpr int    IMG_W = static_cast<int>(COLS * CELL);
-static constexpr int    IMG_H = static_cast<int>(COLS * CELL);
+// Fixed world/image size. Primitive placement adapts dynamically so any
+// primitive count is packed inside this world rectangle.
+static constexpr int    IMG_W = 1000;
+static constexpr int    IMG_H = 1000;
 static const ezgl::rectangle WORLD{{0, 0}, (double)IMG_W, (double)IMG_H};
+
+struct GridLayout {
+  int    cols;
+  double cell_w;
+  double cell_h;
+  double pad_x;
+  double pad_y;
+};
+
+struct PrimitivePlacement {
+  double x0;
+  double y0;
+  double x1;
+  double y1;
+  double cx;
+  double cy;
+};
+
+static GridLayout current_layout()
+{
+  const int n = std::max(1, g_bench_n);
+  const double aspect = WORLD.width() / WORLD.height();
+  const int cols = std::max(1, static_cast<int>(std::ceil(std::sqrt(double(n) * aspect))));
+  const int rows = std::max(1, (n + cols - 1) / cols);
+  const double cell_w = WORLD.width() / double(cols);
+  const double cell_h = WORLD.height() / double(rows);
+  return {cols, cell_w, cell_h, cell_w * 0.2, cell_h * 0.2};
+}
+
+static PrimitivePlacement placement_for(const GridLayout &layout, int i)
+{
+  const int col = i % layout.cols;
+  const int row = i / layout.cols;
+  const double cell_left = WORLD.left() + double(col) * layout.cell_w;
+  const double cell_bottom = WORLD.bottom() + double(row) * layout.cell_h;
+  const double cell_right = cell_left + layout.cell_w;
+  const double cell_top = cell_bottom + layout.cell_h;
+
+  return {
+    cell_left + layout.pad_x,
+    cell_bottom + layout.pad_y,
+    cell_right - layout.pad_x,
+    cell_top - layout.pad_y,
+    cell_left + layout.cell_w * 0.5,
+    cell_bottom + layout.cell_h * 0.5
+  };
+}
 
 // ---- draw callbacks -------------------------------------------------------
 
 void draw_lines_solid(ezgl::renderer *g)
 {
+  const GridLayout layout = current_layout();
   g->set_color(ezgl::BLUE);
   g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < g_bench_n; ++i) {
-    double x0 = (i % COLS) * CELL + PAD;
-    double y0 = (i / COLS) * CELL + PAD;
-    g->draw_line({x0, y0}, {x0 + CELL - 2 * PAD, y0 + CELL - 2 * PAD});
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->draw_line({p.x0, p.y0}, {p.x1, p.y1});
   }
 }
 
 void draw_lines_transparent(ezgl::renderer *g)
 {
+  const GridLayout layout = current_layout();
   g->set_color(ezgl::BLUE, 128);
   g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < g_bench_n; ++i) {
-    double x0 = (i % COLS) * CELL + PAD;
-    double y0 = (i / COLS) * CELL + PAD;
-    g->draw_line({x0, y0}, {x0 + CELL - 2 * PAD, y0 + CELL - 2 * PAD});
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->draw_line({p.x0, p.y0}, {p.x1, p.y1});
   }
 }
 
 void draw_rectangles_solid(ezgl::renderer *g)
 {
+  const GridLayout layout = current_layout();
   g->set_color(ezgl::RED);
   for (int i = 0; i < g_bench_n; ++i) {
-    double x = (i % COLS) * CELL + PAD;
-    double y = (i / COLS) * CELL + PAD;
-    g->fill_rectangle({x, y}, {x + CELL - 2 * PAD, y + CELL - 2 * PAD});
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->fill_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
 }
 
 void draw_rectangles_transparent(ezgl::renderer *g)
 {
+  const GridLayout layout = current_layout();
   g->set_color(ezgl::RED, 128);
   for (int i = 0; i < g_bench_n; ++i) {
-    double x = (i % COLS) * CELL + PAD;
-    double y = (i / COLS) * CELL + PAD;
-    g->fill_rectangle({x, y}, {x + CELL - 2 * PAD, y + CELL - 2 * PAD});
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->fill_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
 }
 
@@ -170,37 +217,37 @@ static constexpr int RECT_PALETTE_SIZE = static_cast<int>(sizeof(RECT_PALETTE) /
 
 void draw_lines_variadic(ezgl::renderer *g)
 {
+  const GridLayout layout = current_layout();
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < g_bench_n; ++i) {
     const LineStyle &s = LINE_PALETTE[i % LINE_PALETTE_SIZE];
     g->set_color(s.color, s.alpha);
     g->set_line_width(s.width);
-    double x0 = (i % COLS) * CELL + PAD;
-    double y0 = (i / COLS) * CELL + PAD;
-    g->draw_line({x0, y0}, {x0 + CELL - 2 * PAD, y0 + CELL - 2 * PAD});
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->draw_line({p.x0, p.y0}, {p.x1, p.y1});
   }
 }
 
 void draw_rectangles_variadic(ezgl::renderer *g)
 {
+  const GridLayout layout = current_layout();
   for (int i = 0; i < g_bench_n; ++i) {
     const RectStyle &s = RECT_PALETTE[i % RECT_PALETTE_SIZE];
     g->set_color(s.color, s.alpha);
-    double x = (i % COLS) * CELL + PAD;
-    double y = (i / COLS) * CELL + PAD;
-    g->fill_rectangle({x, y}, {x + CELL - 2 * PAD, y + CELL - 2 * PAD});
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->fill_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
 }
 
 void draw_chars(ezgl::renderer *g)
 {
+  const GridLayout layout = current_layout();
   g->set_color(ezgl::BLACK);
-  g->set_font_size(std::max(1, static_cast<int>(CELL)));
+  g->set_font_size(std::max(1, static_cast<int>(std::min(layout.cell_w, layout.cell_h))));
   for (int i = 0; i < g_bench_n; ++i) {
-    double cx = (i % COLS) * CELL + CELL / 2.0;
-    double cy = (i / COLS) * CELL + CELL / 2.0;
+    const PrimitivePlacement p = placement_for(layout, i);
     char ch[2] = {static_cast<char>('A' + (i % 26)), '\0'};
-    g->draw_text({cx, cy}, ch, CELL, CELL);
+    g->draw_text({p.cx, p.cy}, ch, layout.cell_w, layout.cell_h);
   }
 }
 
@@ -214,33 +261,33 @@ struct TestCase {
 };
 
 static const TestCase TESTS[] = {
-  { "variadic lines   ", draw_lines_variadic,         200000000, "bench_lines_variadic.png"    },
-  //{ "variadic rects   ", draw_rectangles_variadic,    100000000, "bench_rects_variadic.png"    },
+  { "variadic lines   ", draw_lines_variadic,         200'000'000, "bench_lines_variadic.png"    },
+  //{ "variadic rects   ", draw_rectangles_variadic,    100'000'000, "bench_rects_variadic.png"    },
     //////////////////
     // { "solid lines      ", draw_lines_solid,              1000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,             10000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,            100000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,           1000000, "bench_lines_solid.png"       },
+  // { "solid lines      ", draw_lines_solid,             10'000, "bench_lines_solid.png"       },
+  // { "solid lines      ", draw_lines_solid,            100'000, "bench_lines_solid.png"       },
+  // { "solid lines      ", draw_lines_solid,           1'000'000, "bench_lines_solid.png"       },
   // { "transparen lines ", draw_lines_transparent,        1000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,       10000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,      100000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,     1000000, "bench_lines_transparent.png" },
+  // { "transparen lines ", draw_lines_transparent,       10'000, "bench_lines_transparent.png" },
+  // { "transparen lines ", draw_lines_transparent,      100'000, "bench_lines_transparent.png" },
+  // { "transparen lines ", draw_lines_transparent,     1'000'000, "bench_lines_transparent.png" },
   // { "solid rects      ", draw_rectangles_solid,         1000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,        10000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,       100000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,      1000000, "bench_rects_solid.png"       },
+  // { "solid rects      ", draw_rectangles_solid,        10'000, "bench_rects_solid.png"       },
+  // { "solid rects      ", draw_rectangles_solid,       100'000, "bench_rects_solid.png"       },
+  // { "solid rects      ", draw_rectangles_solid,      1'000'000, "bench_rects_solid.png"       },
   // { "transparen rects ", draw_rectangles_transparent,   1000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent,  10000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent, 100000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent,1000000, "bench_rects_transparent.png" },
+  // { "transparen rects ", draw_rectangles_transparent,  10'000, "bench_rects_transparent.png" },
+  // { "transparen rects ", draw_rectangles_transparent, 100'000, "bench_rects_transparent.png" },
+  // { "transparen rects ", draw_rectangles_transparent,1'000'000, "bench_rects_transparent.png" },
   // { "variadic lines   ", draw_lines_variadic,            1000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,           10000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,          100000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,         1000000, "bench_lines_variadic.png"    },
+  // { "variadic lines   ", draw_lines_variadic,           10'000, "bench_lines_variadic.png"    },
+  // { "variadic lines   ", draw_lines_variadic,          100'000, "bench_lines_variadic.png"    },
+  // { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
   // { "variadic rects   ", draw_rectangles_variadic,       1000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,      10000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,     100000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,    1000000, "bench_rects_variadic.png"    },
+  // { "variadic rects   ", draw_rectangles_variadic,      10'000, "bench_rects_variadic.png"    },
+  // { "variadic rects   ", draw_rectangles_variadic,     100'000, "bench_rects_variadic.png"    },
+  // { "variadic rects   ", draw_rectangles_variadic,    1'000'000, "bench_rects_variadic.png"    },
 };
 static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
 
