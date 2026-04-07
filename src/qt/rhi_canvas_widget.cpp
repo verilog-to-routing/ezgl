@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QMutexLocker>
 #include <chrono>
+#include <limits>
 
 #include "ezgl/qt/ezgl_qtcompat.hpp"
 
@@ -40,21 +41,38 @@ QShader loadShader(const char* resource_path)
 bool ensureDynamicBuf(QRhi*                        rhi,
                       std::unique_ptr<QRhiBuffer>& buf,
                       QRhiBuffer::UsageFlags       usage,
-                      int                          needed_bytes,
-                      int                          initial_bytes)
+                      std::size_t                  needed_bytes,
+                      std::size_t                  initial_bytes)
 {
-    if (buf && buf->size() >= needed_bytes)
+    if (buf && std::size_t(buf->size()) >= needed_bytes)
         return false;
 
-    int new_size = buf ? buf->size() * 2 : initial_bytes;
-    while (new_size < needed_bytes)
+    constexpr std::size_t kMaxQrhiBufferBytes =
+        std::size_t(std::numeric_limits<int>::max());
+    if (needed_bytes > kMaxQrhiBufferBytes) {
+        qFatal("RhiCanvasWidget: requested GPU buffer size %zu exceeds QRhi int-sized limit %zu",
+               needed_bytes,
+               kMaxQrhiBufferBytes);
+    }
+
+    std::size_t new_size = buf ? std::size_t(buf->size()) : initial_bytes;
+    while (new_size < needed_bytes) {
+        if (new_size > kMaxQrhiBufferBytes / 2) {
+            new_size = kMaxQrhiBufferBytes;
+            break;
+        }
         new_size *= 2;
+    }
+    if (new_size < needed_bytes) {
+        qFatal("RhiCanvasWidget: failed to grow GPU buffer to %zu bytes without overflow",
+               needed_bytes);
+    }
 
     QRhiBuffer* old = buf.release();
     if (old)
         old->deleteLater(); // deferred: safe while a frame referencing it is in flight
 
-    buf.reset(rhi->newBuffer(QRhiBuffer::Dynamic, usage, new_size));
+    buf.reset(rhi->newBuffer(QRhiBuffer::Dynamic, usage, int(new_size)));
     buf->create();
     return true;
 }
@@ -307,13 +325,13 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         // Geometry changed — upload positions, compact style indices, and palette.
         auto uploadVBuf = [&](std::unique_ptr<QRhiBuffer>& buf,
                               const auto&                    verts,
-                              int                            initial_bytes) {
+                              std::size_t                    initial_bytes) {
             if (verts.empty())
                 return;
 
-            const int bytes = int(verts.size() * sizeof(verts[0]));
+            const std::size_t bytes = verts.size() * sizeof(verts[0]);
             ensureDynamicBuf(rhi(), buf, QRhiBuffer::VertexBuffer, bytes, initial_bytes);
-            u->updateDynamicBuffer(buf.get(), 0, bytes, verts.data());
+            u->updateDynamicBuffer(buf.get(), 0, int(bytes), verts.data());
         };
         uploadVBuf(m_line_vbuf, lines, 1 * 1024 * 1024);
         uploadVBuf(m_line_style_vbuf, line_styles, 128 * 1024);

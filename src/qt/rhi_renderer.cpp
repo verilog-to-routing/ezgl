@@ -222,8 +222,8 @@ void rhi_renderer::draw_line(point2d start, point2d end)
             return;
     }
 
-    // GPU path: store world-space coords — MVP handles the transform.
-    // No CPU clipping: the GPU viewport clips at NDC boundaries.
+    // GPU path: store world-space coords — the MVP handles the transform and
+    // the GPU clips against the viewport.
     const StyleIndex style_index = current_style_index();
     m_lines.push_back(make_vertex(start));
     m_lines.push_back(make_vertex(end));
