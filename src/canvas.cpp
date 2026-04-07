@@ -405,6 +405,27 @@ canvas::~canvas()
   }
 }
 
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+void canvas::begin_deferred_redraw_cycle()
+{
+  if (!m_rhi_widget)
+    return;
+
+  m_rhi_defer_redraw = true;
+  m_rhi_pending_redraw = false;
+}
+
+void canvas::end_deferred_redraw_cycle()
+{
+  if (!m_rhi_widget || !m_rhi_defer_redraw)
+    return;
+
+  m_rhi_defer_redraw = false;
+  if (m_rhi_pending_redraw || !m_rhi_has_drawn_frame || m_rhi_renderer)
+    redraw();
+}
+#endif
+
 int canvas::width() const
 {
   return gtk_widget_get_allocated_width(m_drawing_area);
@@ -439,12 +460,15 @@ void canvas::initialize(GtkWidget *drawing_area)
     });
     rw->setResizeCallback([this](int w, int h) {
       m_camera.update_widget(w, h);
-      redraw();
+      if (m_rhi_defer_redraw) {
+        m_rhi_pending_redraw = true;
+      } else {
+        redraw();
+      }
     });
 
     if (rw->width() > 0 && rw->height() > 0) {
       m_camera.update_widget(rw->width(), rw->height());
-      redraw();
     }
     g_info("canvas::initialize using RHI path.");
     return;
@@ -535,6 +559,9 @@ void canvas::redraw()
 
     m_draw_callback(m_rhi_renderer.get());
     m_rhi_renderer->flush();  // uploads geometry + MVP, calls widget->update()
+    m_rhi_defer_redraw = false;
+    m_rhi_pending_redraw = false;
+    m_rhi_has_drawn_frame = true;
     g_info("The canvas will be redrawn (RHI path).");
     return;
   }

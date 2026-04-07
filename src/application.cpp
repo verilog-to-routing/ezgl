@@ -180,6 +180,11 @@ void application::activate(GtkApplication*, gpointer user_data)
   auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);
 
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+  for (auto &c_pair : ezgl_app->m_canvases)
+    c_pair.second->begin_deferred_redraw_cycle();
+#endif
+
   // The main parent window needs to be explicitly added to our GTK application.
 #ifdef EZGL_QT
   QWidget *window = ezgl_app->get_widget(ezgl_app->m_window_id.c_str());
@@ -201,6 +206,11 @@ void application::activate(GtkApplication*, gpointer user_data)
 
   if(ezgl_app->initial_setup_callback != nullptr)
     ezgl_app->initial_setup_callback(ezgl_app, true);
+
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+  for (auto &c_pair : ezgl_app->m_canvases)
+    c_pair.second->end_deferred_redraw_cycle();
+#endif
 
   g_info("application::activate successful.");
 }
@@ -395,9 +405,17 @@ int application::run(setup_callback_fn initial_setup_user_callback,
   } else {
     // Subsequent stage: reuse the existing window.
     // activate() is NOT called again to avoid double-registering callbacks.
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+    for (auto &c_pair : m_canvases)
+      c_pair.second->begin_deferred_redraw_cycle();
+#endif
     m_window->show();
     if (initial_setup_callback != nullptr)
       initial_setup_callback(this, false);
+#if defined(EZGL_QT) && defined(EZGL_RHI)
+    for (auto &c_pair : m_canvases)
+      c_pair.second->end_deferred_redraw_cycle();
+#endif
     resume_run = true;
     g_info("The event loop is now resuming.");
     return g_application_run(m_application, 0, 0);

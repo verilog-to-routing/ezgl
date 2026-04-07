@@ -191,6 +191,10 @@ private:
   RhiCanvasWidget *m_rhi_widget = nullptr;
   // Owning RHI renderer — created on first redraw(), reused across frames.
   std::unique_ptr<rhi_renderer> m_rhi_renderer;
+  // Coalesce startup/show redraws so large geometry is uploaded once.
+  bool m_rhi_defer_redraw = false;
+  bool m_rhi_pending_redraw = false;
+  bool m_rhi_has_drawn_frame = false;
 #endif
 
 #ifdef EZGL_QT
@@ -205,6 +209,11 @@ private:
 
   // Called each time we need to draw to our drawing area widget.
   static gboolean draw_surface(GtkWidget *widget, Painter *painter, gpointer data);
+
+#ifdef EZGL_RHI
+  void begin_deferred_redraw_cycle();
+  void end_deferred_redraw_cycle();
+#endif
 };
 }
 
