@@ -84,6 +84,13 @@ bool ensureDynamicBuf(QRhi*                        rhi,
     return true;
 }
 
+void releaseDynamicBuf(std::unique_ptr<QRhiBuffer>& buf)
+{
+    QRhiBuffer* old = buf.release();
+    if (old)
+        old->deleteLater();
+}
+
 bool rectanglesIntersect(const ezgl::rectangle& a, const ezgl::rectangle& b)
 {
     return !(a.right() < b.left()
@@ -231,27 +238,12 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
                                           QRhiBuffer::UniformBuffer,
                                           sizeof(PaletteUniformBlock)));
     m_palette_ubuf->create();
-
-    auto makeVBuf = [&]() {
-        auto* b = rhi()->newBuffer(QRhiBuffer::Dynamic,
-                                   QRhiBuffer::VertexBuffer,
-                                   int(kInitialStreamVertexBufferBytes));
-        b->create();
-        return b;
-    };
-    auto makeStyleBuf = [&]() {
-        auto* b = rhi()->newBuffer(QRhiBuffer::Dynamic,
-                                   QRhiBuffer::VertexBuffer,
-                                   int(kInitialStreamStyleBufferBytes));
-        b->create();
-        return b;
-    };
-    m_line_vbuf.reset(makeVBuf());
-    m_line_style_vbuf.reset(makeStyleBuf());
-    m_fill_vbuf.reset(makeVBuf());
-    m_fill_style_vbuf.reset(makeStyleBuf());
-    m_draw_vbuf.reset(makeVBuf());
-    m_draw_style_vbuf.reset(makeStyleBuf());
+    m_line_vbufs.clear();
+    m_line_style_vbufs.clear();
+    m_fill_vbufs.clear();
+    m_fill_style_vbufs.clear();
+    m_draw_vbufs.clear();
+    m_draw_style_vbufs.clear();
 
     // Shader resource bindings: MVP at binding 0, palette at binding 1.
     m_srb.reset(rhi()->newShaderResourceBindings());
@@ -321,6 +313,15 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                    palette_rgba.size(), kMaxRhiStyleEntries);
         }
 
+        struct PendingUpload {
+            quint32            buffer_index = 0;
+            quint32            pos_offset = 0;
+            quint32            style_offset = 0;
+            quint32            count = 0;
+            const PosVertex*   pos_data = nullptr;
+            const StyleIndex*  style_data = nullptr;
+        };
+
         std::size_t total_line_vertices = 0;
         std::size_t total_fill_vertices = 0;
         std::size_t total_draw_vertices = 0;
@@ -336,45 +337,57 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             total_draw_vertices += tile.draw_verts.size();
         }
 
-        std::vector<PosVertex> line_verts;
-        std::vector<StyleIndex> line_styles;
-        std::vector<PosVertex> fill_verts;
-        std::vector<StyleIndex> fill_styles;
-        std::vector<PosVertex> draw_verts;
-        std::vector<StyleIndex> draw_styles;
-        line_verts.reserve(total_line_vertices);
-        line_styles.reserve(total_line_vertices);
-        fill_verts.reserve(total_fill_vertices);
-        fill_styles.reserve(total_fill_vertices);
-        draw_verts.reserve(total_draw_vertices);
-        draw_styles.reserve(total_draw_vertices);
+        std::vector<std::size_t> line_buffer_vertices;
+        std::vector<std::size_t> fill_buffer_vertices;
+        std::vector<std::size_t> draw_buffer_vertices;
+        std::vector<PendingUpload> line_uploads;
+        std::vector<PendingUpload> fill_uploads;
+        std::vector<PendingUpload> draw_uploads;
+        line_uploads.reserve((total_line_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
+        fill_uploads.reserve((total_fill_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
+        draw_uploads.reserve((total_draw_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
 
-        auto appendStream = [](std::vector<StreamChunk>& chunks,
-                               std::vector<PosVertex>&  flat_verts,
-                               std::vector<StyleIndex>& flat_styles,
-                               const auto&              verts,
-                               const auto&              styles) {
+        auto planStream = [](std::vector<StreamChunk>&   chunks,
+                             std::vector<PendingUpload>& uploads,
+                             std::vector<std::size_t>&   buffer_vertex_counts,
+                             const auto&                 verts,
+                             const auto&                 styles) {
             if (styles.size() != verts.size()) {
                 qFatal("RhiCanvasWidget: style-stream size mismatch with vertex stream");
             }
 
             chunks.clear();
-            const std::size_t vertex_count = verts.size();
-            for (std::size_t begin = 0; begin < verts.size(); begin += kMaxVerticesPerChunk) {
-                const std::size_t count = std::min(kMaxVerticesPerChunk, vertex_count - begin);
-                const std::size_t pos_offset = flat_verts.size() * sizeof(PosVertex);
-                const std::size_t style_offset = flat_styles.size() * sizeof(StyleIndex);
+            for (std::size_t begin = 0; begin < verts.size(); ) {
+                if (buffer_vertex_counts.empty() || buffer_vertex_counts.back() == kMaxVerticesPerChunk)
+                    buffer_vertex_counts.push_back(0);
+
+                const std::size_t buffer_index = buffer_vertex_counts.size() - 1;
+                const std::size_t vertex_offset = buffer_vertex_counts.back();
+                const std::size_t count =
+                    std::min(verts.size() - begin, kMaxVerticesPerChunk - vertex_offset);
+
+                const std::size_t pos_offset = vertex_offset * sizeof(PosVertex);
+                const std::size_t style_offset = vertex_offset * sizeof(StyleIndex);
                 if (pos_offset > kMaxQrhiBufferBytes || style_offset > kMaxQrhiBufferBytes) {
-                    qFatal("RhiCanvasWidget: shared stream offset exceeds QRhi int-sized limit");
+                    qFatal("RhiCanvasWidget: planned stream offset exceeds QRhi int-sized limit");
                 }
 
                 chunks.push_back(StreamChunk{
+                    quint32(buffer_index),
                     quint32(pos_offset),
                     quint32(style_offset),
                     quint32(count)
                 });
-                flat_verts.insert(flat_verts.end(), verts.begin() + begin, verts.begin() + begin + count);
-                flat_styles.insert(flat_styles.end(), styles.begin() + begin, styles.begin() + begin + count);
+                uploads.push_back(PendingUpload{
+                    quint32(buffer_index),
+                    quint32(pos_offset),
+                    quint32(style_offset),
+                    quint32(count),
+                    verts.data() + begin,
+                    styles.data() + begin
+                });
+                buffer_vertex_counts.back() += count;
+                begin += count;
             }
         };
 
@@ -384,41 +397,67 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             const RhiTileBatch& tile = tiles[i];
             GpuTileBatch& gpu_tile = m_gpu_tiles[i];
             gpu_tile.world_bounds = tile.world_bounds;
-            appendStream(gpu_tile.line_chunks, line_verts, line_styles, tile.line_verts, tile.line_styles);
-            appendStream(gpu_tile.fill_chunks, fill_verts, fill_styles, tile.fill_verts, tile.fill_styles);
-            appendStream(gpu_tile.draw_chunks, draw_verts, draw_styles, tile.draw_verts, tile.draw_styles);
+            planStream(gpu_tile.line_chunks, line_uploads, line_buffer_vertices, tile.line_verts, tile.line_styles);
+            planStream(gpu_tile.fill_chunks, fill_uploads, fill_buffer_vertices, tile.fill_verts, tile.fill_styles);
+            planStream(gpu_tile.draw_chunks, draw_uploads, draw_buffer_vertices, tile.draw_verts, tile.draw_styles);
         }
 
-        auto uploadStream = [&](std::unique_ptr<QRhiBuffer>& pos_vbuf,
-                                std::unique_ptr<QRhiBuffer>& style_vbuf,
-                                const auto&                  verts,
-                                const auto&                  styles) {
-            if (styles.size() != verts.size()) {
-                qFatal("RhiCanvasWidget: style-stream size mismatch with vertex stream");
+        auto trimBufferVector = [](std::vector<std::unique_ptr<QRhiBuffer>>& buffers,
+                                   std::size_t                            keep_count) {
+            for (std::size_t i = keep_count; i < buffers.size(); ++i)
+                releaseDynamicBuf(buffers[i]);
+            buffers.resize(keep_count);
+        };
+        auto ensureBufferSet = [&](std::vector<std::unique_ptr<QRhiBuffer>>& pos_vbufs,
+                                   std::vector<std::unique_ptr<QRhiBuffer>>& style_vbufs,
+                                   const std::vector<std::size_t>&          vertex_counts) {
+            if (pos_vbufs.size() < vertex_counts.size())
+                pos_vbufs.resize(vertex_counts.size());
+            if (style_vbufs.size() < vertex_counts.size())
+                style_vbufs.resize(vertex_counts.size());
+
+            for (std::size_t i = 0; i < vertex_counts.size(); ++i) {
+                const std::size_t vertex_count = vertex_counts[i];
+                if (vertex_count == 0)
+                    continue;
+
+                ensureDynamicBuf(rhi(),
+                                 pos_vbufs[i],
+                                 QRhiBuffer::VertexBuffer,
+                                 vertex_count * sizeof(PosVertex),
+                                 kInitialStreamVertexBufferBytes);
+                ensureDynamicBuf(rhi(),
+                                 style_vbufs[i],
+                                 QRhiBuffer::VertexBuffer,
+                                 vertex_count * sizeof(StyleIndex),
+                                 kInitialStreamStyleBufferBytes);
             }
 
-            if (!verts.empty()) {
-                const std::size_t pos_bytes = verts.size() * sizeof(verts[0]);
-                ensureDynamicBuf(rhi(),
-                                 pos_vbuf,
-                                 QRhiBuffer::VertexBuffer,
-                                 pos_bytes,
-                                 kInitialStreamVertexBufferBytes);
-                u->updateDynamicBuffer(pos_vbuf.get(), 0, int(pos_bytes), verts.data());
-            }
-            if (!styles.empty()) {
-                const std::size_t style_bytes = styles.size() * sizeof(styles[0]);
-                ensureDynamicBuf(rhi(),
-                                 style_vbuf,
-                                 QRhiBuffer::VertexBuffer,
-                                 style_bytes,
-                                 kInitialStreamStyleBufferBytes);
-                u->updateDynamicBuffer(style_vbuf.get(), 0, int(style_bytes), styles.data());
+            trimBufferVector(pos_vbufs, vertex_counts.size());
+            trimBufferVector(style_vbufs, vertex_counts.size());
+        };
+        auto uploadPlannedStream = [&](std::vector<std::unique_ptr<QRhiBuffer>>& pos_vbufs,
+                                       std::vector<std::unique_ptr<QRhiBuffer>>& style_vbufs,
+                                       const std::vector<PendingUpload>&         uploads) {
+            for (const PendingUpload& upload : uploads) {
+                const int pos_bytes = int(std::size_t(upload.count) * sizeof(PosVertex));
+                const int style_bytes = int(std::size_t(upload.count) * sizeof(StyleIndex));
+                u->updateDynamicBuffer(pos_vbufs[upload.buffer_index].get(),
+                                       int(upload.pos_offset),
+                                       pos_bytes,
+                                       upload.pos_data);
+                u->updateDynamicBuffer(style_vbufs[upload.buffer_index].get(),
+                                       int(upload.style_offset),
+                                       style_bytes,
+                                       upload.style_data);
             }
         };
-        uploadStream(m_line_vbuf, m_line_style_vbuf, line_verts, line_styles);
-        uploadStream(m_fill_vbuf, m_fill_style_vbuf, fill_verts, fill_styles);
-        uploadStream(m_draw_vbuf, m_draw_style_vbuf, draw_verts, draw_styles);
+        ensureBufferSet(m_line_vbufs, m_line_style_vbufs, line_buffer_vertices);
+        ensureBufferSet(m_fill_vbufs, m_fill_style_vbufs, fill_buffer_vertices);
+        ensureBufferSet(m_draw_vbufs, m_draw_style_vbufs, draw_buffer_vertices);
+        uploadPlannedStream(m_line_vbufs, m_line_style_vbufs, line_uploads);
+        uploadPlannedStream(m_fill_vbufs, m_fill_style_vbufs, fill_uploads);
+        uploadPlannedStream(m_draw_vbufs, m_draw_style_vbufs, draw_uploads);
 
         PaletteUniformBlock palette_data{};
         const std::size_t palette_count =
@@ -437,8 +476,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     cb->setViewport(QRhiViewport(0, 0, float(width()), float(height())));
 
     auto drawChunks = [&](std::unique_ptr<QRhiGraphicsPipeline>& pso,
-                          std::unique_ptr<QRhiBuffer>&           pos_vbuf,
-                          std::unique_ptr<QRhiBuffer>&           style_vbuf,
+                          std::vector<std::unique_ptr<QRhiBuffer>>& pos_vbufs,
+                          std::vector<std::unique_ptr<QRhiBuffer>>& style_vbufs,
                           const std::vector<StreamChunk>&        chunks) {
         for (const StreamChunk& chunk : chunks) {
             if (chunk.count == 0)
@@ -447,8 +486,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             cb->setGraphicsPipeline(pso.get());
             cb->setShaderResources(m_srb.get());
             const QRhiCommandBuffer::VertexInput inputs[] = {
-                { pos_vbuf.get(), chunk.pos_offset },
-                { style_vbuf.get(), chunk.style_offset }
+                { pos_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
+                { style_vbufs[chunk.buffer_index].get(), chunk.style_offset }
             };
             cb->setVertexInput(0, 2, inputs);
             cb->draw(chunk.count);
@@ -461,9 +500,9 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             continue;
 
         ++visible_tile_count;
-        drawChunks(m_line_pso, m_line_vbuf, m_line_style_vbuf, tile.line_chunks);
-        drawChunks(m_fill_pso, m_fill_vbuf, m_fill_style_vbuf, tile.fill_chunks);
-        drawChunks(m_draw_pso, m_draw_vbuf, m_draw_style_vbuf, tile.draw_chunks);
+        drawChunks(m_line_pso, m_line_vbufs, m_line_style_vbufs, tile.line_chunks);
+        drawChunks(m_fill_pso, m_fill_vbufs, m_fill_style_vbufs, tile.fill_chunks);
+        drawChunks(m_draw_pso, m_draw_vbufs, m_draw_style_vbufs, tile.draw_chunks);
     }
 
     cb->endPass();
@@ -496,16 +535,20 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
 void RhiCanvasWidget::releaseResources()
 {
+    auto resetBufferVector = [](std::vector<std::unique_ptr<QRhiBuffer>>& buffers) {
+        buffers.clear();
+    };
+
     m_draw_pso.reset();
     m_fill_pso.reset();
     m_line_pso.reset();
     m_srb.reset();
-    m_draw_style_vbuf.reset();
-    m_draw_vbuf.reset();
-    m_fill_style_vbuf.reset();
-    m_fill_vbuf.reset();
-    m_line_style_vbuf.reset();
-    m_line_vbuf.reset();
+    resetBufferVector(m_draw_style_vbufs);
+    resetBufferVector(m_draw_vbufs);
+    resetBufferVector(m_fill_style_vbufs);
+    resetBufferVector(m_fill_vbufs);
+    resetBufferVector(m_line_style_vbufs);
+    resetBufferVector(m_line_vbufs);
     m_gpu_tiles.clear();
     m_palette_ubuf.reset();
     m_mvp_ubuf.reset();
