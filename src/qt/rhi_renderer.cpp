@@ -237,6 +237,13 @@ void rhi_renderer::flush()
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
 
+    double total_mb =
+        (m_lines.size() +
+         m_fill_verts.size() +
+         m_draw_verts.size()) * sizeof(LineVertex) / (1024.0 * 1024.0);
+
+    std::cout << "~~~ sending to GPU " << total_mb << " mb" << std::endl;
+
     m_rhi_widget->set_frame_data(
         std::move(m_lines),
         std::move(m_fill_verts),
