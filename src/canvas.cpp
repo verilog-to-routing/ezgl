@@ -591,12 +591,6 @@ void canvas::redraw_camera_only()
 {
 #if defined(EZGL_QT) && defined(EZGL_RHI)
   if (m_rhi_widget && m_rhi_renderer) {
-    if (m_rhi_renderer->has_dashed_content()) {
-      // Conservative fallback: rebuild dashed geometry on camera changes so
-      // the dashed RHI path stays visually locked to the world.
-      redraw();
-      return;
-    }
     // Geometry unchanged — only push a new world→NDC MVP to the widget.
     m_rhi_renderer->flush_mvp_only();
     g_info("The canvas MVP will be updated (camera-only RHI path).");

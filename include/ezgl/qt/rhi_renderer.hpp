@@ -64,15 +64,6 @@ public:
      */
     void flush_mvp_only();
 
-    /**
-     * Dashed geometry currently requires a full redraw on camera changes to
-     * stay in sync across all backends.
-     */
-    bool has_dashed_content() const
-    {
-        return m_has_dashed_content;
-    }
-
 private:
     static constexpr int kTileGridDimension = 256;
 
@@ -169,7 +160,6 @@ private:
     // QPainter overlay — base-class draw calls (text, arcs, …) write here.
     QImage   m_overlay;
     Painter  m_overlay_painter;   // must be declared AFTER m_overlay
-    bool     m_has_dashed_content = false;
 };
 
 } // namespace ezgl
