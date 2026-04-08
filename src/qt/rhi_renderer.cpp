@@ -57,6 +57,7 @@ void rhi_renderer::begin_frame()
     clear_tile_geometry();
     m_palette_rgba.clear();
     m_palette_index.clear();
+    m_has_dashed_content = false;
 
     // End painter if still active (shouldn't normally happen).
     if (m_overlay_painter.isActive())
@@ -360,6 +361,7 @@ void rhi_renderer::append_dashed_segment(RhiTileBatch& tile,
                                          float         width_px,
                                          float         dash_px,
                                          float         gap_px,
+                                         float         phase_world,
                                          StyleIndex    style_index)
 {
     const double dx = end.x - start.x;
@@ -367,10 +369,11 @@ void rhi_renderer::append_dashed_segment(RhiTileBatch& tile,
     if (std::sqrt(dx * dx + dy * dy) < 1e-10)
         return;
 
+    m_has_dashed_content = true;
     tile.dashed_line_instances.push_back({
         float(start.x), float(start.y),
         float(end.x),   float(end.y),
-        width_px, dash_px, gap_px
+        width_px, dash_px, gap_px, phase_world
     });
     tile.dashed_line_styles.push_back(style_index);
 }
@@ -382,6 +385,7 @@ void rhi_renderer::append_dashed_line_to_tiles(point2d    start,
                                                float      gap_px,
                                                StyleIndex style_index)
 {
+    const point2d original_start = start;
     const rectangle bounds{start, end};
     const int min_tx = clamp_tile_x(bounds.left());
     const int max_tx = clamp_tile_x(bounds.right());
@@ -395,8 +399,13 @@ void rhi_renderer::append_dashed_line_to_tiles(point2d    start,
             RhiTileBatch& tile = tile_at(tx, ty);
             if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
                 continue;
+            const double phase_dx = clipped_start.x - original_start.x;
+            const double phase_dy = clipped_start.y - original_start.y;
+            const float phase_world = float(std::sqrt(phase_dx * phase_dx
+                                                      + phase_dy * phase_dy));
             append_dashed_segment(tile, clipped_start, clipped_end,
-                                  width_px, dash_px, gap_px, style_index);
+                                  width_px, dash_px, gap_px,
+                                  phase_world, style_index);
         }
     }
 }
@@ -411,9 +420,8 @@ void rhi_renderer::append_dashed_draw_segment_to_tiles(point2d    start,
     append_dashed_line_to_tiles(start, end, width_px, dash_px, gap_px, style_index);
 }
 
-// Convert the active line dash mode to pixel dash/gap lengths.
-// dash_px and gap_px are scaled by effective line width so dashes look
-// proportional regardless of line thickness.
+// Convert the active line dash mode to screen-pixel dash/gap lengths.
+// Phase continuity across tile clipping is handled separately via phase_world.
 void rhi_renderer::set_dash_pattern(float width_px,
                                     float& dash_px,
                                     float& gap_px) const
@@ -484,15 +492,17 @@ void rhi_renderer::draw_line(point2d start, point2d end)
 
     const StyleIndex style_index = current_style_index();
 
-    if (current_line_width > 0) {
-        // Route all non-thin world-space lines through the same instanced
-        // pipeline. Solid lines use a zero dash/gap pair, which the dashed
-        // fragment shader treats as "no discard".
+    if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
         float dash_px = 0.0f;
         float gap_px = 0.0f;
         set_dash_pattern(w, dash_px, gap_px);
         append_dashed_line_to_tiles(start, end, w, dash_px, gap_px, style_index);
+        return;
+    }
+
+    if (current_line_width > 0) {
+        append_thick_line_to_tiles(start, end, float(current_line_width), style_index);
         return;
     }
 
@@ -536,7 +546,7 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
     const StyleIndex style_index = current_style_index();
 
-    if (current_line_width > 0) {
+    if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
         float dash_px = 0.0f;
         float gap_px = 0.0f;
@@ -545,6 +555,15 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
         append_dashed_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, dash_px, gap_px, style_index);
         append_dashed_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, dash_px, gap_px, style_index);
         append_dashed_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, dash_px, gap_px, style_index);
+        return;
+    }
+
+    if (current_line_width > 0) {
+        const float w = float(current_line_width);
+        append_thick_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, style_index);
         return;
     }
 

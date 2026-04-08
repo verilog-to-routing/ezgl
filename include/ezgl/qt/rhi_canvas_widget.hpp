@@ -67,14 +67,16 @@ static_assert(sizeof(ThickLineInstance) == 20, "ThickLineInstance must be 20 byt
 /**
  * Per-instance data for one dashed-line segment (instanced rendering).
  *
- * Memory cost: 28 bytes per line.  Same TriangleStrip quad as thick lines;
- * the fragment shader discards gap fragments using screen-pixel distance.
+ * Memory cost: 32 bytes per line. Same TriangleStrip quad as thick lines;
+ * the fragment shader discards gap fragments using screen-pixel distance
+ * while preserving phase continuity across tile-clipped segments.
  *
- *   Offset  0 : float x0, y0    — world-space start
- *   Offset  8 : float x1, y1    — world-space end
- *   Offset 16 : float width_px  — full line width in pixels (>= 1)
- *   Offset 20 : float dash_px   — dash run length in screen pixels
- *   Offset 24 : float gap_px    — gap length in screen pixels
+ *   Offset  0 : float x0, y0         — world-space clipped start
+ *   Offset  8 : float x1, y1         — world-space clipped end
+ *   Offset 16 : float width_px       — full line width in screen pixels (>= 1)
+ *   Offset 20 : float dash_px        — dash run length in screen pixels
+ *   Offset 24 : float gap_px         — gap length in screen pixels
+ *   Offset 28 : float phase_world    — world-space distance from original segment start to x0/y0
  */
 struct DashedLineInstance {
     float x0, y0;
@@ -82,8 +84,9 @@ struct DashedLineInstance {
     float width_px;
     float dash_px;
     float gap_px;
+    float phase_world;
 };
-static_assert(sizeof(DashedLineInstance) == 28, "DashedLineInstance must be 28 bytes");
+static_assert(sizeof(DashedLineInstance) == 32, "DashedLineInstance must be 32 bytes");
 
 // Compact style index per vertex. The fragment shader resolves it through a
 // small palette UBO, avoiding one draw call per color run.
@@ -104,7 +107,7 @@ struct RhiTileBatch {
     // Thick (width > 1 pixel) solid lines — instanced TriangleStrip, 21 bytes/line.
     std::vector<ThickLineInstance>  thick_line_instances;
     std::vector<StyleIndex>         thick_line_styles;
-    // Dashed lines (any width) — instanced TriangleStrip, 29 bytes/line.
+    // Dashed lines (any width) — instanced TriangleStrip, 33 bytes/line.
     std::vector<DashedLineInstance> dashed_line_instances;
     std::vector<StyleIndex>         dashed_line_styles;
 

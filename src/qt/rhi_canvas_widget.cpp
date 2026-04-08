@@ -19,7 +19,11 @@
 // For static libraries, Qt resources are not automatically registered, so
 // we force initialization once via a file-scope static.
 static const int s_rhi_resources_init = []() {
+#if defined(EZGL_RHI_GENERATED_SHADERS)
+    Q_INIT_RESOURCE(ezgl_rhi_shaders);
+#else
     Q_INIT_RESOURCE(shaders);
+#endif
     return 0;
 }();
 
@@ -274,7 +278,9 @@ void buildDashedLinePipeline(QRhi*                                   rhi,
                                  offsetof(ezgl::DashedLineInstance, dash_px)),
         QRhiVertexInputAttribute(1, 5, QRhiVertexInputAttribute::Float,
                                  offsetof(ezgl::DashedLineInstance, gap_px)),
-        QRhiVertexInputAttribute(2, 6, QRhiVertexInputAttribute::UNormByte, 0)
+        QRhiVertexInputAttribute(1, 6, QRhiVertexInputAttribute::Float,
+                                 offsetof(ezgl::DashedLineInstance, phase_world)),
+        QRhiVertexInputAttribute(2, 7, QRhiVertexInputAttribute::UNormByte, 0)
     });
 
     QRhiGraphicsPipeline::TargetBlend blend;
