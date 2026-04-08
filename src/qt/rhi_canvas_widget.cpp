@@ -201,10 +201,10 @@ void buildThickLinePipeline(QRhi*                                   rhi,
         QRhiVertexInputAttribute(0, 1, QRhiVertexInputAttribute::Float2,
                                  offsetof(ezgl::ThickLineVertex, perp_x)),
         // location 2: inWidthPx
-        QRhiVertexInputAttribute(0, 2, QRhiVertexInputAttribute::Float1,
+        QRhiVertexInputAttribute(0, 2, QRhiVertexInputAttribute::Float,
                                  offsetof(ezgl::ThickLineVertex, width_px)),
         // location 3: inSide
-        QRhiVertexInputAttribute(0, 3, QRhiVertexInputAttribute::Float1,
+        QRhiVertexInputAttribute(0, 3, QRhiVertexInputAttribute::Float,
                                  offsetof(ezgl::ThickLineVertex, side)),
         // location 4: inStyleNorm (binding 1)
         QRhiVertexInputAttribute(1, 4, QRhiVertexInputAttribute::UNormByte, 0)

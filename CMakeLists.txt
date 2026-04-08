@@ -120,45 +120,6 @@ if(USE_QT)
             find_package(Qt6 QUIET COMPONENTS Gui)
             target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::GuiPrivate)
 
-            # ---- Compile GLSL shaders to .qsb (Qt Shader Baker) ---------------
-            # qsb lives alongside other Qt tools in <Qt-root>/bin/.
-            # Qt6_DIR is typically <Qt-root>/lib/cmake/Qt6, so ../../../bin finds
-            # the right directory on standard Qt installations.
-            find_program(QSB_EXECUTABLE
-                NAMES qsb
-                HINTS
-                    "${Qt6_DIR}/../../../bin"
-                    "${Qt6Core_DIR}/../../../bin"
-                DOC "Qt Shader Baker (qsb) — required to compile RHI shaders"
-            )
-            if(NOT QSB_EXECUTABLE)
-                message(FATAL_ERROR
-                    "ezgl: qsb not found. "
-                    "Install Qt ShaderTools or set QSB_EXECUTABLE to the path of qsb.")
-            endif()
-            message(STATUS "ezgl: qsb found at ${QSB_EXECUTABLE}")
-
-            set(EZGL_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
-
-            # thick_line.vert — vertex shader for variable-width GPU lines.
-            add_custom_command(
-                OUTPUT  "${EZGL_SHADER_DIR}/thick_line.vert.qsb"
-                COMMAND "${QSB_EXECUTABLE}"
-                        --glsl "100 es,120,150"
-                        --hlsl 50
-                        --msl 12
-                        -o "${EZGL_SHADER_DIR}/thick_line.vert.qsb"
-                        "${EZGL_SHADER_DIR}/thick_line.vert"
-                DEPENDS "${EZGL_SHADER_DIR}/thick_line.vert"
-                COMMENT "Compiling thick_line.vert → thick_line.vert.qsb"
-                VERBATIM
-            )
-
-            add_custom_target(ezgl_compile_shaders
-                DEPENDS "${EZGL_SHADER_DIR}/thick_line.vert.qsb"
-            )
-            add_dependencies(${PROJECT_NAME} ezgl_compile_shaders)
-
             # RHI sources
             target_sources(${PROJECT_NAME} PRIVATE
                 include/ezgl/qt/rhi_canvas_widget.hpp
