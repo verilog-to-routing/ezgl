@@ -735,9 +735,12 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             continue;
 
         ++visible_tile_count;
-        drawChunks(m_line_pso,       m_line_vbufs,       m_line_style_vbufs,       tile.line_chunks);
+        // Draw order: fills first (bottom), then outlines and lines on top.
+        // This matches painter semantics — the last-submitted primitive type
+        // appears on top, so fills (submitted first) are always below lines.
         drawChunks(m_fill_pso,       m_fill_vbufs,       m_fill_style_vbufs,       tile.fill_chunks);
         drawChunks(m_draw_pso,       m_draw_vbufs,       m_draw_style_vbufs,       tile.draw_chunks);
+        drawChunks(m_line_pso,       m_line_vbufs,       m_line_style_vbufs,       tile.line_chunks);
         // Dashed lines: instanced draw — 4 quad-corner vertices × N instances.
         // Uses a dedicated fragment shader that discards gap fragments.
         for (const StreamChunk& chunk : tile.dashed_line_chunks) {
