@@ -128,6 +128,9 @@ private:
                                              float      dash_px,
                                              float      gap_px,
                                              StyleIndex style_index);
+    bool set_dash_pattern(float width_px,
+                          float& dash_px,
+                          float& gap_px) const;
     void ensure_tile_grid();
     void clear_tile_geometry();
     int clamp_tile_x(double x) const;

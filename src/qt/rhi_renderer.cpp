@@ -411,20 +411,26 @@ void rhi_renderer::append_dashed_draw_segment_to_tiles(point2d    start,
     append_dashed_line_to_tiles(start, end, width_px, dash_px, gap_px, style_index);
 }
 
-// Helper: convert the current line_dash enum to pixel dash/gap lengths.
+// Convert the active line dash mode to pixel dash/gap lengths.
 // dash_px and gap_px are scaled by effective line width so dashes look
 // proportional regardless of line thickness.
-static void dash_params(ezgl::line_dash dash, float width_px,
-                        float& dash_px, float& gap_px)
+bool rhi_renderer::set_dash_pattern(float width_px,
+                                    float& dash_px,
+                                    float& gap_px) const
 {
-    switch (dash) {
+    switch (current_line_dash) {
+        case ezgl::line_dash::none:
+            dash_px = 0.0f;
+            gap_px = 0.0f;
+            return false;
         case ezgl::line_dash::asymmetric_5_3:
             dash_px = 5.0f * width_px;
             gap_px  = 3.0f * width_px;
-            break;
+            return true;
         default:
             dash_px = 5.0f * width_px;
             gap_px  = 3.0f * width_px;
+            return true;
     }
 }
 
@@ -478,12 +484,12 @@ void rhi_renderer::draw_line(point2d start, point2d end)
 
     const StyleIndex style_index = current_style_index();
 
-    if (current_line_dash != line_dash::none) {
-        // Dashed: GPU instanced TriangleStrip with per-fragment discard.
-        // effective width >= 1 so dashes are always visible.
-        const float w = float(std::max(1, current_line_width));
-        float dash_px, gap_px;
-        dash_params(current_line_dash, w, dash_px, gap_px);
+    // Dashed: GPU instanced TriangleStrip with per-fragment discard.
+    // effective width >= 1 so dashes are always visible.
+    const float w = float(std::max(1, current_line_width));
+    float dash_px = 0.0f;
+    float gap_px = 0.0f;
+    if (set_dash_pattern(w, dash_px, gap_px)) {
         append_dashed_line_to_tiles(start, end, w, dash_px, gap_px, style_index);
         return;
     }
@@ -534,10 +540,10 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
     const StyleIndex style_index = current_style_index();
 
-    if (current_line_dash != line_dash::none) {
-        const float w = float(std::max(1, current_line_width));
-        float dash_px, gap_px;
-        dash_params(current_line_dash, w, dash_px, gap_px);
+    const float w = float(std::max(1, current_line_width));
+    float dash_px = 0.0f;
+    float gap_px = 0.0f;
+    if (set_dash_pattern(w, dash_px, gap_px)) {
         append_dashed_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, dash_px, gap_px, style_index);
         append_dashed_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, dash_px, gap_px, style_index);
         append_dashed_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, dash_px, gap_px, style_index);

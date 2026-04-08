@@ -184,6 +184,7 @@ struct LineStyle {
   ezgl::color  color;
   uint_fast8_t alpha;
   int          width;
+  ezgl::line_dash dash;
 };
 
 struct RectStyle {
@@ -192,14 +193,14 @@ struct RectStyle {
 };
 
 static const LineStyle LINE_PALETTE[] = {
-  { ezgl::BLUE,   255, 1 },
-  { ezgl::RED,    255, 2 },
-  { ezgl::GREEN,  255, 3 },
-  { ezgl::ORANGE, 255, 4 },
-  { ezgl::BLUE,   128, 1 },
-  { ezgl::RED,    128, 2 },
-  { ezgl::GREEN,  128, 3 },
-  { ezgl::ORANGE, 128, 4 },
+  { ezgl::BLUE,   255, 1, ezgl::line_dash::none },
+  { ezgl::RED,    255, 2, ezgl::line_dash::asymmetric_5_3 },
+  { ezgl::GREEN,  255, 3, ezgl::line_dash::none },
+  { ezgl::ORANGE, 255, 4, ezgl::line_dash::asymmetric_5_3 },
+  { ezgl::BLUE,   128, 1, ezgl::line_dash::none },
+  { ezgl::RED,    128, 2, ezgl::line_dash::asymmetric_5_3 },
+  { ezgl::GREEN,  128, 3, ezgl::line_dash::none },
+  { ezgl::ORANGE, 128, 4, ezgl::line_dash::asymmetric_5_3 },
 };
 static constexpr int LINE_PALETTE_SIZE = static_cast<int>(sizeof(LINE_PALETTE) / sizeof(LINE_PALETTE[0]));
 
@@ -218,11 +219,11 @@ static constexpr int RECT_PALETTE_SIZE = static_cast<int>(sizeof(RECT_PALETTE) /
 void draw_lines_variadic(ezgl::renderer *g)
 {
   const GridLayout layout = current_layout();
-  g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < g_bench_n; ++i) {
     const LineStyle &s = LINE_PALETTE[i % LINE_PALETTE_SIZE];
     g->set_color(s.color, s.alpha);
     g->set_line_width(s.width);
+    g->set_line_dash(s.dash);
     const PrimitivePlacement p = placement_for(layout, i);
     g->draw_line({p.x0, p.y0}, {p.x1, p.y1});
   }
