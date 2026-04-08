@@ -106,6 +106,28 @@ private:
                                             point2d    end,
                                             float      width_px,
                                             StyleIndex style_index);
+
+    // Dashed line helpers.
+    // Appends one DashedLineInstance per clipped segment.
+    void append_dashed_segment(RhiTileBatch& tile,
+                               point2d       start,
+                               point2d       end,
+                               float         width_px,
+                               float         dash_px,
+                               float         gap_px,
+                               StyleIndex    style_index);
+    void append_dashed_line_to_tiles(point2d    start,
+                                     point2d    end,
+                                     float      width_px,
+                                     float      dash_px,
+                                     float      gap_px,
+                                     StyleIndex style_index);
+    void append_dashed_draw_segment_to_tiles(point2d    start,
+                                             point2d    end,
+                                             float      width_px,
+                                             float      dash_px,
+                                             float      gap_px,
+                                             StyleIndex style_index);
     void ensure_tile_grid();
     void clear_tile_geometry();
     int clamp_tile_x(double x) const;

@@ -188,6 +188,8 @@ void rhi_renderer::clear_tile_geometry()
         tile.draw_styles.clear();
         tile.thick_line_instances.clear();
         tile.thick_line_styles.clear();
+        tile.dashed_line_instances.clear();
+        tile.dashed_line_styles.clear();
     }
 }
 
@@ -350,6 +352,82 @@ void rhi_renderer::append_thick_draw_segment_to_tiles(point2d    start,
     append_thick_line_to_tiles(start, end, width_px, style_index);
 }
 
+// ---- dashed line helpers ---------------------------------------------------
+
+void rhi_renderer::append_dashed_segment(RhiTileBatch& tile,
+                                         point2d       start,
+                                         point2d       end,
+                                         float         width_px,
+                                         float         dash_px,
+                                         float         gap_px,
+                                         StyleIndex    style_index)
+{
+    const double dx = end.x - start.x;
+    const double dy = end.y - start.y;
+    if (std::sqrt(dx * dx + dy * dy) < 1e-10)
+        return;
+
+    tile.dashed_line_instances.push_back({
+        float(start.x), float(start.y),
+        float(end.x),   float(end.y),
+        width_px, dash_px, gap_px
+    });
+    tile.dashed_line_styles.push_back(style_index);
+}
+
+void rhi_renderer::append_dashed_line_to_tiles(point2d    start,
+                                               point2d    end,
+                                               float      width_px,
+                                               float      dash_px,
+                                               float      gap_px,
+                                               StyleIndex style_index)
+{
+    const rectangle bounds{start, end};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            point2d clipped_start = start;
+            point2d clipped_end   = end;
+            RhiTileBatch& tile = tile_at(tx, ty);
+            if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
+                continue;
+            append_dashed_segment(tile, clipped_start, clipped_end,
+                                  width_px, dash_px, gap_px, style_index);
+        }
+    }
+}
+
+void rhi_renderer::append_dashed_draw_segment_to_tiles(point2d    start,
+                                                       point2d    end,
+                                                       float      width_px,
+                                                       float      dash_px,
+                                                       float      gap_px,
+                                                       StyleIndex style_index)
+{
+    append_dashed_line_to_tiles(start, end, width_px, dash_px, gap_px, style_index);
+}
+
+// Helper: convert the current line_dash enum to pixel dash/gap lengths.
+// dash_px and gap_px are scaled by effective line width so dashes look
+// proportional regardless of line thickness.
+static void dash_params(ezgl::line_dash dash, float width_px,
+                        float& dash_px, float& gap_px)
+{
+    switch (dash) {
+        case ezgl::line_dash::asymmetric_5_3:
+            dash_px = 5.0f * width_px;
+            gap_px  = 3.0f * width_px;
+            break;
+        default:
+            dash_px = 5.0f * width_px;
+            gap_px  = 3.0f * width_px;
+    }
+}
+
 // World→NDC matrix derived from camera state and widget dimensions.
 //
 // world_to_screen (affine):
@@ -398,25 +476,23 @@ void rhi_renderer::draw_line(point2d start, point2d end)
         return;
     }
 
-    // Dashed lines are rendered via the QPainter overlay so that the dash
-    // pattern remains pixel-accurate regardless of zoom level.
+    const StyleIndex style_index = current_style_index();
+
     if (current_line_dash != line_dash::none) {
-        renderer::draw_line(start, end);
+        // Dashed: GPU instanced TriangleStrip with per-fragment discard.
+        // effective width >= 1 so dashes are always visible.
+        const float w = float(std::max(1, current_line_width));
+        float dash_px, gap_px;
+        dash_params(current_line_dash, w, dash_px, gap_px);
+        append_dashed_line_to_tiles(start, end, w, dash_px, gap_px, style_index);
         return;
     }
 
-    const StyleIndex style_index = current_style_index();
-
     if (current_line_width > 0) {
-        // Thick line: emit two triangles per segment via thick_line.vert.
-        // The shader expands the vertices perpendicular to the line direction
-        // by width_px/2 pixels at render time, so geometry is valid for all
-        // zoom levels (compatible with the MVP-only update optimization).
         append_thick_line_to_tiles(start, end,
                                    float(current_line_width),
                                    style_index);
     } else {
-        // Default 1-pixel line: hardware Lines primitive.
         append_line_to_tiles(start, end, style_index);
     }
 }
@@ -454,15 +530,20 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
         return;
     }
 
-    // Dashed outlines: fall through to QPainter overlay.
-    if (current_line_dash != line_dash::none) {
-        renderer::draw_rectangle(start, end);
-        return;
-    }
-
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
     const StyleIndex style_index = current_style_index();
+
+    if (current_line_dash != line_dash::none) {
+        const float w = float(std::max(1, current_line_width));
+        float dash_px, gap_px;
+        dash_params(current_line_dash, w, dash_px, gap_px);
+        append_dashed_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, dash_px, gap_px, style_index);
+        append_dashed_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, dash_px, gap_px, style_index);
+        append_dashed_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, dash_px, gap_px, style_index);
+        append_dashed_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, dash_px, gap_px, style_index);
+        return;
+    }
 
     if (current_line_width > 0) {
         const float w = float(current_line_width);
@@ -506,11 +587,13 @@ void rhi_renderer::flush()
             ((tile.line_verts.size() +
               tile.fill_verts.size() +
               tile.draw_verts.size()) * sizeof(PosVertex)
-             + tile.thick_line_instances.size() * sizeof(ThickLineInstance)
+             + tile.thick_line_instances.size()  * sizeof(ThickLineInstance)
+             + tile.dashed_line_instances.size() * sizeof(DashedLineInstance)
              + (tile.line_styles.size() +
                 tile.fill_styles.size() +
                 tile.draw_styles.size() +
-                tile.thick_line_styles.size()) * sizeof(StyleIndex))
+                tile.thick_line_styles.size() +
+                tile.dashed_line_styles.size()) * sizeof(StyleIndex))
             / (1024.0 * 1024.0);
         non_empty_tiles.push_back(std::move(tile));
     }

@@ -31,12 +31,16 @@ constexpr std::size_t kMaxQrhiBufferBytes =
     std::size_t(std::numeric_limits<int>::max());
 constexpr std::size_t kInitialStreamVertexBufferBytes      = 1 * 1024 * 1024;
 constexpr std::size_t kInitialStreamStyleBufferBytes       = 128 * 1024;
-constexpr std::size_t kInitialThickInstanceBufferBytes = 512 * 1024;
+constexpr std::size_t kInitialThickInstanceBufferBytes  = 512 * 1024;
+constexpr std::size_t kInitialDashedInstanceBufferBytes = 512 * 1024;
 constexpr std::size_t kMaxVerticesPerChunk =
     std::min(kMaxQrhiBufferBytes / sizeof(ezgl::PosVertex),
              kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
 constexpr std::size_t kMaxThickInstancesPerChunk =
     std::min(kMaxQrhiBufferBytes / sizeof(ezgl::ThickLineInstance),
+             kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
+constexpr std::size_t kMaxDashedInstancesPerChunk =
+    std::min(kMaxQrhiBufferBytes / sizeof(ezgl::DashedLineInstance),
              kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
 
 // MVP UBO layout (std140, binding 0):
@@ -239,6 +243,62 @@ void buildThickLinePipeline(QRhi*                                   rhi,
     pso->create();
 }
 
+void buildDashedLinePipeline(QRhi*                                   rhi,
+                             std::unique_ptr<QRhiGraphicsPipeline>&  pso,
+                             const QShader&                           dashed_vs,
+                             const QShader&                           dashed_fs,
+                             QRhiShaderResourceBindings*              srb,
+                             QRhiRenderPassDescriptor*                rpDesc)
+{
+    // Binding 0 (PerVertex)   — QuadCorner (t, side)
+    // Binding 1 (PerInstance) — DashedLineInstance
+    // Binding 2 (PerInstance) — StyleIndex
+    QRhiVertexInputLayout layout;
+    layout.setBindings({
+        QRhiVertexInputBinding(sizeof(ezgl::QuadCorner)),
+        QRhiVertexInputBinding(sizeof(ezgl::DashedLineInstance),
+                               QRhiVertexInputBinding::PerInstance),
+        QRhiVertexInputBinding(sizeof(ezgl::StyleIndex),
+                               QRhiVertexInputBinding::PerInstance)
+    });
+    layout.setAttributes({
+        QRhiVertexInputAttribute(0, 0, QRhiVertexInputAttribute::Float2,
+                                 offsetof(ezgl::QuadCorner, t)),
+        QRhiVertexInputAttribute(1, 1, QRhiVertexInputAttribute::Float2,
+                                 offsetof(ezgl::DashedLineInstance, x0)),
+        QRhiVertexInputAttribute(1, 2, QRhiVertexInputAttribute::Float2,
+                                 offsetof(ezgl::DashedLineInstance, x1)),
+        QRhiVertexInputAttribute(1, 3, QRhiVertexInputAttribute::Float,
+                                 offsetof(ezgl::DashedLineInstance, width_px)),
+        QRhiVertexInputAttribute(1, 4, QRhiVertexInputAttribute::Float,
+                                 offsetof(ezgl::DashedLineInstance, dash_px)),
+        QRhiVertexInputAttribute(1, 5, QRhiVertexInputAttribute::Float,
+                                 offsetof(ezgl::DashedLineInstance, gap_px)),
+        QRhiVertexInputAttribute(2, 6, QRhiVertexInputAttribute::UNormByte, 0)
+    });
+
+    QRhiGraphicsPipeline::TargetBlend blend;
+    blend.enable   = true;
+    blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+    blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    blend.srcAlpha = QRhiGraphicsPipeline::One;
+    blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+
+    pso.reset(rhi->newGraphicsPipeline());
+    pso->setTopology(QRhiGraphicsPipeline::TriangleStrip);
+    pso->setVertexInputLayout(layout);
+    pso->setShaderStages({
+        { QRhiShaderStage::Vertex,   dashed_vs },
+        { QRhiShaderStage::Fragment, dashed_fs }
+    });
+    pso->setShaderResourceBindings(srb);
+    pso->setRenderPassDescriptor(rpDesc);
+    pso->setTargetBlends({ blend });
+    pso->setDepthTest(false);
+    pso->setDepthWrite(false);
+    pso->create();
+}
+
 } // anonymous namespace
 
 // ---- RhiCanvasWidget -------------------------------------------------------
@@ -305,6 +365,8 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     QShader vs          = loadShader(":/ezgl/line.vert.qsb");
     QShader fs          = loadShader(":/ezgl/line.frag.qsb");
     QShader thick_vs    = loadShader(":/ezgl/thick_line.vert.qsb");
+    QShader dashed_vs   = loadShader(":/ezgl/dashed_line.vert.qsb");
+    QShader dashed_fs   = loadShader(":/ezgl/dashed_line.frag.qsb");
 
     // MVP UBO: 80 bytes — mat4 mvp (64 B) + vec2 viewport (8 B) + 8 B padding.
     // line.vert reads only the first 64 bytes (mat4); the extra bytes are fine.
@@ -325,6 +387,8 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     m_draw_style_vbufs.clear();
     m_thick_line_instance_vbufs.clear();
     m_thick_line_style_vbufs.clear();
+    m_dashed_line_instance_vbufs.clear();
+    m_dashed_line_style_vbufs.clear();
 
     // Constant quad-corner buffer (32 bytes, Dynamic so we can upload via
     // the normal updateDynamicBuffer path in render()).
@@ -355,6 +419,7 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     buildPipeline(rhi(), m_fill_pso,  QRhiGraphicsPipeline::Triangles, vs, fs, m_srb.get(), rpDesc);
     buildPipeline(rhi(), m_draw_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, m_srb.get(), rpDesc);
     buildThickLinePipeline(rhi(), m_thick_line_pso, thick_vs, fs, m_srb.get(), rpDesc);
+    buildDashedLinePipeline(rhi(), m_dashed_line_pso, dashed_vs, dashed_fs, m_srb.get(), rpDesc);
 
     m_initialized = true;
 }
@@ -436,29 +501,34 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         std::size_t total_line_vertices       = 0;
         std::size_t total_fill_vertices       = 0;
         std::size_t total_draw_vertices       = 0;
-        std::size_t total_thick_line_vertices = 0;
+        std::size_t total_thick_line_vertices  = 0;
+        std::size_t total_dashed_line_vertices = 0;
         for (const RhiTileBatch& tile : tiles) {
-            if (tile.line_styles.size() != tile.line_verts.size()
-                || tile.fill_styles.size() != tile.fill_verts.size()
-                || tile.draw_styles.size() != tile.draw_verts.size()
-                || tile.thick_line_styles.size() != tile.thick_line_instances.size()) {
+            if (tile.line_styles.size()         != tile.line_verts.size()
+                || tile.fill_styles.size()      != tile.fill_verts.size()
+                || tile.draw_styles.size()      != tile.draw_verts.size()
+                || tile.thick_line_styles.size()  != tile.thick_line_instances.size()
+                || tile.dashed_line_styles.size() != tile.dashed_line_instances.size()) {
                 qFatal("RhiCanvasWidget: style-stream size mismatch with vertex stream");
             }
 
-            total_line_vertices       += tile.line_verts.size();
-            total_fill_vertices       += tile.fill_verts.size();
-            total_draw_vertices       += tile.draw_verts.size();
-            total_thick_line_vertices += tile.thick_line_instances.size();
+            total_line_vertices        += tile.line_verts.size();
+            total_fill_vertices        += tile.fill_verts.size();
+            total_draw_vertices        += tile.draw_verts.size();
+            total_thick_line_vertices  += tile.thick_line_instances.size();
+            total_dashed_line_vertices += tile.dashed_line_instances.size();
         }
 
         std::vector<std::size_t> line_buffer_vertices;
         std::vector<std::size_t> fill_buffer_vertices;
         std::vector<std::size_t> draw_buffer_vertices;
         std::vector<std::size_t> thick_line_buffer_vertices;
+        std::vector<std::size_t> dashed_line_buffer_vertices;
         std::vector<PendingUpload> line_uploads;
         std::vector<PendingUpload> fill_uploads;
         std::vector<PendingUpload> draw_uploads;
         std::vector<PendingUpload> thick_line_uploads;
+        std::vector<PendingUpload> dashed_line_uploads;
         line_uploads.reserve(
             (total_line_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
         fill_uploads.reserve(
@@ -468,6 +538,9 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         thick_line_uploads.reserve(
             (total_thick_line_vertices + kMaxThickInstancesPerChunk - 1)
             / kMaxThickInstancesPerChunk);
+        dashed_line_uploads.reserve(
+            (total_dashed_line_vertices + kMaxDashedInstancesPerChunk - 1)
+            / kMaxDashedInstancesPerChunk);
 
         // planStream: distribute a tile's vertex+style arrays into chunked upload
         // records.  max_per_chunk and vertex_size are per-stream (PosVertex vs
@@ -539,6 +612,10 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                        thick_line_buffer_vertices,
                        tile.thick_line_instances, tile.thick_line_styles,
                        kMaxThickInstancesPerChunk, sizeof(ThickLineInstance));
+            planStream(gpu_tile.dashed_line_chunks, dashed_line_uploads,
+                       dashed_line_buffer_vertices,
+                       tile.dashed_line_instances, tile.dashed_line_styles,
+                       kMaxDashedInstancesPerChunk, sizeof(DashedLineInstance));
         }
 
         auto trimBufferVector = [](std::vector<std::unique_ptr<QRhiBuffer>>& buffers,
@@ -602,11 +679,14 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         ensureBufferSet(m_thick_line_instance_vbufs, m_thick_line_style_vbufs,
                         thick_line_buffer_vertices,
                         sizeof(ThickLineInstance), kInitialThickInstanceBufferBytes);
+        ensureBufferSet(m_dashed_line_instance_vbufs, m_dashed_line_style_vbufs,
+                        dashed_line_buffer_vertices,
+                        sizeof(DashedLineInstance), kInitialDashedInstanceBufferBytes);
         uploadPlannedStream(m_line_vbufs,       m_line_style_vbufs,       line_uploads);
         uploadPlannedStream(m_fill_vbufs,       m_fill_style_vbufs,       fill_uploads);
         uploadPlannedStream(m_draw_vbufs,       m_draw_style_vbufs,       draw_uploads);
-        uploadPlannedStream(m_thick_line_instance_vbufs, m_thick_line_style_vbufs,
-                            thick_line_uploads);
+        uploadPlannedStream(m_thick_line_instance_vbufs,  m_thick_line_style_vbufs,  thick_line_uploads);
+        uploadPlannedStream(m_dashed_line_instance_vbufs, m_dashed_line_style_vbufs, dashed_line_uploads);
 
         PaletteUniformBlock palette_data{};
         const std::size_t palette_count =
@@ -652,7 +732,23 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         drawChunks(m_line_pso,       m_line_vbufs,       m_line_style_vbufs,       tile.line_chunks);
         drawChunks(m_fill_pso,       m_fill_vbufs,       m_fill_style_vbufs,       tile.fill_chunks);
         drawChunks(m_draw_pso,       m_draw_vbufs,       m_draw_style_vbufs,       tile.draw_chunks);
-        // Thick lines: instanced draw — 4 quad-corner vertices × N instances.
+        // Dashed lines: instanced draw — 4 quad-corner vertices × N instances.
+        // Uses a dedicated fragment shader that discards gap fragments.
+        for (const StreamChunk& chunk : tile.dashed_line_chunks) {
+            if (chunk.count == 0)
+                continue;
+            cb->setGraphicsPipeline(m_dashed_line_pso.get());
+            cb->setShaderResources(m_srb.get());
+            const QRhiCommandBuffer::VertexInput inputs[3] = {
+                { m_thick_line_corner_vbuf.get(), 0 },
+                { m_dashed_line_instance_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
+                { m_dashed_line_style_vbufs[chunk.buffer_index].get(),    chunk.style_offset }
+            };
+            cb->setVertexInput(0, 3, inputs);
+            cb->draw(4, chunk.count);
+        }
+
+        // Thick solid lines: instanced draw — 4 quad-corner vertices × N instances.
         for (const StreamChunk& chunk : tile.thick_line_chunks) {
             if (chunk.count == 0)
                 continue;
@@ -706,11 +802,14 @@ void RhiCanvasWidget::releaseResources()
         buffers.clear();
     };
 
+    m_dashed_line_pso.reset();
     m_thick_line_pso.reset();
     m_draw_pso.reset();
     m_fill_pso.reset();
     m_line_pso.reset();
     m_srb.reset();
+    resetBufferVector(m_dashed_line_style_vbufs);
+    resetBufferVector(m_dashed_line_instance_vbufs);
     resetBufferVector(m_thick_line_style_vbufs);
     resetBufferVector(m_thick_line_instance_vbufs);
     m_thick_line_corner_vbuf.reset();

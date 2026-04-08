@@ -64,6 +64,27 @@ struct ThickLineInstance {
 };
 static_assert(sizeof(ThickLineInstance) == 20, "ThickLineInstance must be 20 bytes");
 
+/**
+ * Per-instance data for one dashed-line segment (instanced rendering).
+ *
+ * Memory cost: 28 bytes per line.  Same TriangleStrip quad as thick lines;
+ * the fragment shader discards gap fragments using screen-pixel distance.
+ *
+ *   Offset  0 : float x0, y0    — world-space start
+ *   Offset  8 : float x1, y1    — world-space end
+ *   Offset 16 : float width_px  — full line width in pixels (>= 1)
+ *   Offset 20 : float dash_px   — dash run length in screen pixels
+ *   Offset 24 : float gap_px    — gap length in screen pixels
+ */
+struct DashedLineInstance {
+    float x0, y0;
+    float x1, y1;
+    float width_px;
+    float dash_px;
+    float gap_px;
+};
+static_assert(sizeof(DashedLineInstance) == 28, "DashedLineInstance must be 28 bytes");
+
 // Compact style index per vertex. The fragment shader resolves it through a
 // small palette UBO, avoiding one draw call per color run.
 using StyleIndex = std::uint8_t;
@@ -80,18 +101,20 @@ struct RhiTileBatch {
     // draw_rectangle outlines (thin, 1-pixel) — drawn with Lines topology.
     std::vector<PosVertex>       draw_verts;
     std::vector<StyleIndex>      draw_styles;
-    // Thick (width > 1 pixel) lines and rectangle outlines.
-    // Rendered via instanced TriangleStrip (4 constant quad corners × N instances).
-    // One ThickLineInstance + one StyleIndex per segment — 21 bytes/line.
-    std::vector<ThickLineInstance> thick_line_instances;
-    std::vector<StyleIndex>        thick_line_styles;
+    // Thick (width > 1 pixel) solid lines — instanced TriangleStrip, 21 bytes/line.
+    std::vector<ThickLineInstance>  thick_line_instances;
+    std::vector<StyleIndex>         thick_line_styles;
+    // Dashed lines (any width) — instanced TriangleStrip, 29 bytes/line.
+    std::vector<DashedLineInstance> dashed_line_instances;
+    std::vector<StyleIndex>         dashed_line_styles;
 
     bool empty() const
     {
         return line_verts.empty()
             && fill_verts.empty()
             && draw_verts.empty()
-            && thick_line_instances.empty();
+            && thick_line_instances.empty()
+            && dashed_line_instances.empty();
     }
 };
 
@@ -171,6 +194,7 @@ private:
         std::vector<StreamChunk> fill_chunks;
         std::vector<StreamChunk> draw_chunks;
         std::vector<StreamChunk> thick_line_chunks;
+        std::vector<StreamChunk> dashed_line_chunks;
     };
 
     // GPU resources — unique_ptr keeps them alive between initialize/release.
@@ -196,6 +220,9 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline>       m_fill_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_draw_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_thick_line_pso;
+    std::vector<std::unique_ptr<QRhiBuffer>>    m_dashed_line_instance_vbufs;
+    std::vector<std::unique_ptr<QRhiBuffer>>    m_dashed_line_style_vbufs;
+    std::unique_ptr<QRhiGraphicsPipeline>       m_dashed_line_pso;
     bool m_initialized = false;
 
     // Pending frame (written by set_frame_data / set_mvp_only, consumed by render())
