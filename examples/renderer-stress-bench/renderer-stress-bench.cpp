@@ -158,13 +158,23 @@ void draw_lines_transparent(ezgl::renderer *g)
   }
 }
 
-void draw_rectangles_solid(ezgl::renderer *g)
+void fill_rectangles_solid(ezgl::renderer *g)
 {
   const GridLayout layout = current_layout();
   g->set_color(ezgl::RED);
   for (int i = 0; i < g_bench_n; ++i) {
     const PrimitivePlacement p = placement_for(layout, i);
     g->fill_rectangle({p.x0, p.y0}, {p.x1, p.y1});
+  }
+}
+
+void draw_rectangles_solid(ezgl::renderer *g)
+{
+  const GridLayout layout = current_layout();
+  g->set_color(ezgl::GREEN);
+  for (int i = 0; i < g_bench_n; ++i) {
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->draw_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
 }
 
@@ -223,14 +233,24 @@ void draw_solid(ezgl::renderer *g)
   const GridLayout layout = current_layout();
   // fill rects
   g->set_color(ezgl::RED);
+  g->set_line_width(1);
+  g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < num; ++i) {
     const PrimitivePlacement p = placement_for(layout, i);
     g->fill_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
 
+  g->set_color(ezgl::BLUE);
+  g->set_line_width(1);
+  g->set_line_dash(ezgl::line_dash::none);
+  for (int i = 0; i < num; ++i) {
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->fill_rectangle({p.x0+10, p.y0}, {p.x1+10, p.y1});
+  }
+
   // draw rects
   g->set_color(ezgl::GREEN);
-  g->set_line_width(0);
+  g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < num; ++i) {
     const PrimitivePlacement p = placement_for(layout, i);
@@ -239,11 +259,20 @@ void draw_solid(ezgl::renderer *g)
 
   // lines
   g->set_color(ezgl::BLUE);
-  g->set_line_width(0);
+  g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < num; ++i) {
     const PrimitivePlacement p = placement_for(layout, i);
     g->draw_line({p.x0, p.y0}, {p.x1, p.y1});
+  }
+
+  // lines
+  g->set_color(ezgl::BLACK);
+  g->set_line_width(1);
+  g->set_line_dash(ezgl::line_dash::asymmetric_5_3);
+  for (int i = 0; i < num; ++i) {
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->draw_line({p.x0+10, p.y0}, {p.x1, p.y1});
   }
 }
 
@@ -261,7 +290,7 @@ void draw_variadic(ezgl::renderer *g)
   }
 
   // draw rects
-  g->set_line_width(0);
+  g->set_line_width(1);
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < num; ++i) {
     const RectStyle &s = RECT_PALETTE[i % RECT_PALETTE_SIZE];
@@ -329,7 +358,10 @@ struct TestCase {
 static const TestCase TESTS[] = {
     // { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
     // { "variadic lines   ", draw_lines_variadic,         1'000, "bench_lines_variadic.png"    },
-    { "solid   ",       draw_solid,               1'000, "draw_solid.png"    },
+    { "solid lines   ",       draw_lines_solid,               1'000, "draw_solid_lines.png"    },
+    { "solid rects   ",       draw_rectangles_solid,          1'000, "draw_solid_rects.png"    },
+    { "solid rects   ",       fill_rectangles_solid,          1'000, "draw_solid_rects.png"    },
+    { "solid   ",       draw_solid,                           1'000, "draw_solid.png"    },
     // { "variadic   ",       draw_variadic,               1'000, "bench_variadic.png"    },
 //  { "solid lines      ", draw_lines_solid,           200'000'000, "bench_lines_solid.png"       },
 //  { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },

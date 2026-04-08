@@ -117,6 +117,7 @@ if(USE_QT)
             message(STATUS "ezgl: Enabling Qt RHI renderer (Qt ${Qt6_VERSION})")
 
             # QRhi / QShader live in Qt6::Gui private headers.
+            #find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
             find_package(Qt6 QUIET COMPONENTS Gui)
             target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::GuiPrivate)
 

@@ -53,6 +53,15 @@ constexpr std::size_t kMaxDashedInstancesPerChunk =
 //   padding   : 8 bytes  →  total 80 bytes (16-byte aligned)
 static constexpr int kMvpUboSize = 80;
 
+int currentFrameResourceIndex(QRhi* rhi, std::size_t frame_count)
+{
+    if (frame_count == 0)
+        return 0;
+
+    const int max_index = int(frame_count - 1);
+    return std::clamp(rhi->currentFrameSlot(), 0, max_index);
+}
+
 QShader loadShader(const char* resource_path)
 {
     QFile f(resource_path);
@@ -374,27 +383,33 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     QShader dashed_vs   = loadShader(":/ezgl/dashed_line.vert.qsb");
     QShader dashed_fs   = loadShader(":/ezgl/dashed_line.frag.qsb");
 
-    // MVP UBO: 80 bytes — mat4 mvp (64 B) + vec2 viewport (8 B) + 8 B padding.
-    // All vertex shaders share the same std140 block layout:
-    //   mat4 mvp + vec2 viewport.
-    m_mvp_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
-                                      QRhiBuffer::UniformBuffer,
-                                      kMvpUboSize));
-    m_mvp_ubuf->create();
-    m_palette_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
-                                          QRhiBuffer::UniformBuffer,
-                                          sizeof(PaletteUniformBlock)));
-    m_palette_ubuf->create();
-    m_line_vbufs.clear();
-    m_line_style_vbufs.clear();
-    m_fill_vbufs.clear();
-    m_fill_style_vbufs.clear();
-    m_draw_vbufs.clear();
-    m_draw_style_vbufs.clear();
-    m_thick_line_instance_vbufs.clear();
-    m_thick_line_style_vbufs.clear();
-    m_dashed_line_instance_vbufs.clear();
-    m_dashed_line_style_vbufs.clear();
+    m_frame_resources.clear();
+    m_frame_resources.resize(std::max(1, rhi()->resourceLimit(QRhi::FramesInFlight)));
+
+    for (FrameResources& frame : m_frame_resources) {
+        // MVP UBO: 80 bytes — mat4 mvp (64 B) + vec2 viewport (8 B) + 8 B padding.
+        // All vertex shaders share the same std140 block layout:
+        //   mat4 mvp + vec2 viewport.
+        frame.mvp_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
+                                              QRhiBuffer::UniformBuffer,
+                                              kMvpUboSize));
+        frame.mvp_ubuf->create();
+        frame.palette_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
+                                                  QRhiBuffer::UniformBuffer,
+                                                  sizeof(PaletteUniformBlock)));
+        frame.palette_ubuf->create();
+        frame.line_vbufs.clear();
+        frame.line_style_vbufs.clear();
+        frame.fill_vbufs.clear();
+        frame.fill_style_vbufs.clear();
+        frame.draw_vbufs.clear();
+        frame.draw_style_vbufs.clear();
+        frame.thick_line_instance_vbufs.clear();
+        frame.thick_line_style_vbufs.clear();
+        frame.dashed_line_instance_vbufs.clear();
+        frame.dashed_line_style_vbufs.clear();
+        frame.gpu_tiles.clear();
+    }
 
     // Constant quad-corner buffer (32 bytes, Dynamic so we can upload via
     // the normal updateDynamicBuffer path in render()).
@@ -406,33 +421,37 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     m_thick_line_corner_vbuf->create();
 
     // Shader resource bindings: MVP at binding 0, palette at binding 1.
-    // All pipelines share the same SRB (same binding layout).
-    m_srb.reset(rhi()->newShaderResourceBindings());
-    m_srb->setBindings({
-        QRhiShaderResourceBinding::uniformBuffer(
-            0,
-            QRhiShaderResourceBinding::VertexStage,
-            m_mvp_ubuf.get()),
-        QRhiShaderResourceBinding::uniformBuffer(
-            1,
-            QRhiShaderResourceBinding::FragmentStage,
-            m_palette_ubuf.get())
-    });
-    m_srb->create();
+    // All pipelines share the same binding layout, but each in-flight frame
+    // gets its own concrete buffers to avoid cross-frame aliasing.
+    for (FrameResources& frame : m_frame_resources) {
+        frame.srb.reset(rhi()->newShaderResourceBindings());
+        frame.srb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage,
+                frame.mvp_ubuf.get()),
+            QRhiShaderResourceBinding::uniformBuffer(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                frame.palette_ubuf.get())
+        });
+        frame.srb->create();
+    }
 
     auto* rpDesc = renderTarget()->renderPassDescriptor();
-    buildPipeline(rhi(), m_line_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, m_srb.get(), rpDesc);
-    buildPipeline(rhi(), m_fill_pso,  QRhiGraphicsPipeline::Triangles, vs, fs, m_srb.get(), rpDesc);
-    buildPipeline(rhi(), m_draw_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, m_srb.get(), rpDesc);
-    buildThickLinePipeline(rhi(), m_thick_line_pso, thick_vs, fs, m_srb.get(), rpDesc);
-    buildDashedLinePipeline(rhi(), m_dashed_line_pso, dashed_vs, dashed_fs, m_srb.get(), rpDesc);
+    QRhiShaderResourceBindings* const pipeline_srb = m_frame_resources.front().srb.get();
+    buildPipeline(rhi(), m_line_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, pipeline_srb, rpDesc);
+    buildPipeline(rhi(), m_fill_pso,  QRhiGraphicsPipeline::Triangles, vs, fs, pipeline_srb, rpDesc);
+    buildPipeline(rhi(), m_draw_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, pipeline_srb, rpDesc);
+    buildThickLinePipeline(rhi(), m_thick_line_pso, thick_vs, fs, pipeline_srb, rpDesc);
+    buildDashedLinePipeline(rhi(), m_dashed_line_pso, dashed_vs, dashed_fs, pipeline_srb, rpDesc);
 
     m_initialized = true;
 }
 
 void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 {
-    if (!m_initialized)
+    if (!m_initialized || m_frame_resources.empty())
         return;
 
     const auto frame_start = std::chrono::steady_clock::now();
@@ -464,15 +483,18 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         // m_pending_overlay stays; paintEvent() reads it via the mutex.
     }
 
+    const int frame_slot = currentFrameResourceIndex(rhi(), m_frame_resources.size());
+    FrameResources& frame = m_frame_resources[std::size_t(frame_slot)];
+
     // --- Upload to GPU -------------------------------------------------------
     QRhiResourceUpdateBatch* u = rhi()->nextResourceUpdateBatch();
 
     // Update MVP (column-major, as OpenGL/SPIR-V expect) + viewport.
     // thick_line.vert reads the viewport at offset 64 in the same UBO.
-    u->updateDynamicBuffer(m_mvp_ubuf.get(), 0, 64, mvp.constData());
+    u->updateDynamicBuffer(frame.mvp_ubuf.get(), 0, 64, mvp.constData());
     {
         const float vp[2] = { float(width()), float(height()) };
-        u->updateDynamicBuffer(m_mvp_ubuf.get(), 64, int(sizeof(vp)), vp);
+        u->updateDynamicBuffer(frame.mvp_ubuf.get(), 64, int(sizeof(vp)), vp);
     }
 
     // Upload the constant quad-corner buffer (32 bytes, same every frame).
@@ -599,11 +621,11 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             }
         };
 
-        m_gpu_tiles.resize(tiles.size());
+        frame.gpu_tiles.resize(tiles.size());
 
         for (std::size_t i = 0; i < tiles.size(); ++i) {
             const RhiTileBatch& tile     = tiles[i];
-            GpuTileBatch&       gpu_tile = m_gpu_tiles[i];
+            GpuTileBatch&       gpu_tile = frame.gpu_tiles[i];
             gpu_tile.world_bounds = tile.world_bounds;
             planStream(gpu_tile.line_chunks, line_uploads, line_buffer_vertices,
                        tile.line_verts, tile.line_styles,
@@ -676,30 +698,30 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                                        upload.style_data);
             }
         };
-        ensureBufferSet(m_line_vbufs,       m_line_style_vbufs,       line_buffer_vertices,
+        ensureBufferSet(frame.line_vbufs,       frame.line_style_vbufs,       line_buffer_vertices,
                         sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
-        ensureBufferSet(m_fill_vbufs,       m_fill_style_vbufs,       fill_buffer_vertices,
+        ensureBufferSet(frame.fill_vbufs,       frame.fill_style_vbufs,       fill_buffer_vertices,
                         sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
-        ensureBufferSet(m_draw_vbufs,       m_draw_style_vbufs,       draw_buffer_vertices,
+        ensureBufferSet(frame.draw_vbufs,       frame.draw_style_vbufs,       draw_buffer_vertices,
                         sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
-        ensureBufferSet(m_thick_line_instance_vbufs, m_thick_line_style_vbufs,
+        ensureBufferSet(frame.thick_line_instance_vbufs, frame.thick_line_style_vbufs,
                         thick_line_buffer_vertices,
                         sizeof(ThickLineInstance), kInitialThickInstanceBufferBytes);
-        ensureBufferSet(m_dashed_line_instance_vbufs, m_dashed_line_style_vbufs,
+        ensureBufferSet(frame.dashed_line_instance_vbufs, frame.dashed_line_style_vbufs,
                         dashed_line_buffer_vertices,
                         sizeof(DashedLineInstance), kInitialDashedInstanceBufferBytes);
-        uploadPlannedStream(m_line_vbufs,       m_line_style_vbufs,       line_uploads);
-        uploadPlannedStream(m_fill_vbufs,       m_fill_style_vbufs,       fill_uploads);
-        uploadPlannedStream(m_draw_vbufs,       m_draw_style_vbufs,       draw_uploads);
-        uploadPlannedStream(m_thick_line_instance_vbufs,  m_thick_line_style_vbufs,  thick_line_uploads);
-        uploadPlannedStream(m_dashed_line_instance_vbufs, m_dashed_line_style_vbufs, dashed_line_uploads);
+        uploadPlannedStream(frame.line_vbufs,       frame.line_style_vbufs,       line_uploads);
+        uploadPlannedStream(frame.fill_vbufs,       frame.fill_style_vbufs,       fill_uploads);
+        uploadPlannedStream(frame.draw_vbufs,       frame.draw_style_vbufs,       draw_uploads);
+        uploadPlannedStream(frame.thick_line_instance_vbufs,  frame.thick_line_style_vbufs,  thick_line_uploads);
+        uploadPlannedStream(frame.dashed_line_instance_vbufs, frame.dashed_line_style_vbufs, dashed_line_uploads);
 
         PaletteUniformBlock palette_data{};
         const std::size_t palette_count =
             std::min<std::size_t>(palette_rgba.size(), kMaxRhiStyleEntries);
         for (std::size_t i = 0; i < palette_count; ++i)
             palette_data.colors[i] = makeColorUniform(palette_rgba[i]);
-        u->updateDynamicBuffer(m_palette_ubuf.get(),
+        u->updateDynamicBuffer(frame.palette_ubuf.get(),
                                0,
                                sizeof(PaletteUniformBlock),
                                &palette_data);
@@ -719,7 +741,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                 continue;
 
             cb->setGraphicsPipeline(pso.get());
-            cb->setShaderResources(m_srb.get());
+            cb->setShaderResources(frame.srb.get());
             const QRhiCommandBuffer::VertexInput inputs[] = {
                 { pos_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
                 { style_vbufs[chunk.buffer_index].get(), chunk.style_offset }
@@ -730,7 +752,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     };
 
     std::size_t visible_tile_count = 0;
-    for (const GpuTileBatch& tile : m_gpu_tiles) {
+    for (const GpuTileBatch& tile : frame.gpu_tiles) {
         if (!rectanglesIntersect(tile.world_bounds, visible_world))
             continue;
 
@@ -738,20 +760,20 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         // Draw order: fills first (bottom), then outlines and lines on top.
         // This matches painter semantics — the last-submitted primitive type
         // appears on top, so fills (submitted first) are always below lines.
-        drawChunks(m_fill_pso,       m_fill_vbufs,       m_fill_style_vbufs,       tile.fill_chunks);
-        drawChunks(m_draw_pso,       m_draw_vbufs,       m_draw_style_vbufs,       tile.draw_chunks);
-        drawChunks(m_line_pso,       m_line_vbufs,       m_line_style_vbufs,       tile.line_chunks);
+        drawChunks(m_fill_pso,       frame.fill_vbufs,       frame.fill_style_vbufs,       tile.fill_chunks);
+        drawChunks(m_draw_pso,       frame.draw_vbufs,       frame.draw_style_vbufs,       tile.draw_chunks);
+        drawChunks(m_line_pso,       frame.line_vbufs,       frame.line_style_vbufs,       tile.line_chunks);
         // Dashed lines: instanced draw — 4 quad-corner vertices × N instances.
         // Uses a dedicated fragment shader that discards gap fragments.
         for (const StreamChunk& chunk : tile.dashed_line_chunks) {
             if (chunk.count == 0)
                 continue;
             cb->setGraphicsPipeline(m_dashed_line_pso.get());
-            cb->setShaderResources(m_srb.get());
+            cb->setShaderResources(frame.srb.get());
             const QRhiCommandBuffer::VertexInput inputs[3] = {
                 { m_thick_line_corner_vbuf.get(), 0 },
-                { m_dashed_line_instance_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
-                { m_dashed_line_style_vbufs[chunk.buffer_index].get(),    chunk.style_offset }
+                { frame.dashed_line_instance_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
+                { frame.dashed_line_style_vbufs[chunk.buffer_index].get(),    chunk.style_offset }
             };
             cb->setVertexInput(0, 3, inputs);
             cb->draw(4, chunk.count);
@@ -762,11 +784,11 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             if (chunk.count == 0)
                 continue;
             cb->setGraphicsPipeline(m_thick_line_pso.get());
-            cb->setShaderResources(m_srb.get());
+            cb->setShaderResources(frame.srb.get());
             const QRhiCommandBuffer::VertexInput inputs[3] = {
                 { m_thick_line_corner_vbuf.get(), 0 },
-                { m_thick_line_instance_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
-                { m_thick_line_style_vbufs[chunk.buffer_index].get(),    chunk.style_offset }
+                { frame.thick_line_instance_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
+                { frame.thick_line_style_vbufs[chunk.buffer_index].get(),    chunk.style_offset }
             };
             cb->setVertexInput(0, 3, inputs);
             cb->draw(4, chunk.count); // 4 quad corners, chunk.count instances
@@ -788,19 +810,20 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     unsigned long long draw_verts       = 0;
     unsigned long long thick_line_verts = 0;
     unsigned long long dashed_line_verts = 0;
-    for (const GpuTileBatch& tile : m_gpu_tiles) {
+    for (const GpuTileBatch& tile : frame.gpu_tiles) {
         line_verts       += countChunkVertices(tile.line_chunks);
         fill_verts       += countChunkVertices(tile.fill_chunks);
         draw_verts       += countChunkVertices(tile.draw_chunks);
         thick_line_verts += countChunkVertices(tile.thick_line_chunks); // = instance count
         dashed_line_verts += countChunkVertices(tile.dashed_line_chunks); // = instance count
     }
-    g_debug("RHI render() CPU time %.3f ms (geom_dirty=%d, tiles=%zu, visible_tiles=%zu, "
+    g_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, tiles=%zu, visible_tiles=%zu, "
             "line_verts=%llu, fill_verts=%llu, draw_verts=%llu, thick_line_verts=%llu, "
             "dashed_line_verts=%llu)",
             frame_ms,
+            frame_slot,
             int(geom_dirty),
-            m_gpu_tiles.size(),
+            frame.gpu_tiles.size(),
             visible_tile_count,
             line_verts,
             fill_verts,
@@ -820,21 +843,24 @@ void RhiCanvasWidget::releaseResources()
     m_draw_pso.reset();
     m_fill_pso.reset();
     m_line_pso.reset();
-    m_srb.reset();
-    resetBufferVector(m_dashed_line_style_vbufs);
-    resetBufferVector(m_dashed_line_instance_vbufs);
-    resetBufferVector(m_thick_line_style_vbufs);
-    resetBufferVector(m_thick_line_instance_vbufs);
     m_thick_line_corner_vbuf.reset();
-    resetBufferVector(m_draw_style_vbufs);
-    resetBufferVector(m_draw_vbufs);
-    resetBufferVector(m_fill_style_vbufs);
-    resetBufferVector(m_fill_vbufs);
-    resetBufferVector(m_line_style_vbufs);
-    resetBufferVector(m_line_vbufs);
-    m_gpu_tiles.clear();
-    m_palette_ubuf.reset();
-    m_mvp_ubuf.reset();
+    for (FrameResources& frame : m_frame_resources) {
+        frame.srb.reset();
+        resetBufferVector(frame.dashed_line_style_vbufs);
+        resetBufferVector(frame.dashed_line_instance_vbufs);
+        resetBufferVector(frame.thick_line_style_vbufs);
+        resetBufferVector(frame.thick_line_instance_vbufs);
+        resetBufferVector(frame.draw_style_vbufs);
+        resetBufferVector(frame.draw_vbufs);
+        resetBufferVector(frame.fill_style_vbufs);
+        resetBufferVector(frame.fill_vbufs);
+        resetBufferVector(frame.line_style_vbufs);
+        resetBufferVector(frame.line_vbufs);
+        frame.gpu_tiles.clear();
+        frame.palette_ubuf.reset();
+        frame.mvp_ubuf.reset();
+    }
+    m_frame_resources.clear();
     m_initialized = false;
 }
 

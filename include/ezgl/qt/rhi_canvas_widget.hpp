@@ -200,31 +200,34 @@ private:
         std::vector<StreamChunk> dashed_line_chunks;
     };
 
+    struct FrameResources {
+        std::unique_ptr<QRhiBuffer>                 mvp_ubuf;
+        std::unique_ptr<QRhiBuffer>                 palette_ubuf;
+        std::vector<std::unique_ptr<QRhiBuffer>>    line_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    line_style_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    fill_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    fill_style_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    draw_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    draw_style_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    thick_line_instance_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    thick_line_style_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    dashed_line_instance_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    dashed_line_style_vbufs;
+        std::vector<GpuTileBatch>                   gpu_tiles;
+        std::unique_ptr<QRhiShaderResourceBindings> srb;
+    };
+
     // GPU resources — unique_ptr keeps them alive between initialize/release.
-    // Complete type required only in .cpp.
-    std::unique_ptr<QRhiBuffer>                 m_mvp_ubuf;
-    std::unique_ptr<QRhiBuffer>                 m_palette_ubuf;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_line_vbufs;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_line_style_vbufs;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_fill_vbufs;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_fill_style_vbufs;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_draw_vbufs;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_draw_style_vbufs;
+    // Mutable per-frame resources are duplicated across QRhi frame slots so
+    // camera-only updates do not rewrite data that may still be in flight.
+    std::vector<FrameResources>                m_frame_resources;
     // Thick-line instanced rendering:
     //   m_thick_line_corner_vbuf  — 4 QuadCorner values, immutable, shared by all draws.
-    //   m_thick_line_instance_vbufs — per-frame ThickLineInstance data (20 bytes/line).
-    //   m_thick_line_style_vbufs    — per-frame StyleIndex data (1 byte/line).
-    std::unique_ptr<QRhiBuffer>                 m_thick_line_corner_vbuf;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_thick_line_instance_vbufs;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_thick_line_style_vbufs;
-    std::vector<GpuTileBatch>                   m_gpu_tiles;
-    std::unique_ptr<QRhiShaderResourceBindings> m_srb;
+    std::unique_ptr<QRhiBuffer>                m_thick_line_corner_vbuf;
     std::unique_ptr<QRhiGraphicsPipeline>       m_line_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_fill_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_draw_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_thick_line_pso;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_dashed_line_instance_vbufs;
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_dashed_line_style_vbufs;
     std::unique_ptr<QRhiGraphicsPipeline>       m_dashed_line_pso;
     bool m_initialized = false;
 
@@ -240,6 +243,7 @@ private:
     bool                       m_mvp_dirty   = false;  // only MVP changed
 
     // Cached tiled GPU streams for camera-only frames (no geometry re-upload).
+    // One cache exists per QRhi frame slot.
 
     // Canvas hooks
     std::function<void(int,int)> m_resize_cb;
