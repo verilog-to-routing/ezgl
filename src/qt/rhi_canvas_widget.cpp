@@ -843,6 +843,7 @@ void RhiCanvasWidget::paintEvent(QPaintEvent* e)
     // QRhiWidget::paintEvent renders the GPU texture to the widget surface.
     QRhiWidget::paintEvent(e);
 
+#ifndef SKIP_LEGACY_PAINTER_OVERLAY
     // Composite QPainter overlay (text, arcs, polygons) on top.
     QImage overlay;
     {
@@ -853,6 +854,7 @@ void RhiCanvasWidget::paintEvent(QPaintEvent* e)
         QPainter p(this);
         p.drawImage(rect(), overlay, overlay.rect());
     }
+#endif
 }
 
 void RhiCanvasWidget::resizeEvent(QResizeEvent* e)

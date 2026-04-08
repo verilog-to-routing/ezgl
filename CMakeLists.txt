@@ -120,6 +120,9 @@ if(USE_QT)
             find_package(Qt6 QUIET COMPONENTS Gui)
             target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::GuiPrivate)
 
+
+            target_compile_definitions(${PROJECT_NAME} PRIVATE SKIP_LEGACY_PAINTER_OVERLAY)
+
             # Bake GLSL shaders to .qsb as part of the build when qsb is available.
             set(EZGL_QSB_EXECUTABLE "${EZGL_QSB_EXECUTABLE}" CACHE FILEPATH
                 "Path to the Qt Shader Baker executable (qsb)")
