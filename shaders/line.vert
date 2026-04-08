@@ -5,6 +5,8 @@ layout(location = 1) in float inStyleNorm;
 
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
+    // Kept for SRB/UBO layout parity with thick_line.vert and dashed_line.vert.
+    vec2 viewport;
 } ubo;
 
 layout(location = 0) out float v_style_index;

@@ -375,8 +375,8 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     QShader dashed_fs   = loadShader(":/ezgl/dashed_line.frag.qsb");
 
     // MVP UBO: 80 bytes — mat4 mvp (64 B) + vec2 viewport (8 B) + 8 B padding.
-    // line.vert reads only the first 64 bytes (mat4); the extra bytes are fine.
-    // thick_line.vert reads all 72 bytes (mat4 + vec2).
+    // All vertex shaders share the same std140 block layout:
+    //   mat4 mvp + vec2 viewport.
     m_mvp_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
                                       QRhiBuffer::UniformBuffer,
                                       kMvpUboSize));
