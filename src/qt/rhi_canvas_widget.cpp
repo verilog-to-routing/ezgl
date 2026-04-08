@@ -784,14 +784,17 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     unsigned long long fill_verts       = 0;
     unsigned long long draw_verts       = 0;
     unsigned long long thick_line_verts = 0;
+    unsigned long long dashed_line_verts = 0;
     for (const GpuTileBatch& tile : m_gpu_tiles) {
         line_verts       += countChunkVertices(tile.line_chunks);
         fill_verts       += countChunkVertices(tile.fill_chunks);
         draw_verts       += countChunkVertices(tile.draw_chunks);
         thick_line_verts += countChunkVertices(tile.thick_line_chunks); // = instance count
+        dashed_line_verts += countChunkVertices(tile.dashed_line_chunks); // = instance count
     }
     g_debug("RHI render() CPU time %.3f ms (geom_dirty=%d, tiles=%zu, visible_tiles=%zu, "
-            "line_verts=%llu, fill_verts=%llu, draw_verts=%llu, thick_line_verts=%llu)",
+            "line_verts=%llu, fill_verts=%llu, draw_verts=%llu, thick_line_verts=%llu, "
+            "dashed_line_verts=%llu)",
             frame_ms,
             int(geom_dirty),
             m_gpu_tiles.size(),
@@ -799,7 +802,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             line_verts,
             fill_verts,
             draw_verts,
-            thick_line_verts);
+            thick_line_verts,
+            dashed_line_verts);
 }
 
 void RhiCanvasWidget::releaseResources()

@@ -216,19 +216,62 @@ static const RectStyle RECT_PALETTE[] = {
 };
 static constexpr int RECT_PALETTE_SIZE = static_cast<int>(sizeof(RECT_PALETTE) / sizeof(RECT_PALETTE[0]));
 
+void draw_solid(ezgl::renderer *g)
+{
+  const int num = g_bench_n/3;
+
+  const GridLayout layout = current_layout();
+  // fill rects
+  g->set_color(ezgl::RED);
+  for (int i = 0; i < num; ++i) {
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->fill_rectangle({p.x0, p.y0}, {p.x1, p.y1});
+  }
+
+  // draw rects
+  g->set_color(ezgl::GREEN);
+  g->set_line_width(0);
+  g->set_line_dash(ezgl::line_dash::none);
+  for (int i = 0; i < num; ++i) {
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->draw_rectangle({p.x0 + 10, p.y0}, {p.x1, p.y1});
+  }
+
+  // lines
+  g->set_color(ezgl::BLUE);
+  g->set_line_width(0);
+  g->set_line_dash(ezgl::line_dash::none);
+  for (int i = 0; i < num; ++i) {
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->draw_line({p.x0, p.y0}, {p.x1, p.y1});
+  }
+}
+
 void draw_variadic(ezgl::renderer *g)
 {
+  const int num = g_bench_n/3;
+
   const GridLayout layout = current_layout();
-  // rects
-  for (int i = 0; i < g_bench_n/2; ++i) {
+  // fill rects
+  for (int i = 0; i < num/2; ++i) {
     const RectStyle &s = RECT_PALETTE[i % RECT_PALETTE_SIZE];
     g->set_color(s.color, s.alpha);
     const PrimitivePlacement p = placement_for(layout, i);
     g->fill_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
 
+  // draw rects
+  g->set_line_width(0);
+  g->set_line_dash(ezgl::line_dash::none);
+  for (int i = 0; i < num; ++i) {
+    const RectStyle &s = RECT_PALETTE[i % RECT_PALETTE_SIZE];
+    g->set_color(s.color, s.alpha);
+    const PrimitivePlacement p = placement_for(layout, i);
+    g->draw_rectangle({p.x0 + 10, p.y0}, {p.x1, p.y1});
+  }
+
   // lines
-  for (int i = 0; i < g_bench_n/2; ++i) {
+  for (int i = 0; i < num; ++i) {
     const LineStyle &s = LINE_PALETTE[i % LINE_PALETTE_SIZE];
     g->set_color(s.color, s.alpha);
     g->set_line_width(s.width);
@@ -284,9 +327,10 @@ struct TestCase {
 };
 
 static const TestCase TESTS[] = {
-    { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
-    { "variadic lines   ", draw_lines_variadic,         1'000, "bench_lines_variadic.png"    },
-    { "variadic   ",       draw_variadic,               1'000, "bench_variadic.png"    },
+    // { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
+    // { "variadic lines   ", draw_lines_variadic,         1'000, "bench_lines_variadic.png"    },
+    { "solid   ",       draw_solid,               1'000, "draw_solid.png"    },
+    // { "variadic   ",       draw_variadic,               1'000, "bench_variadic.png"    },
 //  { "solid lines      ", draw_lines_solid,           200'000'000, "bench_lines_solid.png"       },
 //  { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
   // { "variadic lines   ", draw_lines_variadic,         400'000'000, "bench_lines_variadic.png"    },

@@ -74,6 +74,21 @@ void rhi_renderer::begin_frame()
     m_overlay_painter.begin(&m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
+
+    // Match the deferred path semantics: each redraw starts from the renderer
+    // defaults rather than inheriting state from the previous frame.
+    current_coordinate_system = WORLD;
+    rotation_angle = 0.0;
+    horiz_justification = justification::center;
+    vert_justification = justification::center;
+    current_color = {0, 0, 0, 255};
+    current_line_width = 0;
+    current_line_cap = line_cap::butt;
+    current_line_dash = line_dash::none;
+    set_color(current_color);
+    set_line_width(current_line_width);
+    set_line_cap(current_line_cap);
+    set_line_dash(current_line_dash);
 }
 
 // ---- helpers ---------------------------------------------------------------
