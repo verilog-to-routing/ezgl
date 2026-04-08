@@ -193,13 +193,13 @@ struct RectStyle {
 
 static const LineStyle LINE_PALETTE[] = {
   { ezgl::BLUE,   255, 1 },
-  { ezgl::RED,    255, 1 },
-  { ezgl::GREEN,  255, 1 },
-  { ezgl::ORANGE, 255, 2 },
+  { ezgl::RED,    255, 2 },
+  { ezgl::GREEN,  255, 3 },
+  { ezgl::ORANGE, 255, 4 },
   { ezgl::BLUE,   128, 1 },
-  { ezgl::RED,    128, 1 },
-  { ezgl::GREEN,  128, 1 },
-  { ezgl::ORANGE, 128, 2 },
+  { ezgl::RED,    128, 2 },
+  { ezgl::GREEN,  128, 3 },
+  { ezgl::ORANGE, 128, 4 },
 };
 static constexpr int LINE_PALETTE_SIZE = static_cast<int>(sizeof(LINE_PALETTE) / sizeof(LINE_PALETTE[0]));
 
@@ -261,7 +261,8 @@ struct TestCase {
 };
 
 static const TestCase TESTS[] = {
-  { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
+  { "variadic lines   ", draw_lines_variadic,         100'000'000, "bench_lines_variadic.png"    },
+//  { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
   // { "variadic lines   ", draw_lines_variadic,         400'000'000, "bench_lines_variadic.png"    },
   //{ "variadic rects   ", draw_rectangles_variadic,    100'000'000, "bench_rects_variadic.png"    },
     //////////////////
