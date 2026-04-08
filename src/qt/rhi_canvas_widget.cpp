@@ -31,12 +31,12 @@ constexpr std::size_t kMaxQrhiBufferBytes =
     std::size_t(std::numeric_limits<int>::max());
 constexpr std::size_t kInitialStreamVertexBufferBytes      = 1 * 1024 * 1024;
 constexpr std::size_t kInitialStreamStyleBufferBytes       = 128 * 1024;
-constexpr std::size_t kInitialThickStreamVertexBufferBytes = 1 * 1024 * 1024;
+constexpr std::size_t kInitialThickInstanceBufferBytes = 512 * 1024;
 constexpr std::size_t kMaxVerticesPerChunk =
     std::min(kMaxQrhiBufferBytes / sizeof(ezgl::PosVertex),
              kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
-constexpr std::size_t kMaxThickVerticesPerChunk =
-    std::min(kMaxQrhiBufferBytes / sizeof(ezgl::ThickLineVertex),
+constexpr std::size_t kMaxThickInstancesPerChunk =
+    std::min(kMaxQrhiBufferBytes / sizeof(ezgl::ThickLineInstance),
              kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
 
 // MVP UBO layout (std140, binding 0):
@@ -188,26 +188,33 @@ void buildThickLinePipeline(QRhi*                                   rhi,
                             QRhiShaderResourceBindings*              srb,
                             QRhiRenderPassDescriptor*                rpDesc)
 {
+    // Instanced rendering:
+    //   Binding 0 (PerVertex)   — QuadCorner   (t, side)        — 4 corners, constant
+    //   Binding 1 (PerInstance) — ThickLineInstance (x0,y0,x1,y1,width_px)
+    //   Binding 2 (PerInstance) — StyleIndex   (normalised byte) — 1 per line
     QRhiVertexInputLayout layout;
     layout.setBindings({
-        QRhiVertexInputBinding(sizeof(ezgl::ThickLineVertex)),
-        QRhiVertexInputBinding(sizeof(ezgl::StyleIndex))
+        QRhiVertexInputBinding(sizeof(ezgl::QuadCorner)),
+        QRhiVertexInputBinding(sizeof(ezgl::ThickLineInstance),
+                               QRhiVertexInputBinding::PerInstance),
+        QRhiVertexInputBinding(sizeof(ezgl::StyleIndex),
+                               QRhiVertexInputBinding::PerInstance)
     });
     layout.setAttributes({
-        // location 0: inPos (x, y)
+        // location 0: inCorner (t, side) — from binding 0, per vertex
         QRhiVertexInputAttribute(0, 0, QRhiVertexInputAttribute::Float2,
-                                 offsetof(ezgl::ThickLineVertex, x)),
-        // location 1: inPerp (perp_x, perp_y)
-        QRhiVertexInputAttribute(0, 1, QRhiVertexInputAttribute::Float2,
-                                 offsetof(ezgl::ThickLineVertex, perp_x)),
-        // location 2: inWidthPx
-        QRhiVertexInputAttribute(0, 2, QRhiVertexInputAttribute::Float,
-                                 offsetof(ezgl::ThickLineVertex, width_px)),
-        // location 3: inSide
-        QRhiVertexInputAttribute(0, 3, QRhiVertexInputAttribute::Float,
-                                 offsetof(ezgl::ThickLineVertex, side)),
-        // location 4: inStyleNorm (binding 1)
-        QRhiVertexInputAttribute(1, 4, QRhiVertexInputAttribute::UNormByte, 0)
+                                 offsetof(ezgl::QuadCorner, t)),
+        // location 1: inStart (x0, y0) — from binding 1, per instance
+        QRhiVertexInputAttribute(1, 1, QRhiVertexInputAttribute::Float2,
+                                 offsetof(ezgl::ThickLineInstance, x0)),
+        // location 2: inEnd (x1, y1) — from binding 1, per instance
+        QRhiVertexInputAttribute(1, 2, QRhiVertexInputAttribute::Float2,
+                                 offsetof(ezgl::ThickLineInstance, x1)),
+        // location 3: inWidthPx — from binding 1, per instance
+        QRhiVertexInputAttribute(1, 3, QRhiVertexInputAttribute::Float,
+                                 offsetof(ezgl::ThickLineInstance, width_px)),
+        // location 4: inStyleNorm — from binding 2, per instance
+        QRhiVertexInputAttribute(2, 4, QRhiVertexInputAttribute::UNormByte, 0)
     });
 
     QRhiGraphicsPipeline::TargetBlend blend;
@@ -218,7 +225,7 @@ void buildThickLinePipeline(QRhi*                                   rhi,
     blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
 
     pso.reset(rhi->newGraphicsPipeline());
-    pso->setTopology(QRhiGraphicsPipeline::Triangles);
+    pso->setTopology(QRhiGraphicsPipeline::TriangleStrip);
     pso->setVertexInputLayout(layout);
     pso->setShaderStages({
         { QRhiShaderStage::Vertex,   thick_vs },
@@ -316,8 +323,17 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     m_fill_style_vbufs.clear();
     m_draw_vbufs.clear();
     m_draw_style_vbufs.clear();
-    m_thick_line_vbufs.clear();
+    m_thick_line_instance_vbufs.clear();
     m_thick_line_style_vbufs.clear();
+
+    // Constant quad-corner buffer (32 bytes, Dynamic so we can upload via
+    // the normal updateDynamicBuffer path in render()).
+    // 4 corners for TriangleStrip: {t=0,side=-1},{t=0,+1},{t=1,-1},{t=1,+1}
+    m_thick_line_corner_vbuf.reset(
+        rhi()->newBuffer(QRhiBuffer::Dynamic,
+                         QRhiBuffer::VertexBuffer,
+                         int(4 * sizeof(ezgl::QuadCorner))));
+    m_thick_line_corner_vbuf->create();
 
     // Shader resource bindings: MVP at binding 0, palette at binding 1.
     // All pipelines share the same SRB (same binding layout).
@@ -388,6 +404,19 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         u->updateDynamicBuffer(m_mvp_ubuf.get(), 64, int(sizeof(vp)), vp);
     }
 
+    // Upload the constant quad-corner buffer (32 bytes, same every frame).
+    // Done unconditionally so it is valid even after releaseResources/re-init.
+    {
+        static const ezgl::QuadCorner kCorners[4] = {
+            { 0.0f, -1.0f }, // t=start, left edge
+            { 0.0f, +1.0f }, // t=start, right edge
+            { 1.0f, -1.0f }, // t=end,   left edge
+            { 1.0f, +1.0f }  // t=end,   right edge
+        };
+        u->updateDynamicBuffer(m_thick_line_corner_vbuf.get(), 0,
+                               int(sizeof(kCorners)), kCorners);
+    }
+
     if (geom_dirty) {
         if (palette_rgba.size() > kMaxRhiStyleEntries) {
             qFatal("RhiCanvasWidget: palette size %zu exceeds limit %zu",
@@ -412,14 +441,14 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             if (tile.line_styles.size() != tile.line_verts.size()
                 || tile.fill_styles.size() != tile.fill_verts.size()
                 || tile.draw_styles.size() != tile.draw_verts.size()
-                || tile.thick_line_styles.size() != tile.thick_line_verts.size()) {
+                || tile.thick_line_styles.size() != tile.thick_line_instances.size()) {
                 qFatal("RhiCanvasWidget: style-stream size mismatch with vertex stream");
             }
 
             total_line_vertices       += tile.line_verts.size();
             total_fill_vertices       += tile.fill_verts.size();
             total_draw_vertices       += tile.draw_verts.size();
-            total_thick_line_vertices += tile.thick_line_verts.size();
+            total_thick_line_vertices += tile.thick_line_instances.size();
         }
 
         std::vector<std::size_t> line_buffer_vertices;
@@ -437,8 +466,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         draw_uploads.reserve(
             (total_draw_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
         thick_line_uploads.reserve(
-            (total_thick_line_vertices + kMaxThickVerticesPerChunk - 1)
-            / kMaxThickVerticesPerChunk);
+            (total_thick_line_vertices + kMaxThickInstancesPerChunk - 1)
+            / kMaxThickInstancesPerChunk);
 
         // planStream: distribute a tile's vertex+style arrays into chunked upload
         // records.  max_per_chunk and vertex_size are per-stream (PosVertex vs
@@ -508,8 +537,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                        kMaxVerticesPerChunk, sizeof(PosVertex));
             planStream(gpu_tile.thick_line_chunks, thick_line_uploads,
                        thick_line_buffer_vertices,
-                       tile.thick_line_verts, tile.thick_line_styles,
-                       kMaxThickVerticesPerChunk, sizeof(ThickLineVertex));
+                       tile.thick_line_instances, tile.thick_line_styles,
+                       kMaxThickInstancesPerChunk, sizeof(ThickLineInstance));
         }
 
         auto trimBufferVector = [](std::vector<std::unique_ptr<QRhiBuffer>>& buffers,
@@ -570,12 +599,14 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                         sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
         ensureBufferSet(m_draw_vbufs,       m_draw_style_vbufs,       draw_buffer_vertices,
                         sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
-        ensureBufferSet(m_thick_line_vbufs, m_thick_line_style_vbufs, thick_line_buffer_vertices,
-                        sizeof(ThickLineVertex), kInitialThickStreamVertexBufferBytes);
+        ensureBufferSet(m_thick_line_instance_vbufs, m_thick_line_style_vbufs,
+                        thick_line_buffer_vertices,
+                        sizeof(ThickLineInstance), kInitialThickInstanceBufferBytes);
         uploadPlannedStream(m_line_vbufs,       m_line_style_vbufs,       line_uploads);
         uploadPlannedStream(m_fill_vbufs,       m_fill_style_vbufs,       fill_uploads);
         uploadPlannedStream(m_draw_vbufs,       m_draw_style_vbufs,       draw_uploads);
-        uploadPlannedStream(m_thick_line_vbufs, m_thick_line_style_vbufs, thick_line_uploads);
+        uploadPlannedStream(m_thick_line_instance_vbufs, m_thick_line_style_vbufs,
+                            thick_line_uploads);
 
         PaletteUniformBlock palette_data{};
         const std::size_t palette_count =
@@ -621,7 +652,20 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         drawChunks(m_line_pso,       m_line_vbufs,       m_line_style_vbufs,       tile.line_chunks);
         drawChunks(m_fill_pso,       m_fill_vbufs,       m_fill_style_vbufs,       tile.fill_chunks);
         drawChunks(m_draw_pso,       m_draw_vbufs,       m_draw_style_vbufs,       tile.draw_chunks);
-        drawChunks(m_thick_line_pso, m_thick_line_vbufs, m_thick_line_style_vbufs, tile.thick_line_chunks);
+        // Thick lines: instanced draw — 4 quad-corner vertices × N instances.
+        for (const StreamChunk& chunk : tile.thick_line_chunks) {
+            if (chunk.count == 0)
+                continue;
+            cb->setGraphicsPipeline(m_thick_line_pso.get());
+            cb->setShaderResources(m_srb.get());
+            const QRhiCommandBuffer::VertexInput inputs[3] = {
+                { m_thick_line_corner_vbuf.get(), 0 },
+                { m_thick_line_instance_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
+                { m_thick_line_style_vbufs[chunk.buffer_index].get(),    chunk.style_offset }
+            };
+            cb->setVertexInput(0, 3, inputs);
+            cb->draw(4, chunk.count); // 4 quad corners, chunk.count instances
+        }
     }
 
     cb->endPass();
@@ -642,7 +686,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         line_verts       += countChunkVertices(tile.line_chunks);
         fill_verts       += countChunkVertices(tile.fill_chunks);
         draw_verts       += countChunkVertices(tile.draw_chunks);
-        thick_line_verts += countChunkVertices(tile.thick_line_chunks);
+        thick_line_verts += countChunkVertices(tile.thick_line_chunks); // = instance count
     }
     g_debug("RHI render() CPU time %.3f ms (geom_dirty=%d, tiles=%zu, visible_tiles=%zu, "
             "line_verts=%llu, fill_verts=%llu, draw_verts=%llu, thick_line_verts=%llu)",
@@ -668,7 +712,8 @@ void RhiCanvasWidget::releaseResources()
     m_line_pso.reset();
     m_srb.reset();
     resetBufferVector(m_thick_line_style_vbufs);
-    resetBufferVector(m_thick_line_vbufs);
+    resetBufferVector(m_thick_line_instance_vbufs);
+    m_thick_line_corner_vbuf.reset();
     resetBufferVector(m_draw_style_vbufs);
     resetBufferVector(m_draw_vbufs);
     resetBufferVector(m_fill_style_vbufs);

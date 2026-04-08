@@ -260,8 +260,10 @@ struct TestCase {
   const char          *output_file;
 };
 
+// TODO: make max fast shader for drawing thin line
 static const TestCase TESTS[] = {
-  { "variadic lines   ", draw_lines_variadic,         100'000'000, "bench_lines_variadic.png"    },
+  //{ "variadic lines   ", draw_lines_variadic,         200'000'000, "bench_lines_variadic.png"    },
+//  { "solid lines      ", draw_lines_solid,           200'000'000, "bench_lines_solid.png"       },
 //  { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
   // { "variadic lines   ", draw_lines_variadic,         400'000'000, "bench_lines_variadic.png"    },
   //{ "variadic rects   ", draw_rectangles_variadic,    100'000'000, "bench_rects_variadic.png"    },

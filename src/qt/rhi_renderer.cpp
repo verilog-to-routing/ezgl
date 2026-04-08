@@ -186,7 +186,7 @@ void rhi_renderer::clear_tile_geometry()
         tile.fill_styles.clear();
         tile.draw_verts.clear();
         tile.draw_styles.clear();
-        tile.thick_line_verts.clear();
+        tile.thick_line_instances.clear();
         tile.thick_line_styles.clear();
     }
 }
@@ -298,34 +298,20 @@ void rhi_renderer::append_thick_segment(RhiTileBatch& tile,
                                         float         width_px,
                                         StyleIndex    style_index)
 {
-    // Compute the normalized world-space perpendicular to the line direction.
     const double dx = end.x - start.x;
     const double dy = end.y - start.y;
-    const double len = std::sqrt(dx * dx + dy * dy);
-    if (len < 1e-10)
+    if (std::sqrt(dx * dx + dy * dy) < 1e-10)
         return; // degenerate (zero-length) segment
 
-    const float perp_x = float(-dy / len);
-    const float perp_y = float( dx / len);
-    const float sx     = float(start.x);
-    const float sy     = float(start.y);
-    const float ex     = float(end.x);
-    const float ey     = float(end.y);
-
-    // Emit 6 ThickLineVertex values forming 2 screen-aligned triangles.
-    // The vertex shader expands each vertex perpendicularly by width_px/2
-    // using the MVP + viewport uniforms — no geometry regeneration needed
-    // when the camera pans or zooms.
-    //
-    // Triangle 1: (start+, start-, end+)
-    tile.thick_line_verts.push_back({sx, sy, perp_x, perp_y, width_px, +1.0f});
-    tile.thick_line_verts.push_back({sx, sy, perp_x, perp_y, width_px, -1.0f});
-    tile.thick_line_verts.push_back({ex, ey, perp_x, perp_y, width_px, +1.0f});
-    // Triangle 2: (start-, end-, end+)
-    tile.thick_line_verts.push_back({sx, sy, perp_x, perp_y, width_px, -1.0f});
-    tile.thick_line_verts.push_back({ex, ey, perp_x, perp_y, width_px, -1.0f});
-    tile.thick_line_verts.push_back({ex, ey, perp_x, perp_y, width_px, +1.0f});
-    tile.thick_line_styles.insert(tile.thick_line_styles.end(), 6, style_index);
+    // One instance record (20 bytes) per segment.
+    // The vertex shader reconstructs all 4 quad corners from this record plus
+    // the constant 4-corner quad buffer — no per-vertex duplication of endpoints.
+    tile.thick_line_instances.push_back({
+        float(start.x), float(start.y),
+        float(end.x),   float(end.y),
+        width_px
+    });
+    tile.thick_line_styles.push_back(style_index); // 1 per instance, not per vertex
 }
 
 void rhi_renderer::append_thick_line_to_tiles(point2d    start,
@@ -520,7 +506,7 @@ void rhi_renderer::flush()
             ((tile.line_verts.size() +
               tile.fill_verts.size() +
               tile.draw_verts.size()) * sizeof(PosVertex)
-             + tile.thick_line_verts.size() * sizeof(ThickLineVertex)
+             + tile.thick_line_instances.size() * sizeof(ThickLineInstance)
              + (tile.line_styles.size() +
                 tile.fill_styles.size() +
                 tile.draw_styles.size() +

@@ -33,25 +33,36 @@ struct PosVertex {
 static_assert(sizeof(PosVertex) == 8, "PosVertex must be 8 bytes");
 
 /**
- * GPU vertex for thick (width > 0) lines.
+ * One corner of the thick-line quad template (4 total, constant buffer).
  *
- * The thick_line.vert shader uses the MVP + viewport uniforms to expand each
- * vertex perpendicularly by half the requested pixel width at render time, so
- * the geometry does not need to be regenerated when the camera pans or zooms.
+ *   t    : 0.0 = at line start,  1.0 = at line end
+ *   side : -1.0 = left edge,    +1.0 = right edge
  *
- * Layout (all floats, 24 bytes total):
- *   Offset  0 : float x, y       — world-space endpoint (start or end)
- *   Offset  8 : float perp_x, y  — normalized world-space perpendicular unit vector
- *   Offset 16 : float width_px   — full line width in screen pixels
- *   Offset 20 : float side       — +1.0 (one edge) or -1.0 (other edge)
+ * The same 4-corner buffer is reused for every thick-line draw call via
+ * instanced rendering, so it never grows with the number of lines.
  */
-struct ThickLineVertex {
-    float x, y;
-    float perp_x, perp_y;
-    float width_px;
+struct QuadCorner {
+    float t;
     float side;
 };
-static_assert(sizeof(ThickLineVertex) == 24, "ThickLineVertex must be 24 bytes");
+static_assert(sizeof(QuadCorner) == 8, "QuadCorner must be 8 bytes");
+
+/**
+ * Per-instance data for one thick-line segment (instanced rendering).
+ *
+ * Memory cost: 20 bytes per line, vs 144 bytes with a per-vertex approach
+ * (6 expanded vertices × 24 bytes).  For N lines: 7× less RAM.
+ *
+ *   Offset  0 : float x0, y0   — world-space start
+ *   Offset  8 : float x1, y1   — world-space end
+ *   Offset 16 : float width_px — full line width in screen pixels
+ */
+struct ThickLineInstance {
+    float x0, y0;
+    float x1, y1;
+    float width_px;
+};
+static_assert(sizeof(ThickLineInstance) == 20, "ThickLineInstance must be 20 bytes");
 
 // Compact style index per vertex. The fragment shader resolves it through a
 // small palette UBO, avoiding one draw call per color run.
@@ -69,17 +80,18 @@ struct RhiTileBatch {
     // draw_rectangle outlines (thin, 1-pixel) — drawn with Lines topology.
     std::vector<PosVertex>       draw_verts;
     std::vector<StyleIndex>      draw_styles;
-    // Thick (width > 1 pixel) lines and rectangle outlines — drawn with
-    // Triangles topology via thick_line.vert shader (6 verts per segment).
-    std::vector<ThickLineVertex> thick_line_verts;
-    std::vector<StyleIndex>      thick_line_styles;
+    // Thick (width > 1 pixel) lines and rectangle outlines.
+    // Rendered via instanced TriangleStrip (4 constant quad corners × N instances).
+    // One ThickLineInstance + one StyleIndex per segment — 21 bytes/line.
+    std::vector<ThickLineInstance> thick_line_instances;
+    std::vector<StyleIndex>        thick_line_styles;
 
     bool empty() const
     {
         return line_verts.empty()
             && fill_verts.empty()
             && draw_verts.empty()
-            && thick_line_verts.empty();
+            && thick_line_instances.empty();
     }
 };
 
@@ -171,8 +183,12 @@ private:
     std::vector<std::unique_ptr<QRhiBuffer>>    m_fill_style_vbufs;
     std::vector<std::unique_ptr<QRhiBuffer>>    m_draw_vbufs;
     std::vector<std::unique_ptr<QRhiBuffer>>    m_draw_style_vbufs;
-    // Thick-line position buffers store ThickLineVertex (24 bytes each).
-    std::vector<std::unique_ptr<QRhiBuffer>>    m_thick_line_vbufs;
+    // Thick-line instanced rendering:
+    //   m_thick_line_corner_vbuf  — 4 QuadCorner values, immutable, shared by all draws.
+    //   m_thick_line_instance_vbufs — per-frame ThickLineInstance data (20 bytes/line).
+    //   m_thick_line_style_vbufs    — per-frame StyleIndex data (1 byte/line).
+    std::unique_ptr<QRhiBuffer>                 m_thick_line_corner_vbuf;
+    std::vector<std::unique_ptr<QRhiBuffer>>    m_thick_line_instance_vbufs;
     std::vector<std::unique_ptr<QRhiBuffer>>    m_thick_line_style_vbufs;
     std::vector<GpuTileBatch>                   m_gpu_tiles;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;

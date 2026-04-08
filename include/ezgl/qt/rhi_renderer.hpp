@@ -92,19 +92,19 @@ private:
                                    StyleIndex style_index);
 
     // Thick line helpers (line_width > 0).
-    // Generates 6 ThickLineVertex values per clipped segment (2 triangles).
+    // Appends one ThickLineInstance per clipped segment (instanced rendering).
     void append_thick_segment(RhiTileBatch& tile,
                               point2d       start,
                               point2d       end,
                               float         width_px,
                               StyleIndex    style_index);
-    void append_thick_line_to_tiles(point2d start,
-                                    point2d end,
-                                    float   width_px,
+    void append_thick_line_to_tiles(point2d    start,
+                                    point2d    end,
+                                    float      width_px,
                                     StyleIndex style_index);
-    void append_thick_draw_segment_to_tiles(point2d start,
-                                            point2d end,
-                                            float   width_px,
+    void append_thick_draw_segment_to_tiles(point2d    start,
+                                            point2d    end,
+                                            float      width_px,
                                             StyleIndex style_index);
     void ensure_tile_grid();
     void clear_tile_geometry();
