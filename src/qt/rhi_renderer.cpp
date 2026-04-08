@@ -414,7 +414,7 @@ void rhi_renderer::append_dashed_draw_segment_to_tiles(point2d    start,
 // Convert the active line dash mode to pixel dash/gap lengths.
 // dash_px and gap_px are scaled by effective line width so dashes look
 // proportional regardless of line thickness.
-bool rhi_renderer::set_dash_pattern(float width_px,
+void rhi_renderer::set_dash_pattern(float width_px,
                                     float& dash_px,
                                     float& gap_px) const
 {
@@ -422,15 +422,15 @@ bool rhi_renderer::set_dash_pattern(float width_px,
         case ezgl::line_dash::none:
             dash_px = 0.0f;
             gap_px = 0.0f;
-            return false;
+            return;
         case ezgl::line_dash::asymmetric_5_3:
             dash_px = 5.0f * width_px;
             gap_px  = 3.0f * width_px;
-            return true;
+            return;
         default:
             dash_px = 5.0f * width_px;
             gap_px  = 3.0f * width_px;
-            return true;
+            return;
     }
 }
 
@@ -484,23 +484,19 @@ void rhi_renderer::draw_line(point2d start, point2d end)
 
     const StyleIndex style_index = current_style_index();
 
-    // Dashed: GPU instanced TriangleStrip with per-fragment discard.
-    // effective width >= 1 so dashes are always visible.
-    const float w = float(std::max(1, current_line_width));
-    float dash_px = 0.0f;
-    float gap_px = 0.0f;
-    if (set_dash_pattern(w, dash_px, gap_px)) {
+    if (current_line_width > 0) {
+        // Route all non-thin world-space lines through the same instanced
+        // pipeline. Solid lines use a zero dash/gap pair, which the dashed
+        // fragment shader treats as "no discard".
+        const float w = float(std::max(1, current_line_width));
+        float dash_px = 0.0f;
+        float gap_px = 0.0f;
+        set_dash_pattern(w, dash_px, gap_px);
         append_dashed_line_to_tiles(start, end, w, dash_px, gap_px, style_index);
         return;
     }
 
-    if (current_line_width > 0) {
-        append_thick_line_to_tiles(start, end,
-                                   float(current_line_width),
-                                   style_index);
-    } else {
-        append_line_to_tiles(start, end, style_index);
-    }
+    append_line_to_tiles(start, end, style_index);
 }
 
 // ---- fill_rectangle overrides ----------------------------------------------
@@ -540,10 +536,11 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
     const StyleIndex style_index = current_style_index();
 
-    const float w = float(std::max(1, current_line_width));
-    float dash_px = 0.0f;
-    float gap_px = 0.0f;
-    if (set_dash_pattern(w, dash_px, gap_px)) {
+    if (current_line_width > 0) {
+        const float w = float(std::max(1, current_line_width));
+        float dash_px = 0.0f;
+        float gap_px = 0.0f;
+        set_dash_pattern(w, dash_px, gap_px);
         append_dashed_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, dash_px, gap_px, style_index);
         append_dashed_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, dash_px, gap_px, style_index);
         append_dashed_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, dash_px, gap_px, style_index);
@@ -551,18 +548,10 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
         return;
     }
 
-    if (current_line_width > 0) {
-        const float w = float(current_line_width);
-        append_thick_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, style_index);
-        append_thick_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, style_index);
-        append_thick_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, style_index);
-        append_thick_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, style_index);
-    } else {
-        append_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_index);
-        append_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_index);
-        append_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_index);
-        append_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_index);
-    }
+    append_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_index);
+    append_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_index);
+    append_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_index);
+    append_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_index);
 }
 
 void rhi_renderer::draw_rectangle(point2d start, double width, double height)
