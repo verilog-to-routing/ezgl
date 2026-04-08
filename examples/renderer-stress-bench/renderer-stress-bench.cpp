@@ -234,7 +234,7 @@ void draw_solid(ezgl::renderer *g)
   g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < num; ++i) {
     const PrimitivePlacement p = placement_for(layout, i);
-    g->draw_rectangle({p.x0 + 10, p.y0}, {p.x1, p.y1});
+    g->draw_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
 
   // lines
@@ -267,7 +267,7 @@ void draw_variadic(ezgl::renderer *g)
     const RectStyle &s = RECT_PALETTE[i % RECT_PALETTE_SIZE];
     g->set_color(s.color, s.alpha);
     const PrimitivePlacement p = placement_for(layout, i);
-    g->draw_rectangle({p.x0 + 10, p.y0}, {p.x1, p.y1});
+    g->draw_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
 
   // lines
