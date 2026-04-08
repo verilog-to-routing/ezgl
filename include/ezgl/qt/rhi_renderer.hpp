@@ -90,6 +90,22 @@ private:
     void append_fill_rect_to_tiles(point2d p0,
                                    point2d p1,
                                    StyleIndex style_index);
+
+    // Thick line helpers (line_width > 0).
+    // Generates 6 ThickLineVertex values per clipped segment (2 triangles).
+    void append_thick_segment(RhiTileBatch& tile,
+                              point2d       start,
+                              point2d       end,
+                              float         width_px,
+                              StyleIndex    style_index);
+    void append_thick_line_to_tiles(point2d start,
+                                    point2d end,
+                                    float   width_px,
+                                    StyleIndex style_index);
+    void append_thick_draw_segment_to_tiles(point2d start,
+                                            point2d end,
+                                            float   width_px,
+                                            StyleIndex style_index);
     void ensure_tile_grid();
     void clear_tile_geometry();
     int clamp_tile_x(double x) const;

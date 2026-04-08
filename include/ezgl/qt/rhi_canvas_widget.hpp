@@ -32,25 +32,54 @@ struct PosVertex {
 };
 static_assert(sizeof(PosVertex) == 8, "PosVertex must be 8 bytes");
 
+/**
+ * GPU vertex for thick (width > 0) lines.
+ *
+ * The thick_line.vert shader uses the MVP + viewport uniforms to expand each
+ * vertex perpendicularly by half the requested pixel width at render time, so
+ * the geometry does not need to be regenerated when the camera pans or zooms.
+ *
+ * Layout (all floats, 24 bytes total):
+ *   Offset  0 : float x, y       — world-space endpoint (start or end)
+ *   Offset  8 : float perp_x, y  — normalized world-space perpendicular unit vector
+ *   Offset 16 : float width_px   — full line width in screen pixels
+ *   Offset 20 : float side       — +1.0 (one edge) or -1.0 (other edge)
+ */
+struct ThickLineVertex {
+    float x, y;
+    float perp_x, perp_y;
+    float width_px;
+    float side;
+};
+static_assert(sizeof(ThickLineVertex) == 24, "ThickLineVertex must be 24 bytes");
+
 // Compact style index per vertex. The fragment shader resolves it through a
 // small palette UBO, avoiding one draw call per color run.
 using StyleIndex = std::uint8_t;
 static constexpr std::size_t kMaxRhiStyleEntries = 256;
 
 struct RhiTileBatch {
-    rectangle               world_bounds;
-    std::vector<PosVertex>  line_verts;
-    std::vector<StyleIndex> line_styles;
-    std::vector<PosVertex>  fill_verts;
-    std::vector<StyleIndex> fill_styles;
-    std::vector<PosVertex>  draw_verts;
-    std::vector<StyleIndex> draw_styles;
+    rectangle                    world_bounds;
+    // Thin (1-pixel) lines — drawn with Lines topology.
+    std::vector<PosVertex>       line_verts;
+    std::vector<StyleIndex>      line_styles;
+    // Filled rectangles — drawn with Triangles topology.
+    std::vector<PosVertex>       fill_verts;
+    std::vector<StyleIndex>      fill_styles;
+    // draw_rectangle outlines (thin, 1-pixel) — drawn with Lines topology.
+    std::vector<PosVertex>       draw_verts;
+    std::vector<StyleIndex>      draw_styles;
+    // Thick (width > 1 pixel) lines and rectangle outlines — drawn with
+    // Triangles topology via thick_line.vert shader (6 verts per segment).
+    std::vector<ThickLineVertex> thick_line_verts;
+    std::vector<StyleIndex>      thick_line_styles;
 
     bool empty() const
     {
         return line_verts.empty()
             && fill_verts.empty()
-            && draw_verts.empty();
+            && draw_verts.empty()
+            && thick_line_verts.empty();
     }
 };
 
@@ -129,6 +158,7 @@ private:
         std::vector<StreamChunk> line_chunks;
         std::vector<StreamChunk> fill_chunks;
         std::vector<StreamChunk> draw_chunks;
+        std::vector<StreamChunk> thick_line_chunks;
     };
 
     // GPU resources — unique_ptr keeps them alive between initialize/release.
@@ -141,11 +171,15 @@ private:
     std::vector<std::unique_ptr<QRhiBuffer>>    m_fill_style_vbufs;
     std::vector<std::unique_ptr<QRhiBuffer>>    m_draw_vbufs;
     std::vector<std::unique_ptr<QRhiBuffer>>    m_draw_style_vbufs;
+    // Thick-line position buffers store ThickLineVertex (24 bytes each).
+    std::vector<std::unique_ptr<QRhiBuffer>>    m_thick_line_vbufs;
+    std::vector<std::unique_ptr<QRhiBuffer>>    m_thick_line_style_vbufs;
     std::vector<GpuTileBatch>                   m_gpu_tiles;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline>       m_line_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_fill_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_draw_pso;
+    std::unique_ptr<QRhiGraphicsPipeline>       m_thick_line_pso;
     bool m_initialized = false;
 
     // Pending frame (written by set_frame_data / set_mvp_only, consumed by render())

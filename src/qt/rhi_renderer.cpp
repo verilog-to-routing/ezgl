@@ -186,6 +186,8 @@ void rhi_renderer::clear_tile_geometry()
         tile.fill_styles.clear();
         tile.draw_verts.clear();
         tile.draw_styles.clear();
+        tile.thick_line_verts.clear();
+        tile.thick_line_styles.clear();
     }
 }
 
@@ -288,6 +290,80 @@ void rhi_renderer::append_fill_rect_to_tiles(point2d p0,
     }
 }
 
+// ---- thick line helpers ----------------------------------------------------
+
+void rhi_renderer::append_thick_segment(RhiTileBatch& tile,
+                                        point2d       start,
+                                        point2d       end,
+                                        float         width_px,
+                                        StyleIndex    style_index)
+{
+    // Compute the normalized world-space perpendicular to the line direction.
+    const double dx = end.x - start.x;
+    const double dy = end.y - start.y;
+    const double len = std::sqrt(dx * dx + dy * dy);
+    if (len < 1e-10)
+        return; // degenerate (zero-length) segment
+
+    const float perp_x = float(-dy / len);
+    const float perp_y = float( dx / len);
+    const float sx     = float(start.x);
+    const float sy     = float(start.y);
+    const float ex     = float(end.x);
+    const float ey     = float(end.y);
+
+    // Emit 6 ThickLineVertex values forming 2 screen-aligned triangles.
+    // The vertex shader expands each vertex perpendicularly by width_px/2
+    // using the MVP + viewport uniforms — no geometry regeneration needed
+    // when the camera pans or zooms.
+    //
+    // Triangle 1: (start+, start-, end+)
+    tile.thick_line_verts.push_back({sx, sy, perp_x, perp_y, width_px, +1.0f});
+    tile.thick_line_verts.push_back({sx, sy, perp_x, perp_y, width_px, -1.0f});
+    tile.thick_line_verts.push_back({ex, ey, perp_x, perp_y, width_px, +1.0f});
+    // Triangle 2: (start-, end-, end+)
+    tile.thick_line_verts.push_back({sx, sy, perp_x, perp_y, width_px, -1.0f});
+    tile.thick_line_verts.push_back({ex, ey, perp_x, perp_y, width_px, -1.0f});
+    tile.thick_line_verts.push_back({ex, ey, perp_x, perp_y, width_px, +1.0f});
+    tile.thick_line_styles.insert(tile.thick_line_styles.end(), 6, style_index);
+}
+
+void rhi_renderer::append_thick_line_to_tiles(point2d    start,
+                                              point2d    end,
+                                              float      width_px,
+                                              StyleIndex style_index)
+{
+    const rectangle bounds{start, end};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            point2d clipped_start = start;
+            point2d clipped_end   = end;
+            RhiTileBatch& tile = tile_at(tx, ty);
+            if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
+                continue;
+            append_thick_segment(tile,
+                                 clipped_start,
+                                 clipped_end,
+                                 width_px,
+                                 style_index);
+        }
+    }
+}
+
+void rhi_renderer::append_thick_draw_segment_to_tiles(point2d    start,
+                                                      point2d    end,
+                                                      float      width_px,
+                                                      StyleIndex style_index)
+{
+    // Reuses the same geometry pool as thick draw_lines (same pipeline).
+    append_thick_line_to_tiles(start, end, width_px, style_index);
+}
+
 // World→NDC matrix derived from camera state and widget dimensions.
 //
 // world_to_screen (affine):
@@ -336,8 +412,27 @@ void rhi_renderer::draw_line(point2d start, point2d end)
         return;
     }
 
+    // Dashed lines are rendered via the QPainter overlay so that the dash
+    // pattern remains pixel-accurate regardless of zoom level.
+    if (current_line_dash != line_dash::none) {
+        renderer::draw_line(start, end);
+        return;
+    }
+
     const StyleIndex style_index = current_style_index();
-    append_line_to_tiles(start, end, style_index);
+
+    if (current_line_width > 0) {
+        // Thick line: emit two triangles per segment via thick_line.vert.
+        // The shader expands the vertices perpendicular to the line direction
+        // by width_px/2 pixels at render time, so geometry is valid for all
+        // zoom levels (compatible with the MVP-only update optimization).
+        append_thick_line_to_tiles(start, end,
+                                   float(current_line_width),
+                                   style_index);
+    } else {
+        // Default 1-pixel line: hardware Lines primitive.
+        append_line_to_tiles(start, end, style_index);
+    }
 }
 
 // ---- fill_rectangle overrides ----------------------------------------------
@@ -373,13 +468,28 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
         return;
     }
 
+    // Dashed outlines: fall through to QPainter overlay.
+    if (current_line_dash != line_dash::none) {
+        renderer::draw_rectangle(start, end);
+        return;
+    }
+
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
     const StyleIndex style_index = current_style_index();
-    append_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_index);
-    append_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_index);
-    append_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_index);
-    append_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_index);
+
+    if (current_line_width > 0) {
+        const float w = float(current_line_width);
+        append_thick_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, style_index);
+    } else {
+        append_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_index);
+        append_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_index);
+        append_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_index);
+        append_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_index);
+    }
 }
 
 void rhi_renderer::draw_rectangle(point2d start, double width, double height)
@@ -410,9 +520,11 @@ void rhi_renderer::flush()
             ((tile.line_verts.size() +
               tile.fill_verts.size() +
               tile.draw_verts.size()) * sizeof(PosVertex)
+             + tile.thick_line_verts.size() * sizeof(ThickLineVertex)
              + (tile.line_styles.size() +
                 tile.fill_styles.size() +
-                tile.draw_styles.size()) * sizeof(StyleIndex))
+                tile.draw_styles.size() +
+                tile.thick_line_styles.size()) * sizeof(StyleIndex))
             / (1024.0 * 1024.0);
         non_empty_tiles.push_back(std::move(tile));
     }

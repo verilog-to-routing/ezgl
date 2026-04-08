@@ -2,5 +2,6 @@
     <qresource prefix="/ezgl">
         <file>line.vert.qsb</file>
         <file>line.frag.qsb</file>
+        <file>thick_line.vert.qsb</file>
     </qresource>
 </RCC>
