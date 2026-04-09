@@ -545,12 +545,17 @@ void rhi_renderer::draw_line(point2d start, point2d end)
 
     const StyleIndex style_index = current_style_index();
 
-    if (current_line_width > 0 || current_line_dash != line_dash::none) {
+    if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
         float dash_px = 0.0f;
         float gap_px = 0.0f;
         set_dash_pattern(w, dash_px, gap_px);
         append_dashed_line_to_tiles(start, end, w, dash_px, gap_px, style_index);
+        return;
+    }
+
+    if (current_line_width > 1) {
+        append_thick_line_to_tiles(start, end, float(current_line_width), style_index);
         return;
     }
 
@@ -598,7 +603,7 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
     const StyleIndex style_index = current_style_index();
 
-    if (current_line_width > 0 || current_line_dash != line_dash::none) {
+    if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
         float dash_px = 0.0f;
         float gap_px = 0.0f;
@@ -607,6 +612,15 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
         append_dashed_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, dash_px, gap_px, style_index);
         append_dashed_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, dash_px, gap_px, style_index);
         append_dashed_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, dash_px, gap_px, style_index);
+        return;
+    }
+
+    if (current_line_width > 1) {
+        const float w = float(current_line_width);
+        append_thick_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, style_index);
+        append_thick_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, style_index);
         return;
     }
 

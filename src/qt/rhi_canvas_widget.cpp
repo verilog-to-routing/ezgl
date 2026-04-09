@@ -878,12 +878,29 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         }
     };
 
+    auto countChunkVertices = [](const std::vector<StreamChunk>& chunks) {
+        unsigned long long total = 0;
+        for (const StreamChunk& chunk : chunks)
+            total += chunk.count;
+        return total;
+    };
+
     std::size_t visible_tile_count = 0;
+    unsigned long long visible_line_verts        = 0;
+    unsigned long long visible_fill_verts        = 0;
+    unsigned long long visible_draw_verts        = 0;
+    unsigned long long visible_thick_line_verts  = 0;
+    unsigned long long visible_dashed_line_verts = 0;
     for (const GpuTileBatch& tile : frame.gpu_tiles) {
         if (!rectanglesIntersect(tile.world_bounds, visible_world))
             continue;
 
         ++visible_tile_count;
+        visible_fill_verts        += countChunkVertices(tile.fill_chunks);
+        visible_draw_verts        += countChunkVertices(tile.draw_chunks);
+        visible_line_verts        += countChunkVertices(tile.line_chunks);
+        visible_thick_line_verts  += countChunkVertices(tile.thick_line_chunks);
+        visible_dashed_line_verts += countChunkVertices(tile.dashed_line_chunks);
         // Draw order: fills first (bottom), then outlines and lines on top.
         // This matches painter semantics — the last-submitted primitive type
         // appears on top, so fills (submitted first) are always below lines.
@@ -936,24 +953,6 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
     const auto frame_end = std::chrono::steady_clock::now();
     const double frame_ms = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
-    auto countChunkVertices = [](const std::vector<StreamChunk>& chunks) {
-        unsigned long long total = 0;
-        for (const StreamChunk& chunk : chunks)
-            total += chunk.count;
-        return total;
-    };
-    unsigned long long line_verts       = 0;
-    unsigned long long fill_verts       = 0;
-    unsigned long long draw_verts       = 0;
-    unsigned long long thick_line_verts = 0;
-    unsigned long long dashed_line_verts = 0;
-    for (const GpuTileBatch& tile : frame.gpu_tiles) {
-        line_verts       += countChunkVertices(tile.line_chunks);
-        fill_verts       += countChunkVertices(tile.fill_chunks);
-        draw_verts       += countChunkVertices(tile.draw_chunks);
-        thick_line_verts += countChunkVertices(tile.thick_line_chunks); // = instance count
-        dashed_line_verts += countChunkVertices(tile.dashed_line_chunks); // = instance count
-    }
     g_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, tiles=%zu, visible_tiles=%zu, "
             "line_verts=%llu, fill_verts=%llu, draw_verts=%llu, thick_line_verts=%llu, "
             "dashed_line_verts=%llu)",
@@ -962,11 +961,11 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             int(geom_dirty),
             frame.gpu_tiles.size(),
             visible_tile_count,
-            line_verts,
-            fill_verts,
-            draw_verts,
-            thick_line_verts,
-            dashed_line_verts);
+            visible_line_verts,
+            visible_fill_verts,
+            visible_draw_verts,
+            visible_thick_line_verts,
+            visible_dashed_line_verts);
 }
 
 void RhiCanvasWidget::releaseResources()
