@@ -89,6 +89,8 @@ struct DeferredTextCommand {
     std::string          text;
     double               bound_x = 0.0;
     double               bound_y = 0.0;
+    bool                 scale_font_with_camera = false;
+    double               recorded_world_scale = 1.0;
 };
 
 struct DeferredSurfaceCommand {

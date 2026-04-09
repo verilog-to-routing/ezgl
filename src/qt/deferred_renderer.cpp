@@ -257,7 +257,9 @@ bool deferred_renderer::defer_text(point2d point,
         point,
         text,
         bound_x,
-        bound_y
+        bound_y,
+        current_coordinate_system == WORLD,
+        std::max(m_camera->get_world_scale_factor().x, std::numeric_limits<double>::epsilon())
     });
     return true;
 }
@@ -326,6 +328,18 @@ void deferred_renderer::replay()
                                                 cmd.extent_angle);
                 }
             } else if constexpr (std::is_same_v<T, DeferredTextCommand>) {
+                DeferredPainterState state = cmd.state;
+                if (cmd.scale_font_with_camera) {
+                    const double current_scale =
+                        std::max(m_camera->get_world_scale_factor().x, std::numeric_limits<double>::epsilon());
+                    const double scale_ratio = cmd.recorded_world_scale / current_scale;
+                    if (state.font.pixelSize() > 0) {
+                        state.font.setPixelSize(std::max(1, int(std::lround(state.font.pixelSize() * scale_ratio))));
+                    } else if (state.font.pointSizeF() > 0.0) {
+                        state.font.setPointSizeF(std::max(0.1, state.font.pointSizeF() * scale_ratio));
+                    }
+                }
+                apply_painter_state(state);
                 renderer::draw_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
                 renderer::draw_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
