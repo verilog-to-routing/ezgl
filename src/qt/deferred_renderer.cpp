@@ -7,6 +7,8 @@
 #include <QBrush>
 #include <QColor>
 #include <algorithm>
+#include <type_traits>
+#include <variant>
 
 namespace ezgl {
 
@@ -72,6 +74,35 @@ FillStyleKey deferred_renderer::current_fill_style() const
                  | (uint32_t(current_color.blue)  << 16)
                  | (uint32_t(current_color.alpha) << 24);
     return s;
+}
+
+DeferredPainterState deferred_renderer::capture_painter_state() const
+{
+    DeferredPainterState state;
+    state.coordinate_system = current_coordinate_system;
+    state.draw_color = current_color;
+    state.line_width = current_line_width;
+    state.line_cap_style = current_line_cap;
+    state.line_dash_style = current_line_dash;
+    state.rotation_radians = rotation_angle;
+    state.horiz_just = horiz_justification;
+    state.vert_just = vert_justification;
+    state.font = current_font;
+    return state;
+}
+
+void deferred_renderer::apply_painter_state(const DeferredPainterState& state)
+{
+    current_coordinate_system = state.coordinate_system;
+    rotation_angle = state.rotation_radians;
+    horiz_justification = state.horiz_just;
+    vert_justification = state.vert_just;
+    current_font = state.font;
+    m_painter->setFont(current_font);
+    set_color(state.draw_color);
+    set_line_width(state.line_width);
+    set_line_cap(state.line_cap_style);
+    set_line_dash(state.line_dash_style);
 }
 
 // ---- batch insertion -----------------------------------------------------
@@ -182,7 +213,72 @@ void deferred_renderer::draw_rectangle(rectangle r)
 
 // ---- flush ---------------------------------------------------------------
 
-void deferred_renderer::flush()
+bool deferred_renderer::defer_fill_poly(const std::vector<point2d>& points)
+{
+    if (m_replaying_commands)
+        return false;
+
+    m_overlay_commands.emplace_back(DeferredPolyCommand{capture_painter_state(), points});
+    return true;
+}
+
+bool deferred_renderer::defer_arc(point2d center,
+                                  double radius_x,
+                                  double radius_y,
+                                  double start_angle,
+                                  double extent_angle,
+                                  bool fill)
+{
+    if (m_replaying_commands)
+        return false;
+
+    m_overlay_commands.emplace_back(DeferredArcCommand{
+        capture_painter_state(),
+        center,
+        radius_x,
+        radius_y,
+        start_angle,
+        extent_angle,
+        fill
+    });
+    return true;
+}
+
+bool deferred_renderer::defer_text(point2d point,
+                                   const std::string& text,
+                                   double bound_x,
+                                   double bound_y)
+{
+    if (m_replaying_commands)
+        return false;
+
+    m_overlay_commands.emplace_back(DeferredTextCommand{
+        capture_painter_state(),
+        point,
+        text,
+        bound_x,
+        bound_y
+    });
+    return true;
+}
+
+bool deferred_renderer::defer_surface(surface *p_surface,
+                                      point2d point,
+                                      double scale_factor)
+{
+    if (m_replaying_commands)
+        return false;
+
+    m_overlay_commands.emplace_back(DeferredSurfaceCommand{
+        capture_painter_state(),
+        p_surface,
+        point,
+        scale_factor
+    });
+    return true;
+}
+
+void deferred_renderer::replay()
 {
     // lines
     for (const auto &batch : m_line_batches) {
@@ -208,6 +304,45 @@ void deferred_renderer::flush()
         m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
     }
 
+    m_replaying_commands = true;
+    for (const DeferredOverlayCommand& command : m_overlay_commands) {
+        std::visit([this](const auto& cmd) {
+            apply_painter_state(cmd.state);
+            using T = std::decay_t<decltype(cmd)>;
+            if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
+                renderer::fill_poly(cmd.points);
+            } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
+                if (cmd.fill) {
+                    renderer::fill_elliptic_arc(cmd.center,
+                                                cmd.radius_x,
+                                                cmd.radius_y,
+                                                cmd.start_angle,
+                                                cmd.extent_angle);
+                } else {
+                    renderer::draw_elliptic_arc(cmd.center,
+                                                cmd.radius_x,
+                                                cmd.radius_y,
+                                                cmd.start_angle,
+                                                cmd.extent_angle);
+                }
+            } else if constexpr (std::is_same_v<T, DeferredTextCommand>) {
+                renderer::draw_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
+            } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
+                renderer::draw_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
+            }
+        }, command);
+    }
+    m_replaying_commands = false;
+}
+
+void deferred_renderer::flush()
+{
+    replay();
+    reset();
+}
+
+void deferred_renderer::clear_deferred_primitives()
+{
     reset();
 }
 
@@ -219,6 +354,7 @@ void deferred_renderer::reset()
     m_line_idx.clear();
     m_fill_rect_idx.clear();
     m_draw_rect_idx.clear();
+    m_overlay_commands.clear();
 }
 
 } // namespace ezgl

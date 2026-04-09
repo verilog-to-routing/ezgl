@@ -31,22 +31,23 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
                              camera*          cam,
                              draw_callback_fn draw_callback,
                              QColor           bg_color)
-    : renderer(nullptr,           // painter is wired up below
-               std::move(transform),
-               cam,
-               nullptr)           // surface not used in Qt path
+    : deferred_renderer(nullptr,   // painter is wired up below
+                        std::move(transform),
+                        cam,
+                        nullptr)   // surface not used in Qt path
     , m_rhi_widget(widget)
-    , m_draw_callback(draw_callback)
     , m_bg_color(bg_color)
     , m_overlay(std::max(1, widget->width()),
                 std::max(1, widget->height()),
                 QImage::Format_ARGB32_Premultiplied)
     , m_overlay_painter(&m_overlay)
 {
+    (void)draw_callback;
     ensure_tile_grid();
     clear_tile_geometry();
+    clear_deferred_primitives();
     m_overlay.fill(Qt::transparent);
-    m_painter = &m_overlay_painter;
+    update_renderer(&m_overlay_painter, &m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
 }
@@ -57,6 +58,7 @@ void rhi_renderer::begin_frame()
 {
     ensure_tile_grid();
     clear_tile_geometry();
+    clear_deferred_primitives();
     m_palette_rgba.clear();
     m_palette_index.clear();
     m_skip_tile_writes = false;
@@ -77,6 +79,7 @@ void rhi_renderer::begin_frame()
     m_overlay_painter.begin(&m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
+    update_renderer(&m_overlay_painter, &m_overlay);
 
     // Match the deferred path semantics: each redraw starts from the renderer
     // defaults rather than inheriting state from the previous frame.
@@ -110,6 +113,7 @@ void rhi_renderer::begin_overlay_frame()
     m_overlay_painter.begin(&m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
+    update_renderer(&m_overlay_painter, &m_overlay);
 
     current_coordinate_system = WORLD;
     rotation_angle = 0.0;
@@ -124,9 +128,16 @@ void rhi_renderer::begin_overlay_frame()
     set_line_cap(current_line_cap);
     set_line_dash(current_line_dash);
 
-    // Keep the cached tile geometry intact; only overlay primitives should be
-    // regenerated during camera-only updates.
-    m_skip_tile_writes = true;
+    m_skip_tile_writes = false;
+}
+
+void rhi_renderer::render_cached_overlay()
+{
+    begin_overlay_frame();
+    replay();
+
+    if (m_overlay_painter.isActive())
+        m_overlay_painter.end();
 }
 
 // ---- helpers ---------------------------------------------------------------
@@ -536,8 +547,8 @@ QMatrix4x4 rhi_renderer::compute_mvp() const
 void rhi_renderer::draw_line(point2d start, point2d end)
 {
     if (current_coordinate_system != WORLD) {
-        // SCREEN mode: fall through to the QPainter overlay.
-        renderer::draw_line(start, end);
+        // SCREEN mode is part of the cached overlay replay path.
+        deferred_renderer::draw_line(start, end);
         return;
     }
     if (m_skip_tile_writes)
@@ -567,7 +578,7 @@ void rhi_renderer::draw_line(point2d start, point2d end)
 void rhi_renderer::fill_rectangle(point2d start, point2d end)
 {
     if (current_coordinate_system != WORLD) {
-        renderer::fill_rectangle(start, end);
+        deferred_renderer::fill_rectangle(start, end);
         return;
     }
     if (m_skip_tile_writes)
@@ -593,7 +604,7 @@ void rhi_renderer::fill_rectangle(rectangle r)
 void rhi_renderer::draw_rectangle(point2d start, point2d end)
 {
     if (current_coordinate_system != WORLD) {
-        renderer::draw_rectangle(start, end);
+        deferred_renderer::draw_rectangle(start, end);
         return;
     }
     if (m_skip_tile_writes)
@@ -644,9 +655,7 @@ void rhi_renderer::draw_rectangle(rectangle r)
 
 void rhi_renderer::flush()
 {
-    // End the overlay painter so all QPainter commands are flushed to m_overlay.
-    if (m_overlay_painter.isActive())
-        m_overlay_painter.end();
+    render_cached_overlay();
 
     std::vector<RhiTileBatch> non_empty_tiles;
     double total_mb = 0.0;
@@ -686,21 +695,7 @@ void rhi_renderer::flush()
 
 void rhi_renderer::flush_mvp_only()
 {
-    if (!m_draw_callback) {
-        // Fallback: if no draw callback is available, we can at least move the
-        // existing geometry with the new MVP.
-        m_rhi_widget->set_mvp_only(compute_mvp(), get_visible_world());
-        m_rhi_widget->update();
-        return;
-    }
-
-    begin_overlay_frame();
-    m_draw_callback(this);
-
-    m_skip_tile_writes = false;
-    if (m_overlay_painter.isActive())
-        m_overlay_painter.end();
-
+    render_cached_overlay();
     m_rhi_widget->set_mvp_and_overlay(compute_mvp(), get_visible_world(), m_overlay);
     m_rhi_widget->update();
 }

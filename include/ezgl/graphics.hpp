@@ -528,6 +528,44 @@ protected:
   // Pre-clipping function — also used by deferred_renderer
   bool rectangle_off_screen(rectangle rect);
 
+  // Optional deferred-rendering hooks used by the Qt deferred/RHI paths.
+  virtual bool defer_fill_poly(const std::vector<point2d>& points) { (void)points; return false; }
+  virtual bool defer_arc(point2d center,
+                         double radius_x,
+                         double radius_y,
+                         double start_angle,
+                         double extent_angle,
+                         bool fill)
+  {
+    (void)center;
+    (void)radius_x;
+    (void)radius_y;
+    (void)start_angle;
+    (void)extent_angle;
+    (void)fill;
+    return false;
+  }
+  virtual bool defer_text(point2d point,
+                          const std::string& text,
+                          double bound_x,
+                          double bound_y)
+  {
+    (void)point;
+    (void)text;
+    (void)bound_x;
+    (void)bound_y;
+    return false;
+  }
+  virtual bool defer_surface(surface *p_surface,
+                             point2d point,
+                             double scale_factor)
+  {
+    (void)p_surface;
+    (void)point;
+    (void)scale_factor;
+    return false;
+  }
+
   // Clip a line in world coordinates (Liang-Barsky); returns false if fully clipped.
   // Exposed as a protected method so deferred_renderer can call it without
   // duplicating the algorithm.
@@ -538,6 +576,7 @@ protected:
 
 #ifdef EZGL_QT
   Painter* m_painter{nullptr};
+  QFont current_font;
 #else
   // A non-owning pointer to a cairo graphics context.
   cairo_t *m_cairo;

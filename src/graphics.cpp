@@ -150,6 +150,11 @@ renderer::renderer(Painter *painter,
     QImage *m_surface)
     : m_painter(painter), m_transform(std::move(transform)), m_camera(p_camera), rotation_angle(0)
 {
+#ifdef EZGL_QT
+  if (m_painter != nullptr) {
+    current_font = m_painter->font();
+  }
+#endif
 #ifdef EZGL_USE_X11
   // Check if the created cairo surface is an XLIB surface
   if (cairo_surface_get_type(m_surface) == CAIRO_SURFACE_TYPE_XLIB) {
@@ -186,6 +191,12 @@ void renderer::update_renderer(Painter *painter, QImage *m_surface)
 {
   // Update Cairo Context
   m_painter = painter;
+
+#ifdef EZGL_QT
+  if (m_painter != nullptr) {
+    m_painter->setFont(current_font);
+  }
+#endif
 
   // Update X11 Context
 #ifdef EZGL_USE_X11
@@ -396,11 +407,19 @@ void renderer::set_line_width(int width)
 
 void renderer::set_font_size(double new_size)
 {
+#ifdef EZGL_QT
+  current_font.setPixelSize(std::max(1, int(std::lround(new_size))));
+#endif
   m_painter->set_font_size(new_size);
 }
 
 void renderer::format_font(std::string const &family, font_slant slant, font_weight weight)
 {
+#ifdef EZGL_QT
+  current_font.setFamily(QString::fromStdString(family));
+  current_font.setStyle(static_cast<QFont::Style>(slant));
+  current_font.setWeight(static_cast<QFont::Weight>(weight));
+#endif
   m_painter->select_font_face(family.c_str(), static_cast<QFont::Style>(slant),
       static_cast<QFont::Weight>(weight));
 }
@@ -535,6 +554,9 @@ void renderer::fill_poly(std::vector<point2d> const &points)
 {
   assert(points.size() > 1);
 
+  if (defer_fill_poly(points))
+    return;
+
   // Conservative but fast clip test -- check containing rectangle of polygon
   double x_min = points[0].x;
   double x_max = points[0].x;
@@ -607,6 +629,9 @@ void renderer::draw_elliptic_arc(point2d center,
     double start_angle,
     double extent_angle)
 {
+  if (defer_arc(center, radius_x, radius_y, start_angle, extent_angle, false))
+    return;
+
   if(rectangle_off_screen(
          {{center.x - radius_x, center.y - radius_y}, {center.x + radius_x, center.y + radius_y}}))
     return;
@@ -619,6 +644,9 @@ void renderer::draw_elliptic_arc(point2d center,
 
 void renderer::draw_arc(point2d center, double radius, double start_angle, double extent_angle)
 {
+  if (defer_arc(center, radius, radius, start_angle, extent_angle, false))
+    return;
+
   if(rectangle_off_screen(
          {{center.x - radius, center.y - radius}, {center.x + radius, center.y + radius}}))
     return;
@@ -632,6 +660,9 @@ void renderer::fill_elliptic_arc(point2d center,
     double start_angle,
     double extent_angle)
 {
+  if (defer_arc(center, radius_x, radius_y, start_angle, extent_angle, true))
+    return;
+
   if(rectangle_off_screen(
          {{center.x - radius_x, center.y - radius_y}, {center.x + radius_x, center.y + radius_y}}))
     return;
@@ -644,6 +675,9 @@ void renderer::fill_elliptic_arc(point2d center,
 
 void renderer::fill_arc(point2d center, double radius, double start_angle, double extent_angle)
 {
+  if (defer_arc(center, radius, radius, start_angle, extent_angle, true))
+    return;
+
   if(rectangle_off_screen(
          {{center.x - radius, center.y - radius}, {center.x + radius, center.y + radius}}))
     return;
@@ -659,6 +693,9 @@ void renderer::draw_text(point2d point, std::string const &text)
 
 void renderer::draw_text(point2d point, std::string const &text, double bound_x, double bound_y)
 {
+  if (defer_text(point, text, bound_x, bound_y))
+    return;
+
   // the center point of the text
   point2d center = point;
 
@@ -900,6 +937,9 @@ void renderer::draw_arc_path(point2d center,
 
 void renderer::draw_surface(surface *p_surface, point2d point, double scale_factor)
 {
+  if (defer_surface(p_surface, point, scale_factor))
+    return;
+
 #ifdef EZGL_QT
   if (p_surface->isNull()) {
     g_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", (void*) p_surface);

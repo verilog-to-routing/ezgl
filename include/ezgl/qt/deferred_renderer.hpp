@@ -7,7 +7,10 @@
 
 #include <QLineF>
 #include <QRectF>
+#include <QFont>
+#include <string>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 namespace ezgl {
@@ -53,6 +56,54 @@ struct DrawRectBatch {
     std::vector<QRectF> rects;
 };
 
+struct DeferredPainterState {
+    t_coordinate_system coordinate_system = WORLD;
+    color               draw_color {0, 0, 0, 255};
+    int                 line_width = 0;
+    line_cap            line_cap_style = line_cap::butt;
+    line_dash           line_dash_style = line_dash::none;
+    double              rotation_radians = 0.0;
+    justification       horiz_just = justification::center;
+    justification       vert_just = justification::center;
+    QFont               font;
+};
+
+struct DeferredPolyCommand {
+    DeferredPainterState   state;
+    std::vector<point2d>   points;
+};
+
+struct DeferredArcCommand {
+    DeferredPainterState state;
+    point2d              center;
+    double               radius_x = 0.0;
+    double               radius_y = 0.0;
+    double               start_angle = 0.0;
+    double               extent_angle = 0.0;
+    bool                 fill = false;
+};
+
+struct DeferredTextCommand {
+    DeferredPainterState state;
+    point2d              point;
+    std::string          text;
+    double               bound_x = 0.0;
+    double               bound_y = 0.0;
+};
+
+struct DeferredSurfaceCommand {
+    DeferredPainterState state;
+    surface*             p_surface = nullptr;
+    point2d              anchor_point;
+    double               scale_factor = 1.0;
+};
+
+using DeferredOverlayCommand =
+    std::variant<DeferredPolyCommand,
+                 DeferredArcCommand,
+                 DeferredTextCommand,
+                 DeferredSurfaceCommand>;
+
 // ---- deferred_renderer ---------------------------------------------------
 
 class deferred_renderer : public renderer {
@@ -61,6 +112,8 @@ public:
                       transform_fn transform,
                       camera *cam,
                       QImage *surface);
+
+    ~deferred_renderer() override = default;
 
     // Hot-path overrides — collect into batches instead of drawing immediately.
     void draw_line(point2d start, point2d end) override;
@@ -76,8 +129,29 @@ public:
     // Flush all batches to the underlying QPainter, then reset.
     void flush();
 
+protected:
+    void replay();
+    void clear_deferred_primitives();
+
+    bool defer_fill_poly(const std::vector<point2d>& points) override;
+    bool defer_arc(point2d center,
+                   double radius_x,
+                   double radius_y,
+                   double start_angle,
+                   double extent_angle,
+                   bool fill) override;
+    bool defer_text(point2d point,
+                    const std::string& text,
+                    double bound_x,
+                    double bound_y) override;
+    bool defer_surface(surface *p_surface,
+                       point2d point,
+                       double scale_factor) override;
+
 private:
     void reset();
+    DeferredPainterState capture_painter_state() const;
+    void apply_painter_state(const DeferredPainterState& state);
 
     LineStyleKey current_line_style() const;
     FillStyleKey current_fill_style() const;
@@ -97,6 +171,8 @@ private:
     std::unordered_map<uint64_t, size_t> m_line_idx;
     std::unordered_map<uint64_t, size_t> m_fill_rect_idx;
     std::unordered_map<uint64_t, size_t> m_draw_rect_idx;
+    std::vector<DeferredOverlayCommand>  m_overlay_commands;
+    bool                                 m_replaying_commands = false;
 };
 
 } // namespace ezgl

@@ -592,8 +592,8 @@ void canvas::redraw_camera_only()
 {
 #if defined(EZGL_QT) && defined(EZGL_RHI)
   if (m_rhi_widget && m_rhi_renderer) {
-    // Geometry is unchanged — reuse cached GPU buffers, but redraw the overlay
-    // so text/arcs track the updated camera transform.
+    // Geometry is unchanged — reuse the cached GPU buffers and rebuild only
+    // the overlay for the new camera transform.
     m_rhi_renderer->flush_mvp_only();
     g_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
     return;

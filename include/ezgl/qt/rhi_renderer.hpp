@@ -2,8 +2,7 @@
 
 #if defined(EZGL_QT) && defined(EZGL_RHI)
 
-#include "ezgl/graphics.hpp"
-#include "ezgl/qt/painter.hpp"
+#include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 
 #include <QMatrix4x4>
@@ -21,12 +20,11 @@ namespace ezgl {
  * grid over the scene bounds. Each non-empty tile carries its own geometry
  * streams and is submitted to RhiCanvasWidget as an independent GPU batch.
  *
- * Non-overridden primitives (fill_poly, draw_arc, draw_text, draw_surface, …)
- * fall through to the renderer base class which draws them into m_overlay via
- * m_painter (QPainter → QImage). The overlay is then uploaded as a texture and
- * blended by RhiCanvasWidget in a final full-screen quad pass.
+ * Overlay primitives (text, arcs, surfaces, SCREEN-space lines, …) are cached
+ * through deferred_renderer so they can be replayed into m_overlay when the
+ * camera changes without re-running the application draw callback.
  */
-class rhi_renderer : public renderer {
+class rhi_renderer : public deferred_renderer {
 public:
     using draw_callback_fn = void (*)(renderer*);
 
@@ -62,12 +60,8 @@ public:
     void flush();
 
     /**
-     * Redraw the QPainter overlay with the current camera, then update the MVP
-     * and overlay texture in RhiCanvasWidget without re-uploading geometry.
-     *
-     * Call this after a pan/zoom when WORLD-space geometry is unchanged but
-     * the overlay (text, arcs, SCREEN-space lines, etc.) must track the new
-     * camera transform.
+     * Rebuild the cached overlay for the current camera and update the MVP
+     * without re-running the application draw callback.
      */
     void flush_mvp_only();
 
@@ -140,6 +134,7 @@ private:
                           float& dash_px,
                           float& gap_px) const;
     void begin_overlay_frame();
+    void render_cached_overlay();
     void ensure_tile_grid();
     void clear_tile_geometry();
     int clamp_tile_x(double x) const;
@@ -153,7 +148,6 @@ private:
     // ---- state --------------------------------------------------------------
 
     RhiCanvasWidget*         m_rhi_widget;
-    draw_callback_fn         m_draw_callback = nullptr;
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
 

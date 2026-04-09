@@ -136,6 +136,9 @@ static PrimitivePlacement placement_for(const GridLayout &layout, int i)
 
 void draw_lines_solid(ezgl::renderer *g)
 {
+  g->set_font_size(42);
+  g->draw_text({300, 100}, "this is overlay");
+
   const GridLayout layout = current_layout();
   g->set_color(ezgl::BLUE);
   g->set_line_width(1);
@@ -348,7 +351,7 @@ struct TestCase {
 static const TestCase TESTS[] = {
     // { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
     // { "variadic lines   ", draw_lines_variadic,         1'000, "bench_lines_variadic.png"    },
-    { "solid lines   ",       draw_lines_solid,               10'000'000, "draw_solid_lines.png"    },
+    { "solid lines   ",       draw_lines_solid,               1'000'000, "draw_solid_lines.png"    },
     // { "solid rects   ",       draw_rectangles_solid,          1'0, "draw_solid_rects.png"    },
     // { "solid rects   ",       fill_rectangles_solid,          1'0, "draw_solid_rects.png"    },
     //{ "solid   ",       draw_solid,                           1'000'000, "draw_solid.png"    },
