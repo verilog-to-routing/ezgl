@@ -23,14 +23,17 @@ namespace ezgl {
  *
  * Non-overridden primitives (fill_poly, draw_arc, draw_text, draw_surface, …)
  * fall through to the renderer base class which draws them into m_overlay via
- * m_painter (QPainter → QImage).  The overlay is composited on top of the GPU
- * frame inside RhiCanvasWidget::paintEvent().
+ * m_painter (QPainter → QImage). The overlay is then uploaded as a texture and
+ * blended by RhiCanvasWidget in a final full-screen quad pass.
  */
 class rhi_renderer : public renderer {
 public:
+    using draw_callback_fn = void (*)(renderer*);
+
     rhi_renderer(RhiCanvasWidget* widget,
                  transform_fn     transform,
                  camera*          cam,
+                 draw_callback_fn draw_callback,
                  QColor           bg_color);
 
     ~rhi_renderer() = default;
@@ -59,8 +62,12 @@ public:
     void flush();
 
     /**
-     * Update only the camera MVP in RhiCanvasWidget (no geometry re-upload).
-     * Call this after a pan/zoom when primitives have not changed.
+     * Redraw the QPainter overlay with the current camera, then update the MVP
+     * and overlay texture in RhiCanvasWidget without re-uploading geometry.
+     *
+     * Call this after a pan/zoom when WORLD-space geometry is unchanged but
+     * the overlay (text, arcs, SCREEN-space lines, etc.) must track the new
+     * camera transform.
      */
     void flush_mvp_only();
 
@@ -132,6 +139,7 @@ private:
     void set_dash_pattern(float width_px,
                           float& dash_px,
                           float& gap_px) const;
+    void begin_overlay_frame();
     void ensure_tile_grid();
     void clear_tile_geometry();
     int clamp_tile_x(double x) const;
@@ -145,7 +153,9 @@ private:
     // ---- state --------------------------------------------------------------
 
     RhiCanvasWidget*         m_rhi_widget;
+    draw_callback_fn         m_draw_callback = nullptr;
     QColor                   m_bg_color;
+    bool                     m_skip_tile_writes = false;
 
     // Scene tiling metadata and CPU-side tile batches.
     rectangle                m_scene_bounds;

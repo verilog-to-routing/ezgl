@@ -97,9 +97,10 @@ public:
   /**
    * Redraw using only a camera (MVP) update — no geometry re-upload.
    *
-   * On the RHI path this is cheaper than a full redraw: only the world→NDC
-   * matrix is pushed to the GPU; vertex buffers are reused from the last frame.
-   * Falls back to a full redraw on non-RHI paths or before the first frame.
+   * On the RHI path this reuses the existing vertex buffers while re-running
+   * the draw callback to rebuild the QPainter overlay (text, arcs, SCREEN-space
+   * primitives) for the new camera. Falls back to a full redraw on non-RHI
+   * paths or before the first frame.
    */
   void redraw_camera_only();
 

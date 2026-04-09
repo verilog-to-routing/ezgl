@@ -170,6 +170,14 @@ public:
     void set_mvp_only(const QMatrix4x4& world_to_ndc,
                       const rectangle&  visible_world);
 
+    /**
+     * Update the camera transform and replace the overlay image without
+     * re-uploading geometry. Thread-safe.
+     */
+    void set_mvp_and_overlay(const QMatrix4x4& world_to_ndc,
+                             const rectangle&  visible_world,
+                             const QImage&     overlay);
+
     /** Register a callback invoked on every resize (mirrors DrawingAreaWidget). */
     void setResizeCallback(std::function<void(int,int)> cb);
 

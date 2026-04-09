@@ -29,12 +29,14 @@ namespace ezgl {
 rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
                              transform_fn     transform,
                              camera*          cam,
+                             draw_callback_fn draw_callback,
                              QColor           bg_color)
     : renderer(nullptr,           // painter is wired up below
                std::move(transform),
                cam,
                nullptr)           // surface not used in Qt path
     , m_rhi_widget(widget)
+    , m_draw_callback(draw_callback)
     , m_bg_color(bg_color)
     , m_overlay(std::max(1, widget->width()),
                 std::max(1, widget->height()),
@@ -57,6 +59,7 @@ void rhi_renderer::begin_frame()
     clear_tile_geometry();
     m_palette_rgba.clear();
     m_palette_index.clear();
+    m_skip_tile_writes = false;
 
     // End painter if still active (shouldn't normally happen).
     if (m_overlay_painter.isActive())
@@ -89,6 +92,41 @@ void rhi_renderer::begin_frame()
     set_line_width(current_line_width);
     set_line_cap(current_line_cap);
     set_line_dash(current_line_dash);
+}
+
+void rhi_renderer::begin_overlay_frame()
+{
+    // End painter if still active from a previous pass.
+    if (m_overlay_painter.isActive())
+        m_overlay_painter.end();
+
+    const int w = std::max(1, m_rhi_widget->width());
+    const int h = std::max(1, m_rhi_widget->height());
+    if (m_overlay.width() != w || m_overlay.height() != h)
+        m_overlay = QImage(w, h, QImage::Format_ARGB32_Premultiplied);
+
+    m_overlay.fill(Qt::transparent);
+
+    m_overlay_painter.begin(&m_overlay);
+    m_overlay_painter.setAntialias(false);
+    m_overlay_painter.setSmoothPixmap(false);
+
+    current_coordinate_system = WORLD;
+    rotation_angle = 0.0;
+    horiz_justification = justification::center;
+    vert_justification = justification::center;
+    current_color = {0, 0, 0, 255};
+    current_line_width = 0;
+    current_line_cap = line_cap::butt;
+    current_line_dash = line_dash::none;
+    set_color(current_color);
+    set_line_width(current_line_width);
+    set_line_cap(current_line_cap);
+    set_line_dash(current_line_dash);
+
+    // Keep the cached tile geometry intact; only overlay primitives should be
+    // regenerated during camera-only updates.
+    m_skip_tile_writes = true;
 }
 
 // ---- helpers ---------------------------------------------------------------
@@ -502,6 +540,8 @@ void rhi_renderer::draw_line(point2d start, point2d end)
         renderer::draw_line(start, end);
         return;
     }
+    if (m_skip_tile_writes)
+        return;
 
     const StyleIndex style_index = current_style_index();
 
@@ -525,6 +565,8 @@ void rhi_renderer::fill_rectangle(point2d start, point2d end)
         renderer::fill_rectangle(start, end);
         return;
     }
+    if (m_skip_tile_writes)
+        return;
 
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
@@ -549,6 +591,8 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
         renderer::draw_rectangle(start, end);
         return;
     }
+    if (m_skip_tile_writes)
+        return;
 
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
@@ -628,9 +672,22 @@ void rhi_renderer::flush()
 
 void rhi_renderer::flush_mvp_only()
 {
-    // The overlay painter is already inactive (no begin_frame was called).
-    // Vertex buffers in the widget are reused; only the MVP uniform changes.
-    m_rhi_widget->set_mvp_only(compute_mvp(), get_visible_world());
+    if (!m_draw_callback) {
+        // Fallback: if no draw callback is available, we can at least move the
+        // existing geometry with the new MVP.
+        m_rhi_widget->set_mvp_only(compute_mvp(), get_visible_world());
+        m_rhi_widget->update();
+        return;
+    }
+
+    begin_overlay_frame();
+    m_draw_callback(this);
+
+    m_skip_tile_writes = false;
+    if (m_overlay_painter.isActive())
+        m_overlay_painter.end();
+
+    m_rhi_widget->set_mvp_and_overlay(compute_mvp(), get_visible_world(), m_overlay);
     m_rhi_widget->update();
 }
 

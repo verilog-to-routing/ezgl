@@ -551,6 +551,7 @@ void canvas::redraw()
           m_rhi_widget,
           std::bind(&camera::world_to_screen, &m_camera, _1),
           &m_camera,
+          m_draw_callback,
           bg);
     } else {
       // Subsequent draws: reset per-frame state and reuse GPU resources.
@@ -591,9 +592,10 @@ void canvas::redraw_camera_only()
 {
 #if defined(EZGL_QT) && defined(EZGL_RHI)
   if (m_rhi_widget && m_rhi_renderer) {
-    // Geometry unchanged — only push a new world→NDC MVP to the widget.
+    // Geometry is unchanged — reuse cached GPU buffers, but redraw the overlay
+    // so text/arcs track the updated camera transform.
     m_rhi_renderer->flush_mvp_only();
-    g_info("The canvas MVP will be updated (camera-only RHI path).");
+    g_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
     return;
   }
 #endif
