@@ -58,7 +58,6 @@ void rhi_renderer::begin_frame()
     m_palette_rgba.clear();
     m_palette_index.clear();
 
-#ifndef SKIP_LEGACY_PAINTER_OVERLAY
     // End painter if still active (shouldn't normally happen).
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
@@ -75,7 +74,6 @@ void rhi_renderer::begin_frame()
     m_overlay_painter.begin(&m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
-#endif
 
     // Match the deferred path semantics: each redraw starts from the renderer
     // defaults rather than inheriting state from the previous frame.
@@ -499,13 +497,11 @@ QMatrix4x4 rhi_renderer::compute_mvp() const
 
 void rhi_renderer::draw_line(point2d start, point2d end)
 {
-#ifndef SKIP_LEGACY_PAINTER_OVERLAY
     if (current_coordinate_system != WORLD) {
         // SCREEN mode: fall through to the QPainter overlay.
         renderer::draw_line(start, end);
         return;
     }
-#endif
 
     const StyleIndex style_index = current_style_index();
 
@@ -590,11 +586,10 @@ void rhi_renderer::draw_rectangle(rectangle r)
 
 void rhi_renderer::flush()
 {
-#ifndef SKIP_LEGACY_PAINTER_OVERLAY
     // End the overlay painter so all QPainter commands are flushed to m_overlay.
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
-#endif
+
     std::vector<RhiTileBatch> non_empty_tiles;
     double total_mb = 0.0;
     for (RhiTileBatch& tile : m_tiles) {
@@ -633,10 +628,8 @@ void rhi_renderer::flush()
 
 void rhi_renderer::flush_mvp_only()
 {
-#ifndef SKIP_LEGACY_PAINTER_OVERLAY
     // The overlay painter is already inactive (no begin_frame was called).
     // Vertex buffers in the widget are reused; only the MVP uniform changes.
-#endif
     m_rhi_widget->set_mvp_only(compute_mvp(), get_visible_world());
     m_rhi_widget->update();
 }

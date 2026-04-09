@@ -233,28 +233,10 @@ void draw_solid(ezgl::renderer *g)
   const GridLayout layout = current_layout();
   // fill rects
   g->set_color(ezgl::RED);
-  // g->set_line_width(1);
-  // g->set_line_dash(ezgl::line_dash::none);
   for (int i = 0; i < num; ++i) {
     const PrimitivePlacement p = placement_for(layout, i);
     g->fill_rectangle({p.x0, p.y0}, {p.x1, p.y1});
   }
-
-  // g->set_color(ezgl::BLUE);
-  // // g->set_line_width(1);
-  // // g->set_line_dash(ezgl::line_dash::none);
-  // for (int i = 0; i < num; ++i) {
-  //   const PrimitivePlacement p = placement_for(layout, i);
-  //   g->fill_rectangle({p.x0+10, p.y0}, {p.x1+10, p.y1});
-  // }
-
-  // g->set_color(ezgl::YELLOW);
-  // // g->set_line_width(1);
-  // // g->set_line_dash(ezgl::line_dash::none);
-  // for (int i = 0; i < num; ++i) {
-  //   const PrimitivePlacement p = placement_for(layout, i);
-  //   g->fill_rectangle({p.x0+20, p.y0}, {p.x1+20, p.y1});
-  // }
 
   // draw rects
   g->set_color(ezgl::GREEN);
@@ -280,7 +262,7 @@ void draw_solid(ezgl::renderer *g)
   g->set_line_dash(ezgl::line_dash::asymmetric_5_3);
   for (int i = 0; i < num; ++i) {
     const PrimitivePlacement p = placement_for(layout, i);
-    g->draw_line({p.x0+10, p.y0}, {p.x1, p.y1});
+    g->draw_line({p.x0, p.y0}, {p.x1, p.y1});
   }
 }
 
@@ -366,10 +348,10 @@ struct TestCase {
 static const TestCase TESTS[] = {
     // { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
     // { "variadic lines   ", draw_lines_variadic,         1'000, "bench_lines_variadic.png"    },
-    { "solid lines   ",       draw_lines_solid,               1'0, "draw_solid_lines.png"    },
-    { "solid rects   ",       draw_rectangles_solid,          1'0, "draw_solid_rects.png"    },
-    { "solid rects   ",       fill_rectangles_solid,          1'0, "draw_solid_rects.png"    },
-    { "solid   ",       draw_solid,                           1'0, "draw_solid.png"    },
+    { "solid lines   ",       draw_lines_solid,               10'000'000, "draw_solid_lines.png"    },
+    // { "solid rects   ",       draw_rectangles_solid,          1'0, "draw_solid_rects.png"    },
+    // { "solid rects   ",       fill_rectangles_solid,          1'0, "draw_solid_rects.png"    },
+    //{ "solid   ",       draw_solid,                           1'000'000, "draw_solid.png"    },
     // { "variadic   ",       draw_variadic,               1'000, "bench_variadic.png"    },
 //  { "solid lines      ", draw_lines_solid,           200'000'000, "bench_lines_solid.png"       },
 //  { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
