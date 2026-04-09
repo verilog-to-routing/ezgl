@@ -5,9 +5,8 @@
 #include <algorithm>
 #include <rhi/qrhi.h>
 #include <rhi/qshader.h>
-#include <QPainter>
-#include <QPaintEvent>
 #include <QResizeEvent>
+#include <QShowEvent>
 #include <QFile>
 #include <QMutexLocker>
 #include <chrono>
@@ -137,6 +136,15 @@ struct PaletteUniformBlock {
 };
 static_assert(sizeof(PaletteUniformBlock) == ezgl::kMaxRhiStyleEntries * sizeof(ColorUniform),
               "PaletteUniformBlock must be tightly packed std140 vec4 entries");
+
+struct OverlayVertex {
+    float x;
+    float y;
+    float u;
+    float v;
+};
+static_assert(sizeof(OverlayVertex) == 16,
+              "OverlayVertex must be 16 bytes");
 
 ColorUniform makeColorUniform(std::uint32_t rgba)
 {
@@ -314,6 +322,47 @@ void buildDashedLinePipeline(QRhi*                                   rhi,
     pso->create();
 }
 
+void buildOverlayPipeline(QRhi*                                   rhi,
+                          std::unique_ptr<QRhiGraphicsPipeline>&  pso,
+                          const QShader&                           overlay_vs,
+                          const QShader&                           overlay_fs,
+                          QRhiShaderResourceBindings*              srb,
+                          QRhiRenderPassDescriptor*                rpDesc)
+{
+    QRhiVertexInputLayout layout;
+    layout.setBindings({
+        QRhiVertexInputBinding(sizeof(OverlayVertex))
+    });
+    layout.setAttributes({
+        QRhiVertexInputAttribute(0, 0, QRhiVertexInputAttribute::Float2,
+                                 offsetof(OverlayVertex, x)),
+        QRhiVertexInputAttribute(0, 1, QRhiVertexInputAttribute::Float2,
+                                 offsetof(OverlayVertex, u))
+    });
+
+    QRhiGraphicsPipeline::TargetBlend blend;
+    blend.enable   = true;
+    // The overlay QImage is premultiplied-alpha, so use premultiplied blending.
+    blend.srcColor = QRhiGraphicsPipeline::One;
+    blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    blend.srcAlpha = QRhiGraphicsPipeline::One;
+    blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+
+    pso.reset(rhi->newGraphicsPipeline());
+    pso->setTopology(QRhiGraphicsPipeline::TriangleStrip);
+    pso->setVertexInputLayout(layout);
+    pso->setShaderStages({
+        { QRhiShaderStage::Vertex,   overlay_vs },
+        { QRhiShaderStage::Fragment, overlay_fs }
+    });
+    pso->setShaderResourceBindings(srb);
+    pso->setRenderPassDescriptor(rpDesc);
+    pso->setTargetBlends({ blend });
+    pso->setDepthTest(false);
+    pso->setDepthWrite(false);
+    pso->create();
+}
+
 } // anonymous namespace
 
 // ---- RhiCanvasWidget -------------------------------------------------------
@@ -382,9 +431,19 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     QShader thick_vs    = loadShader(":/ezgl/thick_line.vert.qsb");
     QShader dashed_vs   = loadShader(":/ezgl/dashed_line.vert.qsb");
     QShader dashed_fs   = loadShader(":/ezgl/dashed_line.frag.qsb");
+    QShader overlay_vs  = loadShader(":/ezgl/overlay.vert.qsb");
+    QShader overlay_fs  = loadShader(":/ezgl/overlay.frag.qsb");
 
     m_frame_resources.clear();
     m_frame_resources.resize(std::max(1, rhi()->resourceLimit(QRhi::FramesInFlight)));
+
+    m_overlay_sampler.reset(
+        rhi()->newSampler(QRhiSampler::Nearest,
+                          QRhiSampler::Nearest,
+                          QRhiSampler::None,
+                          QRhiSampler::ClampToEdge,
+                          QRhiSampler::ClampToEdge));
+    m_overlay_sampler->create();
 
     for (FrameResources& frame : m_frame_resources) {
         // MVP UBO: 80 bytes — mat4 mvp (64 B) + vec2 viewport (8 B) + 8 B padding.
@@ -408,6 +467,8 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
         frame.thick_line_style_vbufs.clear();
         frame.dashed_line_instance_vbufs.clear();
         frame.dashed_line_style_vbufs.clear();
+        frame.overlay_tex.reset(rhi()->newTexture(QRhiTexture::RGBA8, QSize(1, 1)));
+        frame.overlay_tex->create();
         frame.gpu_tiles.clear();
     }
 
@@ -419,6 +480,12 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
                          QRhiBuffer::VertexBuffer,
                          int(4 * sizeof(ezgl::QuadCorner))));
     m_thick_line_corner_vbuf->create();
+
+    m_overlay_quad_vbuf.reset(
+        rhi()->newBuffer(QRhiBuffer::Dynamic,
+                         QRhiBuffer::VertexBuffer,
+                         int(4 * sizeof(OverlayVertex))));
+    m_overlay_quad_vbuf->create();
 
     // Shader resource bindings: MVP at binding 0, palette at binding 1.
     // All pipelines share the same binding layout, but each in-flight frame
@@ -436,15 +503,27 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
                 frame.palette_ubuf.get())
         });
         frame.srb->create();
+
+        frame.overlay_srb.reset(rhi()->newShaderResourceBindings());
+        frame.overlay_srb->setBindings({
+            QRhiShaderResourceBinding::sampledTexture(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                frame.overlay_tex.get(),
+                m_overlay_sampler.get())
+        });
+        frame.overlay_srb->create();
     }
 
     auto* rpDesc = renderTarget()->renderPassDescriptor();
     QRhiShaderResourceBindings* const pipeline_srb = m_frame_resources.front().srb.get();
+    QRhiShaderResourceBindings* const overlay_srb = m_frame_resources.front().overlay_srb.get();
     buildPipeline(rhi(), m_line_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, pipeline_srb, rpDesc);
     buildPipeline(rhi(), m_fill_pso,  QRhiGraphicsPipeline::Triangles, vs, fs, pipeline_srb, rpDesc);
     buildPipeline(rhi(), m_draw_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, pipeline_srb, rpDesc);
     buildThickLinePipeline(rhi(), m_thick_line_pso, thick_vs, fs, pipeline_srb, rpDesc);
     buildDashedLinePipeline(rhi(), m_dashed_line_pso, dashed_vs, dashed_fs, pipeline_srb, rpDesc);
+    buildOverlayPipeline(rhi(), m_overlay_pso, overlay_vs, overlay_fs, overlay_srb, rpDesc);
 
     m_initialized = true;
 }
@@ -461,6 +540,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     std::vector<std::uint32_t> palette_rgba;
     QMatrix4x4 mvp;
     rectangle  visible_world;
+    QImage     overlay;
     QColor     bg;
     bool       geom_dirty;
 
@@ -472,6 +552,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         geom_dirty = m_frame_dirty;
         mvp        = m_pending_mvp;
         visible_world = m_pending_visible_world;
+        overlay    = m_pending_overlay;
         bg         = m_pending_bg;
 
         if (geom_dirty) {
@@ -485,6 +566,10 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
     const int frame_slot = currentFrameResourceIndex(rhi(), m_frame_resources.size());
     FrameResources& frame = m_frame_resources[std::size_t(frame_slot)];
+    const bool has_overlay = !overlay.isNull();
+    if (has_overlay) {
+        overlay = overlay.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
+    }
 
     // --- Upload to GPU -------------------------------------------------------
     QRhiResourceUpdateBatch* u = rhi()->nextResourceUpdateBatch();
@@ -508,6 +593,35 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         };
         u->updateDynamicBuffer(m_thick_line_corner_vbuf.get(), 0,
                                int(sizeof(kCorners)), kCorners);
+    }
+    {
+        static const OverlayVertex kOverlayQuad[4] = {
+            { -1.0f, +1.0f, 0.0f, 0.0f }, // top-left
+            { -1.0f, -1.0f, 0.0f, 1.0f }, // bottom-left
+            { +1.0f, +1.0f, 1.0f, 0.0f }, // top-right
+            { +1.0f, -1.0f, 1.0f, 1.0f }  // bottom-right
+        };
+        u->updateDynamicBuffer(m_overlay_quad_vbuf.get(), 0,
+                               int(sizeof(kOverlayQuad)), kOverlayQuad);
+    }
+
+    if (has_overlay) {
+        const QSize overlay_size = overlay.size();
+        if (!frame.overlay_tex || frame.overlay_tex->pixelSize() != overlay_size) {
+            frame.overlay_srb.reset();
+            frame.overlay_tex.reset(rhi()->newTexture(QRhiTexture::RGBA8, overlay_size));
+            frame.overlay_tex->create();
+            frame.overlay_srb.reset(rhi()->newShaderResourceBindings());
+            frame.overlay_srb->setBindings({
+                QRhiShaderResourceBinding::sampledTexture(
+                    0,
+                    QRhiShaderResourceBinding::FragmentStage,
+                    frame.overlay_tex.get(),
+                    m_overlay_sampler.get())
+            });
+            frame.overlay_srb->create();
+        }
+        u->uploadTexture(frame.overlay_tex.get(), overlay);
     }
 
     if (geom_dirty) {
@@ -795,6 +909,16 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         }
     }
 
+    if (has_overlay) {
+        cb->setGraphicsPipeline(m_overlay_pso.get());
+        cb->setShaderResources(frame.overlay_srb.get());
+        const QRhiCommandBuffer::VertexInput input = {
+            m_overlay_quad_vbuf.get(), 0
+        };
+        cb->setVertexInput(0, 1, &input);
+        cb->draw(4);
+    }
+
     cb->endPass();
 
     const auto frame_end = std::chrono::steady_clock::now();
@@ -838,13 +962,18 @@ void RhiCanvasWidget::releaseResources()
         buffers.clear();
     };
 
+    m_overlay_pso.reset();
     m_dashed_line_pso.reset();
     m_thick_line_pso.reset();
     m_draw_pso.reset();
     m_fill_pso.reset();
     m_line_pso.reset();
+    m_overlay_sampler.reset();
+    m_overlay_quad_vbuf.reset();
     m_thick_line_corner_vbuf.reset();
     for (FrameResources& frame : m_frame_resources) {
+        frame.overlay_srb.reset();
+        frame.overlay_tex.reset();
         frame.srb.reset();
         resetBufferVector(frame.dashed_line_style_vbufs);
         resetBufferVector(frame.dashed_line_instance_vbufs);
@@ -864,28 +993,18 @@ void RhiCanvasWidget::releaseResources()
     m_initialized = false;
 }
 
-void RhiCanvasWidget::paintEvent(QPaintEvent* e)
-{
-    // QRhiWidget::paintEvent renders the GPU texture to the widget surface.
-    QRhiWidget::paintEvent(e);
-
-    // Composite QPainter overlay (text, arcs, polygons) on top.
-    QImage overlay;
-    {
-        QMutexLocker lock(&m_frame_mutex);
-        overlay = m_pending_overlay; // shallow COW copy
-    }
-    if (!overlay.isNull()) {
-        QPainter p(this);
-        p.drawImage(rect(), overlay, overlay.rect());
-    }
-}
-
 void RhiCanvasWidget::resizeEvent(QResizeEvent* e)
 {
     if (m_pre_resize_cb)
         m_pre_resize_cb();
     QRhiWidget::resizeEvent(e);
+    if (width() > 0 && height() > 0 && m_resize_cb)
+        m_resize_cb(width(), height());
+}
+
+void RhiCanvasWidget::showEvent(QShowEvent* e)
+{
+    QRhiWidget::showEvent(e);
     if (width() > 0 && height() > 0 && m_resize_cb)
         m_resize_cb(width(), height());
 }

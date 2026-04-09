@@ -169,6 +169,8 @@ if(USE_QT)
 
                 set(EZGL_LINE_VERT_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.vert.qsb")
                 set(EZGL_LINE_FRAG_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.frag.qsb")
+                set(EZGL_OVERLAY_VERT_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.vert.qsb")
+                set(EZGL_OVERLAY_FRAG_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.frag.qsb")
                 set(EZGL_THICK_LINE_VERT_QSB  "${EZGL_RHI_SHADER_BUILD_DIR}/thick_line.vert.qsb")
                 set(EZGL_DASHED_LINE_VERT_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.vert.qsb")
                 set(EZGL_DASHED_LINE_FRAG_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.frag.qsb")
@@ -176,6 +178,8 @@ if(USE_QT)
                 set(EZGL_RHI_SHADER_SOURCES
                     "line.vert"
                     "line.frag"
+                    "overlay.vert"
+                    "overlay.frag"
                     "thick_line.vert"
                     "dashed_line.vert"
                     "dashed_line.frag"
@@ -183,6 +187,8 @@ if(USE_QT)
                 set(EZGL_RHI_SHADER_OUTPUTS
                     "${EZGL_LINE_VERT_QSB}"
                     "${EZGL_LINE_FRAG_QSB}"
+                    "${EZGL_OVERLAY_VERT_QSB}"
+                    "${EZGL_OVERLAY_FRAG_QSB}"
                     "${EZGL_THICK_LINE_VERT_QSB}"
                     "${EZGL_DASHED_LINE_VERT_QSB}"
                     "${EZGL_DASHED_LINE_FRAG_QSB}"

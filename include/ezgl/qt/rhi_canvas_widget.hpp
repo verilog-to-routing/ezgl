@@ -19,6 +19,8 @@
 QT_FORWARD_DECLARE_CLASS(QRhiBuffer)
 QT_FORWARD_DECLARE_CLASS(QRhiShaderResourceBindings)
 QT_FORWARD_DECLARE_CLASS(QRhiGraphicsPipeline)
+QT_FORWARD_DECLARE_CLASS(QRhiSampler)
+QT_FORWARD_DECLARE_CLASS(QRhiTexture)
 
 namespace ezgl {
 
@@ -123,13 +125,14 @@ struct RhiTileBatch {
 
 /**
  * QWidget subclass (via QRhiWidget) that renders line and rect primitives on
- * the GPU (Vulkan / Metal / D3D12 / OpenGL via Qt RHI), then composites a
- * QPainter overlay (text, arcs) on top.
+ * the GPU (Vulkan / Metal / D3D12 / OpenGL via Qt RHI). The text/arc overlay
+ * is uploaded as a texture and blended in a final full-screen quad pass inside
+ * render(), avoiding QWidget-side compositing issues with QRhiWidget.
  *
  * Ownership model:
  *   - canvas::initialize() creates this widget in place of DrawingAreaWidget.
  *   - rhi_renderer calls set_frame_data() + update() each frame.
- *   - render() and paintEvent() run on Qt's render/GUI thread.
+ *   - render() runs on Qt's render/GUI thread.
  */
 class RhiCanvasWidget : public QRhiWidget {
     Q_OBJECT
@@ -179,9 +182,8 @@ protected:
     void render(QRhiCommandBuffer* cb) override;
     void releaseResources() override;
 
-    // Override paintEvent to composite the QPainter overlay after the GPU blit.
-    void paintEvent(QPaintEvent* e) override;
     void resizeEvent(QResizeEvent* e) override;
+    void showEvent(QShowEvent* e) override;
 
 private:
     struct StreamChunk {
@@ -213,6 +215,8 @@ private:
         std::vector<std::unique_ptr<QRhiBuffer>>    thick_line_style_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    dashed_line_instance_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    dashed_line_style_vbufs;
+        std::unique_ptr<QRhiTexture>                overlay_tex;
+        std::unique_ptr<QRhiShaderResourceBindings> overlay_srb;
         std::vector<GpuTileBatch>                   gpu_tiles;
         std::unique_ptr<QRhiShaderResourceBindings> srb;
     };
@@ -224,11 +228,14 @@ private:
     // Thick-line instanced rendering:
     //   m_thick_line_corner_vbuf  — 4 QuadCorner values, immutable, shared by all draws.
     std::unique_ptr<QRhiBuffer>                m_thick_line_corner_vbuf;
+    std::unique_ptr<QRhiBuffer>                m_overlay_quad_vbuf;
+    std::unique_ptr<QRhiSampler>               m_overlay_sampler;
     std::unique_ptr<QRhiGraphicsPipeline>       m_line_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_fill_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_draw_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_thick_line_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_dashed_line_pso;
+    std::unique_ptr<QRhiGraphicsPipeline>       m_overlay_pso;
     bool m_initialized = false;
 
     // Pending frame (written by set_frame_data / set_mvp_only, consumed by render())
