@@ -12,12 +12,217 @@
 
 namespace {
 
+constexpr double kPolygonEpsilon = 1e-12;
+
 std::uint32_t pack_color_rgba(const ezgl::color& c)
 {
     return std::uint32_t(c.red)
          | (std::uint32_t(c.green) << 8)
          | (std::uint32_t(c.blue)  << 16)
          | (std::uint32_t(c.alpha) << 24);
+}
+
+struct Triangle {
+    ezgl::point2d a;
+    ezgl::point2d b;
+    ezgl::point2d c;
+};
+
+double signed_twice_area(const std::vector<ezgl::point2d>& polygon)
+{
+    double area = 0.0;
+    for (std::size_t i = 0; i < polygon.size(); ++i) {
+        const ezgl::point2d& p = polygon[i];
+        const ezgl::point2d& q = polygon[(i + 1) % polygon.size()];
+        area += p.x * q.y - q.x * p.y;
+    }
+    return area;
+}
+
+double cross(const ezgl::point2d& a,
+             const ezgl::point2d& b,
+             const ezgl::point2d& c)
+{
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+bool point_in_triangle(const ezgl::point2d& p,
+                       const ezgl::point2d& a,
+                       const ezgl::point2d& b,
+                       const ezgl::point2d& c)
+{
+    const double c0 = cross(a, b, p);
+    const double c1 = cross(b, c, p);
+    const double c2 = cross(c, a, p);
+    const bool non_negative =
+        c0 >= -kPolygonEpsilon && c1 >= -kPolygonEpsilon && c2 >= -kPolygonEpsilon;
+    const bool non_positive =
+        c0 <= kPolygonEpsilon && c1 <= kPolygonEpsilon && c2 <= kPolygonEpsilon;
+    return non_negative || non_positive;
+}
+
+std::vector<ezgl::point2d> normalized_polygon_points(const std::vector<ezgl::point2d>& input)
+{
+    std::vector<ezgl::point2d> polygon;
+    polygon.reserve(input.size());
+    for (const ezgl::point2d& point : input) {
+        if (!polygon.empty() && polygon.back() == point)
+            continue;
+        polygon.push_back(point);
+    }
+
+    if (polygon.size() > 1 && polygon.front() == polygon.back())
+        polygon.pop_back();
+
+    return polygon;
+}
+
+std::vector<Triangle> triangulate_simple_polygon(const std::vector<ezgl::point2d>& input)
+{
+    const std::vector<ezgl::point2d> polygon = normalized_polygon_points(input);
+    if (polygon.size() < 3)
+        return {};
+
+    const double area = signed_twice_area(polygon);
+    if (std::abs(area) <= kPolygonEpsilon)
+        return {};
+
+    const bool ccw = area > 0.0;
+    std::vector<std::size_t> remaining;
+    remaining.reserve(polygon.size());
+    for (std::size_t i = 0; i < polygon.size(); ++i)
+        remaining.push_back(i);
+
+    std::vector<Triangle> triangles;
+    triangles.reserve(polygon.size() - 2);
+
+    std::size_t guard = 0;
+    const std::size_t max_guard = polygon.size() * polygon.size();
+    while (remaining.size() > 3 && guard < max_guard) {
+        bool ear_found = false;
+        for (std::size_t i = 0; i < remaining.size(); ++i) {
+            const std::size_t prev = remaining[(i + remaining.size() - 1) % remaining.size()];
+            const std::size_t curr = remaining[i];
+            const std::size_t next = remaining[(i + 1) % remaining.size()];
+
+            const double corner_cross = cross(polygon[prev], polygon[curr], polygon[next]);
+            if ((ccw && corner_cross <= kPolygonEpsilon)
+                || (!ccw && corner_cross >= -kPolygonEpsilon)) {
+                continue;
+            }
+
+            bool contains_other_vertex = false;
+            for (std::size_t j = 0; j < remaining.size(); ++j) {
+                const std::size_t candidate = remaining[j];
+                if (candidate == prev || candidate == curr || candidate == next)
+                    continue;
+                if (point_in_triangle(polygon[candidate],
+                                      polygon[prev],
+                                      polygon[curr],
+                                      polygon[next])) {
+                    contains_other_vertex = true;
+                    break;
+                }
+            }
+            if (contains_other_vertex)
+                continue;
+
+            triangles.push_back({polygon[prev], polygon[curr], polygon[next]});
+            remaining.erase(remaining.begin() + std::ptrdiff_t(i));
+            ear_found = true;
+            break;
+        }
+
+        if (!ear_found)
+            break;
+        ++guard;
+    }
+
+    if (remaining.size() == 3) {
+        triangles.push_back({
+            polygon[remaining[0]],
+            polygon[remaining[1]],
+            polygon[remaining[2]]
+        });
+    }
+
+    if (triangles.size() != polygon.size() - 2)
+        return {};
+
+    return triangles;
+}
+
+ezgl::point2d intersect_vertical(const ezgl::point2d& a,
+                                 const ezgl::point2d& b,
+                                 double                x)
+{
+    const double dx = b.x - a.x;
+    if (std::abs(dx) <= kPolygonEpsilon)
+        return {x, a.y};
+
+    const double t = (x - a.x) / dx;
+    return {x, a.y + t * (b.y - a.y)};
+}
+
+ezgl::point2d intersect_horizontal(const ezgl::point2d& a,
+                                   const ezgl::point2d& b,
+                                   double                y)
+{
+    const double dy = b.y - a.y;
+    if (std::abs(dy) <= kPolygonEpsilon)
+        return {a.x, y};
+
+    const double t = (y - a.y) / dy;
+    return {a.x + t * (b.x - a.x), y};
+}
+
+template<typename InsideFn, typename IntersectFn>
+std::vector<ezgl::point2d> clip_polygon_edge(const std::vector<ezgl::point2d>& polygon,
+                                             InsideFn                           inside,
+                                             IntersectFn                        intersect)
+{
+    std::vector<ezgl::point2d> out;
+    if (polygon.empty())
+        return out;
+
+    ezgl::point2d previous = polygon.back();
+    bool previous_inside = inside(previous);
+    for (const ezgl::point2d& current : polygon) {
+        const bool current_inside = inside(current);
+        if (current_inside != previous_inside)
+            out.push_back(intersect(previous, current));
+        if (current_inside)
+            out.push_back(current);
+
+        previous = current;
+        previous_inside = current_inside;
+    }
+
+    return out;
+}
+
+std::vector<ezgl::point2d> clip_convex_polygon_to_rect(const std::vector<ezgl::point2d>& polygon,
+                                                       const ezgl::rectangle&             clip)
+{
+    std::vector<ezgl::point2d> clipped = polygon;
+    clipped = clip_polygon_edge(
+        clipped,
+        [&](const ezgl::point2d& p) { return p.x >= clip.left() - kPolygonEpsilon; },
+        [&](const ezgl::point2d& a, const ezgl::point2d& b) { return intersect_vertical(a, b, clip.left()); });
+    clipped = clip_polygon_edge(
+        clipped,
+        [&](const ezgl::point2d& p) { return p.x <= clip.right() + kPolygonEpsilon; },
+        [&](const ezgl::point2d& a, const ezgl::point2d& b) { return intersect_vertical(a, b, clip.right()); });
+    clipped = clip_polygon_edge(
+        clipped,
+        [&](const ezgl::point2d& p) { return p.y >= clip.bottom() - kPolygonEpsilon; },
+        [&](const ezgl::point2d& a, const ezgl::point2d& b) { return intersect_horizontal(a, b, clip.bottom()); });
+    clipped = clip_polygon_edge(
+        clipped,
+        [&](const ezgl::point2d& p) { return p.y <= clip.top() + kPolygonEpsilon; },
+        [&](const ezgl::point2d& a, const ezgl::point2d& b) { return intersect_horizontal(a, b, clip.top()); });
+
+    return normalized_polygon_points(clipped);
 }
 
 } // namespace
@@ -206,6 +411,21 @@ void rhi_renderer::append_fill_rect(RhiTileBatch& tile,
     tile.fill_styles.insert(tile.fill_styles.end(), 6, style_index);
 }
 
+void rhi_renderer::append_fill_triangle(RhiTileBatch& tile,
+                                        point2d       a,
+                                        point2d       b,
+                                        point2d       c,
+                                        StyleIndex    style_index)
+{
+    if (std::abs(cross(a, b, c)) <= kPolygonEpsilon)
+        return;
+
+    tile.fill_verts.push_back(make_vertex(a));
+    tile.fill_verts.push_back(make_vertex(b));
+    tile.fill_verts.push_back(make_vertex(c));
+    tile.fill_styles.insert(tile.fill_styles.end(), 3, style_index);
+}
+
 void rhi_renderer::ensure_tile_grid()
 {
     const rectangle scene = m_camera->get_initial_world();
@@ -354,6 +574,38 @@ void rhi_renderer::append_fill_rect_to_tiles(point2d p0,
                              {left, bottom},
                              {right, top},
                              style_index);
+        }
+    }
+}
+
+void rhi_renderer::append_fill_triangle_to_tiles(point2d    a,
+                                                 point2d    b,
+                                                 point2d    c,
+                                                 StyleIndex style_index)
+{
+    const double x_min = std::min({a.x, b.x, c.x});
+    const double x_max = std::max({a.x, b.x, c.x});
+    const double y_min = std::min({a.y, b.y, c.y});
+    const double y_max = std::max({a.y, b.y, c.y});
+    const rectangle bounds{{x_min, y_min}, {x_max, y_max}};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+    const std::vector<point2d> triangle = {a, b, c};
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            RhiTileBatch& tile = tile_at(tx, ty);
+            const std::vector<point2d> clipped =
+                clip_convex_polygon_to_rect(triangle, tile.world_bounds);
+            if (clipped.size() < 3)
+                continue;
+
+            const point2d anchor = clipped.front();
+            for (std::size_t i = 1; i + 1 < clipped.size(); ++i) {
+                append_fill_triangle(tile, anchor, clipped[i], clipped[i + 1], style_index);
+            }
         }
     }
 }
@@ -544,6 +796,49 @@ QMatrix4x4 rhi_renderer::compute_mvp() const
     m(1, 1) = 2.0f * sy / fh;
     m(1, 3) = 1.0f - 2.0f * ty / fh;
     return m;
+}
+
+bool rhi_renderer::defer_fill_poly(const std::vector<point2d>& points)
+{
+    if (is_replaying_deferred_commands())
+        return false;
+
+    if (current_coordinate_system != WORLD)
+        return deferred_renderer::defer_fill_poly(points);
+
+    if (m_skip_tile_writes)
+        return true;
+
+    if (points.size() < 3)
+        return true;
+
+    double x_min = points[0].x;
+    double x_max = points[0].x;
+    double y_min = points[0].y;
+    double y_max = points[0].y;
+    for (std::size_t i = 1; i < points.size(); ++i) {
+        x_min = std::min(x_min, points[i].x);
+        x_max = std::max(x_max, points[i].x);
+        y_min = std::min(y_min, points[i].y);
+        y_max = std::max(y_max, points[i].y);
+    }
+
+    if (rectangle_off_screen({{x_min, y_min}, {x_max, y_max}}))
+        return true;
+
+    const std::vector<Triangle> triangles = triangulate_simple_polygon(points);
+    if (triangles.empty()) {
+        qWarning("rhi_renderer: failed to triangulate polygon with %llu points",
+                 static_cast<unsigned long long>(points.size()));
+        return true;
+    }
+
+    const StyleIndex style_index = current_style_index();
+    for (const Triangle& triangle : triangles) {
+        append_fill_triangle_to_tiles(triangle.a, triangle.b, triangle.c, style_index);
+    }
+
+    return true;
 }
 
 void rhi_renderer::draw_line(point2d start, point2d end)

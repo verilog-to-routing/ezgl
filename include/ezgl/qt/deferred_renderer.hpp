@@ -135,6 +135,7 @@ public:
 protected:
     void replay();
     void clear_deferred_primitives();
+    bool is_replaying_deferred_commands() const { return m_replaying_commands; }
 
     bool defer_fill_poly(const std::vector<point2d>& points) override;
     bool defer_arc(point2d center,

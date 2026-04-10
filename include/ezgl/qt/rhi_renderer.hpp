@@ -16,7 +16,7 @@ namespace ezgl {
 /**
  * GPU-backed renderer with scene tiling.
  *
- * Hot-path primitives (lines, rectangles) are clipped into a fixed 256 x 256
+ * Hot-path primitives (lines, rectangles, filled polygons) are clipped into a fixed 256 x 256
  * grid over the scene bounds. Each non-empty tile carries its own geometry
  * streams and is submitted to RhiCanvasWidget as an independent GPU batch.
  *
@@ -65,6 +65,9 @@ public:
      */
     void flush_mvp_only();
 
+protected:
+    bool defer_fill_poly(const std::vector<point2d>& points) override;
+
 private:
     static constexpr int kTileGridDimension = 256;
 
@@ -82,6 +85,11 @@ private:
                           point2d       p0,
                           point2d       p1,
                           StyleIndex    style_index);
+    void append_fill_triangle(RhiTileBatch& tile,
+                              point2d       a,
+                              point2d       b,
+                              point2d       c,
+                              StyleIndex    style_index);
     void append_line_to_tiles(point2d start,
                               point2d end,
                               StyleIndex style_index);
@@ -91,6 +99,10 @@ private:
     void append_fill_rect_to_tiles(point2d p0,
                                    point2d p1,
                                    StyleIndex style_index);
+    void append_fill_triangle_to_tiles(point2d    a,
+                                       point2d    b,
+                                       point2d    c,
+                                       StyleIndex style_index);
 
     // Thick line helpers (line_width > 0).
     // Appends one ThickLineInstance per clipped segment (instanced rendering).
