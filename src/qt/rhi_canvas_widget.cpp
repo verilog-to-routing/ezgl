@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QMutexLocker>
 #include <chrono>
+#include <cmath>
 #include <limits>
 
 #include "ezgl/qt/ezgl_qtcompat.hpp"
@@ -45,6 +46,8 @@ constexpr std::size_t kMaxThickInstancesPerChunk =
 constexpr std::size_t kMaxDashedInstancesPerChunk =
     std::min(kMaxQrhiBufferBytes / sizeof(ezgl::DashedLineInstance),
              kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
+constexpr std::uint32_t kInvalidDenseTileIndex =
+    std::numeric_limits<std::uint32_t>::max();
 
 // MVP UBO layout (std140, binding 0):
 //   offset  0 : mat4  mvp      (64 bytes)
@@ -123,6 +126,15 @@ bool rectanglesIntersect(const ezgl::rectangle& a, const ezgl::rectangle& b)
           || a.left() > b.right()
           || a.top() < b.bottom()
           || a.bottom() > b.top());
+}
+
+int clampTileCoord(double value, double origin, double tile_extent, int tile_count)
+{
+    if (tile_count <= 0)
+        return 0;
+
+    const double normalized = (value - origin) / tile_extent;
+    return std::clamp(int(std::floor(normalized)), 0, tile_count - 1);
 }
 
 struct ColorUniform {
@@ -386,6 +398,7 @@ RhiCanvasWidget::~RhiCanvasWidget() = default;
 
 void RhiCanvasWidget::set_frame_data(std::vector<RhiTileBatch>  tiles,
                                      std::vector<std::uint32_t> palette_rgba,
+                                     const RhiTileGridInfo&     tile_grid,
                                      const QMatrix4x4&          world_to_ndc,
                                      const rectangle&           visible_world,
                                      const QImage&              overlay,
@@ -398,6 +411,8 @@ void RhiCanvasWidget::set_frame_data(std::vector<RhiTileBatch>  tiles,
     m_pending_palette_rgba = palette_ptr;
     m_cached_tiles         = std::move(tiles_ptr);
     m_cached_palette_rgba  = std::move(palette_ptr);
+    m_pending_tile_grid    = tile_grid;
+    m_cached_tile_grid     = tile_grid;
     m_pending_mvp          = world_to_ndc;
     m_pending_visible_world = visible_world;
     m_pending_overlay      = overlay;
@@ -561,6 +576,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     rectangle  visible_world;
     QImage     overlay;
     QColor     bg;
+    RhiTileGridInfo tile_grid;
     bool       geom_dirty;
 
     {
@@ -577,6 +593,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         visible_world = m_pending_visible_world;
         overlay    = m_pending_overlay;
         bg         = m_pending_bg;
+        tile_grid  = m_cached_tile_grid;
 
         if (geom_dirty) {
             if (m_frame_dirty && m_pending_tiles) {
@@ -770,11 +787,17 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         };
 
         frame.gpu_tiles.resize(tiles->size());
+        frame.tile_grid = tile_grid;
+        const std::size_t dense_tile_count =
+            std::size_t(tile_grid.cols) * std::size_t(tile_grid.rows);
+        frame.dense_tile_lookup.assign(dense_tile_count, kInvalidDenseTileIndex);
 
         for (std::size_t i = 0; i < tiles->size(); ++i) {
             const RhiTileBatch& tile     = (*tiles)[i];
             GpuTileBatch&       gpu_tile = frame.gpu_tiles[i];
             gpu_tile.world_bounds = tile.world_bounds;
+            gpu_tile.tile_x = tile.tile_x;
+            gpu_tile.tile_y = tile.tile_y;
             planStream(gpu_tile.line_chunks, line_uploads, line_buffer_vertices,
                        tile.line_verts, tile.line_styles,
                        kMaxVerticesPerChunk, sizeof(PosVertex));
@@ -792,6 +815,15 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                        dashed_line_buffer_vertices,
                        tile.dashed_line_instances, tile.dashed_line_styles,
                        kMaxDashedInstancesPerChunk, sizeof(DashedLineInstance));
+
+            const std::size_t dense_index =
+                std::size_t(tile.tile_y) * std::size_t(tile_grid.cols) + std::size_t(tile.tile_x);
+            if (dense_index >= frame.dense_tile_lookup.size()) {
+                qFatal("RhiCanvasWidget: tile lookup index %zu exceeds dense grid size %zu",
+                       dense_index,
+                       frame.dense_tile_lookup.size());
+            }
+            frame.dense_tile_lookup[dense_index] = std::uint32_t(i);
         }
 
         auto trimBufferVector = [](std::vector<std::unique_ptr<QRhiBuffer>>& buffers,
@@ -914,15 +946,13 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     };
 
     std::size_t visible_tile_count = 0;
+    std::size_t considered_tile_count = 0;
     unsigned long long visible_line_verts        = 0;
     unsigned long long visible_fill_verts        = 0;
     unsigned long long visible_draw_verts        = 0;
     unsigned long long visible_thick_line_verts  = 0;
     unsigned long long visible_dashed_line_verts = 0;
-    for (const GpuTileBatch& tile : frame.gpu_tiles) {
-        if (!rectanglesIntersect(tile.world_bounds, visible_world))
-            continue;
-
+    auto drawTile = [&](const GpuTileBatch& tile) {
         ++visible_tile_count;
         visible_fill_verts        += countChunkVertices(tile.fill_chunks);
         visible_draw_verts        += countChunkVertices(tile.draw_chunks);
@@ -965,6 +995,59 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             cb->setVertexInput(0, 3, inputs);
             cb->draw(4, chunk.count); // 4 quad corners, chunk.count instances
         }
+    };
+
+    const bool can_direct_index_tiles =
+        frame.tile_grid.cols > 0
+        && frame.tile_grid.rows > 0
+        && frame.dense_tile_lookup.size()
+            == std::size_t(frame.tile_grid.cols) * std::size_t(frame.tile_grid.rows);
+    if (can_direct_index_tiles
+        && rectanglesIntersect(frame.tile_grid.scene_bounds, visible_world)) {
+        const double tile_width =
+            frame.tile_grid.scene_bounds.width() / double(frame.tile_grid.cols);
+        const double tile_height =
+            frame.tile_grid.scene_bounds.height() / double(frame.tile_grid.rows);
+        const int min_tx =
+            clampTileCoord(visible_world.left(),
+                           frame.tile_grid.scene_bounds.left(),
+                           tile_width,
+                           int(frame.tile_grid.cols));
+        const int max_tx =
+            clampTileCoord(visible_world.right(),
+                           frame.tile_grid.scene_bounds.left(),
+                           tile_width,
+                           int(frame.tile_grid.cols));
+        const int min_ty =
+            clampTileCoord(visible_world.bottom(),
+                           frame.tile_grid.scene_bounds.bottom(),
+                           tile_height,
+                           int(frame.tile_grid.rows));
+        const int max_ty =
+            clampTileCoord(visible_world.top(),
+                           frame.tile_grid.scene_bounds.bottom(),
+                           tile_height,
+                           int(frame.tile_grid.rows));
+
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                ++considered_tile_count;
+                const std::size_t dense_index =
+                    std::size_t(ty) * std::size_t(frame.tile_grid.cols) + std::size_t(tx);
+                const std::uint32_t gpu_index = frame.dense_tile_lookup[dense_index];
+                if (gpu_index == kInvalidDenseTileIndex)
+                    continue;
+
+                drawTile(frame.gpu_tiles[std::size_t(gpu_index)]);
+            }
+        }
+    } else {
+        for (const GpuTileBatch& tile : frame.gpu_tiles) {
+            ++considered_tile_count;
+            if (!rectanglesIntersect(tile.world_bounds, visible_world))
+                continue;
+            drawTile(tile);
+        }
     }
 
     if (has_overlay) {
@@ -981,13 +1064,14 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
     const auto frame_end = std::chrono::steady_clock::now();
     const double frame_ms = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
-    g_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, tiles=%zu, visible_tiles=%zu, "
+    g_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, tiles=%zu, considered_tiles=%zu, visible_tiles=%zu, "
             "line_verts=%llu, fill_verts=%llu, draw_verts=%llu, thick_line_verts=%llu, "
             "dashed_line_verts=%llu)",
             frame_ms,
             frame_slot,
             int(geom_dirty),
             frame.gpu_tiles.size(),
+            considered_tile_count,
             visible_tile_count,
             visible_line_verts,
             visible_fill_verts,

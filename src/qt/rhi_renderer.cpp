@@ -235,8 +235,10 @@ void rhi_renderer::ensure_tile_grid()
             const double right = (tx + 1 == kTileGridDimension)
                 ? m_scene_bounds.right()
                 : (left + m_tile_width);
-            m_tiles[std::size_t(tile_index(tx, ty))].world_bounds =
-                rectangle{{left, bottom}, {right, top}};
+            RhiTileBatch& tile = m_tiles[std::size_t(tile_index(tx, ty))];
+            tile.world_bounds = rectangle{{left, bottom}, {right, top}};
+            tile.tile_x = std::uint16_t(tx);
+            tile.tile_y = std::uint16_t(ty);
         }
     }
 }
@@ -683,6 +685,9 @@ void rhi_renderer::flush()
     m_rhi_widget->set_frame_data(
         std::move(non_empty_tiles),
         std::move(m_palette_rgba),
+        RhiTileGridInfo{m_scene_bounds,
+                        std::uint16_t(kTileGridDimension),
+                        std::uint16_t(kTileGridDimension)},
         compute_mvp(),
         get_visible_world(),
         m_overlay,

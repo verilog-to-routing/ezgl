@@ -7,7 +7,9 @@
 #include <QBrush>
 #include <QColor>
 #include <algorithm>
+#include <cmath>
 #include <iostream>
+#include <limits>
 #include <type_traits>
 #include <variant>
 
@@ -16,6 +18,7 @@ namespace ezgl {
 // ---- helpers -------------------------------------------------------------
 
 static constexpr double kMinReadableTextSize = 8.0;
+static constexpr int kOverlaySpatialGridDimension = 256;
 
 struct DeferredVisibleStats {
     std::size_t lines = 0;
@@ -91,6 +94,71 @@ deferred_renderer::deferred_renderer(Painter *painter,
                                      QImage *surface)
     : renderer(painter, std::move(transform), cam, surface)
 {}
+
+void deferred_renderer::ensure_overlay_index_grid()
+{
+    const rectangle scene = m_camera->get_initial_world();
+    const double scene_width =
+        std::max(scene.width(), std::numeric_limits<double>::epsilon());
+    const double scene_height =
+        std::max(scene.height(), std::numeric_limits<double>::epsilon());
+    const rectangle normalized_scene{{scene.left(), scene.bottom()}, scene_width, scene_height};
+
+    if (m_indexed_world_overlay_buckets.size()
+            == std::size_t(kOverlaySpatialGridDimension * kOverlaySpatialGridDimension)
+        && normalized_scene == m_overlay_index_scene_bounds) {
+        return;
+    }
+
+    m_overlay_index_scene_bounds = normalized_scene;
+    m_overlay_index_tile_width =
+        m_overlay_index_scene_bounds.width() / double(kOverlaySpatialGridDimension);
+    m_overlay_index_tile_height =
+        m_overlay_index_scene_bounds.height() / double(kOverlaySpatialGridDimension);
+    m_indexed_world_overlay_buckets.clear();
+    m_indexed_world_overlay_buckets.resize(
+        std::size_t(kOverlaySpatialGridDimension * kOverlaySpatialGridDimension));
+}
+
+int deferred_renderer::clamp_overlay_tile_x(double x) const
+{
+    const double normalized =
+        (x - m_overlay_index_scene_bounds.left()) / m_overlay_index_tile_width;
+    return std::clamp(int(std::floor(normalized)), 0, kOverlaySpatialGridDimension - 1);
+}
+
+int deferred_renderer::clamp_overlay_tile_y(double y) const
+{
+    const double normalized =
+        (y - m_overlay_index_scene_bounds.bottom()) / m_overlay_index_tile_height;
+    return std::clamp(int(std::floor(normalized)), 0, kOverlaySpatialGridDimension - 1);
+}
+
+void deferred_renderer::index_world_overlay_command(std::uint32_t command_index,
+                                                    rectangle      bounds)
+{
+    ensure_overlay_index_grid();
+
+    if (bounds.right() < m_overlay_index_scene_bounds.left()
+        || bounds.left() > m_overlay_index_scene_bounds.right()
+        || bounds.top() < m_overlay_index_scene_bounds.bottom()
+        || bounds.bottom() > m_overlay_index_scene_bounds.top()) {
+        m_unindexed_overlay_commands.push_back(command_index);
+        return;
+    }
+
+    const int min_tx = clamp_overlay_tile_x(bounds.left());
+    const int max_tx = clamp_overlay_tile_x(bounds.right());
+    const int min_ty = clamp_overlay_tile_y(bounds.bottom());
+    const int max_ty = clamp_overlay_tile_y(bounds.top());
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            const std::size_t bucket_index =
+                std::size_t(ty) * std::size_t(kOverlaySpatialGridDimension) + std::size_t(tx);
+            m_indexed_world_overlay_buckets[bucket_index].push_back(command_index);
+        }
+    }
+}
 
 // ---- style key builders --------------------------------------------------
 
@@ -384,7 +452,23 @@ bool deferred_renderer::defer_fill_poly(const std::vector<point2d>& points)
     if (m_replaying_commands)
         return false;
 
+    const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     m_overlay_commands.emplace_back(DeferredPolyCommand{capture_painter_state(), points});
+    if (current_coordinate_system == WORLD && !points.empty()) {
+        double x_min = points.front().x;
+        double x_max = points.front().x;
+        double y_min = points.front().y;
+        double y_max = points.front().y;
+        for (std::size_t i = 1; i < points.size(); ++i) {
+            x_min = std::min(x_min, points[i].x);
+            x_max = std::max(x_max, points[i].x);
+            y_min = std::min(y_min, points[i].y);
+            y_max = std::max(y_max, points[i].y);
+        }
+        index_world_overlay_command(command_index, {{x_min, y_min}, {x_max, y_max}});
+    } else {
+        m_unindexed_overlay_commands.push_back(command_index);
+    }
     return true;
 }
 
@@ -398,6 +482,7 @@ bool deferred_renderer::defer_arc(point2d center,
     if (m_replaying_commands)
         return false;
 
+    const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     m_overlay_commands.emplace_back(DeferredArcCommand{
         capture_painter_state(),
         center,
@@ -407,6 +492,14 @@ bool deferred_renderer::defer_arc(point2d center,
         extent_angle,
         fill
     });
+    if (current_coordinate_system == WORLD) {
+        index_world_overlay_command(
+            command_index,
+            {{center.x - radius_x, center.y - radius_y},
+             {center.x + radius_x, center.y + radius_y}});
+    } else {
+        m_unindexed_overlay_commands.push_back(command_index);
+    }
     return true;
 }
 
@@ -418,6 +511,8 @@ bool deferred_renderer::defer_text(point2d point,
     if (m_replaying_commands)
         return false;
 
+    const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
+    const point2d recorded_world_scale = m_camera->get_world_scale_factor();
     m_overlay_commands.emplace_back(DeferredTextCommand{
         capture_painter_state(),
         point,
@@ -425,8 +520,35 @@ bool deferred_renderer::defer_text(point2d point,
         bound_x,
         bound_y,
         current_coordinate_system == WORLD,
-        std::max(m_camera->get_world_scale_factor().x, std::numeric_limits<double>::epsilon())
+        std::max(recorded_world_scale.x, std::numeric_limits<double>::epsilon())
     });
+    if (current_coordinate_system == WORLD) {
+        text_extents_t text_extents{0, 0, 0, 0, 0, 0};
+        m_painter->text_extents(text.c_str(), &text_extents);
+
+        const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
+        const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
+        const double clip_width = bounded_x ? bound_x : text_extents.width * recorded_world_scale.x;
+        const double clip_height = bounded_y ? bound_y : text_extents.height * recorded_world_scale.y;
+
+        point2d center = point;
+        if (horiz_justification == justification::left)
+            center.x += clip_width / 2.0;
+        else if (horiz_justification == justification::right)
+            center.x -= clip_width / 2.0;
+        if (vert_justification == justification::top)
+            center.y -= clip_height / 2.0;
+        else if (vert_justification == justification::bottom)
+            center.y += clip_height / 2.0;
+
+        index_world_overlay_command(
+            command_index,
+            {{center.x - clip_width / 2.0, center.y - clip_height / 2.0},
+             clip_width,
+             clip_height});
+    } else {
+        m_unindexed_overlay_commands.push_back(command_index);
+    }
     return true;
 }
 
@@ -437,12 +559,14 @@ bool deferred_renderer::defer_surface(surface *p_surface,
     if (m_replaying_commands)
         return false;
 
+    const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     m_overlay_commands.emplace_back(DeferredSurfaceCommand{
         capture_painter_state(),
         p_surface,
         point,
         scale_factor
     });
+    m_unindexed_overlay_commands.push_back(command_index);
     return true;
 }
 
@@ -621,7 +745,50 @@ void deferred_renderer::replay()
         visible_draw_rect_batches.push_back({{}, batch.style, std::move(visible_rects)});
     }
 
-    for (const DeferredOverlayCommand& command : m_overlay_commands) {
+    std::vector<std::uint32_t> candidate_overlay_indices;
+    candidate_overlay_indices.reserve(m_unindexed_overlay_commands.size() + 128);
+    candidate_overlay_indices.insert(candidate_overlay_indices.end(),
+                                     m_unindexed_overlay_commands.begin(),
+                                     m_unindexed_overlay_commands.end());
+
+    if (!m_indexed_world_overlay_buckets.empty()
+        && !m_overlay_commands.empty()
+        && m_overlay_index_scene_bounds.right() >= get_visible_world().left()
+        && m_overlay_index_scene_bounds.left() <= get_visible_world().right()
+        && m_overlay_index_scene_bounds.top() >= get_visible_world().bottom()
+        && m_overlay_index_scene_bounds.bottom() <= get_visible_world().top()) {
+        if (m_overlay_query_marks.size() < m_overlay_commands.size())
+            m_overlay_query_marks.resize(m_overlay_commands.size(), 0);
+        ++m_overlay_query_generation;
+        if (m_overlay_query_generation == 0) {
+            std::fill(m_overlay_query_marks.begin(), m_overlay_query_marks.end(), 0);
+            m_overlay_query_generation = 1;
+        }
+
+        const rectangle visible_world = get_visible_world();
+        const int min_tx = clamp_overlay_tile_x(visible_world.left());
+        const int max_tx = clamp_overlay_tile_x(visible_world.right());
+        const int min_ty = clamp_overlay_tile_y(visible_world.bottom());
+        const int max_ty = clamp_overlay_tile_y(visible_world.top());
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                const std::size_t bucket_index =
+                    std::size_t(ty) * std::size_t(kOverlaySpatialGridDimension) + std::size_t(tx);
+                for (const std::uint32_t command_index : m_indexed_world_overlay_buckets[bucket_index]) {
+                    if (m_overlay_query_marks[command_index] == m_overlay_query_generation)
+                        continue;
+                    m_overlay_query_marks[command_index] = m_overlay_query_generation;
+                    candidate_overlay_indices.push_back(command_index);
+                }
+            }
+        }
+    }
+
+    std::sort(candidate_overlay_indices.begin(), candidate_overlay_indices.end());
+
+    for (const std::uint32_t command_index : candidate_overlay_indices) {
+        const DeferredOverlayCommand& command =
+            m_overlay_commands[std::size_t(command_index)];
         const bool visible = std::visit([&](const auto& cmd) -> bool {
             using T = std::decay_t<decltype(cmd)>;
             if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
@@ -759,6 +926,11 @@ void deferred_renderer::reset()
     m_fill_rect_idx.clear();
     m_draw_rect_idx.clear();
     m_overlay_commands.clear();
+    for (auto& bucket : m_indexed_world_overlay_buckets)
+        bucket.clear();
+    m_unindexed_overlay_commands.clear();
+    m_overlay_query_marks.clear();
+    m_overlay_query_generation = 1;
 }
 
 } // namespace ezgl

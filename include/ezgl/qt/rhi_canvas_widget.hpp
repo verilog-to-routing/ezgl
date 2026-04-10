@@ -24,6 +24,12 @@ QT_FORWARD_DECLARE_CLASS(QRhiTexture)
 
 namespace ezgl {
 
+struct RhiTileGridInfo {
+    rectangle     scene_bounds;
+    std::uint16_t cols = 0;
+    std::uint16_t rows = 0;
+};
+
 /**
  * Packed GPU vertex: world-space position only.
  * Layout matches the QRhiVertexInputAttribute setup in RhiCanvasWidget.
@@ -97,6 +103,8 @@ static constexpr std::size_t kMaxRhiStyleEntries = 256;
 
 struct RhiTileBatch {
     rectangle                    world_bounds;
+    std::uint16_t                tile_x = 0;
+    std::uint16_t                tile_y = 0;
     // Thin (1-pixel) lines — drawn with Lines topology.
     std::vector<PosVertex>       line_verts;
     std::vector<StyleIndex>      line_styles;
@@ -156,6 +164,7 @@ public:
      */
     void set_frame_data(std::vector<RhiTileBatch> tiles,
                         std::vector<std::uint32_t> palette_rgba,
+                        const RhiTileGridInfo&    tile_grid,
                         const QMatrix4x4&         world_to_ndc,
                         const rectangle&          visible_world,
                         const QImage&             overlay,
@@ -203,6 +212,8 @@ private:
 
     struct GpuTileBatch {
         rectangle                world_bounds;
+        std::uint16_t            tile_x = 0;
+        std::uint16_t            tile_y = 0;
         std::vector<StreamChunk> line_chunks;
         std::vector<StreamChunk> fill_chunks;
         std::vector<StreamChunk> draw_chunks;
@@ -226,6 +237,8 @@ private:
         std::unique_ptr<QRhiTexture>                overlay_tex;
         std::unique_ptr<QRhiShaderResourceBindings> overlay_srb;
         std::vector<GpuTileBatch>                   gpu_tiles;
+        RhiTileGridInfo                             tile_grid;
+        std::vector<std::uint32_t>                  dense_tile_lookup;
         std::unique_ptr<QRhiShaderResourceBindings> srb;
     };
 
@@ -251,6 +264,7 @@ private:
     mutable QMutex                                     m_frame_mutex;
     std::shared_ptr<const std::vector<RhiTileBatch>>   m_pending_tiles;
     std::shared_ptr<const std::vector<std::uint32_t>>  m_pending_palette_rgba;
+    RhiTileGridInfo                                     m_pending_tile_grid;
     QMatrix4x4                                         m_pending_mvp;
     rectangle                                          m_pending_visible_world;
     QImage                                             m_pending_overlay;
@@ -263,6 +277,7 @@ private:
     // received the current geometry revision.
     std::shared_ptr<const std::vector<RhiTileBatch>>   m_cached_tiles;
     std::shared_ptr<const std::vector<std::uint32_t>>  m_cached_palette_rgba;
+    RhiTileGridInfo                                     m_cached_tile_grid;
     std::vector<bool>                                  m_frame_slot_geom_valid;
 
     // Canvas hooks

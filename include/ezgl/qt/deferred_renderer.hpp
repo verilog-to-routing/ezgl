@@ -8,6 +8,7 @@
 #include <QLineF>
 #include <QRectF>
 #include <QFont>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -151,6 +152,11 @@ protected:
                        double scale_factor) override;
 
 private:
+    void ensure_overlay_index_grid();
+    int clamp_overlay_tile_x(double x) const;
+    int clamp_overlay_tile_y(double y) const;
+    void index_world_overlay_command(std::uint32_t command_index,
+                                     rectangle      bounds);
     void reset();
     DeferredPainterState capture_painter_state() const;
     void apply_painter_state(const DeferredPainterState& state);
@@ -189,6 +195,13 @@ private:
     std::unordered_map<uint64_t, size_t> m_fill_rect_idx;
     std::unordered_map<uint64_t, size_t> m_draw_rect_idx;
     std::vector<DeferredOverlayCommand>  m_overlay_commands;
+    rectangle                            m_overlay_index_scene_bounds;
+    double                               m_overlay_index_tile_width = 1.0;
+    double                               m_overlay_index_tile_height = 1.0;
+    std::vector<std::vector<std::uint32_t>> m_indexed_world_overlay_buckets;
+    std::vector<std::uint32_t>           m_unindexed_overlay_commands;
+    std::vector<std::uint32_t>           m_overlay_query_marks;
+    std::uint32_t                        m_overlay_query_generation = 1;
     bool                                 m_replaying_commands = false;
 };
 
