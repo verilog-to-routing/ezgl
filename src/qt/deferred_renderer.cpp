@@ -7,6 +7,7 @@
 #include <QBrush>
 #include <QColor>
 #include <algorithm>
+#include <iostream>
 #include <type_traits>
 #include <variant>
 
@@ -15,6 +16,44 @@ namespace ezgl {
 // ---- helpers -------------------------------------------------------------
 
 static constexpr double kMinReadableTextSize = 8.0;
+
+struct DeferredVisibleStats {
+    std::size_t lines = 0;
+    std::size_t filled_rects = 0;
+    std::size_t outlined_rects = 0;
+    std::size_t filled_polys = 0;
+    std::size_t outlined_arcs = 0;
+    std::size_t filled_arcs = 0;
+    std::size_t texts = 0;
+    std::size_t surfaces = 0;
+
+    std::size_t total() const
+    {
+        return lines
+             + filled_rects
+             + outlined_rects
+             + filled_polys
+             + outlined_arcs
+             + filled_arcs
+             + texts
+             + surfaces;
+    }
+};
+
+static void print_visible_stats(const DeferredVisibleStats& stats)
+{
+    std::cout << "~~~ deferred QPainter visible primitives:"
+              << " total=" << stats.total()
+              << " lines=" << stats.lines
+              << " fill_rects=" << stats.filled_rects
+              << " draw_rects=" << stats.outlined_rects
+              << " fill_polys=" << stats.filled_polys
+              << " draw_arcs=" << stats.outlined_arcs
+              << " fill_arcs=" << stats.filled_arcs
+              << " text=" << stats.texts
+              << " surfaces=" << stats.surfaces
+              << std::endl;
+}
 
 static QColor unpack_color(uint32_t rgba)
 {
@@ -409,6 +448,132 @@ bool deferred_renderer::defer_surface(surface *p_surface,
 
 void deferred_renderer::replay()
 {
+    struct VisibleLineBatch {
+        LineStyleKey        style;
+        std::vector<QLineF> lines;
+    };
+
+    struct VisibleRectBatch {
+        FillStyleKey        fill_style;
+        LineStyleKey        line_style;
+        std::vector<QRectF> rects;
+    };
+
+    auto resolve_text_replay_state =
+        [this](const DeferredTextCommand& cmd, DeferredPainterState& state) {
+            state = cmd.state;
+            if (!cmd.scale_font_with_camera)
+                return true;
+
+            const double current_scale =
+                std::max(m_camera->get_world_scale_factor().x, std::numeric_limits<double>::epsilon());
+            const double scale_ratio =
+                std::min(1.0, cmd.recorded_world_scale / current_scale);
+            if (state.font.pixelSize() > 0) {
+                const double scaled_pixel_size = state.font.pixelSize() * scale_ratio;
+                if (scaled_pixel_size < kMinReadableTextSize)
+                    return false;
+                state.font.setPixelSize(std::max(1, int(std::lround(scaled_pixel_size))));
+            } else if (state.font.pointSizeF() > 0.0) {
+                const double scaled_point_size = state.font.pointSizeF() * scale_ratio;
+                if (scaled_point_size < kMinReadableTextSize)
+                    return false;
+                state.font.setPointSizeF(scaled_point_size);
+            }
+
+            return true;
+        };
+
+    auto world_poly_visible = [this](const std::vector<point2d>& points) {
+        if (points.empty())
+            return false;
+
+        double x_min = points.front().x;
+        double x_max = points.front().x;
+        double y_min = points.front().y;
+        double y_max = points.front().y;
+        for (std::size_t i = 1; i < points.size(); ++i) {
+            x_min = std::min(x_min, points[i].x);
+            x_max = std::max(x_max, points[i].x);
+            y_min = std::min(y_min, points[i].y);
+            y_max = std::max(y_max, points[i].y);
+        }
+
+        return !rectangle_off_screen({{x_min, y_min}, {x_max, y_max}});
+    };
+
+    auto world_arc_visible = [this](point2d center, double radius_x, double radius_y) {
+        return !rectangle_off_screen(
+            {{center.x - radius_x, center.y - radius_y},
+             {center.x + radius_x, center.y + radius_y}});
+    };
+
+    auto world_text_visible =
+        [this](point2d point, const std::string& text, double bound_x, double bound_y) {
+            text_extents_t text_extents{0, 0, 0, 0, 0, 0};
+            m_painter->text_extents(text.c_str(), &text_extents);
+
+            const point2d world_scale = m_camera->get_world_scale_factor();
+            const double scaled_width = text_extents.width * world_scale.x;
+            const double scaled_height = text_extents.height * world_scale.y;
+            const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
+            const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
+            const double clip_width = bounded_x ? bound_x : scaled_width;
+            const double clip_height = bounded_y ? bound_y : scaled_height;
+
+            point2d center = point;
+            if (horiz_justification == justification::left)
+                center.x += clip_width / 2.0;
+            else if (horiz_justification == justification::right)
+                center.x -= clip_width / 2.0;
+            if (vert_justification == justification::top)
+                center.y -= clip_height / 2.0;
+            else if (vert_justification == justification::bottom)
+                center.y += clip_height / 2.0;
+
+            return !rectangle_off_screen(
+                {{center.x - clip_width / 2.0, center.y - clip_height / 2.0},
+                 clip_width,
+                 clip_height});
+        };
+
+    auto world_surface_visible =
+        [this](surface *p_surface, point2d point, double scale_factor) {
+            if (p_surface == nullptr || p_surface->isNull())
+                return false;
+
+            double s_width = double(p_surface->width()) * scale_factor;
+            double s_height = double(p_surface->height()) * scale_factor;
+            s_width *= m_camera->get_world_scale_factor().x;
+            s_height *= m_camera->get_world_scale_factor().y;
+
+            point2d top_left = point;
+            if (horiz_justification == justification::center)
+                top_left.x -= s_width / 2.0;
+            else if (horiz_justification == justification::right)
+                top_left.x -= s_width;
+            if (vert_justification == justification::center)
+                top_left.y += s_height / 2.0;
+            else if (vert_justification == justification::bottom)
+                top_left.y += s_height;
+
+            return !rectangle_off_screen({{top_left.x, top_left.y - s_height}, s_width, s_height});
+        };
+
+    std::vector<VisibleLineBatch> visible_line_batches;
+    visible_line_batches.reserve(m_line_batches.size());
+
+    std::vector<VisibleRectBatch> visible_fill_rect_batches;
+    visible_fill_rect_batches.reserve(m_fill_rect_batches.size());
+
+    std::vector<VisibleRectBatch> visible_draw_rect_batches;
+    visible_draw_rect_batches.reserve(m_draw_rect_batches.size());
+
+    std::vector<const DeferredOverlayCommand*> visible_overlay_commands;
+    visible_overlay_commands.reserve(m_overlay_commands.size());
+
+    DeferredVisibleStats stats;
+
     // lines
     for (const auto &batch : m_line_batches) {
         std::vector<QLineF> visible_lines;
@@ -421,10 +586,8 @@ void deferred_renderer::replay()
         if (visible_lines.empty())
             continue;
 
-        QPen pen = make_pen(batch.style);
-        m_painter->setPen(pen);
-        m_painter->setBrush(Qt::NoBrush);
-        m_painter->drawLines(visible_lines.data(), int(visible_lines.size()));
+        stats.lines += visible_lines.size();
+        visible_line_batches.push_back({batch.style, std::move(visible_lines)});
     }
 
     // filled rects
@@ -438,10 +601,8 @@ void deferred_renderer::replay()
         if (visible_rects.empty())
             continue;
 
-        QColor c = unpack_color(batch.style.color_rgba);
-        m_painter->setPen(Qt::NoPen);
-        m_painter->setBrush(QBrush(c));
-        m_painter->drawRects(visible_rects.data(), int(visible_rects.size()));
+        stats.filled_rects += visible_rects.size();
+        visible_fill_rect_batches.push_back({batch.style, {}, std::move(visible_rects)});
     }
 
     // outline rects
@@ -456,26 +617,101 @@ void deferred_renderer::replay()
         if (visible_rects.empty())
             continue;
 
+        stats.outlined_rects += visible_rects.size();
+        visible_draw_rect_batches.push_back({{}, batch.style, std::move(visible_rects)});
+    }
+
+    for (const DeferredOverlayCommand& command : m_overlay_commands) {
+        const bool visible = std::visit([&](const auto& cmd) -> bool {
+            using T = std::decay_t<decltype(cmd)>;
+            if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
+                if (cmd.state.coordinate_system == SCREEN) {
+                    if (!screen_poly_visible(cmd.points))
+                        return false;
+                } else if (!world_poly_visible(cmd.points)) {
+                    return false;
+                }
+
+                ++stats.filled_polys;
+                return true;
+            } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
+                if (cmd.state.coordinate_system == SCREEN) {
+                    if (!screen_arc_visible(cmd.center, cmd.radius_x, cmd.radius_y))
+                        return false;
+                } else if (!world_arc_visible(cmd.center, cmd.radius_x, cmd.radius_y)) {
+                    return false;
+                }
+
+                if (cmd.fill)
+                    ++stats.filled_arcs;
+                else
+                    ++stats.outlined_arcs;
+                return true;
+            } else if constexpr (std::is_same_v<T, DeferredTextCommand>) {
+                DeferredPainterState state;
+                if (!resolve_text_replay_state(cmd, state))
+                    return false;
+
+                apply_painter_state(state);
+                if (state.coordinate_system == SCREEN) {
+                    if (!screen_text_visible(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y))
+                        return false;
+                } else if (!world_text_visible(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y)) {
+                    return false;
+                }
+
+                ++stats.texts;
+                return true;
+            } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
+                apply_painter_state(cmd.state);
+                if (cmd.state.coordinate_system == SCREEN) {
+                    if (!screen_surface_visible(cmd.p_surface, cmd.anchor_point, cmd.scale_factor))
+                        return false;
+                } else if (!world_surface_visible(cmd.p_surface, cmd.anchor_point, cmd.scale_factor)) {
+                    return false;
+                }
+
+                ++stats.surfaces;
+                return true;
+            }
+            return false;
+        }, command);
+
+        if (visible)
+            visible_overlay_commands.push_back(&command);
+    }
+
+    print_visible_stats(stats);
+
+    for (const auto& batch : visible_line_batches) {
         QPen pen = make_pen(batch.style);
         m_painter->setPen(pen);
         m_painter->setBrush(Qt::NoBrush);
-        m_painter->drawRects(visible_rects.data(), int(visible_rects.size()));
+        m_painter->drawLines(batch.lines.data(), int(batch.lines.size()));
+    }
+
+    for (const auto& batch : visible_fill_rect_batches) {
+        QColor c = unpack_color(batch.fill_style.color_rgba);
+        m_painter->setPen(Qt::NoPen);
+        m_painter->setBrush(QBrush(c));
+        m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
+    }
+
+    for (const auto& batch : visible_draw_rect_batches) {
+        QPen pen = make_pen(batch.line_style);
+        m_painter->setPen(pen);
+        m_painter->setBrush(Qt::NoBrush);
+        m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
     }
 
     m_replaying_commands = true;
-    for (const DeferredOverlayCommand& command : m_overlay_commands) {
-        std::visit([this](const auto& cmd) {
+    for (const DeferredOverlayCommand* command : visible_overlay_commands) {
+        std::visit([this, &resolve_text_replay_state](const auto& cmd) {
             apply_painter_state(cmd.state);
             using T = std::decay_t<decltype(cmd)>;
             if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
-                if (cmd.state.coordinate_system == SCREEN && !screen_poly_visible(cmd.points))
-                    return;
                 renderer::fill_poly(cmd.points);
             } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
-                if (cmd.state.coordinate_system == SCREEN
-                    && !screen_arc_visible(cmd.center, cmd.radius_x, cmd.radius_y)) {
-                    return;
-                }
                 if (cmd.fill) {
                     renderer::fill_elliptic_arc(cmd.center,
                                                 cmd.radius_x,
@@ -491,37 +727,14 @@ void deferred_renderer::replay()
                 }
             } else if constexpr (std::is_same_v<T, DeferredTextCommand>) {
                 DeferredPainterState state = cmd.state;
-                if (cmd.scale_font_with_camera) {
-                    const double current_scale =
-                        std::max(m_camera->get_world_scale_factor().x, std::numeric_limits<double>::epsilon());
-                    const double scale_ratio =
-                        std::min(1.0, cmd.recorded_world_scale / current_scale);
-                    if (state.font.pixelSize() > 0) {
-                        const double scaled_pixel_size = state.font.pixelSize() * scale_ratio;
-                        if (scaled_pixel_size < kMinReadableTextSize)
-                            return;
-                        state.font.setPixelSize(std::max(1, int(std::lround(scaled_pixel_size))));
-                    } else if (state.font.pointSizeF() > 0.0) {
-                        const double scaled_point_size = state.font.pointSizeF() * scale_ratio;
-                        if (scaled_point_size < kMinReadableTextSize)
-                            return;
-                        state.font.setPointSizeF(scaled_point_size);
-                    }
-                }
-                apply_painter_state(state);
-                if (cmd.state.coordinate_system == SCREEN
-                    && !screen_text_visible(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y)) {
+                if (!resolve_text_replay_state(cmd, state))
                     return;
-                }
+                apply_painter_state(state);
                 renderer::draw_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
-                if (cmd.state.coordinate_system == SCREEN
-                    && !screen_surface_visible(cmd.p_surface, cmd.anchor_point, cmd.scale_factor)) {
-                    return;
-                }
                 renderer::draw_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
             }
-        }, command);
+        }, *command);
     }
     m_replaying_commands = false;
 }
