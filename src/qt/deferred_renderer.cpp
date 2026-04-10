@@ -332,7 +332,8 @@ void deferred_renderer::replay()
                 if (cmd.scale_font_with_camera) {
                     const double current_scale =
                         std::max(m_camera->get_world_scale_factor().x, std::numeric_limits<double>::epsilon());
-                    const double scale_ratio = cmd.recorded_world_scale / current_scale;
+                    const double scale_ratio =
+                        std::min(1.0, cmd.recorded_world_scale / current_scale);
                     if (state.font.pixelSize() > 0) {
                         state.font.setPixelSize(std::max(1, int(std::lround(state.font.pixelSize() * scale_ratio))));
                     } else if (state.font.pointSizeF() > 0.0) {
