@@ -14,6 +14,8 @@ namespace ezgl {
 
 // ---- helpers -------------------------------------------------------------
 
+static constexpr double kMinReadableTextSize = 8.0;
+
 static QColor unpack_color(uint32_t rgba)
 {
     return QColor(
@@ -335,9 +337,15 @@ void deferred_renderer::replay()
                     const double scale_ratio =
                         std::min(1.0, cmd.recorded_world_scale / current_scale);
                     if (state.font.pixelSize() > 0) {
-                        state.font.setPixelSize(std::max(1, int(std::lround(state.font.pixelSize() * scale_ratio))));
+                        const double scaled_pixel_size = state.font.pixelSize() * scale_ratio;
+                        if (scaled_pixel_size < kMinReadableTextSize)
+                            return;
+                        state.font.setPixelSize(std::max(1, int(std::lround(scaled_pixel_size))));
                     } else if (state.font.pointSizeF() > 0.0) {
-                        state.font.setPointSizeF(std::max(0.1, state.font.pointSizeF() * scale_ratio));
+                        const double scaled_point_size = state.font.pointSizeF() * scale_ratio;
+                        if (scaled_point_size < kMinReadableTextSize)
+                            return;
+                        state.font.setPointSizeF(scaled_point_size);
                     }
                 }
                 apply_painter_state(state);
