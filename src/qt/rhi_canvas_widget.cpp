@@ -392,14 +392,19 @@ void RhiCanvasWidget::set_frame_data(std::vector<RhiTileBatch>  tiles,
                                      QColor                     bg_color)
 {
     QMutexLocker lock(&m_frame_mutex);
-    m_pending_tiles        = std::move(tiles);
-    m_pending_palette_rgba = std::move(palette_rgba);
+    auto tiles_ptr = std::make_shared<const std::vector<RhiTileBatch>>(std::move(tiles));
+    auto palette_ptr = std::make_shared<const std::vector<std::uint32_t>>(std::move(palette_rgba));
+    m_pending_tiles        = tiles_ptr;
+    m_pending_palette_rgba = palette_ptr;
+    m_cached_tiles         = std::move(tiles_ptr);
+    m_cached_palette_rgba  = std::move(palette_ptr);
     m_pending_mvp          = world_to_ndc;
     m_pending_visible_world = visible_world;
     m_pending_overlay      = overlay;
     m_pending_bg           = bg_color;
     m_frame_dirty          = true;
     m_mvp_dirty            = false;  // superseded by full frame
+    std::fill(m_frame_slot_geom_valid.begin(), m_frame_slot_geom_valid.end(), false);
 }
 
 void RhiCanvasWidget::set_mvp_only(const QMatrix4x4& world_to_ndc,
@@ -448,6 +453,7 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
 
     m_frame_resources.clear();
     m_frame_resources.resize(std::max(1, rhi()->resourceLimit(QRhi::FramesInFlight)));
+    m_frame_slot_geom_valid.assign(m_frame_resources.size(), false);
 
     m_overlay_sampler.reset(
         rhi()->newSampler(QRhiSampler::Nearest,
@@ -546,10 +552,11 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         return;
 
     const auto frame_start = std::chrono::steady_clock::now();
+    const int frame_slot = currentFrameResourceIndex(rhi(), m_frame_resources.size());
 
     // --- Snapshot pending frame under lock -----------------------------------
-    std::vector<RhiTileBatch> tiles;
-    std::vector<std::uint32_t> palette_rgba;
+    std::shared_ptr<const std::vector<RhiTileBatch>> tiles;
+    std::shared_ptr<const std::vector<std::uint32_t>> palette_rgba;
     QMatrix4x4 mvp;
     rectangle  visible_world;
     QImage     overlay;
@@ -558,26 +565,36 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
     {
         QMutexLocker lock(&m_frame_mutex);
-        if (!m_frame_dirty && !m_mvp_dirty)
+        const bool need_geom_for_slot =
+            std::size_t(frame_slot) >= m_frame_slot_geom_valid.size()
+            || (!m_frame_slot_geom_valid[std::size_t(frame_slot)] && m_cached_tiles);
+
+        if (!m_frame_dirty && !m_mvp_dirty && !need_geom_for_slot)
             return;
 
-        geom_dirty = m_frame_dirty;
+        geom_dirty = m_frame_dirty || need_geom_for_slot;
         mvp        = m_pending_mvp;
         visible_world = m_pending_visible_world;
         overlay    = m_pending_overlay;
         bg         = m_pending_bg;
 
         if (geom_dirty) {
-            tiles        = std::move(m_pending_tiles);
-            palette_rgba = std::move(m_pending_palette_rgba);
+            if (m_frame_dirty && m_pending_tiles) {
+                tiles        = m_pending_tiles;
+                palette_rgba = m_pending_palette_rgba;
+            } else {
+                tiles        = m_cached_tiles;
+                palette_rgba = m_cached_palette_rgba;
+            }
         }
         m_frame_dirty = false;
         m_mvp_dirty   = false;
+        m_pending_tiles.reset();
+        m_pending_palette_rgba.reset();
         // m_pending_overlay stays cached here; render() may re-upload it on
         // subsequent camera-only updates.
     }
 
-    const int frame_slot = currentFrameResourceIndex(rhi(), m_frame_resources.size());
     FrameResources& frame = m_frame_resources[std::size_t(frame_slot)];
     const bool has_overlay = !overlay.isNull();
     if (has_overlay) {
@@ -638,9 +655,13 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     }
 
     if (geom_dirty) {
-        if (palette_rgba.size() > kMaxRhiStyleEntries) {
+        if (!tiles || !palette_rgba) {
+            qFatal("RhiCanvasWidget: geom_dirty set without cached tile/palette data");
+        }
+
+        if (palette_rgba->size() > kMaxRhiStyleEntries) {
             qFatal("RhiCanvasWidget: palette size %zu exceeds limit %zu",
-                   palette_rgba.size(), kMaxRhiStyleEntries);
+                   palette_rgba->size(), kMaxRhiStyleEntries);
         }
 
         struct PendingUpload {
@@ -658,7 +679,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         std::size_t total_draw_vertices       = 0;
         std::size_t total_thick_line_vertices  = 0;
         std::size_t total_dashed_line_vertices = 0;
-        for (const RhiTileBatch& tile : tiles) {
+        for (const RhiTileBatch& tile : *tiles) {
             if (tile.line_styles.size()         != tile.line_verts.size()
                 || tile.fill_styles.size()      != tile.fill_verts.size()
                 || tile.draw_styles.size()      != tile.draw_verts.size()
@@ -748,10 +769,10 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             }
         };
 
-        frame.gpu_tiles.resize(tiles.size());
+        frame.gpu_tiles.resize(tiles->size());
 
-        for (std::size_t i = 0; i < tiles.size(); ++i) {
-            const RhiTileBatch& tile     = tiles[i];
+        for (std::size_t i = 0; i < tiles->size(); ++i) {
+            const RhiTileBatch& tile     = (*tiles)[i];
             GpuTileBatch&       gpu_tile = frame.gpu_tiles[i];
             gpu_tile.world_bounds = tile.world_bounds;
             planStream(gpu_tile.line_chunks, line_uploads, line_buffer_vertices,
@@ -845,13 +866,20 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
         PaletteUniformBlock palette_data{};
         const std::size_t palette_count =
-            std::min<std::size_t>(palette_rgba.size(), kMaxRhiStyleEntries);
+            std::min<std::size_t>(palette_rgba->size(), kMaxRhiStyleEntries);
         for (std::size_t i = 0; i < palette_count; ++i)
-            palette_data.colors[i] = makeColorUniform(palette_rgba[i]);
+            palette_data.colors[i] = makeColorUniform((*palette_rgba)[i]);
         u->updateDynamicBuffer(frame.palette_ubuf.get(),
                                0,
                                sizeof(PaletteUniformBlock),
                                &palette_data);
+
+        {
+            QMutexLocker lock(&m_frame_mutex);
+            if (std::size_t(frame_slot) >= m_frame_slot_geom_valid.size())
+                m_frame_slot_geom_valid.resize(m_frame_resources.size(), false);
+            m_frame_slot_geom_valid[std::size_t(frame_slot)] = true;
+        }
     }
     // Camera-only frame: tiled vertex/style buffers and palette are reused.
 
@@ -1002,6 +1030,7 @@ void RhiCanvasWidget::releaseResources()
         frame.mvp_ubuf.reset();
     }
     m_frame_resources.clear();
+    m_frame_slot_geom_valid.clear();
     m_initialized = false;
 }
 

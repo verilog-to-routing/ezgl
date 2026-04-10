@@ -246,19 +246,24 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline>       m_overlay_pso;
     bool m_initialized = false;
 
-    // Pending frame (written by set_frame_data / set_mvp_only, consumed by render())
-    mutable QMutex             m_frame_mutex;
-    std::vector<RhiTileBatch>  m_pending_tiles;
-    std::vector<std::uint32_t> m_pending_palette_rgba;
-    QMatrix4x4                 m_pending_mvp;
-    rectangle                  m_pending_visible_world;
-    QImage                     m_pending_overlay;
-    QColor                     m_pending_bg  { Qt::white };
-    bool                       m_frame_dirty = false;  // geometry + MVP changed
-    bool                       m_mvp_dirty   = false;  // only MVP changed
+    // Pending frame state (written by set_frame_data / set_mvp_only,
+    // consumed by render()).
+    mutable QMutex                                     m_frame_mutex;
+    std::shared_ptr<const std::vector<RhiTileBatch>>   m_pending_tiles;
+    std::shared_ptr<const std::vector<std::uint32_t>>  m_pending_palette_rgba;
+    QMatrix4x4                                         m_pending_mvp;
+    rectangle                                          m_pending_visible_world;
+    QImage                                             m_pending_overlay;
+    QColor                                             m_pending_bg  { Qt::white };
+    bool                                               m_frame_dirty = false;  // geometry + MVP changed
+    bool                                               m_mvp_dirty   = false;  // only MVP/overlay changed
 
-    // Cached tiled GPU streams for camera-only frames (no geometry re-upload).
-    // One cache exists per QRhi frame slot.
+    // CPU-side cache of the latest full frame. Used to lazily repopulate
+    // QRhi frame slots after resize/re-init or when a slot has not yet
+    // received the current geometry revision.
+    std::shared_ptr<const std::vector<RhiTileBatch>>   m_cached_tiles;
+    std::shared_ptr<const std::vector<std::uint32_t>>  m_cached_palette_rgba;
+    std::vector<bool>                                  m_frame_slot_geom_valid;
 
     // Canvas hooks
     std::function<void(int,int)> m_resize_cb;
