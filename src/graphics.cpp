@@ -721,6 +721,13 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
   const double clip_width = bounded_x ? bound_x : scaled_width;
   const double clip_height = bounded_y ? bound_y : scaled_height;
 
+  // For bounded text, require the full measured text to fit before drawing.
+  // This avoids rendering clipped/unreadable label fragments.
+  if ((bounded_x && scaled_width > bound_x)
+      || (bounded_y && scaled_height > bound_y)) {
+    return;
+  }
+
   // the center point of the text
   point2d center = point;
 

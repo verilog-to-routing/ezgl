@@ -350,6 +350,10 @@ bool deferred_renderer::screen_text_visible(point2d point,
 
     const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
     const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
+    if ((bounded_x && text_extents.width > bound_x)
+        || (bounded_y && text_extents.height > bound_y)) {
+        return false;
+    }
     const double clip_width = bounded_x ? bound_x : text_extents.width;
     const double clip_height = bounded_y ? bound_y : text_extents.height;
 
@@ -642,6 +646,10 @@ void deferred_renderer::replay()
             const double scaled_height = text_extents.height * world_scale.y;
             const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
             const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
+            if ((bounded_x && scaled_width > bound_x)
+                || (bounded_y && scaled_height > bound_y)) {
+                return false;
+            }
             const double clip_width = bounded_x ? bound_x : scaled_width;
             const double clip_height = bounded_y ? bound_y : scaled_height;
 
