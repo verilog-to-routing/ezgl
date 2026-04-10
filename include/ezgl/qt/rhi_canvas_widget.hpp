@@ -111,6 +111,9 @@ struct RhiTileBatch {
     // Filled rectangles — drawn with Triangles topology.
     std::vector<PosVertex>       fill_verts;
     std::vector<StyleIndex>      fill_styles;
+    // Filled polygons — drawn with Triangles topology in a dedicated stream.
+    std::vector<PosVertex>       fill_poly_verts;
+    std::vector<StyleIndex>      fill_poly_styles;
     // draw_rectangle outlines (thin, 1-pixel) — drawn with Lines topology.
     std::vector<PosVertex>       draw_verts;
     std::vector<StyleIndex>      draw_styles;
@@ -125,6 +128,7 @@ struct RhiTileBatch {
     {
         return line_verts.empty()
             && fill_verts.empty()
+            && fill_poly_verts.empty()
             && draw_verts.empty()
             && thick_line_instances.empty()
             && dashed_line_instances.empty();
@@ -216,6 +220,7 @@ private:
         std::uint16_t            tile_y = 0;
         std::vector<StreamChunk> line_chunks;
         std::vector<StreamChunk> fill_chunks;
+        std::vector<StreamChunk> fill_poly_chunks;
         std::vector<StreamChunk> draw_chunks;
         std::vector<StreamChunk> thick_line_chunks;
         std::vector<StreamChunk> dashed_line_chunks;
@@ -228,6 +233,8 @@ private:
         std::vector<std::unique_ptr<QRhiBuffer>>    line_style_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    fill_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    fill_style_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    fill_poly_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    fill_poly_style_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    draw_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    draw_style_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    thick_line_instance_vbufs;

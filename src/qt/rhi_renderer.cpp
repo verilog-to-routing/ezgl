@@ -420,10 +420,10 @@ void rhi_renderer::append_fill_triangle(RhiTileBatch& tile,
     if (std::abs(cross(a, b, c)) <= kPolygonEpsilon)
         return;
 
-    tile.fill_verts.push_back(make_vertex(a));
-    tile.fill_verts.push_back(make_vertex(b));
-    tile.fill_verts.push_back(make_vertex(c));
-    tile.fill_styles.insert(tile.fill_styles.end(), 3, style_index);
+    tile.fill_poly_verts.push_back(make_vertex(a));
+    tile.fill_poly_verts.push_back(make_vertex(b));
+    tile.fill_poly_verts.push_back(make_vertex(c));
+    tile.fill_poly_styles.insert(tile.fill_poly_styles.end(), 3, style_index);
 }
 
 void rhi_renderer::ensure_tile_grid()
@@ -470,6 +470,8 @@ void rhi_renderer::clear_tile_geometry()
         tile.line_styles.clear();
         tile.fill_verts.clear();
         tile.fill_styles.clear();
+        tile.fill_poly_verts.clear();
+        tile.fill_poly_styles.clear();
         tile.draw_verts.clear();
         tile.draw_styles.clear();
         tile.thick_line_instances.clear();
@@ -963,11 +965,13 @@ void rhi_renderer::flush()
         total_mb +=
             ((tile.line_verts.size() +
               tile.fill_verts.size() +
+              tile.fill_poly_verts.size() +
               tile.draw_verts.size()) * sizeof(PosVertex)
              + tile.thick_line_instances.size()  * sizeof(ThickLineInstance)
              + tile.dashed_line_instances.size() * sizeof(DashedLineInstance)
              + (tile.line_styles.size() +
                 tile.fill_styles.size() +
+                tile.fill_poly_styles.size() +
                 tile.draw_styles.size() +
                 tile.thick_line_styles.size() +
                 tile.dashed_line_styles.size()) * sizeof(StyleIndex))

@@ -693,12 +693,14 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
         std::size_t total_line_vertices       = 0;
         std::size_t total_fill_vertices       = 0;
+        std::size_t total_fill_poly_vertices  = 0;
         std::size_t total_draw_vertices       = 0;
         std::size_t total_thick_line_vertices  = 0;
         std::size_t total_dashed_line_vertices = 0;
         for (const RhiTileBatch& tile : *tiles) {
             if (tile.line_styles.size()         != tile.line_verts.size()
                 || tile.fill_styles.size()      != tile.fill_verts.size()
+                || tile.fill_poly_styles.size() != tile.fill_poly_verts.size()
                 || tile.draw_styles.size()      != tile.draw_verts.size()
                 || tile.thick_line_styles.size()  != tile.thick_line_instances.size()
                 || tile.dashed_line_styles.size() != tile.dashed_line_instances.size()) {
@@ -707,6 +709,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
             total_line_vertices        += tile.line_verts.size();
             total_fill_vertices        += tile.fill_verts.size();
+            total_fill_poly_vertices   += tile.fill_poly_verts.size();
             total_draw_vertices        += tile.draw_verts.size();
             total_thick_line_vertices  += tile.thick_line_instances.size();
             total_dashed_line_vertices += tile.dashed_line_instances.size();
@@ -714,11 +717,13 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
         std::vector<std::size_t> line_buffer_vertices;
         std::vector<std::size_t> fill_buffer_vertices;
+        std::vector<std::size_t> fill_poly_buffer_vertices;
         std::vector<std::size_t> draw_buffer_vertices;
         std::vector<std::size_t> thick_line_buffer_vertices;
         std::vector<std::size_t> dashed_line_buffer_vertices;
         std::vector<PendingUpload> line_uploads;
         std::vector<PendingUpload> fill_uploads;
+        std::vector<PendingUpload> fill_poly_uploads;
         std::vector<PendingUpload> draw_uploads;
         std::vector<PendingUpload> thick_line_uploads;
         std::vector<PendingUpload> dashed_line_uploads;
@@ -726,6 +731,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             (total_line_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
         fill_uploads.reserve(
             (total_fill_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
+        fill_poly_uploads.reserve(
+            (total_fill_poly_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
         draw_uploads.reserve(
             (total_draw_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
         thick_line_uploads.reserve(
@@ -803,6 +810,9 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                        kMaxVerticesPerChunk, sizeof(PosVertex));
             planStream(gpu_tile.fill_chunks, fill_uploads, fill_buffer_vertices,
                        tile.fill_verts, tile.fill_styles,
+                       kMaxVerticesPerChunk, sizeof(PosVertex));
+            planStream(gpu_tile.fill_poly_chunks, fill_poly_uploads, fill_poly_buffer_vertices,
+                       tile.fill_poly_verts, tile.fill_poly_styles,
                        kMaxVerticesPerChunk, sizeof(PosVertex));
             planStream(gpu_tile.draw_chunks, draw_uploads, draw_buffer_vertices,
                        tile.draw_verts, tile.draw_styles,
@@ -882,6 +892,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                         sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
         ensureBufferSet(frame.fill_vbufs,       frame.fill_style_vbufs,       fill_buffer_vertices,
                         sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
+        ensureBufferSet(frame.fill_poly_vbufs,  frame.fill_poly_style_vbufs,  fill_poly_buffer_vertices,
+                        sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
         ensureBufferSet(frame.draw_vbufs,       frame.draw_style_vbufs,       draw_buffer_vertices,
                         sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
         ensureBufferSet(frame.thick_line_instance_vbufs, frame.thick_line_style_vbufs,
@@ -892,6 +904,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                         sizeof(DashedLineInstance), kInitialDashedInstanceBufferBytes);
         uploadPlannedStream(frame.line_vbufs,       frame.line_style_vbufs,       line_uploads);
         uploadPlannedStream(frame.fill_vbufs,       frame.fill_style_vbufs,       fill_uploads);
+        uploadPlannedStream(frame.fill_poly_vbufs,  frame.fill_poly_style_vbufs,  fill_poly_uploads);
         uploadPlannedStream(frame.draw_vbufs,       frame.draw_style_vbufs,       draw_uploads);
         uploadPlannedStream(frame.thick_line_instance_vbufs,  frame.thick_line_style_vbufs,  thick_line_uploads);
         uploadPlannedStream(frame.dashed_line_instance_vbufs, frame.dashed_line_style_vbufs, dashed_line_uploads);
@@ -949,12 +962,14 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     std::size_t considered_tile_count = 0;
     unsigned long long visible_line_verts        = 0;
     unsigned long long visible_fill_verts        = 0;
+    unsigned long long visible_fill_poly_verts   = 0;
     unsigned long long visible_draw_verts        = 0;
     unsigned long long visible_thick_line_verts  = 0;
     unsigned long long visible_dashed_line_verts = 0;
     auto drawTile = [&](const GpuTileBatch& tile) {
         ++visible_tile_count;
         visible_fill_verts        += countChunkVertices(tile.fill_chunks);
+        visible_fill_poly_verts   += countChunkVertices(tile.fill_poly_chunks);
         visible_draw_verts        += countChunkVertices(tile.draw_chunks);
         visible_line_verts        += countChunkVertices(tile.line_chunks);
         visible_thick_line_verts  += countChunkVertices(tile.thick_line_chunks);
@@ -963,6 +978,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         // This matches painter semantics — the last-submitted primitive type
         // appears on top, so fills (submitted first) are always below lines.
         drawChunks(m_fill_pso,       frame.fill_vbufs,       frame.fill_style_vbufs,       tile.fill_chunks);
+        drawChunks(m_fill_pso,       frame.fill_poly_vbufs,  frame.fill_poly_style_vbufs,  tile.fill_poly_chunks);
         drawChunks(m_draw_pso,       frame.draw_vbufs,       frame.draw_style_vbufs,       tile.draw_chunks);
         drawChunks(m_line_pso,       frame.line_vbufs,       frame.line_style_vbufs,       tile.line_chunks);
         // Dashed lines: instanced draw — 4 quad-corner vertices × N instances.
@@ -1065,7 +1081,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     const auto frame_end = std::chrono::steady_clock::now();
     const double frame_ms = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
     g_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, tiles=%zu, considered_tiles=%zu, visible_tiles=%zu, "
-            "line_verts=%llu, fill_verts=%llu, draw_verts=%llu, thick_line_verts=%llu, "
+            "line_verts=%llu, fill_verts=%llu, fill_poly_verts=%llu, draw_verts=%llu, thick_line_verts=%llu, "
             "dashed_line_verts=%llu)",
             frame_ms,
             frame_slot,
@@ -1075,6 +1091,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             visible_tile_count,
             visible_line_verts,
             visible_fill_verts,
+            visible_fill_poly_verts,
             visible_draw_verts,
             visible_thick_line_verts,
             visible_dashed_line_verts);
@@ -1105,6 +1122,8 @@ void RhiCanvasWidget::releaseResources()
         resetBufferVector(frame.thick_line_instance_vbufs);
         resetBufferVector(frame.draw_style_vbufs);
         resetBufferVector(frame.draw_vbufs);
+        resetBufferVector(frame.fill_poly_style_vbufs);
+        resetBufferVector(frame.fill_poly_vbufs);
         resetBufferVector(frame.fill_style_vbufs);
         resetBufferVector(frame.fill_vbufs);
         resetBufferVector(frame.line_style_vbufs);
