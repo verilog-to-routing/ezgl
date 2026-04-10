@@ -216,7 +216,7 @@ public:
    * 
    * @return A rectangle where rectangle.first is the lower left MainCanvas corner and rectangle.second is the upper right
    */
-  rectangle get_visible_screen();
+  rectangle get_visible_screen() const;
 
   /**
    * Get the screen coordinates (pixel locations) of the world coordinate rectangle box

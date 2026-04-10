@@ -161,6 +161,131 @@ QRectF deferred_renderer::to_screen_rect(point2d start, point2d end)
     return QRectF(x, y, w, h);
 }
 
+QRectF deferred_renderer::screen_viewport_rect() const
+{
+    rectangle viewport = get_visible_screen();
+    return QRectF(viewport.left(), viewport.bottom(), viewport.width(), viewport.height());
+}
+
+bool deferred_renderer::screen_rect_visible(const QRectF& rect, double padding) const
+{
+    QRectF padded = rect.normalized().adjusted(-padding, -padding, padding, padding);
+    return padded.intersects(screen_viewport_rect());
+}
+
+bool deferred_renderer::screen_line_visible(const QLineF& line, double line_width) const
+{
+    const double half_width = std::max(1.0, line_width) * 0.5;
+    const QRectF viewport = screen_viewport_rect().adjusted(-half_width, -half_width,
+                                                            half_width, half_width);
+    const QRectF bounds = QRectF(line.p1(), line.p2()).normalized().adjusted(-half_width,
+                                                                              -half_width,
+                                                                              half_width,
+                                                                              half_width);
+    if (!bounds.intersects(viewport))
+        return false;
+
+    if (viewport.contains(line.p1()) || viewport.contains(line.p2()))
+        return true;
+
+    const QLineF edges[] = {
+        QLineF(viewport.topLeft(), viewport.topRight()),
+        QLineF(viewport.topRight(), viewport.bottomRight()),
+        QLineF(viewport.bottomRight(), viewport.bottomLeft()),
+        QLineF(viewport.bottomLeft(), viewport.topLeft())
+    };
+
+    QPointF intersection;
+    for (const QLineF& edge : edges) {
+        if (line.intersects(edge, &intersection) == QLineF::BoundedIntersection)
+            return true;
+    }
+
+    return false;
+}
+
+bool deferred_renderer::screen_poly_visible(const std::vector<point2d>& points) const
+{
+    if (points.empty())
+        return false;
+
+    double x_min = points.front().x;
+    double x_max = points.front().x;
+    double y_min = points.front().y;
+    double y_max = points.front().y;
+    for (std::size_t i = 1; i < points.size(); ++i) {
+        x_min = std::min(x_min, points[i].x);
+        x_max = std::max(x_max, points[i].x);
+        y_min = std::min(y_min, points[i].y);
+        y_max = std::max(y_max, points[i].y);
+    }
+
+    return screen_rect_visible(QRectF(x_min, y_min, x_max - x_min, y_max - y_min));
+}
+
+bool deferred_renderer::screen_arc_visible(point2d center,
+                                           double radius_x,
+                                           double radius_y) const
+{
+    return screen_rect_visible(QRectF(center.x - radius_x,
+                                      center.y - radius_y,
+                                      2.0 * radius_x,
+                                      2.0 * radius_y));
+}
+
+bool deferred_renderer::screen_text_visible(point2d point,
+                                            const std::string& text,
+                                            double bound_x,
+                                            double bound_y) const
+{
+    text_extents_t text_extents{0, 0, 0, 0, 0, 0};
+    m_painter->text_extents(text.c_str(), &text_extents);
+
+    const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
+    const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
+    const double clip_width = bounded_x ? bound_x : text_extents.width;
+    const double clip_height = bounded_y ? bound_y : text_extents.height;
+
+    point2d center = point;
+    if (horiz_justification == justification::left)
+        center.x += clip_width / 2.0;
+    else if (horiz_justification == justification::right)
+        center.x -= clip_width / 2.0;
+    if (vert_justification == justification::top)
+        center.y -= clip_height / 2.0;
+    else if (vert_justification == justification::bottom)
+        center.y += clip_height / 2.0;
+
+    return screen_rect_visible(QRectF(center.x - clip_width / 2.0,
+                                      center.y - clip_height / 2.0,
+                                      clip_width,
+                                      clip_height));
+}
+
+bool deferred_renderer::screen_surface_visible(surface *p_surface,
+                                               point2d point,
+                                               double scale_factor) const
+{
+    if (p_surface == nullptr || p_surface->isNull())
+        return false;
+
+    const double s_width = double(p_surface->width()) * scale_factor;
+    const double s_height = double(p_surface->height()) * scale_factor;
+
+    point2d top_left = point;
+    if (horiz_justification == justification::center)
+        top_left.x -= s_width / 2.0;
+    else if (horiz_justification == justification::right)
+        top_left.x -= s_width;
+
+    if (vert_justification == justification::center)
+        top_left.y -= s_height / 2.0;
+    else if (vert_justification == justification::bottom)
+        top_left.y -= s_height;
+
+    return screen_rect_visible(QRectF(top_left.x, top_left.y, s_width, s_height));
+}
+
 // ---- overridden draw calls -----------------------------------------------
 
 void deferred_renderer::draw_line(point2d start, point2d end)
@@ -286,26 +411,55 @@ void deferred_renderer::replay()
 {
     // lines
     for (const auto &batch : m_line_batches) {
+        std::vector<QLineF> visible_lines;
+        visible_lines.reserve(batch.lines.size());
+        const double line_width = batch.style.line_width == 0 ? 1.0 : double(batch.style.line_width);
+        for (const QLineF& line : batch.lines) {
+            if (screen_line_visible(line, line_width))
+                visible_lines.push_back(line);
+        }
+        if (visible_lines.empty())
+            continue;
+
         QPen pen = make_pen(batch.style);
         m_painter->setPen(pen);
         m_painter->setBrush(Qt::NoBrush);
-        m_painter->drawLines(batch.lines.data(), int(batch.lines.size()));
+        m_painter->drawLines(visible_lines.data(), int(visible_lines.size()));
     }
 
     // filled rects
     for (const auto &batch : m_fill_rect_batches) {
+        std::vector<QRectF> visible_rects;
+        visible_rects.reserve(batch.rects.size());
+        for (const QRectF& rect : batch.rects) {
+            if (screen_rect_visible(rect))
+                visible_rects.push_back(rect);
+        }
+        if (visible_rects.empty())
+            continue;
+
         QColor c = unpack_color(batch.style.color_rgba);
         m_painter->setPen(Qt::NoPen);
         m_painter->setBrush(QBrush(c));
-        m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
+        m_painter->drawRects(visible_rects.data(), int(visible_rects.size()));
     }
 
     // outline rects
     for (const auto &batch : m_draw_rect_batches) {
+        std::vector<QRectF> visible_rects;
+        visible_rects.reserve(batch.rects.size());
+        const double padding = (batch.style.line_width == 0 ? 1.0 : double(batch.style.line_width)) * 0.5;
+        for (const QRectF& rect : batch.rects) {
+            if (screen_rect_visible(rect, padding))
+                visible_rects.push_back(rect);
+        }
+        if (visible_rects.empty())
+            continue;
+
         QPen pen = make_pen(batch.style);
         m_painter->setPen(pen);
         m_painter->setBrush(Qt::NoBrush);
-        m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
+        m_painter->drawRects(visible_rects.data(), int(visible_rects.size()));
     }
 
     m_replaying_commands = true;
@@ -314,8 +468,14 @@ void deferred_renderer::replay()
             apply_painter_state(cmd.state);
             using T = std::decay_t<decltype(cmd)>;
             if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
+                if (cmd.state.coordinate_system == SCREEN && !screen_poly_visible(cmd.points))
+                    return;
                 renderer::fill_poly(cmd.points);
             } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
+                if (cmd.state.coordinate_system == SCREEN
+                    && !screen_arc_visible(cmd.center, cmd.radius_x, cmd.radius_y)) {
+                    return;
+                }
                 if (cmd.fill) {
                     renderer::fill_elliptic_arc(cmd.center,
                                                 cmd.radius_x,
@@ -349,8 +509,16 @@ void deferred_renderer::replay()
                     }
                 }
                 apply_painter_state(state);
+                if (cmd.state.coordinate_system == SCREEN
+                    && !screen_text_visible(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y)) {
+                    return;
+                }
                 renderer::draw_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
+                if (cmd.state.coordinate_system == SCREEN
+                    && !screen_surface_visible(cmd.p_surface, cmd.anchor_point, cmd.scale_factor)) {
+                    return;
+                }
                 renderer::draw_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
             }
         }, command);

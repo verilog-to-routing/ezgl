@@ -155,6 +155,21 @@ private:
     DeferredPainterState capture_painter_state() const;
     void apply_painter_state(const DeferredPainterState& state);
 
+    QRectF screen_viewport_rect() const;
+    bool screen_rect_visible(const QRectF& rect, double padding = 0.0) const;
+    bool screen_line_visible(const QLineF& line, double line_width) const;
+    bool screen_poly_visible(const std::vector<point2d>& points) const;
+    bool screen_arc_visible(point2d center,
+                            double radius_x,
+                            double radius_y) const;
+    bool screen_text_visible(point2d point,
+                             const std::string& text,
+                             double bound_x,
+                             double bound_y) const;
+    bool screen_surface_visible(surface *p_surface,
+                                point2d point,
+                                double scale_factor) const;
+
     LineStyleKey current_line_style() const;
     FillStyleKey current_fill_style() const;
 

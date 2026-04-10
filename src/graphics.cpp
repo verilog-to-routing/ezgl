@@ -274,7 +274,7 @@ rectangle renderer::get_visible_world()
   return {(world.bottom_left() - margin), (world.top_right() + margin)};
 }
 
-rectangle renderer::get_visible_screen()
+rectangle renderer::get_visible_screen() const
 {
   // Get the widget dimensions
   return m_camera->get_widget();
