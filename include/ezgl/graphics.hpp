@@ -454,15 +454,16 @@ public:
   void draw_text(point2d point, std::string const &text);
 
   /**
-   * Draw text if it fits in the specified bounds; otherwise not drawn. 
+   * Draw text using the specified bounds as a clipping box.
+   *
+   * If the text is larger than the provided bounds, the portion outside the
+   * bounds is clipped instead of being skipped entirely.
    *
    * @param point The point where the text is drawn (justified according to the current justification),
    *              in the current coordinate system.
    * @param text The text to draw
-   * @param bound_x The maximum allowed width of the text, 
-   *              in the current  coordinate system.
-   * @param bound_y The maximum allowed height of the text, 
-                  in the current coordinate system.
+   * @param bound_x The clipping-box width in the current coordinate system.
+   * @param bound_y The clipping-box height in the current coordinate system.
    */
   void draw_text(point2d point, std::string const &text, double bound_x, double bound_y);
 

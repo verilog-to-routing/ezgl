@@ -696,22 +696,6 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
   if (defer_text(point, text, bound_x, bound_y))
     return;
 
-  // the center point of the text
-  point2d center = point;
-
-  // roughly calculate the center point for pre-clipping
-  if (horiz_justification == justification::left)
-    center.x += bound_x/2;
-  else if (horiz_justification == justification::right)
-    center.x -= bound_x/2;
-  if (vert_justification == justification::top)
-    center.y -= bound_y/2;
-  else if (vert_justification == justification::bottom)
-    center.y += bound_y/2;
-
-  if(rectangle_off_screen({{center.x - bound_x / 2, center.y - bound_y / 2}, bound_x, bound_y}))
-    return;
-
   // get the width and height of the drawn text
   text_extents_t text_extents{0,0,0,0,0,0};
   m_painter->text_extents(text.c_str(), &text_extents);
@@ -722,23 +706,55 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
 
   // get text width and height in the current coordinate system to check against the bounds
   // Note: text width and height are constant in widget coordinates
+  point2d world_scale = m_camera->get_world_scale_factor();
   double scaled_width, scaled_height;
   if (current_coordinate_system == WORLD) {
-    scaled_width = text_extents.width * m_camera->get_world_scale_factor().x;
-    scaled_height = text_extents.height * m_camera->get_world_scale_factor().y;
+    scaled_width = text_extents.width * world_scale.x;
+    scaled_height = text_extents.height * world_scale.y;
   } else {  /* SCREEN coordinates */
     scaled_width = text_extents.width;
     scaled_height = text_extents.height;
   }
 
-  // if text width or height is greater than the given bounds, don't draw the text.
-  // NOTE: text rotation is NOT taken into account in bounding check (i.e. text width is compared to bound_x)
-  if(scaled_width > bound_x || scaled_height > bound_y) {
+  const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
+  const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
+  const double clip_width = bounded_x ? bound_x : scaled_width;
+  const double clip_height = bounded_y ? bound_y : scaled_height;
+
+  // the center point of the text
+  point2d center = point;
+
+  // roughly calculate the center point for pre-clipping
+  if (horiz_justification == justification::left)
+    center.x += clip_width/2;
+  else if (horiz_justification == justification::right)
+    center.x -= clip_width/2;
+  if (vert_justification == justification::top)
+    center.y -= clip_height/2;
+  else if (vert_justification == justification::bottom)
+    center.y += clip_height/2;
+
+  if(rectangle_off_screen({{center.x - clip_width / 2, center.y - clip_height / 2}, clip_width, clip_height}))
     return;
-  }
 
 #ifdef EZGL_QT
   {
+    auto local_clip_x = [](justification just, double extent) {
+      if (just == justification::left)
+        return 0.0;
+      if (just == justification::right)
+        return -extent;
+      return -extent / 2.0;
+    };
+
+    auto local_clip_y = [](justification just, double extent) {
+      if (just == justification::bottom)
+        return 0.0;
+      if (just == justification::top)
+        return -extent;
+      return -extent / 2.0;
+    };
+
     // transform the given point
     if(current_coordinate_system == WORLD)
       center = m_transform(point);
@@ -756,13 +772,14 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
     m_painter->translate(center.x, center.y);
     m_painter->rotate(rotation_angle * 180.0 / std::numbers::pi);
 
-    // Compute offset so that text is centered at (0,0) *before* justification
-    double baseline_shift = (fm.ascent() - fm.descent()) / 2.0;
-    QPointF offset(-br.width() / 2.0, +baseline_shift);
+    // Position text from the full bounding rect, not just width/height.
+    // This keeps the Qt placement aligned with the measured extents,
+    // including font bearings.
+    QPointF offset(-(br.x() + br.width() / 2.0),
+                   -(br.y() + br.height() / 2.0));
 
     // Apply horizontal justification
     if (horiz_justification == justification::left) {
-
       offset.rx() += br.width() / 2.0;       // anchor is left edge, so shift center -> left
     } else if (horiz_justification == justification::right) {
       offset.rx() -= br.width() / 2.0;       // anchor is right edge, so shift center -> right
@@ -770,9 +787,28 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
 
     // Apply vertical justification
     if (vert_justification == justification::top) {
-      offset.ry() -= br.height() / 2.0;      // anchor at top -> move center up
+      offset.ry() += br.height() / 2.0;      // anchor at top -> move center to top edge
     } else if (vert_justification == justification::bottom) {
-      offset.ry() += br.height() / 2.0;       // anchor at bottom -> move center down
+      offset.ry() -= br.height() / 2.0;      // anchor at bottom -> move center to bottom edge
+    }
+
+    if (bounded_x || bounded_y) {
+      const QRectF text_rect = br.translated(offset);
+      const double clip_width_screen = bounded_x ? (current_coordinate_system == WORLD
+                                                        ? bound_x / std::max(world_scale.x, DBL_EPSILON)
+                                                        : bound_x)
+                                                 : text_rect.width() + 2.0;
+      const double clip_height_screen = bounded_y ? (current_coordinate_system == WORLD
+                                                         ? bound_y / std::max(world_scale.y, DBL_EPSILON)
+                                                         : bound_y)
+                                                  : text_rect.height() + 2.0;
+      const QRectF clip_rect(bounded_x ? local_clip_x(horiz_justification, clip_width_screen)
+                                       : text_rect.left() - 1.0,
+                             bounded_y ? local_clip_y(vert_justification, clip_height_screen)
+                                       : text_rect.top() - 1.0,
+                             clip_width_screen,
+                             clip_height_screen);
+      m_painter->setClipRect(clip_rect, Qt::IntersectClip);
     }
 
     // Set pen color for text — QPainter::drawText() uses the pen color.
