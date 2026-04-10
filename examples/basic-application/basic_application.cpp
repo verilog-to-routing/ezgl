@@ -457,13 +457,6 @@ void draw_text_example(ezgl::renderer *g)
     ezgl::rectangle text_bbox = {{100., 710. + i * 60.}, text_example_width / num_strings_per_line[i], 60.};
 
     for (int j = 0; j < num_strings_per_line[i]; ++j) {
-#ifdef EZGL_QT
-      // // SHIFT DEBUG
-      // ezgl::point2d bottom_left = text_bbox.bottom_left();
-      // bottom_left = ezgl::point2d(bottom_left.x+(10*i+20*j), bottom_left.y+(10*i+20*j));
-      // text_bbox = ezgl::rectangle{bottom_left, text_bbox.width(), text_bbox.height()}; // DEBUG
-      // // SHIFT DEBUG
-#endif // EZGL_QT
       g->set_font_size(text_sizes[i][j]);
       g->draw_text(text_bbox.center(), line_text[i][j], text_bbox.width(), text_bbox.height());
       g->draw_rectangle(text_bbox);
