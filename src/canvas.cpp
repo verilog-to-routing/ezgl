@@ -413,6 +413,7 @@ void canvas::begin_deferred_redraw_cycle()
 
   m_rhi_defer_redraw = true;
   m_rhi_pending_redraw = false;
+  m_rhi_pending_camera_only = false;
 }
 
 void canvas::end_deferred_redraw_cycle()
@@ -421,7 +422,11 @@ void canvas::end_deferred_redraw_cycle()
     return;
 
   m_rhi_defer_redraw = false;
-  if (m_rhi_pending_redraw || !m_rhi_has_drawn_frame || m_rhi_renderer)
+  if (m_rhi_pending_redraw || !m_rhi_has_drawn_frame)
+    redraw();
+  else if (m_rhi_pending_camera_only)
+    redraw_camera_only();
+  else if (m_rhi_renderer)
     redraw();
 }
 #endif
@@ -459,9 +464,20 @@ void canvas::initialize(GtkWidget *drawing_area)
       // Nothing to end on the RHI path; kept for API symmetry.
     });
     rw->setResizeCallback([this](int w, int h) {
+      const rectangle old_widget = m_camera.get_widget();
+      const bool size_changed = old_widget.width() != double(w) || old_widget.height() != double(h);
       m_camera.update_widget(w, h);
+
+      const bool can_reuse_geometry = size_changed && m_rhi_renderer && m_rhi_has_drawn_frame;
       if (m_rhi_defer_redraw) {
-        m_rhi_pending_redraw = true;
+        if (can_reuse_geometry) {
+          m_rhi_pending_camera_only = true;
+        } else {
+          m_rhi_pending_redraw = true;
+          m_rhi_pending_camera_only = false;
+        }
+      } else if (can_reuse_geometry) {
+        redraw_camera_only();
       } else {
         redraw();
       }
@@ -562,6 +578,7 @@ void canvas::redraw()
     m_rhi_renderer->flush();  // uploads geometry + MVP, calls widget->update()
     m_rhi_defer_redraw = false;
     m_rhi_pending_redraw = false;
+    m_rhi_pending_camera_only = false;
     m_rhi_has_drawn_frame = true;
     g_info("The canvas will be redrawn (RHI path).");
     return;
@@ -595,6 +612,9 @@ void canvas::redraw_camera_only()
     // Geometry is unchanged — reuse the cached GPU buffers and rebuild only
     // the overlay for the new camera transform.
     m_rhi_renderer->flush_mvp_only();
+    m_rhi_pending_redraw = false;
+    m_rhi_pending_camera_only = false;
+    m_rhi_has_drawn_frame = true;
     g_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
     return;
   }

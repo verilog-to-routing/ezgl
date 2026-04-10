@@ -194,6 +194,7 @@ private:
   // Coalesce startup/show redraws so large geometry is uploaded once.
   bool m_rhi_defer_redraw = false;
   bool m_rhi_pending_redraw = false;
+  bool m_rhi_pending_camera_only = false;
   bool m_rhi_has_drawn_frame = false;
 #endif
 
