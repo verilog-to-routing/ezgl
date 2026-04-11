@@ -30,6 +30,13 @@ if(USE_QT)
       message(FATAL_ERROR "EZGL: Failed to find required Qt library (on debian/ubuntu try 'sudo apt-get install qt6-base-dev' to install)")
     endif()
 
+    # Qt 6.8 contains a bug in the RHI backend where geometry buffers are not
+    # properly invalidated/refreshed after the MVP matrix changes, causing
+    # incorrect rendering artifacts. The bug is not seen in Qt 6.9.3.
+    if(Qt6_VERSION VERSION_LESS "6.9.3")
+        message(FATAL_ERROR "EZGL: Qt 6.9.3 or higher is required (found ${Qt6_VERSION})")
+    endif()
+
 else(USE_QT)
     pkg_check_modules(GTK3 QUIET gtk+-3.0)
     pkg_check_modules(X11 QUIET x11)
