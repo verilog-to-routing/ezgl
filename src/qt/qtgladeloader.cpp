@@ -1,5 +1,3 @@
-#ifdef EZGL_QT
-
 #include "ezgl/qt/qtgladeloader.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
@@ -631,4 +629,4 @@ bool QtGladeLoader::propertyBool(const QDomElement& objEl, const char* propName,
   return (v == "True" || v == "true" || v == "1");
 }
 
-#endif // EZGL_QT
+

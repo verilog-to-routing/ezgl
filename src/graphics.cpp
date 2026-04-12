@@ -20,13 +20,9 @@
 
 #include <cassert>
 
-#ifdef EZGL_QT
 #include <QFile>
 #include "ezgl/qt/ezgl_qtcompat.hpp"
 #include "ezgl/qt/painter.hpp"
-#else // EZGL_QT
-#include <glib.h>
-#endif // EZGL_QT
 
 #include <numbers>
 
@@ -150,11 +146,9 @@ renderer::renderer(Painter *painter,
     QImage *m_surface)
     : m_painter(painter), m_transform(std::move(transform)), m_camera(p_camera), rotation_angle(0)
 {
-#ifdef EZGL_QT
   if (m_painter != nullptr) {
     current_font = m_painter->font();
   }
-#endif
 #ifdef EZGL_USE_X11
   // Check if the created cairo surface is an XLIB surface
   if (cairo_surface_get_type(m_surface) == CAIRO_SURFACE_TYPE_XLIB) {
@@ -192,11 +186,9 @@ void renderer::update_renderer(Painter *painter, QImage *m_surface)
   // Update Cairo Context
   m_painter = painter;
 
-#ifdef EZGL_QT
   if (m_painter != nullptr) {
     m_painter->setFont(current_font);
   }
-#endif
 
   // Update X11 Context
 #ifdef EZGL_USE_X11
@@ -407,19 +399,15 @@ void renderer::set_line_width(int width)
 
 void renderer::set_font_size(double new_size)
 {
-#ifdef EZGL_QT
   current_font.setPixelSize(std::max(1, int(std::lround(new_size))));
-#endif
   m_painter->set_font_size(new_size);
 }
 
 void renderer::format_font(std::string const &family, font_slant slant, font_weight weight)
 {
-#ifdef EZGL_QT
   current_font.setFamily(QString::fromStdString(family));
   current_font.setStyle(static_cast<QFont::Style>(slant));
   current_font.setWeight(static_cast<QFont::Weight>(weight));
-#endif
   m_painter->select_font_face(family.c_str(), static_cast<QFont::Style>(slant),
       static_cast<QFont::Weight>(weight));
 }
@@ -491,11 +479,7 @@ void renderer::draw_line(point2d start, point2d end)
   m_painter->move_to(start.x, start.y);
   m_painter->line_to(end.x, end.y);
 
-#ifdef EZGL_QT
   m_painter->stroke();
-#else
-  cairo_stroke(m_cairo);
-#endif
 }
 
 void renderer::draw_rectangle(point2d start, point2d end)
@@ -616,11 +600,7 @@ void renderer::fill_poly(std::vector<point2d> const &points)
   }
 
   m_painter->close_path();
-#ifdef EZGL_QT
   m_painter->fill();
-#else
-  cairo_fill(m_cairo);
-#endif
 }
 
 void renderer::draw_elliptic_arc(point2d center,
@@ -744,7 +724,6 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
   if(rectangle_off_screen({{center.x - clip_width / 2, center.y - clip_height / 2}, clip_width, clip_height}))
     return;
 
-#ifdef EZGL_QT
   {
     auto local_clip_x = [](justification just, double extent) {
       if (just == justification::left)
@@ -823,52 +802,6 @@ void renderer::draw_text(point2d point, std::string const &text, double bound_x,
     m_painter->setPen(QColor(current_color.red, current_color.green, current_color.blue, current_color.alpha));
     m_painter->drawText(offset, qtext);
   }
-#else
-  // save the current state to undo the rotation needed for drawing rotated text
-  cairo_save(m_cairo);
-
-  // transform the given point
-  if(current_coordinate_system == WORLD)
-    center = m_transform(point);
-  else
-    center = point;
-
-  // calculating the reference point to center the text around "center" taking into account the rotation_angle
-  // for more info about reference point location: see https://www.cairographics.org/tutorial/#L1understandingtext
-  point2d ref_point = {0, 0};
-
-  ref_point.x = center.x -
-                (text_extents.x_bearing + (text_extents.width / 2)) * cos(rotation_angle) -
-                (-font_extents.descent + (text_extents.height / 2)) * sin(rotation_angle);
-
-  ref_point.y = center.y -
-                (text_extents.y_bearing + (text_extents.height / 2)) * cos(rotation_angle) -
-                (text_extents.x_bearing + (text_extents.width / 2)) * sin(rotation_angle);
-
-  // adjust the reference point according to the required justification
-  if (horiz_justification == justification::left) {
-    ref_point.x += (text_extents.width / 2) * cos(rotation_angle);
-    ref_point.y += (text_extents.width / 2) * sin(rotation_angle);
-  }
-  else if (horiz_justification == justification::right) {
-    ref_point.x -= (text_extents.width / 2) * cos(rotation_angle);
-    ref_point.y -= (text_extents.width / 2) * sin(rotation_angle);
-  }
-  if (vert_justification == justification::top) {
-    ref_point.x -= (text_extents.height / 2) * sin(rotation_angle);
-    ref_point.y += (text_extents.height / 2) * cos(rotation_angle);
-  }
-  else if (vert_justification == justification::bottom) {
-    ref_point.x += (text_extents.height / 2) * sin(rotation_angle);
-    ref_point.y -= (text_extents.height / 2) * cos(rotation_angle);
-  }
-
-  // move to the reference point, perform the rotation, and draw the text
-  cairo_move_to(m_cairo, ref_point.x, ref_point.y);
-  cairo_rotate(m_cairo, rotation_angle);
-
-  cairo_show_text(m_cairo, text.c_str());
-#endif
 
   // restore the old state to undo the performed rotation
   m_painter->restore();
@@ -942,7 +875,6 @@ void renderer::draw_arc_path(point2d center,
   // if the arc will be filled in, start drawing from the center of the arc
   if(fill_flag)
     m_painter->move_to(center.x, center.y);
-#ifdef EZGL_QT
   else {
     // this step is not needed for cairo but is needed for QPainter
     double start_angle_radians = -start_angle * std::numbers::pi / 180;
@@ -950,7 +882,6 @@ void renderer::draw_arc_path(point2d center,
     double starty = center.y + radius * std::sin(start_angle_radians);
     m_painter->move_to(startx, starty);
   }
-#endif
 
   // calculating the ending angle
   double end_angle = start_angle + extent_angle;
@@ -983,18 +914,10 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
   if (defer_surface(p_surface, point, scale_factor))
     return;
 
-#ifdef EZGL_QT
   if (p_surface->isNull()) {
     g_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", (void*) p_surface);
     return;
   }
-#else
-  // Check if the surface is properly created
-  if(cairo_surface_status(p_surface) != CAIRO_STATUS_SUCCESS) {
-    g_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", (void*) p_surface);
-    return;
-  }
-#endif
 
   // calculate surface width and height in screen coordinates
   double s_width = (double)p_surface->width() * scale_factor;
@@ -1039,19 +962,11 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
     top_left.y /= scale_factor;
   }
 
-#ifdef EZGL_QT
   // Create a source for painting from the surface
   m_painter->set_source_surface(p_surface, top_left.x, top_left.y);
 
   // Actual drawing
   m_painter->paint();
-#else
-  // Create a source for painting from the surface
-  cairo_set_source_surface(m_cairo, p_surface, top_left.x, top_left.y);
-
-  // Actual drawing
-  cairo_paint(m_cairo);
-#endif
 
   if (scale_factor != 1) {
     // restore the old state to undo the performed scaling
@@ -1061,7 +976,6 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
 
 surface *renderer::load_png(const char *file_path)
 {
-#ifdef EZGL_QT
   QImage* image = new QImage;
 
   if (!QFile::exists(QString::fromLatin1(file_path))) {
@@ -1073,31 +987,10 @@ surface *renderer::load_png(const char *file_path)
   }
 
   return image;
-#else // EZGL_QT
-  // Create an image surface from a PNG image
-  cairo_surface_t *png_surface = cairo_image_surface_create_from_png(file_path);
-
-  cairo_status_t status = cairo_surface_status(png_surface);
-
-  if (status == CAIRO_STATUS_FILE_NOT_FOUND) {
-    g_warning("renderer::load_png: File %s not found.", file_path);
-  }
-  else if (status != CAIRO_STATUS_SUCCESS) {
-    g_warning("renderer::load_png: Error loading file %s.", file_path);
-  }
-
-  return png_surface;
-#endif // EZGL_QT
 }
 
 void renderer::free_surface(surface *p_surface)
 {
-#ifdef EZGL_QT
   delete p_surface;
-#else // EZGL_QT
-  // Check if the surface is properly created
-  if (cairo_surface_status(p_surface) == CAIRO_STATUS_SUCCESS)
-    cairo_surface_destroy(p_surface);
-#endif // EZGL_QT
 }
 }

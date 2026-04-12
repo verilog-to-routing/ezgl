@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(EZGL_QT) && defined(EZGL_RHI)
+#ifdef EZGL_RHI
 
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
@@ -180,4 +180,4 @@ private:
 
 } // namespace ezgl
 
-#endif // EZGL_QT && EZGL_RHI
+#endif // EZGL_RHI

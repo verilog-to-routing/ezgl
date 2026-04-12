@@ -1,8 +1,6 @@
 #ifndef EZGL_QTCOMPAT_HPP
 #define EZGL_QTCOMPAT_HPP
 
-#ifdef EZGL_QT
-
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
@@ -166,5 +164,4 @@ constexpr const char* __filename_helper(const char* path)
             << std::endl; \
   std::exit(1);
 
-#endif // EZGL_QT
 #endif // EZGL_QTCOMPAT_HPP

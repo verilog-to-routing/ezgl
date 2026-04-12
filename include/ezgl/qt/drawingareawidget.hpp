@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef EZGL_QT
-
 #include <QWidget>
 #include <QImage>
 
@@ -35,4 +33,4 @@ private:
 
 }
 
-#endif // EZGL_QT
+

@@ -1,8 +1,6 @@
 #ifndef EZGL_SWITCHBUTTON_HPP
 #define EZGL_SWITCHBUTTON_HPP
 
-#ifdef EZGL_QT
-
 #include <QAbstractButton>
 #include <QPropertyAnimation>
 
@@ -38,5 +36,4 @@ private:
     QPropertyAnimation* m_animation;
 };
 
-#endif // EZGL_QT
 #endif // EZGL_SWITCHBUTTON_HPP

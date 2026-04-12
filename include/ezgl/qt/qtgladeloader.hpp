@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef EZGL_QT
-
 #include <QMainWindow>
 #include <QDomDocument>
 #include <QDomElement>
@@ -48,4 +46,4 @@ private:
   QHash<QString, QWidget*> m_widgets;
 };
 
-#endif // EZGL_QT
+

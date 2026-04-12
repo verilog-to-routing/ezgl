@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef EZGL_QT
-
 #include <QPainter>
 #include <QImage>
 #include <QPainterPath>
@@ -97,4 +95,4 @@ private:
 
 } // namespace ezgl
 
-#endif // EZGL_QT
+

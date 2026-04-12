@@ -29,10 +29,8 @@
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
 
-#ifdef EZGL_QT
 #include <QMouseEvent>
 #include <QKeyEvent>
-#endif
 
 //FUNCTION DECLARATIONS
 
@@ -80,15 +78,9 @@ void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app);
  * 
  * These functions run whenever their corresponding event (key press, mouse move, or mouse click) occurs.
  */
-#ifdef EZGL_QT
 void act_on_mouse_press(ezgl::application *application, QMouseEvent *event, double x, double y);
 void act_on_mouse_move(ezgl::application *application, QMouseEvent *event, double x, double y);
 void act_on_key_press(ezgl::application *application, QKeyEvent *event, const char *key_name);
-#else
-void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y);
-void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y);
-void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *key_name);
-#endif
 
 static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
 
@@ -108,11 +100,7 @@ int main(int argc, char **argv)
 
   // Path to the "main.ui" file that contains an XML description of the UI.
   // Edit this file with glade if you want to change the UI layout
-#ifdef EZGL_QT
   settings.main_ui_resource = ":/main.ui";
-#else
-  settings.main_ui_resource = "/ezgl/main.ui";
-#endif
   // Note: the "main.ui" file has a GtkWindow called "MainWindow".
   settings.window_identifier = "MainWindow";
 
@@ -120,11 +108,7 @@ int main(int argc, char **argv)
   settings.canvas_identifier = "MainCanvas";
 
   // Create our EZGL application.
-#ifdef EZGL_QT
   ezgl::application application(settings, argc, argv);
-#else
-  ezgl::application application(settings);
-#endif
   // Set some parameters for the main sub-window (MainCanvas), where 
   // visualization graphics are draw. Set the callback function that will be 
   // called when the main window needs redrawing, and define the (world) 
@@ -542,12 +526,6 @@ void screen_coordinates_example(ezgl::renderer *g)
  */
 void draw_png_example(ezgl::renderer *g)
 {
-#ifdef EZGL_QT
-#else
-  ezgl::surface *png_surface = ezgl::renderer::load_png("small_image.png");
-  g->draw_surface(png_surface, {50, 200});
-  ezgl::renderer::free_surface(png_surface);
-#endif
   g->set_font_size(10);
   g->set_color(ezgl::BLACK);
   g->draw_text ({50, 225}, "draw_surface", 200, DBL_MAX);
@@ -665,7 +643,6 @@ void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
  * The current mouse position in the main canvas' world coordinate system is returned
  * A pointer to the application and the entire GDK event are also returned
  */
-#ifdef EZGL_QT
 void act_on_mouse_press(ezgl::application *application, QMouseEvent *event, double x, double y)
 {
   application->update_message("Mouse Clicked");
@@ -703,68 +680,26 @@ void act_on_mouse_press(ezgl::application *application, QMouseEvent *event, doub
 
   std::cout << std::endl;
 }
-#else // EZGL_QT
-void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y)
-{
-  application->update_message("Mouse Clicked");
-
-  std::cout << "User clicked the ";
-
-  if (event->button == 1)
-    std::cout << "left ";
-  else if (event->button == 2)
-    std::cout << "middle ";
-  else if (event->button == 3)
-    std::cout << "right ";
-
-  std::cout << "mouse button at coordinates (" << x << "," << y << ") ";
-
-  if ((event->state & GDK_CONTROL_MASK) && (event->state & GDK_SHIFT_MASK))
-    std::cout << "with control and shift pressed ";
-  else if (event->state & GDK_CONTROL_MASK)
-    std::cout << "with control pressed ";
-  else if (event->state & GDK_SHIFT_MASK)
-    std::cout << "with shift pressed ";
-
-  std::cout << std::endl;
-}
-#endif // EZGL_QT
 
 /**
  * Function to handle mouse move event
  * The current mouse position in the main canvas' world coordinate system is returned
  * A pointer to the application and the entire GDK event are also returned
  */
-#ifdef EZGL_QT
-void act_on_mouse_move(ezgl::application */*application*/, QMouseEvent *event, double x, double y)
+void act_on_mouse_move(ezgl::application */*application*/, QMouseEvent */*event*/, double x, double y)
 {
   std::cout << "Mouse move at coordinates (" << x << "," << y << ") "<< std::endl;
 }
-#else
-void act_on_mouse_move(ezgl::application */*application*/, GdkEventButton */*event*/, double x, double y)
-{
-  std::cout << "Mouse move at coordinates (" << x << "," << y << ") "<< std::endl;
-}
-#endif
 
 /**
  * Function to handle keyboard press event
  * The name of the key pressed is returned (0-9, a-z, A-Z, Up, Down, Left, Right, Shift_R, Control_L, space, Tab, ...)
  * A pointer to the application and the entire GDK event are also returned
  */
-#ifdef EZGL_QT
-void act_on_key_press(ezgl::application *application, QKeyEvent *event, const char* key_name)
+void act_on_key_press(ezgl::application *application, QKeyEvent */*event*/, const char* key_name)
 {
   application->update_message("Key Pressed");
 
   std::cout << key_name <<" key is pressed" << std::endl;
 }
-#else
-void act_on_key_press(ezgl::application *application, GdkEventKey */*event*/, char *key_name)
-{
-  application->update_message("Key Pressed");
-
-  std::cout << key_name <<" key is pressed" << std::endl;
-}
-#endif
 

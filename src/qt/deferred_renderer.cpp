@@ -1,5 +1,3 @@
-#ifdef EZGL_QT
-
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/camera.hpp"
 
@@ -943,4 +941,4 @@ void deferred_renderer::reset()
 
 } // namespace ezgl
 
-#endif // EZGL_QT
+

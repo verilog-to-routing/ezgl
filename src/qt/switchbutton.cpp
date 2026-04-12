@@ -1,5 +1,3 @@
-#ifdef EZGL_QT
-
 #include "ezgl/qt/switchbutton.hpp"
 
 #include <QPainter>
@@ -76,4 +74,4 @@ void SwitchButton::paintEvent(QPaintEvent*)
     p.drawEllipse(thumbRect);
 }
 
-#endif // EZGL_QT
+

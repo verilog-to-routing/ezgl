@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef EZGL_QT
-
 #include "ezgl/graphics.hpp"
 #include "ezgl/qt/painter.hpp"
 
@@ -208,4 +206,4 @@ private:
 
 } // namespace ezgl
 
-#endif // EZGL_QT
+
