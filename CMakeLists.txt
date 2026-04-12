@@ -174,8 +174,7 @@ if(USE_QT)
                 set(EZGL_RHI_SHADER_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/ezgl_rhi_shaders")
                 file(MAKE_DIRECTORY "${EZGL_RHI_SHADER_BUILD_DIR}")
 
-                set(EZGL_LINE_SINGLE_STYLE_VERT_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/line_single_style.vert.qsb")
-                set(EZGL_LINE_SINGLE_STYLE_FRAG_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/line_single_style.frag.qsb")
+                set(EZGL_FILL_RECT_VERT_QSB   "${EZGL_RHI_SHADER_BUILD_DIR}/fill_rect.vert.qsb")
                 set(EZGL_LINE_VERT_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.vert.qsb")
                 set(EZGL_LINE_FRAG_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.frag.qsb")
                 set(EZGL_OVERLAY_VERT_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.vert.qsb")
@@ -185,8 +184,7 @@ if(USE_QT)
                 set(EZGL_DASHED_LINE_FRAG_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.frag.qsb")
 
                 set(EZGL_RHI_SHADER_SOURCES
-                    "line_single_style.vert"
-                    "line_single_style.frag"
+                    "fill_rect.vert"
                     "line.vert"
                     "line.frag"
                     "overlay.vert"
@@ -196,8 +194,7 @@ if(USE_QT)
                     "dashed_line.frag"
                 )
                 set(EZGL_RHI_SHADER_OUTPUTS
-                    "${EZGL_LINE_SINGLE_STYLE_VERT_QSB}"
-                    "${EZGL_LINE_SINGLE_STYLE_FRAG_QSB}"
+                    "${EZGL_FILL_RECT_VERT_QSB}"
                     "${EZGL_LINE_VERT_QSB}"
                     "${EZGL_LINE_FRAG_QSB}"
                     "${EZGL_OVERLAY_VERT_QSB}"

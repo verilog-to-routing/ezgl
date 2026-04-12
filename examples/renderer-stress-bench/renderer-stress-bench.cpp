@@ -412,8 +412,8 @@ static const TestCase TESTS[] = {
     // { "solid rects   ",       fill_rectangles_solid,          1'0, "draw_solid_rects.png"    },
     //{ "solid   ",       draw_solid,                           1'000'000, "draw_solid.png"    },
     // { "variadic   ",       draw_variadic,               1'000, "bench_variadic.png"    },
-//  { "solid lines      ", draw_lines_solid,           200'000'000, "bench_lines_solid.png"       },
-  { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
+  { "solid lines      ", draw_lines_solid,           200'000'000, "bench_lines_solid.png"       },
+  //{ "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
   // { "variadic lines   ", draw_lines_variadic,         400'000'000, "bench_lines_variadic.png"    },
       //////////////////
     // { "solid lines      ", draw_lines_solid,              1000, "bench_lines_solid.png"       },

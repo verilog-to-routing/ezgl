@@ -11,6 +11,7 @@
 #include <QMutexLocker>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <limits>
 
 #include "ezgl/qt/ezgl_qtcompat.hpp"
@@ -33,21 +34,20 @@ namespace {
 
 constexpr std::size_t kMaxQrhiBufferBytes =
     std::size_t(std::numeric_limits<int>::max());
-constexpr std::size_t kInitialStreamVertexBufferBytes      = 1 * 1024 * 1024;
-constexpr std::size_t kInitialStreamStyleBufferBytes       = 128 * 1024;
-constexpr std::size_t kInitialThickInstanceBufferBytes  = 512 * 1024;
-constexpr std::size_t kInitialDashedInstanceBufferBytes = 512 * 1024;
-constexpr std::size_t kMaxVerticesPerChunk =
-    std::min(kMaxQrhiBufferBytes / sizeof(ezgl::PosVertex),
-             kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
-constexpr std::size_t kMaxThickInstancesPerChunk =
-    std::min(kMaxQrhiBufferBytes / sizeof(ezgl::ThickLineInstance),
-             kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
-constexpr std::size_t kMaxDashedInstancesPerChunk =
-    std::min(kMaxQrhiBufferBytes / sizeof(ezgl::DashedLineInstance),
-             kMaxQrhiBufferBytes / sizeof(ezgl::StyleIndex));
-constexpr std::uint32_t kInvalidDenseTileIndex =
-    std::numeric_limits<std::uint32_t>::max();
+constexpr std::size_t kInitialThinLineBufferBytes        = 1 * 1024 * 1024;
+constexpr std::size_t kInitialFillRectBufferBytes        = 512 * 1024;
+constexpr std::size_t kInitialFillPolyBufferBytes        = 512 * 1024;
+constexpr std::size_t kInitialThickInstanceBufferBytes   = 512 * 1024;
+constexpr std::size_t kInitialDashedInstanceBufferBytes  = 512 * 1024;
+constexpr std::size_t kInitialStyleUniformBufferBytes    = 16 * 1024;
+constexpr std::size_t kMaxPosVerticesPerBuffer =
+    kMaxQrhiBufferBytes / sizeof(ezgl::PosVertex);
+constexpr std::size_t kMaxFillRectInstancesPerBuffer =
+    kMaxQrhiBufferBytes / sizeof(ezgl::FillRectInstance);
+constexpr std::size_t kMaxThickInstancesPerBuffer =
+    kMaxQrhiBufferBytes / sizeof(ezgl::ThickLineInstance);
+constexpr std::size_t kMaxDashedInstancesPerBuffer =
+    kMaxQrhiBufferBytes / sizeof(ezgl::DashedLineInstance);
 
 // MVP UBO layout (std140, binding 0):
 //   offset  0 : mat4  mvp      (64 bytes)
@@ -128,13 +128,12 @@ bool rectanglesIntersect(const ezgl::rectangle& a, const ezgl::rectangle& b)
           || a.bottom() > b.top());
 }
 
-int clampTileCoord(double value, double origin, double tile_extent, int tile_count)
+std::size_t alignUp(std::size_t value, std::size_t alignment)
 {
-    if (tile_count <= 0)
-        return 0;
-
-    const double normalized = (value - origin) / tile_extent;
-    return std::clamp(int(std::floor(normalized)), 0, tile_count - 1);
+    if (alignment == 0)
+        return value;
+    const std::size_t remainder = value % alignment;
+    return remainder == 0 ? value : (value + alignment - remainder);
 }
 
 struct ColorUniform {
@@ -142,12 +141,6 @@ struct ColorUniform {
 };
 static_assert(sizeof(ColorUniform) == 16,
               "ColorUniform must match a std140 vec4");
-
-struct PaletteUniformBlock {
-    ColorUniform colors[ezgl::kMaxRhiStyleEntries];
-};
-static_assert(sizeof(PaletteUniformBlock) == ezgl::kMaxRhiStyleEntries * sizeof(ColorUniform),
-              "PaletteUniformBlock must be tightly packed std140 vec4 entries");
 
 struct OverlayVertex {
     float x;
@@ -179,13 +172,11 @@ void buildPipeline(QRhi*                                    rhi,
 {
     QRhiVertexInputLayout layout;
     layout.setBindings({
-        QRhiVertexInputBinding(sizeof(ezgl::PosVertex)),
-        QRhiVertexInputBinding(sizeof(ezgl::StyleIndex))
+        QRhiVertexInputBinding(sizeof(ezgl::PosVertex))
     });
     layout.setAttributes({
         QRhiVertexInputAttribute(0, 0, QRhiVertexInputAttribute::Float2,
-                                 offsetof(ezgl::PosVertex, x)),
-        QRhiVertexInputAttribute(1, 1, QRhiVertexInputAttribute::UNormByte, 0)
+                                 offsetof(ezgl::PosVertex, x))
     });
 
     QRhiGraphicsPipeline::TargetBlend blend;
@@ -210,20 +201,23 @@ void buildPipeline(QRhi*                                    rhi,
     pso->create();
 }
 
-void buildSingleStyleLinePipeline(QRhi*                                  rhi,
-                                  std::unique_ptr<QRhiGraphicsPipeline>& pso,
-                                  const QShader&                         vs,
-                                  const QShader&                         fs,
-                                  QRhiShaderResourceBindings*            srb,
-                                  QRhiRenderPassDescriptor*              rpDesc)
+void buildFillRectPipeline(QRhi*                                  rhi,
+                           std::unique_ptr<QRhiGraphicsPipeline>& pso,
+                           const QShader&                         vs,
+                           const QShader&                         fs,
+                           QRhiShaderResourceBindings*            srb,
+                           QRhiRenderPassDescriptor*              rpDesc)
 {
     QRhiVertexInputLayout layout;
     layout.setBindings({
-        QRhiVertexInputBinding(sizeof(ezgl::PosVertex))
+        QRhiVertexInputBinding(sizeof(ezgl::FillRectInstance),
+                               QRhiVertexInputBinding::PerInstance)
     });
     layout.setAttributes({
         QRhiVertexInputAttribute(0, 0, QRhiVertexInputAttribute::Float2,
-                                 offsetof(ezgl::PosVertex, x))
+                                 offsetof(ezgl::FillRectInstance, x0)),
+        QRhiVertexInputAttribute(0, 1, QRhiVertexInputAttribute::Float2,
+                                 offsetof(ezgl::FillRectInstance, x1))
     });
 
     QRhiGraphicsPipeline::TargetBlend blend;
@@ -234,7 +228,7 @@ void buildSingleStyleLinePipeline(QRhi*                                  rhi,
     blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
 
     pso.reset(rhi->newGraphicsPipeline());
-    pso->setTopology(QRhiGraphicsPipeline::Lines);
+    pso->setTopology(QRhiGraphicsPipeline::TriangleStrip);
     pso->setVertexInputLayout(layout);
     pso->setShaderStages({
         { QRhiShaderStage::Vertex,   vs },
@@ -251,10 +245,10 @@ void buildSingleStyleLinePipeline(QRhi*                                  rhi,
 /**
  * Build the thick-line pipeline.
  *
- * Vertex format uses ThickLineVertex (24 bytes) in binding 0 and StyleIndex
- * (1 byte) in binding 1.  The vertex shader (thick_line.vert) expands each
+ * Vertex format uses QuadCorner in binding 0 and ThickLineInstance in binding 1.
+ * The vertex shader (thick_line.vert) expands each
  * vertex perpendicularly using the MVP + viewport uniforms.
- * The fragment shader is the same line.frag palette-lookup shader.
+ * The fragment shader reads color from the dynamic style UBO.
  */
 void buildThickLinePipeline(QRhi*                                   rhi,
                             std::unique_ptr<QRhiGraphicsPipeline>&  pso,
@@ -266,13 +260,10 @@ void buildThickLinePipeline(QRhi*                                   rhi,
     // Instanced rendering:
     //   Binding 0 (PerVertex)   — QuadCorner   (t, side)        — 4 corners, constant
     //   Binding 1 (PerInstance) — ThickLineInstance (x0,y0,x1,y1,width_px)
-    //   Binding 2 (PerInstance) — StyleIndex   (normalised byte) — 1 per line
     QRhiVertexInputLayout layout;
     layout.setBindings({
         QRhiVertexInputBinding(sizeof(ezgl::QuadCorner)),
         QRhiVertexInputBinding(sizeof(ezgl::ThickLineInstance),
-                               QRhiVertexInputBinding::PerInstance),
-        QRhiVertexInputBinding(sizeof(ezgl::StyleIndex),
                                QRhiVertexInputBinding::PerInstance)
     });
     layout.setAttributes({
@@ -287,9 +278,7 @@ void buildThickLinePipeline(QRhi*                                   rhi,
                                  offsetof(ezgl::ThickLineInstance, x1)),
         // location 3: inWidthPx — from binding 1, per instance
         QRhiVertexInputAttribute(1, 3, QRhiVertexInputAttribute::Float,
-                                 offsetof(ezgl::ThickLineInstance, width_px)),
-        // location 4: inStyleNorm — from binding 2, per instance
-        QRhiVertexInputAttribute(2, 4, QRhiVertexInputAttribute::UNormByte, 0)
+                                 offsetof(ezgl::ThickLineInstance, width_px))
     });
 
     QRhiGraphicsPipeline::TargetBlend blend;
@@ -323,13 +312,10 @@ void buildDashedLinePipeline(QRhi*                                   rhi,
 {
     // Binding 0 (PerVertex)   — QuadCorner (t, side)
     // Binding 1 (PerInstance) — DashedLineInstance
-    // Binding 2 (PerInstance) — StyleIndex
     QRhiVertexInputLayout layout;
     layout.setBindings({
         QRhiVertexInputBinding(sizeof(ezgl::QuadCorner)),
         QRhiVertexInputBinding(sizeof(ezgl::DashedLineInstance),
-                               QRhiVertexInputBinding::PerInstance),
-        QRhiVertexInputBinding(sizeof(ezgl::StyleIndex),
                                QRhiVertexInputBinding::PerInstance)
     });
     layout.setAttributes({
@@ -346,8 +332,7 @@ void buildDashedLinePipeline(QRhi*                                   rhi,
         QRhiVertexInputAttribute(1, 5, QRhiVertexInputAttribute::Float,
                                  offsetof(ezgl::DashedLineInstance, gap_px)),
         QRhiVertexInputAttribute(1, 6, QRhiVertexInputAttribute::Float,
-                                 offsetof(ezgl::DashedLineInstance, phase_world)),
-        QRhiVertexInputAttribute(2, 7, QRhiVertexInputAttribute::UNormByte, 0)
+                                 offsetof(ezgl::DashedLineInstance, phase_world))
     });
 
     QRhiGraphicsPipeline::TargetBlend blend;
@@ -434,35 +419,22 @@ RhiCanvasWidget::~RhiCanvasWidget() = default;
 
 // ---- public API ------------------------------------------------------------
 
-void RhiCanvasWidget::set_frame_data(std::vector<RhiTileBatch>  tiles,
-                                     std::vector<std::uint32_t> palette_rgba,
-                                     const RhiTileGridInfo&     tile_grid,
-                                     const QMatrix4x4&          world_to_ndc,
-                                     const rectangle&           visible_world,
-                                     const QImage&              overlay,
-                                     QColor                     bg_color,
-                                     bool                       use_single_line_style,
-                                     std::uint32_t              single_line_rgba)
+void RhiCanvasWidget::set_frame_data(SceneBuffers       scene_buffers,
+                                     const QMatrix4x4& world_to_ndc,
+                                     const rectangle&  visible_world,
+                                     const QImage&     overlay,
+                                     QColor            bg_color)
 {
     QMutexLocker lock(&m_frame_mutex);
-    auto tiles_ptr = std::make_shared<const std::vector<RhiTileBatch>>(std::move(tiles));
-    auto palette_ptr = std::make_shared<const std::vector<std::uint32_t>>(std::move(palette_rgba));
-    m_pending_tiles        = tiles_ptr;
-    m_pending_palette_rgba = palette_ptr;
-    m_cached_tiles         = std::move(tiles_ptr);
-    m_cached_palette_rgba  = std::move(palette_ptr);
-    m_pending_tile_grid    = tile_grid;
-    m_cached_tile_grid     = tile_grid;
-    m_pending_mvp          = world_to_ndc;
+    auto scene_ptr = std::make_shared<const SceneBuffers>(std::move(scene_buffers));
+    m_pending_scene_buffers = scene_ptr;
+    m_cached_scene_buffers = std::move(scene_ptr);
+    m_pending_mvp = world_to_ndc;
     m_pending_visible_world = visible_world;
-    m_pending_overlay      = overlay;
-    m_pending_bg           = bg_color;
-    m_pending_use_single_line_style = use_single_line_style;
-    m_pending_single_line_rgba = single_line_rgba;
-    m_cached_use_single_line_style = use_single_line_style;
-    m_cached_single_line_rgba = single_line_rgba;
-    m_frame_dirty          = true;
-    m_mvp_dirty            = false;  // superseded by full frame
+    m_pending_overlay = overlay;
+    m_pending_bg = bg_color;
+    m_frame_dirty = true;
+    m_mvp_dirty = false;  // superseded by full frame
     std::fill(m_frame_slot_geom_valid.begin(), m_frame_slot_geom_valid.end(), false);
 }
 
@@ -502,15 +474,14 @@ void RhiCanvasWidget::setPreResizeCallback(std::function<void()> cb)
 
 void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
 {
-    QShader single_line_vs = loadShader(":/ezgl/line_single_style.vert.qsb");
-    QShader single_line_fs = loadShader(":/ezgl/line_single_style.frag.qsb");
-    QShader vs          = loadShader(":/ezgl/line.vert.qsb");
-    QShader fs          = loadShader(":/ezgl/line.frag.qsb");
-    QShader thick_vs    = loadShader(":/ezgl/thick_line.vert.qsb");
-    QShader dashed_vs   = loadShader(":/ezgl/dashed_line.vert.qsb");
-    QShader dashed_fs   = loadShader(":/ezgl/dashed_line.frag.qsb");
-    QShader overlay_vs  = loadShader(":/ezgl/overlay.vert.qsb");
-    QShader overlay_fs  = loadShader(":/ezgl/overlay.frag.qsb");
+    QShader line_vs      = loadShader(":/ezgl/line.vert.qsb");
+    QShader line_fs      = loadShader(":/ezgl/line.frag.qsb");
+    QShader fill_rect_vs = loadShader(":/ezgl/fill_rect.vert.qsb");
+    QShader thick_vs     = loadShader(":/ezgl/thick_line.vert.qsb");
+    QShader dashed_vs    = loadShader(":/ezgl/dashed_line.vert.qsb");
+    QShader dashed_fs    = loadShader(":/ezgl/dashed_line.frag.qsb");
+    QShader overlay_vs   = loadShader(":/ezgl/overlay.vert.qsb");
+    QShader overlay_fs   = loadShader(":/ezgl/overlay.frag.qsb");
 
     m_frame_resources.clear();
     m_frame_resources.resize(std::max(1, rhi()->resourceLimit(QRhi::FramesInFlight)));
@@ -532,27 +503,20 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
                                               QRhiBuffer::UniformBuffer,
                                               kMvpUboSize));
         frame.mvp_ubuf->create();
-        frame.line_color_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
-                                                     QRhiBuffer::UniformBuffer,
-                                                     int(sizeof(ColorUniform))));
-        frame.line_color_ubuf->create();
-        frame.palette_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
-                                                  QRhiBuffer::UniformBuffer,
-                                                  sizeof(PaletteUniformBlock)));
-        frame.palette_ubuf->create();
-        frame.line_vbufs.clear();
-        frame.line_style_vbufs.clear();
-        frame.fill_vbufs.clear();
-        frame.fill_style_vbufs.clear();
-        frame.draw_vbufs.clear();
-        frame.draw_style_vbufs.clear();
+        frame.style_ubuf.reset(rhi()->newBuffer(QRhiBuffer::Dynamic,
+                                                QRhiBuffer::UniformBuffer,
+                                                int(std::max<std::size_t>(
+                                                    kInitialStyleUniformBufferBytes,
+                                                    std::size_t(rhi()->ubufAlignment())))));
+        frame.style_ubuf->create();
+        frame.thin_line_vbufs.clear();
+        frame.fill_rect_instance_vbufs.clear();
+        frame.fill_poly_vbufs.clear();
         frame.thick_line_instance_vbufs.clear();
-        frame.thick_line_style_vbufs.clear();
         frame.dashed_line_instance_vbufs.clear();
-        frame.dashed_line_style_vbufs.clear();
         frame.overlay_tex.reset(rhi()->newTexture(QRhiTexture::RGBA8, QSize(1, 1)));
         frame.overlay_tex->create();
-        frame.gpu_tiles.clear();
+        frame.gpu_scene.clear();
     }
 
     // Constant quad-corner buffer (32 bytes, Dynamic so we can upload via
@@ -571,33 +535,20 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     m_overlay_quad_vbuf->create();
 
     // Shader resource bindings:
-    //   line_srb — MVP at binding 0, single thin-line color at binding 1
-    //   srb      — MVP at binding 0, palette at binding 1
+    //   srb      — MVP at binding 0, per-style color UBO at binding 1 via dynamic offsets
     // All pipelines get per-frame concrete buffers to avoid cross-frame aliasing.
     for (FrameResources& frame : m_frame_resources) {
-        frame.line_srb.reset(rhi()->newShaderResourceBindings());
-        frame.line_srb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
-                0,
-                QRhiShaderResourceBinding::VertexStage,
-                frame.mvp_ubuf.get()),
-            QRhiShaderResourceBinding::uniformBuffer(
-                1,
-                QRhiShaderResourceBinding::FragmentStage,
-                frame.line_color_ubuf.get())
-        });
-        frame.line_srb->create();
-
         frame.srb.reset(rhi()->newShaderResourceBindings());
         frame.srb->setBindings({
             QRhiShaderResourceBinding::uniformBuffer(
                 0,
                 QRhiShaderResourceBinding::VertexStage,
                 frame.mvp_ubuf.get()),
-            QRhiShaderResourceBinding::uniformBuffer(
+            QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 1,
                 QRhiShaderResourceBinding::FragmentStage,
-                frame.palette_ubuf.get())
+                frame.style_ubuf.get(),
+                sizeof(ColorUniform))
         });
         frame.srb->create();
 
@@ -613,16 +564,12 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     }
 
     auto* rpDesc = renderTarget()->renderPassDescriptor();
-    QRhiShaderResourceBindings* const single_line_srb = m_frame_resources.front().line_srb.get();
     QRhiShaderResourceBindings* const pipeline_srb = m_frame_resources.front().srb.get();
     QRhiShaderResourceBindings* const overlay_srb = m_frame_resources.front().overlay_srb.get();
-    buildSingleStyleLinePipeline(rhi(), m_line_single_style_pso,
-                                 single_line_vs, single_line_fs,
-                                 single_line_srb, rpDesc);
-    buildPipeline(rhi(), m_line_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, pipeline_srb, rpDesc);
-    buildPipeline(rhi(), m_fill_pso,  QRhiGraphicsPipeline::Triangles, vs, fs, pipeline_srb, rpDesc);
-    buildPipeline(rhi(), m_draw_pso,  QRhiGraphicsPipeline::Lines,     vs, fs, pipeline_srb, rpDesc);
-    buildThickLinePipeline(rhi(), m_thick_line_pso, thick_vs, fs, pipeline_srb, rpDesc);
+    buildPipeline(rhi(), m_line_pso, QRhiGraphicsPipeline::Lines, line_vs, line_fs, pipeline_srb, rpDesc);
+    buildFillRectPipeline(rhi(), m_fill_rect_pso, fill_rect_vs, line_fs, pipeline_srb, rpDesc);
+    buildPipeline(rhi(), m_fill_poly_pso, QRhiGraphicsPipeline::Triangles, line_vs, line_fs, pipeline_srb, rpDesc);
+    buildThickLinePipeline(rhi(), m_thick_line_pso, thick_vs, line_fs, pipeline_srb, rpDesc);
     buildDashedLinePipeline(rhi(), m_dashed_line_pso, dashed_vs, dashed_fs, pipeline_srb, rpDesc);
     buildOverlayPipeline(rhi(), m_overlay_pso, overlay_vs, overlay_fs, overlay_srb, rpDesc);
 
@@ -638,22 +585,18 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     const int frame_slot = currentFrameResourceIndex(rhi(), m_frame_resources.size());
 
     // --- Snapshot pending frame under lock -----------------------------------
-    std::shared_ptr<const std::vector<RhiTileBatch>> tiles;
-    std::shared_ptr<const std::vector<std::uint32_t>> palette_rgba;
+    std::shared_ptr<const SceneBuffers> scene_buffers;
     QMatrix4x4 mvp;
     rectangle  visible_world;
     QImage     overlay;
     QColor     bg;
-    RhiTileGridInfo tile_grid;
-    bool       use_single_line_style = false;
-    std::uint32_t single_line_rgba = 0;
     bool       geom_dirty;
 
     {
         QMutexLocker lock(&m_frame_mutex);
         const bool need_geom_for_slot =
             std::size_t(frame_slot) >= m_frame_slot_geom_valid.size()
-            || (!m_frame_slot_geom_valid[std::size_t(frame_slot)] && m_cached_tiles);
+            || (!m_frame_slot_geom_valid[std::size_t(frame_slot)] && m_cached_scene_buffers);
 
         if (!m_frame_dirty && !m_mvp_dirty && !need_geom_for_slot)
             return;
@@ -663,28 +606,17 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         visible_world = m_pending_visible_world;
         overlay    = m_pending_overlay;
         bg         = m_pending_bg;
-        tile_grid  = m_cached_tile_grid;
 
         if (geom_dirty) {
-            if (m_frame_dirty && m_pending_tiles) {
-                tiles        = m_pending_tiles;
-                palette_rgba = m_pending_palette_rgba;
-                use_single_line_style = m_pending_use_single_line_style;
-                single_line_rgba = m_pending_single_line_rgba;
+            if (m_frame_dirty && m_pending_scene_buffers) {
+                scene_buffers = m_pending_scene_buffers;
             } else {
-                tiles        = m_cached_tiles;
-                palette_rgba = m_cached_palette_rgba;
-                use_single_line_style = m_cached_use_single_line_style;
-                single_line_rgba = m_cached_single_line_rgba;
+                scene_buffers = m_cached_scene_buffers;
             }
-        } else {
-            use_single_line_style = m_cached_use_single_line_style;
-            single_line_rgba = m_cached_single_line_rgba;
         }
         m_frame_dirty = false;
         m_mvp_dirty   = false;
-        m_pending_tiles.reset();
-        m_pending_palette_rgba.reset();
+        m_pending_scene_buffers.reset();
         // m_pending_overlay stays cached here; render() may re-upload it on
         // subsequent camera-only updates.
     }
@@ -749,169 +681,139 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     }
 
     if (geom_dirty) {
-        if (!tiles || !palette_rgba) {
-            qFatal("RhiCanvasWidget: geom_dirty set without cached tile/palette data");
-        }
-
-        if (palette_rgba->size() > kMaxRhiStyleEntries) {
-            qFatal("RhiCanvasWidget: palette size %zu exceeds limit %zu",
-                   palette_rgba->size(), kMaxRhiStyleEntries);
+        if (!scene_buffers) {
+            qFatal("RhiCanvasWidget: geom_dirty set without cached scene data");
         }
 
         struct PendingUpload {
-            quint32             buffer_index   = 0;
-            quint32             pos_offset     = 0;  // byte offset in position buffer
-            quint32             style_offset   = 0;
-            quint32             count          = 0;
-            const void*         pos_data       = nullptr;
-            const StyleIndex*   style_data     = nullptr;
-            std::size_t         pos_vertex_size = 0; // sizeof(PosVertex) or sizeof(ThickLineVertex)
+            quint32     buffer_index = 0;
+            quint32     byte_offset = 0;
+            quint32     byte_size = 0;
+            const void* data = nullptr;
         };
 
-        std::size_t total_line_vertices       = 0;
-        std::size_t total_fill_vertices       = 0;
-        std::size_t total_fill_poly_vertices  = 0;
-        std::size_t total_draw_vertices       = 0;
-        std::size_t total_thick_line_vertices  = 0;
-        std::size_t total_dashed_line_vertices = 0;
-        for (const RhiTileBatch& tile : *tiles) {
-            if (tile.line_styles.size()         != tile.line_verts.size()
-                || tile.fill_styles.size()      != tile.fill_verts.size()
-                || tile.fill_poly_styles.size() != tile.fill_poly_verts.size()
-                || tile.draw_styles.size()      != tile.draw_verts.size()
-                || tile.thick_line_styles.size()  != tile.thick_line_instances.size()
-                || tile.dashed_line_styles.size() != tile.dashed_line_instances.size()) {
-                qFatal("RhiCanvasWidget: style-stream size mismatch with vertex stream");
-            }
+        const std::size_t style_stride =
+            alignUp(sizeof(ColorUniform), std::size_t(rhi()->ubufAlignment()));
+        const std::size_t total_style_count =
+            scene_buffers->thin_lines.size()
+            + scene_buffers->fill_rects.size()
+            + scene_buffers->fill_polys.size()
+            + scene_buffers->thick_lines.size()
+            + scene_buffers->dashed_lines.size();
+        std::vector<std::uint8_t> style_uniform_bytes(total_style_count * style_stride, 0);
+        std::size_t next_style_index = 0;
 
-            total_line_vertices        += tile.line_verts.size();
-            total_fill_vertices        += tile.fill_verts.size();
-            total_fill_poly_vertices   += tile.fill_poly_verts.size();
-            total_draw_vertices        += tile.draw_verts.size();
-            total_thick_line_vertices  += tile.thick_line_instances.size();
-            total_dashed_line_vertices += tile.dashed_line_instances.size();
-        }
+        auto assign_style_offset = [&](std::uint32_t rgba) {
+            const std::size_t offset = next_style_index * style_stride;
+            const ColorUniform color = makeColorUniform(rgba);
+            std::memcpy(style_uniform_bytes.data() + offset, &color, sizeof(ColorUniform));
+            ++next_style_index;
+            return quint32(offset);
+        };
 
-        std::vector<std::size_t> line_buffer_vertices;
-        std::vector<std::size_t> fill_buffer_vertices;
-        std::vector<std::size_t> fill_poly_buffer_vertices;
-        std::vector<std::size_t> draw_buffer_vertices;
-        std::vector<std::size_t> thick_line_buffer_vertices;
-        std::vector<std::size_t> dashed_line_buffer_vertices;
-        std::vector<PendingUpload> line_uploads;
-        std::vector<PendingUpload> fill_uploads;
+        std::vector<std::size_t> thin_line_buffer_counts;
+        std::vector<std::size_t> fill_rect_buffer_counts;
+        std::vector<std::size_t> fill_poly_buffer_counts;
+        std::vector<std::size_t> thick_line_buffer_counts;
+        std::vector<std::size_t> dashed_line_buffer_counts;
+        std::vector<PendingUpload> thin_line_uploads;
+        std::vector<PendingUpload> fill_rect_uploads;
         std::vector<PendingUpload> fill_poly_uploads;
-        std::vector<PendingUpload> draw_uploads;
         std::vector<PendingUpload> thick_line_uploads;
         std::vector<PendingUpload> dashed_line_uploads;
-        line_uploads.reserve(
-            (total_line_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
-        fill_uploads.reserve(
-            (total_fill_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
-        fill_poly_uploads.reserve(
-            (total_fill_poly_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
-        draw_uploads.reserve(
-            (total_draw_vertices + kMaxVerticesPerChunk - 1) / kMaxVerticesPerChunk);
-        thick_line_uploads.reserve(
-            (total_thick_line_vertices + kMaxThickInstancesPerChunk - 1)
-            / kMaxThickInstancesPerChunk);
-        dashed_line_uploads.reserve(
-            (total_dashed_line_vertices + kMaxDashedInstancesPerChunk - 1)
-            / kMaxDashedInstancesPerChunk);
+        frame.gpu_scene.clear();
 
-        // planStream: distribute a tile's vertex+style arrays into chunked upload
-        // records.  max_per_chunk and vertex_size are per-stream (PosVertex vs
-        // ThickLineVertex differ in size and allowed chunk limit).
-        auto planStream = [](std::vector<StreamChunk>&   chunks,
-                             std::vector<PendingUpload>& uploads,
-                             std::vector<std::size_t>&   buffer_vertex_counts,
-                             const auto&                 verts,
-                             const auto&                 styles,
-                             std::size_t                 max_per_chunk,
-                             std::size_t                 vertex_size) {
-            if (styles.size() != verts.size()) {
-                qFatal("RhiCanvasWidget: style-stream size mismatch with vertex stream");
-            }
+        auto planStyleBuffers = [&](const auto& scene_map,
+                                    auto&       gpu_buffers,
+                                    auto&       uploads,
+                                    auto&       buffer_counts,
+                                    std::size_t elem_size,
+                                    std::size_t max_per_buffer,
+                                    auto        get_data) {
+            for (const auto& [style_key, scene_buffer] : scene_map) {
+                const auto& data = get_data(scene_buffer);
+                if (data.empty())
+                    continue;
 
-            chunks.clear();
-            for (std::size_t begin = 0; begin < verts.size(); ) {
-                if (buffer_vertex_counts.empty()
-                        || buffer_vertex_counts.back() == max_per_chunk)
-                    buffer_vertex_counts.push_back(0);
+                GpuStyleBuffer gpu_buffer;
+                gpu_buffer.style_key = style_key;
+                gpu_buffer.rgba = scene_buffer.rgba;
+                gpu_buffer.style_offset = assign_style_offset(scene_buffer.rgba);
 
-                const std::size_t buffer_index  = buffer_vertex_counts.size() - 1;
-                const std::size_t vertex_offset = buffer_vertex_counts.back();
-                const std::size_t count =
-                    std::min(verts.size() - begin, max_per_chunk - vertex_offset);
+                for (const Chunk& chunk : scene_buffer.chunks) {
+                    std::size_t remaining = chunk.count;
+                    std::size_t data_offset = chunk.offset;
+                    while (remaining > 0) {
+                        if (buffer_counts.empty() || buffer_counts.back() == max_per_buffer)
+                            buffer_counts.push_back(0);
 
-                const std::size_t pos_offset   = vertex_offset * vertex_size;
-                const std::size_t style_offset = vertex_offset * sizeof(StyleIndex);
-                if (pos_offset > kMaxQrhiBufferBytes || style_offset > kMaxQrhiBufferBytes) {
-                    qFatal("RhiCanvasWidget: planned stream offset exceeds QRhi int-sized limit");
+                        const std::size_t buffer_index = buffer_counts.size() - 1;
+                        const std::size_t buffer_offset = buffer_counts.back();
+                        const std::size_t count =
+                            std::min(remaining, max_per_buffer - buffer_offset);
+                        const std::size_t byte_offset = buffer_offset * elem_size;
+                        const std::size_t byte_size = count * elem_size;
+                        if (byte_offset > kMaxQrhiBufferBytes || byte_size > kMaxQrhiBufferBytes) {
+                            qFatal("RhiCanvasWidget: planned buffer upload exceeds QRhi int-sized limit");
+                        }
+
+                        gpu_buffer.chunks.push_back(GpuChunk{
+                            chunk.world_bounds,
+                            quint32(buffer_index),
+                            quint32(byte_offset),
+                            quint32(count)
+                        });
+                        uploads.push_back(PendingUpload{
+                            quint32(buffer_index),
+                            quint32(byte_offset),
+                            quint32(byte_size),
+                            static_cast<const void*>(data.data() + data_offset)
+                        });
+                        buffer_counts.back() += count;
+                        remaining -= count;
+                        data_offset += count;
+                    }
                 }
 
-                chunks.push_back(StreamChunk{
-                    quint32(buffer_index),
-                    quint32(pos_offset),
-                    quint32(style_offset),
-                    quint32(count)
-                });
-                uploads.push_back(PendingUpload{
-                    quint32(buffer_index),
-                    quint32(pos_offset),
-                    quint32(style_offset),
-                    quint32(count),
-                    static_cast<const void*>(verts.data() + begin),
-                    styles.data() + begin,
-                    vertex_size
-                });
-                buffer_vertex_counts.back() += count;
-                begin += count;
+                gpu_buffers.push_back(std::move(gpu_buffer));
             }
         };
 
-        frame.gpu_tiles.resize(tiles->size());
-        frame.tile_grid = tile_grid;
-        const std::size_t dense_tile_count =
-            std::size_t(tile_grid.cols) * std::size_t(tile_grid.rows);
-        frame.dense_tile_lookup.assign(dense_tile_count, kInvalidDenseTileIndex);
-
-        for (std::size_t i = 0; i < tiles->size(); ++i) {
-            const RhiTileBatch& tile     = (*tiles)[i];
-            GpuTileBatch&       gpu_tile = frame.gpu_tiles[i];
-            gpu_tile.world_bounds = tile.world_bounds;
-            gpu_tile.tile_x = tile.tile_x;
-            gpu_tile.tile_y = tile.tile_y;
-            planStream(gpu_tile.line_chunks, line_uploads, line_buffer_vertices,
-                       tile.line_verts, tile.line_styles,
-                       kMaxVerticesPerChunk, sizeof(PosVertex));
-            planStream(gpu_tile.fill_chunks, fill_uploads, fill_buffer_vertices,
-                       tile.fill_verts, tile.fill_styles,
-                       kMaxVerticesPerChunk, sizeof(PosVertex));
-            planStream(gpu_tile.fill_poly_chunks, fill_poly_uploads, fill_poly_buffer_vertices,
-                       tile.fill_poly_verts, tile.fill_poly_styles,
-                       kMaxVerticesPerChunk, sizeof(PosVertex));
-            planStream(gpu_tile.draw_chunks, draw_uploads, draw_buffer_vertices,
-                       tile.draw_verts, tile.draw_styles,
-                       kMaxVerticesPerChunk, sizeof(PosVertex));
-            planStream(gpu_tile.thick_line_chunks, thick_line_uploads,
-                       thick_line_buffer_vertices,
-                       tile.thick_line_instances, tile.thick_line_styles,
-                       kMaxThickInstancesPerChunk, sizeof(ThickLineInstance));
-            planStream(gpu_tile.dashed_line_chunks, dashed_line_uploads,
-                       dashed_line_buffer_vertices,
-                       tile.dashed_line_instances, tile.dashed_line_styles,
-                       kMaxDashedInstancesPerChunk, sizeof(DashedLineInstance));
-
-            const std::size_t dense_index =
-                std::size_t(tile.tile_y) * std::size_t(tile_grid.cols) + std::size_t(tile.tile_x);
-            if (dense_index >= frame.dense_tile_lookup.size()) {
-                qFatal("RhiCanvasWidget: tile lookup index %zu exceeds dense grid size %zu",
-                       dense_index,
-                       frame.dense_tile_lookup.size());
-            }
-            frame.dense_tile_lookup[dense_index] = std::uint32_t(i);
-        }
+        planStyleBuffers(scene_buffers->thin_lines,
+                         frame.gpu_scene.thin_lines,
+                         thin_line_uploads,
+                         thin_line_buffer_counts,
+                         sizeof(PosVertex),
+                         kMaxPosVerticesPerBuffer,
+                         [](const ThinLineStyleBuffer& buffer) -> const auto& { return buffer.verts; });
+        planStyleBuffers(scene_buffers->fill_rects,
+                         frame.gpu_scene.fill_rects,
+                         fill_rect_uploads,
+                         fill_rect_buffer_counts,
+                         sizeof(FillRectInstance),
+                         kMaxFillRectInstancesPerBuffer,
+                         [](const FillRectStyleBuffer& buffer) -> const auto& { return buffer.instances; });
+        planStyleBuffers(scene_buffers->fill_polys,
+                         frame.gpu_scene.fill_polys,
+                         fill_poly_uploads,
+                         fill_poly_buffer_counts,
+                         sizeof(PosVertex),
+                         kMaxPosVerticesPerBuffer,
+                         [](const FillPolyStyleBuffer& buffer) -> const auto& { return buffer.verts; });
+        planStyleBuffers(scene_buffers->thick_lines,
+                         frame.gpu_scene.thick_lines,
+                         thick_line_uploads,
+                         thick_line_buffer_counts,
+                         sizeof(ThickLineInstance),
+                         kMaxThickInstancesPerBuffer,
+                         [](const ThickLineStyleBuffer& buffer) -> const auto& { return buffer.instances; });
+        planStyleBuffers(scene_buffers->dashed_lines,
+                         frame.gpu_scene.dashed_lines,
+                         dashed_line_uploads,
+                         dashed_line_buffer_counts,
+                         sizeof(DashedLineInstance),
+                         kMaxDashedInstancesPerBuffer,
+                         [](const DashedLineStyleBuffer& buffer) -> const auto& { return buffer.instances; });
 
         auto trimBufferVector = [](std::vector<std::unique_ptr<QRhiBuffer>>& buffers,
                                    std::size_t                               keep_count) {
@@ -919,124 +821,67 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                 releaseDynamicBuf(buffers[i]);
             buffers.resize(keep_count);
         };
-        auto ensurePosBuffers = [&](std::vector<std::unique_ptr<QRhiBuffer>>& pos_vbufs,
-                                    const std::vector<std::size_t>&           vertex_counts,
-                                    std::size_t                               vertex_size,
-                                    std::size_t                               initial_pos_bytes) {
-            if (pos_vbufs.size() < vertex_counts.size())
-                pos_vbufs.resize(vertex_counts.size());
+        auto ensureBufferPool = [&](std::vector<std::unique_ptr<QRhiBuffer>>& buffers,
+                                    const std::vector<std::size_t>&           elem_counts,
+                                    std::size_t                               elem_size,
+                                    std::size_t                               initial_bytes) {
+            if (buffers.size() < elem_counts.size())
+                buffers.resize(elem_counts.size());
 
-            for (std::size_t i = 0; i < vertex_counts.size(); ++i) {
-                const std::size_t vertex_count = vertex_counts[i];
-                if (vertex_count == 0)
+            for (std::size_t i = 0; i < elem_counts.size(); ++i) {
+                const std::size_t elem_count = elem_counts[i];
+                if (elem_count == 0)
                     continue;
 
                 ensureDynamicBuf(rhi(),
-                                 pos_vbufs[i],
+                                 buffers[i],
                                  QRhiBuffer::VertexBuffer,
-                                 vertex_count * vertex_size,
-                                 initial_pos_bytes);
+                                 elem_count * elem_size,
+                                 initial_bytes);
             }
 
-            trimBufferVector(pos_vbufs, vertex_counts.size());
+            trimBufferVector(buffers, elem_counts.size());
         };
-        auto ensureBufferSet = [&](std::vector<std::unique_ptr<QRhiBuffer>>& pos_vbufs,
-                                   std::vector<std::unique_ptr<QRhiBuffer>>& style_vbufs,
-                                   const std::vector<std::size_t>&           vertex_counts,
-                                   std::size_t                               vertex_size,
-                                   std::size_t                               initial_pos_bytes) {
-            if (pos_vbufs.size() < vertex_counts.size())
-                pos_vbufs.resize(vertex_counts.size());
-            if (style_vbufs.size() < vertex_counts.size())
-                style_vbufs.resize(vertex_counts.size());
-
-            for (std::size_t i = 0; i < vertex_counts.size(); ++i) {
-                const std::size_t vertex_count = vertex_counts[i];
-                if (vertex_count == 0)
-                    continue;
-
-                ensureDynamicBuf(rhi(),
-                                 pos_vbufs[i],
-                                 QRhiBuffer::VertexBuffer,
-                                 vertex_count * vertex_size,
-                                 initial_pos_bytes);
-                ensureDynamicBuf(rhi(),
-                                 style_vbufs[i],
-                                 QRhiBuffer::VertexBuffer,
-                                 vertex_count * sizeof(StyleIndex),
-                                 kInitialStreamStyleBufferBytes);
-            }
-
-            trimBufferVector(pos_vbufs, vertex_counts.size());
-            trimBufferVector(style_vbufs, vertex_counts.size());
-        };
-        auto uploadPlannedStream = [&](std::vector<std::unique_ptr<QRhiBuffer>>& pos_vbufs,
-                                       std::vector<std::unique_ptr<QRhiBuffer>>& style_vbufs,
+        auto uploadPlannedStream = [&](std::vector<std::unique_ptr<QRhiBuffer>>& buffers,
                                        const std::vector<PendingUpload>&         uploads) {
             for (const PendingUpload& upload : uploads) {
-                const int pos_bytes   = int(std::size_t(upload.count) * upload.pos_vertex_size);
-                const int style_bytes = int(std::size_t(upload.count) * sizeof(StyleIndex));
-                u->updateDynamicBuffer(pos_vbufs[upload.buffer_index].get(),
-                                       int(upload.pos_offset),
-                                       pos_bytes,
-                                       upload.pos_data);
-                u->updateDynamicBuffer(style_vbufs[upload.buffer_index].get(),
-                                       int(upload.style_offset),
-                                       style_bytes,
-                                       upload.style_data);
+                u->updateDynamicBuffer(buffers[upload.buffer_index].get(),
+                                       int(upload.byte_offset),
+                                       int(upload.byte_size),
+                                       upload.data);
             }
         };
-        if (use_single_line_style) {
-            ensurePosBuffers(frame.line_vbufs, line_buffer_vertices,
-                             sizeof(PosVertex), kInitialStreamVertexBufferBytes);
-            trimBufferVector(frame.line_style_vbufs, 0);
-            const ColorUniform line_color = makeColorUniform(single_line_rgba);
-            u->updateDynamicBuffer(frame.line_color_ubuf.get(),
-                                   0,
-                                   sizeof(ColorUniform),
-                                   &line_color);
-        } else {
-            ensureBufferSet(frame.line_vbufs,       frame.line_style_vbufs,       line_buffer_vertices,
-                            sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
-        }
-        ensureBufferSet(frame.fill_vbufs,       frame.fill_style_vbufs,       fill_buffer_vertices,
-                        sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
-        ensureBufferSet(frame.fill_poly_vbufs,  frame.fill_poly_style_vbufs,  fill_poly_buffer_vertices,
-                        sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
-        ensureBufferSet(frame.draw_vbufs,       frame.draw_style_vbufs,       draw_buffer_vertices,
-                        sizeof(PosVertex),       kInitialStreamVertexBufferBytes);
-        ensureBufferSet(frame.thick_line_instance_vbufs, frame.thick_line_style_vbufs,
-                        thick_line_buffer_vertices,
-                        sizeof(ThickLineInstance), kInitialThickInstanceBufferBytes);
-        ensureBufferSet(frame.dashed_line_instance_vbufs, frame.dashed_line_style_vbufs,
-                        dashed_line_buffer_vertices,
-                        sizeof(DashedLineInstance), kInitialDashedInstanceBufferBytes);
-        if (use_single_line_style) {
-            for (const PendingUpload& upload : line_uploads) {
-                const int pos_bytes = int(std::size_t(upload.count) * upload.pos_vertex_size);
-                u->updateDynamicBuffer(frame.line_vbufs[upload.buffer_index].get(),
-                                       int(upload.pos_offset),
-                                       pos_bytes,
-                                       upload.pos_data);
-            }
-        } else {
-            uploadPlannedStream(frame.line_vbufs,       frame.line_style_vbufs,       line_uploads);
-        }
-        uploadPlannedStream(frame.fill_vbufs,       frame.fill_style_vbufs,       fill_uploads);
-        uploadPlannedStream(frame.fill_poly_vbufs,  frame.fill_poly_style_vbufs,  fill_poly_uploads);
-        uploadPlannedStream(frame.draw_vbufs,       frame.draw_style_vbufs,       draw_uploads);
-        uploadPlannedStream(frame.thick_line_instance_vbufs,  frame.thick_line_style_vbufs,  thick_line_uploads);
-        uploadPlannedStream(frame.dashed_line_instance_vbufs, frame.dashed_line_style_vbufs, dashed_line_uploads);
 
-        PaletteUniformBlock palette_data{};
-        const std::size_t palette_count =
-            std::min<std::size_t>(palette_rgba->size(), kMaxRhiStyleEntries);
-        for (std::size_t i = 0; i < palette_count; ++i)
-            palette_data.colors[i] = makeColorUniform((*palette_rgba)[i]);
-        u->updateDynamicBuffer(frame.palette_ubuf.get(),
-                               0,
-                               sizeof(PaletteUniformBlock),
-                               &palette_data);
+        const std::size_t style_ubuf_bytes =
+            std::max(style_stride, style_uniform_bytes.empty() ? std::size_t(0) : style_uniform_bytes.size());
+        ensureDynamicBuf(rhi(),
+                         frame.style_ubuf,
+                         QRhiBuffer::UniformBuffer,
+                         style_ubuf_bytes,
+                         std::max<std::size_t>(kInitialStyleUniformBufferBytes, style_stride));
+        if (!style_uniform_bytes.empty()) {
+            u->updateDynamicBuffer(frame.style_ubuf.get(),
+                                   0,
+                                   int(style_uniform_bytes.size()),
+                                   style_uniform_bytes.data());
+        }
+
+        ensureBufferPool(frame.thin_line_vbufs, thin_line_buffer_counts,
+                         sizeof(PosVertex), kInitialThinLineBufferBytes);
+        ensureBufferPool(frame.fill_rect_instance_vbufs, fill_rect_buffer_counts,
+                         sizeof(FillRectInstance), kInitialFillRectBufferBytes);
+        ensureBufferPool(frame.fill_poly_vbufs, fill_poly_buffer_counts,
+                         sizeof(PosVertex), kInitialFillPolyBufferBytes);
+        ensureBufferPool(frame.thick_line_instance_vbufs, thick_line_buffer_counts,
+                         sizeof(ThickLineInstance), kInitialThickInstanceBufferBytes);
+        ensureBufferPool(frame.dashed_line_instance_vbufs, dashed_line_buffer_counts,
+                         sizeof(DashedLineInstance), kInitialDashedInstanceBufferBytes);
+
+        uploadPlannedStream(frame.thin_line_vbufs, thin_line_uploads);
+        uploadPlannedStream(frame.fill_rect_instance_vbufs, fill_rect_uploads);
+        uploadPlannedStream(frame.fill_poly_vbufs, fill_poly_uploads);
+        uploadPlannedStream(frame.thick_line_instance_vbufs, thick_line_uploads);
+        uploadPlannedStream(frame.dashed_line_instance_vbufs, dashed_line_uploads);
 
         {
             QMutexLocker lock(&m_frame_mutex);
@@ -1045,214 +890,189 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             m_frame_slot_geom_valid[std::size_t(frame_slot)] = true;
         }
     }
-    // Camera-only frame: tiled vertex/style buffers and palette are reused.
+    // Camera-only frame: geometry pools and style UBO are reused.
 
     // --- Record draw commands ------------------------------------------------
     cb->beginPass(renderTarget(), bg, { 1.0f, 0 }, u);
     cb->setViewport(QRhiViewport(0, 0, float(width()), float(height())));
 
     const bool mvp_only_frame = !geom_dirty;
-    const std::size_t total_line_buffer_sets        = frame.line_vbufs.size();
-    const std::size_t total_fill_buffer_sets        = frame.fill_vbufs.size();
+    const std::size_t total_line_buffer_sets        = frame.thin_line_vbufs.size();
+    const std::size_t total_fill_rect_buffer_sets   = frame.fill_rect_instance_vbufs.size();
     const std::size_t total_fill_poly_buffer_sets   = frame.fill_poly_vbufs.size();
-    const std::size_t total_draw_buffer_sets        = frame.draw_vbufs.size();
     const std::size_t total_thick_line_buffer_sets  = frame.thick_line_instance_vbufs.size();
     const std::size_t total_dashed_line_buffer_sets = frame.dashed_line_instance_vbufs.size();
     const std::size_t total_stream_buffer_sets =
         total_line_buffer_sets
-        + total_fill_buffer_sets
+        + total_fill_rect_buffer_sets
         + total_fill_poly_buffer_sets
-        + total_draw_buffer_sets
         + total_thick_line_buffer_sets
         + total_dashed_line_buffer_sets;
     const std::size_t shared_render_buffer_objects =
         (frame.mvp_ubuf ? 1u : 0u)
-        + (frame.palette_ubuf ? 1u : 0u)
-        + (use_single_line_style && frame.line_color_ubuf ? 1u : 0u)
+        + (frame.style_ubuf ? 1u : 0u)
         + (m_thick_line_corner_vbuf ? 1u : 0u)
         + (m_overlay_quad_vbuf ? 1u : 0u);
     const std::size_t total_render_buffer_objects =
-        total_line_buffer_sets * (use_single_line_style ? 1u : 2u)
-        + 2 * (total_fill_buffer_sets
-             + total_fill_poly_buffer_sets
-             + total_draw_buffer_sets
-             + total_thick_line_buffer_sets
-             + total_dashed_line_buffer_sets)
+        total_line_buffer_sets
+        + total_fill_rect_buffer_sets
+        + total_fill_poly_buffer_sets
+        + total_thick_line_buffer_sets
+        + total_dashed_line_buffer_sets
         + shared_render_buffer_objects;
 
     std::vector<bool> visible_line_buffer_mask(total_line_buffer_sets, false);
-    std::vector<bool> visible_fill_buffer_mask(total_fill_buffer_sets, false);
+    std::vector<bool> visible_fill_rect_buffer_mask(total_fill_rect_buffer_sets, false);
     std::vector<bool> visible_fill_poly_buffer_mask(total_fill_poly_buffer_sets, false);
-    std::vector<bool> visible_draw_buffer_mask(total_draw_buffer_sets, false);
     std::vector<bool> visible_thick_line_buffer_mask(total_thick_line_buffer_sets, false);
     std::vector<bool> visible_dashed_line_buffer_mask(total_dashed_line_buffer_sets, false);
+    auto countVisibleBuffers = [](const std::vector<bool>& mask) {
+        return std::count(mask.begin(), mask.end(), true);
+    };
+    auto countTotalChunks = [](const auto& styles) {
+        std::size_t total = 0;
+        for (const auto& style : styles)
+            total += style.chunks.size();
+        return total;
+    };
 
-    auto drawSingleStyleLineChunks = [&](const std::vector<StreamChunk>& chunks) {
-        for (const StreamChunk& chunk : chunks) {
-            if (chunk.count == 0)
+    std::size_t considered_chunk_count = 0;
+    std::size_t visible_chunk_count = 0;
+    std::size_t visible_line_chunks = 0;
+    std::size_t visible_fill_rect_chunks = 0;
+    std::size_t visible_fill_poly_chunks = 0;
+    std::size_t visible_thick_line_chunks = 0;
+    std::size_t visible_dashed_line_chunks = 0;
+    unsigned long long visible_line_verts = 0;
+    unsigned long long visible_fill_rects = 0;
+    unsigned long long visible_fill_poly_verts = 0;
+    unsigned long long visible_thick_line_instances = 0;
+    unsigned long long visible_dashed_line_instances = 0;
+
+    cb->setGraphicsPipeline(m_fill_rect_pso.get());
+    for (const GpuStyleBuffer& style : frame.gpu_scene.fill_rects) {
+        bool style_bound = false;
+        const QRhiCommandBuffer::DynamicOffset dyn_offset{1, style.style_offset};
+        for (const GpuChunk& chunk : style.chunks) {
+            ++considered_chunk_count;
+            if (!rectanglesIntersect(chunk.world_bounds, visible_world))
                 continue;
-
-            cb->setGraphicsPipeline(m_line_single_style_pso.get());
-            cb->setShaderResources(frame.line_srb.get());
+            if (!style_bound) {
+                cb->setShaderResources(frame.srb.get(), 1, &dyn_offset);
+                style_bound = true;
+            }
+            ++visible_chunk_count;
+            ++visible_fill_rect_chunks;
+            visible_fill_rects += chunk.count;
+            if (std::size_t(chunk.buffer_index) < visible_fill_rect_buffer_mask.size())
+                visible_fill_rect_buffer_mask[std::size_t(chunk.buffer_index)] = true;
             const QRhiCommandBuffer::VertexInput input = {
-                frame.line_vbufs[chunk.buffer_index].get(), chunk.pos_offset
+                frame.fill_rect_instance_vbufs[chunk.buffer_index].get(), chunk.byte_offset
+            };
+            cb->setVertexInput(0, 1, &input);
+            cb->draw(4, chunk.count);
+        }
+    }
+
+    cb->setGraphicsPipeline(m_fill_poly_pso.get());
+    for (const GpuStyleBuffer& style : frame.gpu_scene.fill_polys) {
+        bool style_bound = false;
+        const QRhiCommandBuffer::DynamicOffset dyn_offset{1, style.style_offset};
+        for (const GpuChunk& chunk : style.chunks) {
+            ++considered_chunk_count;
+            if (!rectanglesIntersect(chunk.world_bounds, visible_world))
+                continue;
+            if (!style_bound) {
+                cb->setShaderResources(frame.srb.get(), 1, &dyn_offset);
+                style_bound = true;
+            }
+            ++visible_chunk_count;
+            ++visible_fill_poly_chunks;
+            visible_fill_poly_verts += chunk.count;
+            if (std::size_t(chunk.buffer_index) < visible_fill_poly_buffer_mask.size())
+                visible_fill_poly_buffer_mask[std::size_t(chunk.buffer_index)] = true;
+            const QRhiCommandBuffer::VertexInput input = {
+                frame.fill_poly_vbufs[chunk.buffer_index].get(), chunk.byte_offset
             };
             cb->setVertexInput(0, 1, &input);
             cb->draw(chunk.count);
         }
-    };
+    }
 
-    auto drawChunks = [&](std::unique_ptr<QRhiGraphicsPipeline>& pso,
-                          std::vector<std::unique_ptr<QRhiBuffer>>& pos_vbufs,
-                          std::vector<std::unique_ptr<QRhiBuffer>>& style_vbufs,
-                          const std::vector<StreamChunk>&        chunks) {
-        for (const StreamChunk& chunk : chunks) {
-            if (chunk.count == 0)
+    cb->setGraphicsPipeline(m_line_pso.get());
+    for (const GpuStyleBuffer& style : frame.gpu_scene.thin_lines) {
+        bool style_bound = false;
+        const QRhiCommandBuffer::DynamicOffset dyn_offset{1, style.style_offset};
+        for (const GpuChunk& chunk : style.chunks) {
+            ++considered_chunk_count;
+            if (!rectanglesIntersect(chunk.world_bounds, visible_world))
                 continue;
-
-            cb->setGraphicsPipeline(pso.get());
-            cb->setShaderResources(frame.srb.get());
-            const QRhiCommandBuffer::VertexInput inputs[] = {
-                { pos_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
-                { style_vbufs[chunk.buffer_index].get(), chunk.style_offset }
+            if (!style_bound) {
+                cb->setShaderResources(frame.srb.get(), 1, &dyn_offset);
+                style_bound = true;
+            }
+            ++visible_chunk_count;
+            ++visible_line_chunks;
+            visible_line_verts += chunk.count;
+            if (std::size_t(chunk.buffer_index) < visible_line_buffer_mask.size())
+                visible_line_buffer_mask[std::size_t(chunk.buffer_index)] = true;
+            const QRhiCommandBuffer::VertexInput input = {
+                frame.thin_line_vbufs[chunk.buffer_index].get(), chunk.byte_offset
             };
-            cb->setVertexInput(0, 2, inputs);
+            cb->setVertexInput(0, 1, &input);
             cb->draw(chunk.count);
         }
-    };
+    }
 
-    auto countChunkVertices = [](const std::vector<StreamChunk>& chunks) {
-        unsigned long long total = 0;
-        for (const StreamChunk& chunk : chunks)
-            total += chunk.count;
-        return total;
-    };
-    auto markVisibleBuffers = [](const std::vector<StreamChunk>& chunks,
-                                 std::vector<bool>&             mask) {
-        for (const StreamChunk& chunk : chunks) {
-            if (std::size_t(chunk.buffer_index) < mask.size())
-                mask[std::size_t(chunk.buffer_index)] = true;
-        }
-    };
-    auto countVisibleBuffers = [](const std::vector<bool>& mask) {
-        return std::count(mask.begin(), mask.end(), true);
-    };
-
-    std::size_t visible_tile_count = 0;
-    std::size_t considered_tile_count = 0;
-    unsigned long long visible_line_verts        = 0;
-    unsigned long long visible_fill_verts        = 0;
-    unsigned long long visible_fill_poly_verts   = 0;
-    unsigned long long visible_draw_verts        = 0;
-    unsigned long long visible_thick_line_verts  = 0;
-    unsigned long long visible_dashed_line_verts = 0;
-    auto drawTile = [&](const GpuTileBatch& tile) {
-        ++visible_tile_count;
-        visible_fill_verts        += countChunkVertices(tile.fill_chunks);
-        visible_fill_poly_verts   += countChunkVertices(tile.fill_poly_chunks);
-        visible_draw_verts        += countChunkVertices(tile.draw_chunks);
-        visible_line_verts        += countChunkVertices(tile.line_chunks);
-        visible_thick_line_verts  += countChunkVertices(tile.thick_line_chunks);
-        visible_dashed_line_verts += countChunkVertices(tile.dashed_line_chunks);
-        markVisibleBuffers(tile.fill_chunks,       visible_fill_buffer_mask);
-        markVisibleBuffers(tile.fill_poly_chunks,  visible_fill_poly_buffer_mask);
-        markVisibleBuffers(tile.draw_chunks,       visible_draw_buffer_mask);
-        markVisibleBuffers(tile.line_chunks,       visible_line_buffer_mask);
-        markVisibleBuffers(tile.thick_line_chunks, visible_thick_line_buffer_mask);
-        markVisibleBuffers(tile.dashed_line_chunks, visible_dashed_line_buffer_mask);
-        // Draw order: fills first (bottom), then outlines and lines on top.
-        // This matches painter semantics — the last-submitted primitive type
-        // appears on top, so fills (submitted first) are always below lines.
-        drawChunks(m_fill_pso,       frame.fill_vbufs,       frame.fill_style_vbufs,       tile.fill_chunks);
-        drawChunks(m_fill_pso,       frame.fill_poly_vbufs,  frame.fill_poly_style_vbufs,  tile.fill_poly_chunks);
-        drawChunks(m_draw_pso,       frame.draw_vbufs,       frame.draw_style_vbufs,       tile.draw_chunks);
-        if (use_single_line_style) {
-            drawSingleStyleLineChunks(tile.line_chunks);
-        } else {
-            drawChunks(m_line_pso, frame.line_vbufs, frame.line_style_vbufs, tile.line_chunks);
-        }
-        // Dashed lines: instanced draw — 4 quad-corner vertices × N instances.
-        // Uses a dedicated fragment shader that discards gap fragments.
-        for (const StreamChunk& chunk : tile.dashed_line_chunks) {
-            if (chunk.count == 0)
+    cb->setGraphicsPipeline(m_dashed_line_pso.get());
+    for (const GpuStyleBuffer& style : frame.gpu_scene.dashed_lines) {
+        bool style_bound = false;
+        const QRhiCommandBuffer::DynamicOffset dyn_offset{1, style.style_offset};
+        for (const GpuChunk& chunk : style.chunks) {
+            ++considered_chunk_count;
+            if (!rectanglesIntersect(chunk.world_bounds, visible_world))
                 continue;
-            cb->setGraphicsPipeline(m_dashed_line_pso.get());
-            cb->setShaderResources(frame.srb.get());
-            const QRhiCommandBuffer::VertexInput inputs[3] = {
+            if (!style_bound) {
+                cb->setShaderResources(frame.srb.get(), 1, &dyn_offset);
+                style_bound = true;
+            }
+            ++visible_chunk_count;
+            ++visible_dashed_line_chunks;
+            visible_dashed_line_instances += chunk.count;
+            if (std::size_t(chunk.buffer_index) < visible_dashed_line_buffer_mask.size())
+                visible_dashed_line_buffer_mask[std::size_t(chunk.buffer_index)] = true;
+            const QRhiCommandBuffer::VertexInput inputs[2] = {
                 { m_thick_line_corner_vbuf.get(), 0 },
-                { frame.dashed_line_instance_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
-                { frame.dashed_line_style_vbufs[chunk.buffer_index].get(),    chunk.style_offset }
+                { frame.dashed_line_instance_vbufs[chunk.buffer_index].get(), chunk.byte_offset }
             };
-            cb->setVertexInput(0, 3, inputs);
+            cb->setVertexInput(0, 2, inputs);
             cb->draw(4, chunk.count);
         }
+    }
 
-        // Thick solid lines: instanced draw — 4 quad-corner vertices × N instances.
-        for (const StreamChunk& chunk : tile.thick_line_chunks) {
-            if (chunk.count == 0)
+    cb->setGraphicsPipeline(m_thick_line_pso.get());
+    for (const GpuStyleBuffer& style : frame.gpu_scene.thick_lines) {
+        bool style_bound = false;
+        const QRhiCommandBuffer::DynamicOffset dyn_offset{1, style.style_offset};
+        for (const GpuChunk& chunk : style.chunks) {
+            ++considered_chunk_count;
+            if (!rectanglesIntersect(chunk.world_bounds, visible_world))
                 continue;
-            cb->setGraphicsPipeline(m_thick_line_pso.get());
-            cb->setShaderResources(frame.srb.get());
-            const QRhiCommandBuffer::VertexInput inputs[3] = {
-                { m_thick_line_corner_vbuf.get(), 0 },
-                { frame.thick_line_instance_vbufs[chunk.buffer_index].get(), chunk.pos_offset },
-                { frame.thick_line_style_vbufs[chunk.buffer_index].get(),    chunk.style_offset }
-            };
-            cb->setVertexInput(0, 3, inputs);
-            cb->draw(4, chunk.count); // 4 quad corners, chunk.count instances
-        }
-    };
-
-    const bool can_direct_index_tiles =
-        frame.tile_grid.cols > 0
-        && frame.tile_grid.rows > 0
-        && frame.dense_tile_lookup.size()
-            == std::size_t(frame.tile_grid.cols) * std::size_t(frame.tile_grid.rows);
-    if (can_direct_index_tiles
-        && rectanglesIntersect(frame.tile_grid.scene_bounds, visible_world)) {
-        const double tile_width =
-            frame.tile_grid.scene_bounds.width() / double(frame.tile_grid.cols);
-        const double tile_height =
-            frame.tile_grid.scene_bounds.height() / double(frame.tile_grid.rows);
-        const int min_tx =
-            clampTileCoord(visible_world.left(),
-                           frame.tile_grid.scene_bounds.left(),
-                           tile_width,
-                           int(frame.tile_grid.cols));
-        const int max_tx =
-            clampTileCoord(visible_world.right(),
-                           frame.tile_grid.scene_bounds.left(),
-                           tile_width,
-                           int(frame.tile_grid.cols));
-        const int min_ty =
-            clampTileCoord(visible_world.bottom(),
-                           frame.tile_grid.scene_bounds.bottom(),
-                           tile_height,
-                           int(frame.tile_grid.rows));
-        const int max_ty =
-            clampTileCoord(visible_world.top(),
-                           frame.tile_grid.scene_bounds.bottom(),
-                           tile_height,
-                           int(frame.tile_grid.rows));
-
-        for (int ty = min_ty; ty <= max_ty; ++ty) {
-            for (int tx = min_tx; tx <= max_tx; ++tx) {
-                ++considered_tile_count;
-                const std::size_t dense_index =
-                    std::size_t(ty) * std::size_t(frame.tile_grid.cols) + std::size_t(tx);
-                const std::uint32_t gpu_index = frame.dense_tile_lookup[dense_index];
-                if (gpu_index == kInvalidDenseTileIndex)
-                    continue;
-
-                drawTile(frame.gpu_tiles[std::size_t(gpu_index)]);
+            if (!style_bound) {
+                cb->setShaderResources(frame.srb.get(), 1, &dyn_offset);
+                style_bound = true;
             }
-        }
-    } else {
-        for (const GpuTileBatch& tile : frame.gpu_tiles) {
-            ++considered_tile_count;
-            if (!rectanglesIntersect(tile.world_bounds, visible_world))
-                continue;
-            drawTile(tile);
+            ++visible_chunk_count;
+            ++visible_thick_line_chunks;
+            visible_thick_line_instances += chunk.count;
+            if (std::size_t(chunk.buffer_index) < visible_thick_line_buffer_mask.size())
+                visible_thick_line_buffer_mask[std::size_t(chunk.buffer_index)] = true;
+            const QRhiCommandBuffer::VertexInput inputs[2] = {
+                { m_thick_line_corner_vbuf.get(), 0 },
+                { frame.thick_line_instance_vbufs[chunk.buffer_index].get(), chunk.byte_offset }
+            };
+            cb->setVertexInput(0, 2, inputs);
+            cb->draw(4, chunk.count);
         }
     }
 
@@ -1271,55 +1091,64 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     const auto frame_end = std::chrono::steady_clock::now();
     const double frame_ms = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
     const std::size_t visible_line_buffer_sets        = countVisibleBuffers(visible_line_buffer_mask);
-    const std::size_t visible_fill_buffer_sets        = countVisibleBuffers(visible_fill_buffer_mask);
+    const std::size_t visible_fill_rect_buffer_sets   = countVisibleBuffers(visible_fill_rect_buffer_mask);
     const std::size_t visible_fill_poly_buffer_sets   = countVisibleBuffers(visible_fill_poly_buffer_mask);
-    const std::size_t visible_draw_buffer_sets        = countVisibleBuffers(visible_draw_buffer_mask);
     const std::size_t visible_thick_line_buffer_sets  = countVisibleBuffers(visible_thick_line_buffer_mask);
     const std::size_t visible_dashed_line_buffer_sets = countVisibleBuffers(visible_dashed_line_buffer_mask);
     const std::size_t visible_stream_buffer_sets =
         visible_line_buffer_sets
-        + visible_fill_buffer_sets
+        + visible_fill_rect_buffer_sets
         + visible_fill_poly_buffer_sets
-        + visible_draw_buffer_sets
         + visible_thick_line_buffer_sets
         + visible_dashed_line_buffer_sets;
     const std::size_t visible_render_buffer_objects =
-        visible_line_buffer_sets * (use_single_line_style ? 1u : 2u)
-        + 2 * (visible_fill_buffer_sets
-             + visible_fill_poly_buffer_sets
-             + visible_draw_buffer_sets
-             + visible_thick_line_buffer_sets
-             + visible_dashed_line_buffer_sets)
+        visible_line_buffer_sets
+        + visible_fill_rect_buffer_sets
+        + visible_fill_poly_buffer_sets
+        + visible_thick_line_buffer_sets
+        + visible_dashed_line_buffer_sets
         + shared_render_buffer_objects;
 
-    g_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, mvp_only=%d, single_line_style=%d, tiles=%zu, considered_tiles=%zu, visible_tiles=%zu, "
-            "line_verts=%llu, fill_verts=%llu, fill_poly_verts=%llu, draw_verts=%llu, thick_line_verts=%llu, dashed_line_verts=%llu, "
-            "buffer_sets(total=%zu visible=%zu line=%zu/%zu fill=%zu/%zu fill_poly=%zu/%zu draw=%zu/%zu thick=%zu/%zu dashed=%zu/%zu), "
+    g_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, mvp_only=%d, "
+            "styles(thin=%zu fill_rect=%zu fill_poly=%zu thick=%zu dashed=%zu), "
+            "chunks(total=%zu visible=%zu thin=%zu/%zu fill_rect=%zu/%zu fill_poly=%zu/%zu thick=%zu/%zu dashed=%zu/%zu), "
+            "prims(thin_verts=%llu fill_rects=%llu fill_poly_verts=%llu thick_lines=%llu dashed_lines=%llu), "
+            "buffer_sets(total=%zu visible=%zu thin=%zu/%zu fill_rect=%zu/%zu fill_poly=%zu/%zu thick=%zu/%zu dashed=%zu/%zu), "
             "buffer_objects(total=%zu visible=%zu shared=%zu))",
             frame_ms,
             frame_slot,
             int(geom_dirty),
             int(mvp_only_frame),
-            int(use_single_line_style),
-            frame.gpu_tiles.size(),
-            considered_tile_count,
-            visible_tile_count,
+            frame.gpu_scene.thin_lines.size(),
+            frame.gpu_scene.fill_rects.size(),
+            frame.gpu_scene.fill_polys.size(),
+            frame.gpu_scene.thick_lines.size(),
+            frame.gpu_scene.dashed_lines.size(),
+            considered_chunk_count,
+            visible_chunk_count,
+            countTotalChunks(frame.gpu_scene.thin_lines),
+            visible_line_chunks,
+            countTotalChunks(frame.gpu_scene.fill_rects),
+            visible_fill_rect_chunks,
+            countTotalChunks(frame.gpu_scene.fill_polys),
+            visible_fill_poly_chunks,
+            countTotalChunks(frame.gpu_scene.thick_lines),
+            visible_thick_line_chunks,
+            countTotalChunks(frame.gpu_scene.dashed_lines),
+            visible_dashed_line_chunks,
             visible_line_verts,
-            visible_fill_verts,
+            visible_fill_rects,
             visible_fill_poly_verts,
-            visible_draw_verts,
-            visible_thick_line_verts,
-            visible_dashed_line_verts,
+            visible_thick_line_instances,
+            visible_dashed_line_instances,
             total_stream_buffer_sets,
             visible_stream_buffer_sets,
             total_line_buffer_sets,
             visible_line_buffer_sets,
-            total_fill_buffer_sets,
-            visible_fill_buffer_sets,
+            total_fill_rect_buffer_sets,
+            visible_fill_rect_buffer_sets,
             total_fill_poly_buffer_sets,
             visible_fill_poly_buffer_sets,
-            total_draw_buffer_sets,
-            visible_draw_buffer_sets,
             total_thick_line_buffer_sets,
             visible_thick_line_buffer_sets,
             total_dashed_line_buffer_sets,
@@ -1338,33 +1167,23 @@ void RhiCanvasWidget::releaseResources()
     m_overlay_pso.reset();
     m_dashed_line_pso.reset();
     m_thick_line_pso.reset();
-    m_draw_pso.reset();
-    m_fill_pso.reset();
+    m_fill_poly_pso.reset();
+    m_fill_rect_pso.reset();
     m_line_pso.reset();
-    m_line_single_style_pso.reset();
     m_overlay_sampler.reset();
     m_overlay_quad_vbuf.reset();
     m_thick_line_corner_vbuf.reset();
     for (FrameResources& frame : m_frame_resources) {
         frame.overlay_srb.reset();
         frame.overlay_tex.reset();
-        frame.line_srb.reset();
         frame.srb.reset();
-        resetBufferVector(frame.dashed_line_style_vbufs);
         resetBufferVector(frame.dashed_line_instance_vbufs);
-        resetBufferVector(frame.thick_line_style_vbufs);
         resetBufferVector(frame.thick_line_instance_vbufs);
-        resetBufferVector(frame.draw_style_vbufs);
-        resetBufferVector(frame.draw_vbufs);
-        resetBufferVector(frame.fill_poly_style_vbufs);
         resetBufferVector(frame.fill_poly_vbufs);
-        resetBufferVector(frame.fill_style_vbufs);
-        resetBufferVector(frame.fill_vbufs);
-        resetBufferVector(frame.line_style_vbufs);
-        resetBufferVector(frame.line_vbufs);
-        frame.gpu_tiles.clear();
-        frame.palette_ubuf.reset();
-        frame.line_color_ubuf.reset();
+        resetBufferVector(frame.fill_rect_instance_vbufs);
+        resetBufferVector(frame.thin_line_vbufs);
+        frame.gpu_scene.clear();
+        frame.style_ubuf.reset();
         frame.mvp_ubuf.reset();
     }
     m_frame_resources.clear();

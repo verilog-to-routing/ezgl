@@ -10,7 +10,6 @@ layout(location = 3) in float inWidthPx;   // full line width in screen pixels (
 layout(location = 4) in float inDashPx;     // dash length in screen pixels
 layout(location = 5) in float inGapPx;      // gap length in screen pixels
 layout(location = 6) in float inPhaseWorld; // world-space distance from original line start to this segment
-layout(location = 7) in float inStyleNorm;  // palette index, normalised 0-1
 
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
@@ -20,12 +19,11 @@ layout(std140, binding = 0) uniform buf {
 // v_t and v_line_len_px together let the fragment shader compute the
 // screen-pixel distance from the original segment start for each fragment.
 // v_t is interpolated; the rest are flat (constant per quad).
-layout(location = 0) out float v_style_index;
-layout(location = 1) out float v_t;
-layout(location = 2) flat out float v_line_len_px;
-layout(location = 3) flat out float v_dash_px;
-layout(location = 4) flat out float v_gap_px;
-layout(location = 5) flat out float v_phase_px;
+layout(location = 0) out float v_t;
+layout(location = 1) flat out float v_line_len_px;
+layout(location = 2) flat out float v_dash_px;
+layout(location = 3) flat out float v_gap_px;
+layout(location = 4) flat out float v_phase_px;
 
 void main()
 {
@@ -75,5 +73,4 @@ void main()
     v_dash_px     = inDashPx;
     v_gap_px      = inGapPx;
     v_phase_px    = phase_px;
-    v_style_index = inStyleNorm * 255.0;
 }
