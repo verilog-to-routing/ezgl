@@ -162,6 +162,9 @@ private:
     RhiCanvasWidget*         m_rhi_widget;
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
+    bool                     m_has_single_thin_line_style = true;
+    bool                     m_has_thin_lines = false;
+    StyleIndex               m_single_thin_line_style_index = 0;
 
     // Scene tiling metadata and CPU-side tile batches.
     rectangle                m_scene_bounds;

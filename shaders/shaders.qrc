@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/ezgl">
+        <file>line_single_style.vert.qsb</file>
+        <file>line_single_style.frag.qsb</file>
         <file>line.vert.qsb</file>
         <file>line.frag.qsb</file>
         <file>overlay.vert.qsb</file>

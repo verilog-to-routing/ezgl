@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/ezgl">
+        <file alias="line_single_style.vert.qsb">@EZGL_LINE_SINGLE_STYLE_VERT_QSB@</file>
+        <file alias="line_single_style.frag.qsb">@EZGL_LINE_SINGLE_STYLE_FRAG_QSB@</file>
         <file alias="line.vert.qsb">@EZGL_LINE_VERT_QSB@</file>
         <file alias="line.frag.qsb">@EZGL_LINE_FRAG_QSB@</file>
         <file alias="overlay.vert.qsb">@EZGL_OVERLAY_VERT_QSB@</file>

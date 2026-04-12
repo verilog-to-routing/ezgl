@@ -172,7 +172,9 @@ public:
                         const QMatrix4x4&         world_to_ndc,
                         const rectangle&          visible_world,
                         const QImage&             overlay,
-                        QColor                    bg_color);
+                        QColor                    bg_color,
+                        bool                      use_single_line_style,
+                        std::uint32_t             single_line_rgba);
 
     /**
      * Update only the camera transform (no geometry re-upload).  Thread-safe.
@@ -228,6 +230,7 @@ private:
 
     struct FrameResources {
         std::unique_ptr<QRhiBuffer>                 mvp_ubuf;
+        std::unique_ptr<QRhiBuffer>                 line_color_ubuf;
         std::unique_ptr<QRhiBuffer>                 palette_ubuf;
         std::vector<std::unique_ptr<QRhiBuffer>>    line_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    line_style_vbufs;
@@ -242,6 +245,7 @@ private:
         std::vector<std::unique_ptr<QRhiBuffer>>    dashed_line_instance_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    dashed_line_style_vbufs;
         std::unique_ptr<QRhiTexture>                overlay_tex;
+        std::unique_ptr<QRhiShaderResourceBindings> line_srb;
         std::unique_ptr<QRhiShaderResourceBindings> overlay_srb;
         std::vector<GpuTileBatch>                   gpu_tiles;
         RhiTileGridInfo                             tile_grid;
@@ -258,6 +262,7 @@ private:
     std::unique_ptr<QRhiBuffer>                m_thick_line_corner_vbuf;
     std::unique_ptr<QRhiBuffer>                m_overlay_quad_vbuf;
     std::unique_ptr<QRhiSampler>               m_overlay_sampler;
+    std::unique_ptr<QRhiGraphicsPipeline>       m_line_single_style_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_line_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_fill_pso;
     std::unique_ptr<QRhiGraphicsPipeline>       m_draw_pso;
@@ -276,6 +281,8 @@ private:
     rectangle                                          m_pending_visible_world;
     QImage                                             m_pending_overlay;
     QColor                                             m_pending_bg  { Qt::white };
+    bool                                               m_pending_use_single_line_style = false;
+    std::uint32_t                                      m_pending_single_line_rgba = 0;
     bool                                               m_frame_dirty = false;  // geometry + MVP changed
     bool                                               m_mvp_dirty   = false;  // only MVP/overlay changed
 
@@ -285,6 +292,8 @@ private:
     std::shared_ptr<const std::vector<RhiTileBatch>>   m_cached_tiles;
     std::shared_ptr<const std::vector<std::uint32_t>>  m_cached_palette_rgba;
     RhiTileGridInfo                                     m_cached_tile_grid;
+    bool                                               m_cached_use_single_line_style = false;
+    std::uint32_t                                      m_cached_single_line_rgba = 0;
     std::vector<bool>                                  m_frame_slot_geom_valid;
 
     // Canvas hooks

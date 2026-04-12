@@ -267,6 +267,9 @@ void rhi_renderer::begin_frame()
     m_palette_rgba.clear();
     m_palette_index.clear();
     m_skip_tile_writes = false;
+    m_has_single_thin_line_style = true;
+    m_has_thin_lines = false;
+    m_single_thin_line_style_index = 0;
 
     // End painter if still active (shouldn't normally happen).
     if (m_overlay_painter.isActive())
@@ -869,6 +872,13 @@ void rhi_renderer::draw_line(point2d start, point2d end)
         return;
     }
 
+    if (!m_has_thin_lines) {
+        m_has_thin_lines = true;
+        m_single_thin_line_style_index = style_index;
+    } else if (style_index != m_single_thin_line_style_index) {
+        m_has_single_thin_line_style = false;
+    }
+
     append_line_to_tiles(start, end, style_index);
 }
 
@@ -957,29 +967,78 @@ void rhi_renderer::flush()
     render_cached_overlay();
 
     std::vector<RhiTileBatch> non_empty_tiles;
-    double total_mb = 0.0;
+    constexpr double kBytesPerMb = 1024.0 * 1024.0;
+
+    double line_verts_mb         = 0.0;
+    double fill_verts_mb         = 0.0;
+    double fill_poly_verts_mb    = 0.0;
+    double draw_verts_mb         = 0.0;
+    double thick_instances_mb    = 0.0;
+    double dashed_instances_mb   = 0.0;
+    double line_styles_mb        = 0.0;
+    double fill_styles_mb        = 0.0;
+    double fill_poly_styles_mb   = 0.0;
+    double draw_styles_mb        = 0.0;
+    double thick_styles_mb       = 0.0;
+    double dashed_styles_mb      = 0.0;
+
     for (RhiTileBatch& tile : m_tiles) {
         if (tile.empty())
             continue;
 
-        total_mb +=
-            ((tile.line_verts.size() +
-              tile.fill_verts.size() +
-              tile.fill_poly_verts.size() +
-              tile.draw_verts.size()) * sizeof(PosVertex)
-             + tile.thick_line_instances.size()  * sizeof(ThickLineInstance)
-             + tile.dashed_line_instances.size() * sizeof(DashedLineInstance)
-             + (tile.line_styles.size() +
-                tile.fill_styles.size() +
-                tile.fill_poly_styles.size() +
-                tile.draw_styles.size() +
-                tile.thick_line_styles.size() +
-                tile.dashed_line_styles.size()) * sizeof(StyleIndex))
-            / (1024.0 * 1024.0);
+        line_verts_mb       += double(tile.line_verts.size() * sizeof(PosVertex)) / kBytesPerMb;
+        fill_verts_mb       += double(tile.fill_verts.size() * sizeof(PosVertex)) / kBytesPerMb;
+        fill_poly_verts_mb  += double(tile.fill_poly_verts.size() * sizeof(PosVertex)) / kBytesPerMb;
+        draw_verts_mb       += double(tile.draw_verts.size() * sizeof(PosVertex)) / kBytesPerMb;
+        thick_instances_mb  += double(tile.thick_line_instances.size() * sizeof(ThickLineInstance)) / kBytesPerMb;
+        dashed_instances_mb += double(tile.dashed_line_instances.size() * sizeof(DashedLineInstance)) / kBytesPerMb;
+        line_styles_mb      += double(tile.line_styles.size() * sizeof(StyleIndex)) / kBytesPerMb;
+        fill_styles_mb      += double(tile.fill_styles.size() * sizeof(StyleIndex)) / kBytesPerMb;
+        fill_poly_styles_mb += double(tile.fill_poly_styles.size() * sizeof(StyleIndex)) / kBytesPerMb;
+        draw_styles_mb      += double(tile.draw_styles.size() * sizeof(StyleIndex)) / kBytesPerMb;
+        thick_styles_mb     += double(tile.thick_line_styles.size() * sizeof(StyleIndex)) / kBytesPerMb;
+        dashed_styles_mb    += double(tile.dashed_line_styles.size() * sizeof(StyleIndex)) / kBytesPerMb;
+
         non_empty_tiles.push_back(std::move(tile));
     }
 
-    std::cout << "~~~ sending to GPU " << total_mb << " mb" << std::endl;
+    const bool use_single_line_style =
+        m_has_single_thin_line_style && m_has_thin_lines;
+    const std::uint32_t single_line_rgba =
+        use_single_line_style ? m_palette_rgba[std::size_t(m_single_thin_line_style_index)] : 0;
+    const double line_color_uniform_mb =
+        use_single_line_style ? double(sizeof(float) * 4) / kBytesPerMb : 0.0;
+    if (use_single_line_style)
+        line_styles_mb = 0.0;
+
+    const double total_mb =
+        line_verts_mb
+        + fill_verts_mb
+        + fill_poly_verts_mb
+        + draw_verts_mb
+        + thick_instances_mb
+        + dashed_instances_mb
+        + line_color_uniform_mb
+        + line_styles_mb
+        + fill_styles_mb
+        + fill_poly_styles_mb
+        + draw_styles_mb
+        + thick_styles_mb
+        + dashed_styles_mb;
+
+    std::cout << "~~~ sending to GPU total=" << total_mb << " mb" << std::endl
+              << "    line_verts=" << line_verts_mb << " mb" << std::endl
+              << "    fill_verts=" << fill_verts_mb << " mb" << std::endl
+              << "    fill_poly_verts=" << fill_poly_verts_mb << " mb" << std::endl
+              << "    draw_verts=" << draw_verts_mb << " mb" << std::endl
+              << "    thick_instances=" << thick_instances_mb << " mb" << std::endl
+              << "    dashed_instances=" << dashed_instances_mb << " mb" << std::endl
+              << "    line_styles=" << line_styles_mb << " mb" << std::endl
+              << "    fill_styles=" << fill_styles_mb << " mb" << std::endl
+              << "    fill_poly_styles=" << fill_poly_styles_mb << " mb" << std::endl
+              << "    draw_styles=" << draw_styles_mb << " mb" << std::endl
+              << "    thick_styles=" << thick_styles_mb << " mb" << std::endl
+              << "    dashed_styles=" << dashed_styles_mb << " mb" << std::endl;
 
     m_rhi_widget->set_frame_data(
         std::move(non_empty_tiles),
@@ -990,7 +1049,9 @@ void rhi_renderer::flush()
         compute_mvp(),
         get_visible_world(),
         m_overlay,
-        m_bg_color);
+        m_bg_color,
+        use_single_line_style,
+        single_line_rgba);
 
     m_rhi_widget->update();
 }
