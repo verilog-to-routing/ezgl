@@ -90,8 +90,6 @@ struct DeferredTextCommand {
     std::string          text;
     double               bound_x = 0.0;
     double               bound_y = 0.0;
-    double               recorded_text_width = 0.0;
-    double               recorded_text_height = 0.0;
     bool                 scale_font_with_camera = false;
     double               recorded_world_scale = 1.0;
 };
@@ -171,7 +169,10 @@ private:
     bool screen_arc_visible(point2d center,
                             double radius_x,
                             double radius_y) const;
-    bool screen_text_visible(const DeferredTextCommand& cmd) const;
+    bool screen_text_visible(point2d point,
+                             const std::string& text,
+                             double bound_x,
+                             double bound_y) const;
     bool screen_surface_visible(surface *p_surface,
                                 point2d point,
                                 double scale_factor) const;
