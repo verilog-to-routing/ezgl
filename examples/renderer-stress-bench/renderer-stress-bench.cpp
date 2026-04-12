@@ -85,8 +85,8 @@ static int g_bench_n = 1000000;
 static constexpr int    IMG_W = 1000;
 static constexpr int    IMG_H = 1000;
 static const ezgl::rectangle WORLD{{0, 0}, (double)IMG_W, (double)IMG_H};
-static constexpr int    CLB_TILE_COLS = 256;
-static constexpr int    CLB_TILE_ROWS = 256;
+static constexpr int    CLB_TILE_COLS = 2024;
+static constexpr int    CLB_TILE_ROWS = 2024;
 static constexpr int    CLB_TILE_COUNT = CLB_TILE_COLS * CLB_TILE_ROWS;
 static constexpr double CLB_TILE_GAP_RATIO = 0.3;
 
@@ -345,57 +345,6 @@ void draw_chars(ezgl::renderer *g)
 }
 
 
-void draw_clb_tile_simple_scene(ezgl::renderer *g)
-{
-  const double tile_w =
-      WORLD.width() / (double(CLB_TILE_COLS) + double(CLB_TILE_COLS - 1) * CLB_TILE_GAP_RATIO);
-  const double tile_h =
-      WORLD.height() / (double(CLB_TILE_ROWS) + double(CLB_TILE_ROWS - 1) * CLB_TILE_GAP_RATIO);
-  const double gap_x = tile_w * CLB_TILE_GAP_RATIO;
-  const double gap_y = tile_h * CLB_TILE_GAP_RATIO;
-  const double used_w = CLB_TILE_COLS * tile_w + (CLB_TILE_COLS - 1) * gap_x;
-  const double used_h = CLB_TILE_ROWS * tile_h + (CLB_TILE_ROWS - 1) * gap_y;
-  const double origin_x = WORLD.left() + (WORLD.width() - used_w) * 0.5;
-  const double origin_y = WORLD.bottom() + (WORLD.height() - used_h) * 0.5;
-  // const int label_font_size =
-  //     std::max(1, static_cast<int>(std::floor(std::min(tile_w, tile_h) * 0.45)));
-  const int label_font_size = 12;
-
-  auto tile_rect = [&](int x_idx, int y_idx) {
-    const double x0 = origin_x + x_idx * (tile_w + gap_x);
-    const double y0 = origin_y + y_idx * (tile_h + gap_y);
-    return ezgl::rectangle{{x0, y0}, tile_w, tile_h};
-  };
-
-  g->set_color(ezgl::RED);
-  for (int y = 0; y < CLB_TILE_ROWS; ++y) {
-    for (int x = 0; x < CLB_TILE_COLS; ++x) {
-      g->fill_rectangle(tile_rect(x, y));
-    }
-  }
-
-  // g->set_color(ezgl::BLACK);
-  // g->set_line_width(1);
-  // g->set_line_dash(ezgl::line_dash::asymmetric_5_3);
-  // for (int y = 0; y < CLB_TILE_ROWS; ++y) {
-  //   for (int x = 0; x < CLB_TILE_COLS; ++x) {
-  //     g->draw_rectangle(tile_rect(x, y));
-  //   }
-  // }
-
-  g->set_line_dash(ezgl::line_dash::none);
-  g->set_font_size(label_font_size);
-  for (int y = 0; y < CLB_TILE_ROWS; ++y) {
-    for (int x = 0; x < CLB_TILE_COLS; ++x) {
-      const ezgl::rectangle tile = tile_rect(x, y);
-      char label[32];
-      std::snprintf(label, sizeof(label), "clb(%d,%d)", x, y);
-      g->draw_text(tile.center(), label, tile.width(), tile.height());
-    }
-  }
-}
-
-
 void draw_clb_tile_scene(ezgl::renderer *g)
 {
   const double tile_w =
@@ -434,16 +383,16 @@ void draw_clb_tile_scene(ezgl::renderer *g)
     }
   }
 
-  g->set_line_dash(ezgl::line_dash::none);
-  g->set_font_size(label_font_size);
-  for (int y = 0; y < CLB_TILE_ROWS; ++y) {
-    for (int x = 0; x < CLB_TILE_COLS; ++x) {
-      const ezgl::rectangle tile = tile_rect(x, y);
-      char label[32];
-      std::snprintf(label, sizeof(label), "clb(%d,%d)", x, y);
-      g->draw_text(tile.center(), label, tile.width(), tile.height());
-    }
-  }
+  // g->set_line_dash(ezgl::line_dash::none);
+  // g->set_font_size(label_font_size);
+  // for (int y = 0; y < CLB_TILE_ROWS; ++y) {
+  //   for (int x = 0; x < CLB_TILE_COLS; ++x) {
+  //     const ezgl::rectangle tile = tile_rect(x, y);
+  //     char label[32];
+  //     std::snprintf(label, sizeof(label), "clb(%d,%d)", x, y);
+  //     g->draw_text(tile.center(), label, tile.width(), tile.height());
+  //   }
+  // }
 }
 
 // ---- test case table -------------------------------------------------------
@@ -456,8 +405,7 @@ struct TestCase {
 };
 
 static const TestCase TESTS[] = {
-    //{ "clb tile grid ",      draw_clb_tile_scene,            CLB_TILE_COUNT, "draw_clb_tile_grid.png" },
-    { "clb tile grid ",      draw_clb_tile_simple_scene,            CLB_TILE_COUNT, "draw_clb_tile_grid.png" },
+    { "clb tile grid ",      draw_clb_tile_scene,            CLB_TILE_COUNT, "draw_clb_tile_grid.png" },
     // { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
     //{ "variadic lines   ", draw_lines_variadic,         200'000'000, "bench_lines_variadic.png"    },
     //{ "solid lines   ",       draw_lines_solid,               200'000'000, "draw_solid_lines.png"    },
