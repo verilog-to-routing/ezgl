@@ -85,8 +85,8 @@ static int g_bench_n = 1000000;
 static constexpr int    IMG_W = 1000;
 static constexpr int    IMG_H = 1000;
 static const ezgl::rectangle WORLD{{0, 0}, (double)IMG_W, (double)IMG_H};
-static constexpr int    CLB_TILE_COLS = 2024;
-static constexpr int    CLB_TILE_ROWS = 2024;
+static constexpr int    CLB_TILE_COLS = 256; //2024;
+static constexpr int    CLB_TILE_ROWS = CLB_TILE_COLS;
 static constexpr int    CLB_TILE_COUNT = CLB_TILE_COLS * CLB_TILE_ROWS;
 static constexpr double CLB_TILE_GAP_RATIO = 0.3;
 
@@ -383,16 +383,16 @@ void draw_clb_tile_scene(ezgl::renderer *g)
     }
   }
 
-  // g->set_line_dash(ezgl::line_dash::none);
-  // g->set_font_size(label_font_size);
-  // for (int y = 0; y < CLB_TILE_ROWS; ++y) {
-  //   for (int x = 0; x < CLB_TILE_COLS; ++x) {
-  //     const ezgl::rectangle tile = tile_rect(x, y);
-  //     char label[32];
-  //     std::snprintf(label, sizeof(label), "clb(%d,%d)", x, y);
-  //     g->draw_text(tile.center(), label, tile.width(), tile.height());
-  //   }
-  // }
+  g->set_line_dash(ezgl::line_dash::none);
+  g->set_font_size(label_font_size);
+  for (int y = 0; y < CLB_TILE_ROWS; ++y) {
+    for (int x = 0; x < CLB_TILE_COLS; ++x) {
+      const ezgl::rectangle tile = tile_rect(x, y);
+      char label[32];
+      std::snprintf(label, sizeof(label), "clb(%d,%d)", x, y);
+      g->draw_text(tile.center(), label, tile.width(), tile.height());
+    }
+  }
 }
 
 // ---- test case table -------------------------------------------------------

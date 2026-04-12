@@ -86,6 +86,26 @@ static QPen make_pen(const LineStyleKey &s)
     return pen;
 }
 
+static point2d justified_text_center(point2d point,
+                                     double clip_width,
+                                     double clip_height,
+                                     justification horiz,
+                                     justification vert)
+{
+    point2d center = point;
+    if (horiz == justification::left)
+        center.x += clip_width / 2.0;
+    else if (horiz == justification::right)
+        center.x -= clip_width / 2.0;
+
+    if (vert == justification::top)
+        center.y -= clip_height / 2.0;
+    else if (vert == justification::bottom)
+        center.y += clip_height / 2.0;
+
+    return center;
+}
+
 // ---- construction --------------------------------------------------------
 
 deferred_renderer::deferred_renderer(Painter *painter,
@@ -340,32 +360,23 @@ bool deferred_renderer::screen_arc_visible(point2d center,
                                       2.0 * radius_y));
 }
 
-bool deferred_renderer::screen_text_visible(point2d point,
-                                            const std::string& text,
-                                            double bound_x,
-                                            double bound_y) const
+bool deferred_renderer::screen_text_visible(const DeferredTextCommand& cmd) const
 {
-    text_extents_t text_extents{0, 0, 0, 0, 0, 0};
-    m_painter->text_extents(text.c_str(), &text_extents);
-
-    const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
-    const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
-    if ((bounded_x && text_extents.width > bound_x)
-        || (bounded_y && text_extents.height > bound_y)) {
+    const bool bounded_x = std::isfinite(cmd.bound_x) && cmd.bound_x < DBL_MAX;
+    const bool bounded_y = std::isfinite(cmd.bound_y) && cmd.bound_y < DBL_MAX;
+    if ((bounded_x && cmd.recorded_text_width > cmd.bound_x)
+        || (bounded_y && cmd.recorded_text_height > cmd.bound_y)) {
         return false;
     }
-    const double clip_width = bounded_x ? bound_x : text_extents.width;
-    const double clip_height = bounded_y ? bound_y : text_extents.height;
 
-    point2d center = point;
-    if (horiz_justification == justification::left)
-        center.x += clip_width / 2.0;
-    else if (horiz_justification == justification::right)
-        center.x -= clip_width / 2.0;
-    if (vert_justification == justification::top)
-        center.y -= clip_height / 2.0;
-    else if (vert_justification == justification::bottom)
-        center.y += clip_height / 2.0;
+    const double clip_width = bounded_x ? cmd.bound_x : cmd.recorded_text_width;
+    const double clip_height = bounded_y ? cmd.bound_y : cmd.recorded_text_height;
+    const point2d center =
+        justified_text_center(cmd.point,
+                              clip_width,
+                              clip_height,
+                              cmd.state.horiz_just,
+                              cmd.state.vert_just);
 
     return screen_rect_visible(QRectF(center.x - clip_width / 2.0,
                                       center.y - clip_height / 2.0,
@@ -517,33 +528,30 @@ bool deferred_renderer::defer_text(point2d point,
 
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     const point2d recorded_world_scale = m_camera->get_world_scale_factor();
+    text_extents_t text_extents{0, 0, 0, 0, 0, 0};
+    m_painter->text_extents(text.c_str(), &text_extents);
     m_overlay_commands.emplace_back(DeferredTextCommand{
         capture_painter_state(),
         point,
         text,
         bound_x,
         bound_y,
+        text_extents.width,
+        text_extents.height,
         current_coordinate_system == WORLD,
         std::max(recorded_world_scale.x, std::numeric_limits<double>::epsilon())
     });
     if (current_coordinate_system == WORLD) {
-        text_extents_t text_extents{0, 0, 0, 0, 0, 0};
-        m_painter->text_extents(text.c_str(), &text_extents);
-
         const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
         const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
         const double clip_width = bounded_x ? bound_x : text_extents.width * recorded_world_scale.x;
         const double clip_height = bounded_y ? bound_y : text_extents.height * recorded_world_scale.y;
-
-        point2d center = point;
-        if (horiz_justification == justification::left)
-            center.x += clip_width / 2.0;
-        else if (horiz_justification == justification::right)
-            center.x -= clip_width / 2.0;
-        if (vert_justification == justification::top)
-            center.y -= clip_height / 2.0;
-        else if (vert_justification == justification::bottom)
-            center.y += clip_height / 2.0;
+        const point2d center =
+            justified_text_center(point,
+                                  clip_width,
+                                  clip_height,
+                                  horiz_justification,
+                                  vert_justification);
 
         index_world_overlay_command(
             command_index,
@@ -587,16 +595,22 @@ void deferred_renderer::replay()
         std::vector<QRectF> rects;
     };
 
+    auto text_replay_scale_ratio = [this](const DeferredTextCommand& cmd) {
+        if (!cmd.scale_font_with_camera)
+            return 1.0;
+
+        const double current_scale =
+            std::max(m_camera->get_world_scale_factor().x, std::numeric_limits<double>::epsilon());
+        return std::min(1.0, cmd.recorded_world_scale / current_scale);
+    };
+
     auto resolve_text_replay_state =
-        [this](const DeferredTextCommand& cmd, DeferredPainterState& state) {
+        [&text_replay_scale_ratio](const DeferredTextCommand& cmd, DeferredPainterState& state) {
             state = cmd.state;
+            const double scale_ratio = text_replay_scale_ratio(cmd);
             if (!cmd.scale_font_with_camera)
                 return true;
 
-            const double current_scale =
-                std::max(m_camera->get_world_scale_factor().x, std::numeric_limits<double>::epsilon());
-            const double scale_ratio =
-                std::min(1.0, cmd.recorded_world_scale / current_scale);
             if (state.font.pixelSize() > 0) {
                 const double scaled_pixel_size = state.font.pixelSize() * scale_ratio;
                 if (scaled_pixel_size < kMinReadableTextSize)
@@ -637,31 +651,26 @@ void deferred_renderer::replay()
     };
 
     auto world_text_visible =
-        [this](point2d point, const std::string& text, double bound_x, double bound_y) {
-            text_extents_t text_extents{0, 0, 0, 0, 0, 0};
-            m_painter->text_extents(text.c_str(), &text_extents);
-
+        [this, &text_replay_scale_ratio](const DeferredTextCommand& cmd) {
             const point2d world_scale = m_camera->get_world_scale_factor();
-            const double scaled_width = text_extents.width * world_scale.x;
-            const double scaled_height = text_extents.height * world_scale.y;
-            const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
-            const bool bounded_y = std::isfinite(bound_y) && bound_y < DBL_MAX;
-            if ((bounded_x && scaled_width > bound_x)
-                || (bounded_y && scaled_height > bound_y)) {
+            const double scale_ratio = text_replay_scale_ratio(cmd);
+            const double scaled_width = cmd.recorded_text_width * scale_ratio * world_scale.x;
+            const double scaled_height = cmd.recorded_text_height * scale_ratio * world_scale.y;
+            const bool bounded_x = std::isfinite(cmd.bound_x) && cmd.bound_x < DBL_MAX;
+            const bool bounded_y = std::isfinite(cmd.bound_y) && cmd.bound_y < DBL_MAX;
+            if ((bounded_x && scaled_width > cmd.bound_x)
+                || (bounded_y && scaled_height > cmd.bound_y)) {
                 return false;
             }
-            const double clip_width = bounded_x ? bound_x : scaled_width;
-            const double clip_height = bounded_y ? bound_y : scaled_height;
 
-            point2d center = point;
-            if (horiz_justification == justification::left)
-                center.x += clip_width / 2.0;
-            else if (horiz_justification == justification::right)
-                center.x -= clip_width / 2.0;
-            if (vert_justification == justification::top)
-                center.y -= clip_height / 2.0;
-            else if (vert_justification == justification::bottom)
-                center.y += clip_height / 2.0;
+            const double clip_width = bounded_x ? cmd.bound_x : scaled_width;
+            const double clip_height = bounded_y ? cmd.bound_y : scaled_height;
+            const point2d center =
+                justified_text_center(cmd.point,
+                                      clip_width,
+                                      clip_height,
+                                      cmd.state.horiz_just,
+                                      cmd.state.vert_just);
 
             return !rectangle_off_screen(
                 {{center.x - clip_width / 2.0, center.y - clip_height / 2.0},
@@ -827,11 +836,10 @@ void deferred_renderer::replay()
                 if (!resolve_text_replay_state(cmd, state))
                     return false;
 
-                apply_painter_state(state);
                 if (state.coordinate_system == SCREEN) {
-                    if (!screen_text_visible(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y))
+                    if (!screen_text_visible(cmd))
                         return false;
-                } else if (!world_text_visible(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y)) {
+                } else if (!world_text_visible(cmd)) {
                     return false;
                 }
 
