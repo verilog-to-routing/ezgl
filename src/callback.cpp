@@ -218,7 +218,7 @@ bool scroll_mouse(QWidget*, QWheelEvent* event, void* data)
   return true;
 }
 
-gboolean press_zoom_fit(GtkWidget *, gpointer data)
+bool press_zoom_fit(GtkWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -231,7 +231,7 @@ gboolean press_zoom_fit(GtkWidget *, gpointer data)
   return TRUE;
 }
 
-gboolean press_zoom_in(GtkWidget *, gpointer data)
+bool press_zoom_in(GtkWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -244,7 +244,7 @@ gboolean press_zoom_in(GtkWidget *, gpointer data)
   return TRUE;
 }
 
-gboolean press_zoom_out(GtkWidget *, gpointer data)
+bool press_zoom_out(GtkWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -257,7 +257,7 @@ gboolean press_zoom_out(GtkWidget *, gpointer data)
   return TRUE;
 }
 
-gboolean press_up(GtkWidget *, gpointer data)
+bool press_up(GtkWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -270,7 +270,7 @@ gboolean press_up(GtkWidget *, gpointer data)
   return TRUE;
 }
 
-gboolean press_down(GtkWidget *, gpointer data)
+bool press_down(GtkWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -283,7 +283,7 @@ gboolean press_down(GtkWidget *, gpointer data)
   return TRUE;
 }
 
-gboolean press_left(GtkWidget *, gpointer data)
+bool press_left(GtkWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -296,7 +296,7 @@ gboolean press_left(GtkWidget *, gpointer data)
   return TRUE;
 }
 
-gboolean press_right(GtkWidget *, gpointer data)
+bool press_right(GtkWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -309,7 +309,7 @@ gboolean press_right(GtkWidget *, gpointer data)
   return TRUE;
 }
 
-gboolean press_proceed(GtkWidget *, gpointer data)
+bool press_proceed(GtkWidget *, void* data)
 {
   auto ezgl_app = static_cast<ezgl::application *>(data);
   ezgl_app->quit();

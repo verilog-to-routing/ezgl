@@ -48,7 +48,7 @@ const bool build_ui_from_file = true;
 class application;
 
 /**
- * The signature of a function that connects GObject to functions via signals.
+ * The signature of a function that connects QObject to functions via signals.
  *
  * @see application::get_object.
  */
@@ -81,7 +81,7 @@ using combo_box_callback_fn = void (*)(GtkComboBoxText* self, application* app);
 /**
  * The signature of a user-defined callback function for a dialog window
  */
-using dialog_callback_fn = void (*)(GtkDialog* self, gint response_id, application* app);
+using dialog_callback_fn = void (*)(GtkDialog* self, int response_id, application* app);
 
 /**
  * The core application.
@@ -126,7 +126,7 @@ public:
     /**
      * Specify the function that will connect GUI objects to user-defined callbacks.
      *
-     * GUI objects (i.e., a GObject) can be retrieved from this application object. These objects can then be connected
+     * GUI objects (i.e., a QObject) can be retrieved from this application object. These objects can then be connected
      * to specific events using g_signal_connect. A list of signals that can be used to make these connections can be
      * found <a href = "https://docs.gtk.org/gtk3/class.Widget.html#signals">here</a>.
      *
@@ -358,7 +358,7 @@ public:
    * you must call gtk_widget_destroy(ptr to dialog window) in your cbk function.
    *
    * @param cbk_fn Dialog callback function. Function prototype:
-   *              void dialog_cbk(GtkDialog* self, gint response_id, application* app);
+   *              void dialog_cbk(GtkDialog* self, int response_id, application* app);
    * @param dialog_title Title of the window to be created
    * @param window_text Message to be contained in a label in the window
    */
@@ -513,7 +513,7 @@ public:
   canvas *get_canvas(std::string const &canvas_id) const;
 
   /**
-   * Retrieve a GLib Object (i.e., a GObject).
+   * Retrieve a GLib Object (i.e., a QObject).
    *
    * This is useful for retrieving GUI elements specified in your ui XML file(s). You should only call this function after
    * the application has been run, otherwise the GUI elements will have not been created yet.
@@ -524,11 +524,11 @@ public:
    * @see application::run
    */
   [[deprecated("rename to find_object, move to EZGL lib")]]
-  GObject *get_object(gchar const *name) const;
+  QObject *get_object(char const *name) const;
 
-  QWidget* get_widget(gchar const *name) const { return qobject_cast<QWidget*>(get_object(name)); }
-  QPushButton* get_push_button(gchar const *name) const { return qobject_cast<QPushButton*>(get_object(name)); }
-  QAbstractButton* get_abstract_button(gchar const *name) const { return qobject_cast<QAbstractButton*>(get_object(name)); }
+  QWidget* get_widget(char const *name) const { return qobject_cast<QWidget*>(get_object(name)); }
+  QPushButton* get_push_button(char const *name) const { return qobject_cast<QPushButton*>(get_object(name)); }
+  QAbstractButton* get_abstract_button(char const *name) const { return qobject_cast<QAbstractButton*>(get_object(name)); }
 
   /**
    * Get the ID of the main window
@@ -588,10 +588,10 @@ private:
 
 private:
   // Called when our GtkApplication is initialized for the first time.
-  static void startup(GtkApplication *gtk_app, gpointer user_data);
+  static void startup(GtkApplication *gtk_app, void* user_data);
 
   // Called when GTK activates our application for the first time.
-  static void activate(GtkApplication *gtk_app, gpointer user_data);
+  static void activate(GtkApplication *gtk_app, void* user_data);
 
   // Called during application activation to setup the default callbacks for the prebuilt buttons
   static void register_default_buttons_callbacks(application *application);

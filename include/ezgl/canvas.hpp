@@ -196,11 +196,11 @@ private:
 
 #ifndef HIDE_GTK_EVENT
   // Called each time our drawing area widget has changed (e.g., in size).
-  static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *event, gpointer data);
+  static bool configure_event(GtkWidget *widget, GdkEventConfigure *event, void* data);
 #endif // #ifndef HIDE_GTK_EVENT
 
   // Called each time we need to draw to our drawing area widget.
-  static gboolean draw_surface(GtkWidget *widget, Painter *painter, gpointer data);
+  static bool draw_surface(GtkWidget *widget, Painter *painter, void* data);
 
 #ifdef EZGL_RHI
   void begin_deferred_redraw_cycle();

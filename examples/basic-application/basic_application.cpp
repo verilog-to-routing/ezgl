@@ -71,7 +71,7 @@ void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app);
 void delete_combo_box_cbk(GtkWidget* widget, ezgl::application *application);
 void create_dialog_button_cbk(GtkWidget *widget, ezgl::application *application);
 void create_mssg_button_cbk(GtkWidget* widget, ezgl::application *application);
-void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app);
+void dialog_cbk(GtkDialog* self, int response_id, ezgl::application* app);
 
 /**
  * EVENT CALLBACK FUNCTIONS
@@ -622,7 +622,7 @@ void create_mssg_button_cbk(GtkWidget* /*widget*/, ezgl::application* app){
  * Callback function for dialog window created by "Create Dialog Window" button. 
  * Updates application message to reflect user answer to dialog window. 
  */
-void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
+void dialog_cbk(GtkDialog* self, int response_id, ezgl::application* app){
   //Response_id is an integer/enumeration, so we can use a switch to read its value and act accordingly
   switch(response_id){
     case GTK_RESPONSE_ACCEPT:

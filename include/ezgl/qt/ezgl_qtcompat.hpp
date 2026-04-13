@@ -21,12 +21,7 @@
 #include <QResizeEvent>
 
 // gtk to std types
-using gchar = char;
-using gpointer = void*;
-using gboolean = int;
-using gint = int;
 
-#define G_APPLICATION
 constexpr int EZGL_APPLICATION_DEFAULT_FLAGS = 0;
 
 namespace ezgl {
@@ -49,7 +44,6 @@ private:
 };
 
 // gtk to qt types
-using GObject = QObject;
 using GtkWidget = QWidget;
 using GtkButton = QPushButton;
 using GtkComboBoxText = QComboBox;

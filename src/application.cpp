@@ -91,20 +91,20 @@ void insert_grid_row(QGridLayout* layout, int insert_row)
 
 } // namespace
 
-void application::startup(GtkApplication *gtk_app, gpointer user_data)
+void application::startup(GtkApplication *gtk_app, void* user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);
 
   for(auto &c_pair : ezgl_app->m_canvases) {
-    GObject *drawing_area = ezgl_app->get_object(c_pair.second->id());
+    QObject *drawing_area = ezgl_app->get_object(c_pair.second->id());
     c_pair.second->initialize(GTK_WIDGET(drawing_area));
   }
 
   g_info("application::startup successful.");
 }
 
-void application::activate(GtkApplication*, gpointer user_data)
+void application::activate(GtkApplication*, void* user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);
@@ -219,7 +219,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
   return it.first->second.get();
 }
 
-GObject *application::get_object(gchar const *name) const
+QObject *application::get_object(char const *name) const
 {
   // Getting an object from the GTK builder does not increase its reference count.
   QObject* object = nullptr;
@@ -305,11 +305,11 @@ void application::register_default_events_callbacks(ezgl::application *applicati
 {
   // Get a pointer to the main window GUI object by using its name.
   std::string main_window_id = application->get_main_window_id();
-  GObject *window = application->get_object(main_window_id.c_str());
+  QObject *window = application->get_object(main_window_id.c_str());
 
   // Get a pointer to the main canvas GUI object by using its name.
   std::string main_canvas_id = application->get_main_canvas_id();
-  GObject *main_canvas = application->get_object(main_canvas_id.c_str());
+  QObject *main_canvas = application->get_object(main_canvas_id.c_str());
 
 #ifndef HIDE_GTK_EVENT
   // We want to enable user event handlers for mouse clicks, key presses etc.
