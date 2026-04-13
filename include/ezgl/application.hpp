@@ -81,7 +81,7 @@ using combo_box_callback_fn = void (*)(QComboBox* self, application* app);
 /**
  * The signature of a user-defined callback function for a dialog window
  */
-using dialog_callback_fn = void (*)(GtkDialog* self, int response_id, application* app);
+using dialog_callback_fn = void (*)(QDialog* self, int response_id, application* app);
 
 /**
  * The core application.
@@ -358,7 +358,7 @@ public:
    * you must call gtk_widget_destroy(ptr to dialog window) in your cbk function.
    *
    * @param cbk_fn Dialog callback function. Function prototype:
-   *              void dialog_cbk(GtkDialog* self, int response_id, application* app);
+   *              void dialog_cbk(QDialog* self, int response_id, application* app);
    * @param dialog_title Title of the window to be created
    * @param window_text Message to be contained in a label in the window
    */

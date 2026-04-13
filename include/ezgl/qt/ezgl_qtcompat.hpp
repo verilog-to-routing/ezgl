@@ -45,7 +45,6 @@ private:
 
 // gtk to qt types
 using GtkButton = QPushButton;
-using GtkDialog = QDialog;
 using GtkApplication = Application;
 using GdkWindow = QWindow;
 
