@@ -76,7 +76,7 @@ using key_callback_fn = void (*)(application *app, QKeyEvent *event, const char 
 /**
  * The signature of a user-defined callback function for the combo-box "changed" signal
  */
-using combo_box_callback_fn = void (*)(GtkComboBoxText* self, application* app);
+using combo_box_callback_fn = void (*)(QComboBox* self, application* app);
 
 /**
  * The signature of a user-defined callback function for a dialog window
@@ -297,7 +297,7 @@ public:
    * @param insert_row  the row in the right bar to insert the button.
    *         If there is already a button there, it and the following buttons shift down 1 row.
    * @param combo_box_fn Callback function for "changed" signal, emmitted when a new option is selected.
-   *              fn prototype: void fn_name(GtkComboBoxText* self, ezgl::application* app);
+   *              fn prototype: void fn_name(QComboBox* self, ezgl::application* app);
    * @param options A string vector containing the options to be contained in the combo box. String at index 0 is set as default
    */
   void create_combo_box_text(
@@ -310,7 +310,7 @@ public:
    * @brief Create a combo box text object
    * 
    * 
-   * Creates a GtkComboBox at the given location. 
+   * Creates a QComboBox at the given location. 
    * A combo box is a dropdown menu with different options. 
    * EZGL provides functions to modify the options in your combo box, and 
    * you can connect a callback function to the signal sent when the 
@@ -323,7 +323,7 @@ public:
    * @param width the number of columns that the button will span
    * @param height the number of rows that the button will span
    * @param combo_box_fn Callback function for "changed" signal, emmitted when a new option is selected.
-   *              fn prototype: void fn_name(GtkComboBoxText* self, ezgl::application* app);
+   *              fn prototype: void fn_name(QComboBox* self, ezgl::application* app);
    * @param options A string vector containing the options to be contained in the combo box. String at index 0 is set as default
    */
   void create_combo_box_text(
@@ -341,7 +341,7 @@ public:
    * This will call your callback function. Make sure you have some check that returns/ends the function if
    * your combo box has no active id (this occurs while erasing the old options)
 
-   * @param id_string identifying string of GtkComboBoxText, given in creation
+   * @param id_string identifying string of QComboBox, given in creation
    * @param new_options new string vector of options
    */
   void change_combo_box_text_options(const char* name, const std::vector<std::string>& new_options);

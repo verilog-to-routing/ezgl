@@ -131,7 +131,7 @@ QWidget* QtGladeLoader::buildObjectElement(const QDomElement& objEl, QWidget* pa
   if (cls == "GtkArrow")        return buildGtkArrow(objEl, parent);
   if (cls == "GtkLabel")        return buildGtkLabel(objEl, parent);
   if (cls == "GtkSpinButton")   return buildGtkSpinButton(objEl, parent);
-  if (cls == "GtkComboBoxText") return buildGtkComboBoxText(objEl, parent);
+  if (cls == "QComboBox") return buildGtkComboBoxText(objEl, parent);
   if (cls == "GtkCheckButton")  return buildGtkCheckButton(objEl, parent);
   if (cls == "GtkSwitch")       return buildGtkSwitch(objEl, parent);
   if (cls == "GtkSeparator")    return buildGtkSeparator(objEl, parent);

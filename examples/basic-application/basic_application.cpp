@@ -67,7 +67,7 @@ void draw_png_example(ezgl::renderer *g);
  */
 void animate_button_cbk(QWidget *widget, ezgl::application *application);
 void test_button_cbk(QWidget *widget, ezgl::application *application);
-void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app);
+void combo_box_cbk(QComboBox* self, ezgl::application* app);
 void delete_combo_box_cbk(QWidget* widget, ezgl::application *application);
 void create_dialog_button_cbk(QWidget *widget, ezgl::application *application);
 void create_mssg_button_cbk(QWidget* widget, ezgl::application *application);
@@ -581,7 +581,7 @@ void test_button_cbk(QWidget */*widget*/, ezgl::application *application)
  * Callback function for the example combo box. Sets message to currently active option.
  * Function trigerred when currently selected option changes. 
  */
-void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app){
+void combo_box_cbk(QComboBox* self, ezgl::application* app){
   //Getting text content of combo box. This call makes a copy that we must free
   auto text = gtk_combo_box_text_get_active_text(self);
   if(!text){  //Returning if the combo box is currently empty (Always check to avoid errors)
