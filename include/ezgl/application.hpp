@@ -32,7 +32,6 @@
 #include <ctime>
 #include <vector>
 
-#include <gtk/gtk.h>
 
 /**
  * A library for creating a graphical user interface.
@@ -68,12 +67,11 @@ using button_callback_fn = void (*)(GtkWidget *widget, application *app);
 /**
  * The signature of a user-defined callback function for mouse events
  */
-using mouse_callback_fn = void (*)(application *app, GdkEventButton *event, double x, double y);
-
+using mouse_callback_fn = void (*)(application *app, QMouseEvent *event, double x, double y);
 /**
  * The signature of a user-defined callback function for keyboard events
  */
-using key_callback_fn = void (*)(application *app, GdkEventKey *event, char *key_name);
+using key_callback_fn = void (*)(application *app, QKeyEvent *event, const char *key_name);
 
 /**
  * The signature of a user-defined callback function for the combo-box "changed" signal
@@ -172,7 +170,7 @@ public:
    *
    * @param s The preconfigured settings.
    */
-  explicit application(application::settings s);
+  explicit application(application::settings s, int& argc, char** argv);
 
   /**
    * Add a canvas to the application.
@@ -304,9 +302,9 @@ public:
    */
   void create_combo_box_text(
     const char* id_string,
-    int insert_row, 
-    combo_box_callback_fn combo_box_fn, 
-    std::vector<std::string> options);
+    int insert_row,
+    combo_box_callback_fn combo_box_fn,
+    const std::vector<std::string>& options);
 
   /**
    * @brief Create a combo box text object
@@ -335,7 +333,7 @@ public:
     int width,
     int height,
     combo_box_callback_fn combo_box_fn, 
-    std::vector<std::string> options);
+    const std::vector<std::string>& options);
 
   /**
    * @brief changes list of options to new given vector. Erases all old options. 
@@ -346,7 +344,7 @@ public:
    * @param id_string identifying string of GtkComboBoxText, given in creation
    * @param new_options new string vector of options
    */
-  void change_combo_box_text_options(const char* name, std::vector<std::string> new_options);
+  void change_combo_box_text_options(const char* name, const std::vector<std::string>& new_options);
 
   /**
    * @brief Creates a simple dialog window with "OK" and "CANCEL" buttons. 
@@ -525,7 +523,12 @@ public:
    *
    * @see application::run
    */
+  [[deprecated("rename to find_object, move to EZGL lib")]]
   GObject *get_object(gchar const *name) const;
+
+  QWidget* get_widget(gchar const *name) const { return qobject_cast<QWidget*>(get_object(name)); }
+  QPushButton* get_push_button(gchar const *name) const { return qobject_cast<QPushButton*>(get_object(name)); }
+  QAbstractButton* get_abstract_button(gchar const *name) const { return qobject_cast<QAbstractButton*>(get_object(name)); }
 
   /**
    * Get the ID of the main window
@@ -564,11 +567,15 @@ private:
   // The GTK application.
   GtkApplication *m_application;
 
+  QWidget* m_window{nullptr};
+
+#ifndef HIDE_GTK_BUILDER
   // The GUI builder that parses an XML user interface.
   GtkBuilder *m_builder;
+#endif // HIDE_GTK_BUILDER
 
   // The function to call when the application is starting up.
-  connect_g_objects_fn m_register_callbacks;
+  connect_g_objects_fn m_register_callbacks{nullptr};
 
   // The collection of canvases added to the application.
   std::map<std::string, std::unique_ptr<canvas>> m_canvases;
@@ -594,16 +601,16 @@ private:
 
 public:
   // The user-defined initial setup callback function
-  setup_callback_fn initial_setup_callback;
+  setup_callback_fn initial_setup_callback{nullptr};
 
   // The user-defined callback function for handling mouse press
-  mouse_callback_fn mouse_press_callback;
+  mouse_callback_fn mouse_press_callback{nullptr};
 
   // The user-defined callback function for handling mouse move
-  mouse_callback_fn mouse_move_callback;
+  mouse_callback_fn mouse_move_callback{nullptr};
 
   // The user-defined callback function for handling keyboard press
-  key_callback_fn key_press_callback;
+  key_callback_fn key_press_callback{nullptr};
 };
 
 /**

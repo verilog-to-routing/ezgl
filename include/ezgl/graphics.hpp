@@ -24,18 +24,9 @@
 #include "ezgl/rectangle.hpp"
 #include "ezgl/camera.hpp"
 
-#include <cairo.h>
-#include <gdk/gdk.h>
+#include <ezgl/qt/ezgl_qtcompat.hpp>
+#include <ezgl/qt/painter.hpp>
 
-#ifdef CAIRO_HAS_XLIB_SURFACE
-#ifdef GDK_WINDOWING_X11
-#include <cairo-xlib.h>
-
-// Speed up draw calls by using X11 instead of cairo wherever possible. X11 is about twice as fast.
-// Cairo is always used if we're using a partially transparent color, so opaque rendering is faster.
-#define EZGL_USE_X11
-#endif
-#endif
 
 #include <functional>
 #include <string>
@@ -49,7 +40,7 @@ namespace ezgl {
 /**
  * define ezgl::surface type used for drawing png bitmaps
  */
-typedef cairo_surface_t surface;
+typedef QImage surface;
 
 /**
  * Available coordinate systems
@@ -57,7 +48,7 @@ typedef cairo_surface_t surface;
 enum t_coordinate_system {
   /**
    * Default coordinate system; specified by the user as any desired range. Graphics drawn in world coordinates
-   * will be transformed to screen pixels by ezgl. Panning and zooming change the transformation from 
+   * will be transformed to screen pixels by ezgl. Panning and zooming change the transformation from
    * world to screen coordinates, so they automatically work for any graphics drawn in wrld coordinates.
    */
   WORLD,
@@ -102,17 +93,17 @@ enum class font_slant : int {
   /**
    * No slant.
    */
-  normal = CAIRO_FONT_SLANT_NORMAL,
+  normal = QFont::StyleNormal,
 
   /**
    * Slant is more calligraphic. Make sure the font you're using has an italic design, otherwise it may look ugly.
    */
-  italic = CAIRO_FONT_SLANT_ITALIC,
+  italic = QFont::StyleItalic,
 
   /**
    * Slanted to the right.
    */
-  oblique = CAIRO_FONT_SLANT_OBLIQUE
+  oblique = QFont::StyleOblique
 };
 
 /**
@@ -122,12 +113,12 @@ enum class font_weight : int {
   /**
    * No additional weight.
    */
-  normal = CAIRO_FONT_WEIGHT_NORMAL,
+  normal = QFont::Normal,
 
   /**
    * Bold font weight.
    */
-  bold = CAIRO_FONT_WEIGHT_BOLD
+  bold = QFont::Bold
 };
 
 /**
@@ -137,13 +128,13 @@ enum class line_cap : int {
   /**
    * Start and stop the line exactly where it begins/ends.
    */
-  butt = CAIRO_LINE_CAP_BUTT,
+  butt = Qt::FlatCap,
 
   /**
    * Each end of the line has circles. This is useful to ensure polylines formed of multiple line segments
    * do not have gaps in them.
    */
-  round = CAIRO_LINE_CAP_ROUND
+  round = Qt::RoundCap
 };
 
 /**
@@ -203,7 +194,7 @@ public:
    * 
    * @return A rectangle where rectangle.first is the lower left MainCanvas corner and rectangle.second is the upper right
    */
-  rectangle get_visible_screen();
+  rectangle get_visible_screen() const;
 
   /**
    * Get the screen coordinates (pixel locations) of the world coordinate rectangle box
@@ -322,7 +313,7 @@ public:
    * @param start The start point of the line, in the current coordinate system
    * @param end The end point of the line
    */
-  void draw_line(point2d start, point2d end);
+  virtual void draw_line(point2d start, point2d end);
 
   /**
    * Draw the outline a rectangle.
@@ -330,7 +321,7 @@ public:
    * @param start A corner point of the rectangle, in the current coordinate system
    * @param end The diagonally opposite point of the rectangle
    */
-  void draw_rectangle(point2d start, point2d end);
+  virtual void draw_rectangle(point2d start, point2d end);
 
   /**
    * Draw the outline of a rectangle.
@@ -339,14 +330,14 @@ public:
    * @param width How wide the rectangle is, in the current coordinate system
    * @param height How high the rectangle is
    */
-  void draw_rectangle(point2d start, double width, double height);
+  virtual void draw_rectangle(point2d start, double width, double height);
 
   /**
    * Draw the outline of a rectangle
    *
    * @param r The rectangle
    */
-  void draw_rectangle(rectangle r);
+  virtual void draw_rectangle(rectangle r);
 
   /**
    * Draw a filled in rectangle.
@@ -354,7 +345,7 @@ public:
    * @param start One corner of the rectangle, in the current coordinate system
    * @param end The diagonally opposite corner of the rectangle
    */
-  void fill_rectangle(point2d start, point2d end);
+  virtual void fill_rectangle(point2d start, point2d end);
 
   /**
    * Draw a filled in rectangle.
@@ -363,14 +354,14 @@ public:
    * @param width How wide the rectangle is, in the current coordinate system
    * @param height How high the rectangle is
    */
-  void fill_rectangle(point2d start, double width, double height);
+  virtual void fill_rectangle(point2d start, double width, double height);
 
   /**
    * Draw a filled in rectangle.
    *
    * @param r The rectangle
    */
-  void fill_rectangle(rectangle r);
+  virtual void fill_rectangle(rectangle r);
 
   /**
    * Draw a filled polygon 
@@ -441,15 +432,15 @@ public:
   void draw_text(point2d point, std::string const &text);
 
   /**
-   * Draw text if it fits in the specified bounds; otherwise not drawn. 
+   * Draw text using the specified bounds as a fit box.
+   *
+   * If the measured text is larger than the provided bounds, nothing is drawn.
    *
    * @param point The point where the text is drawn (justified according to the current justification),
    *              in the current coordinate system.
    * @param text The text to draw
-   * @param bound_x The maximum allowed width of the text, 
-   *              in the current  coordinate system.
-   * @param bound_y The maximum allowed height of the text, 
-                  in the current coordinate system.
+   * @param bound_x The fit-box width in the current coordinate system.
+   * @param bound_y The fit-box height in the current coordinate system.
    */
   void draw_text(point2d point, std::string const &text, double bound_x, double bound_y);
 
@@ -471,6 +462,7 @@ public:
    *
    * @return a pointer to the created surface. This should later be freed using free_surface()
    */
+  [[deprecated]]
   static surface *load_png(const char *file_path);
 
   /**
@@ -483,7 +475,7 @@ public:
   /**
    * Destructor.
    */
-  ~renderer();
+  virtual ~renderer();
 
 protected:
   // Only the canvas class can create a renderer.
@@ -500,7 +492,7 @@ protected:
    * @param cairo The cairo graphics state.
    * @param transform The function to use to transform points to cairo's coordinate system.
    */
-  renderer(cairo_t *cairo, transform_fn transform, camera *m_camera, cairo_surface_t *m_surface);
+  renderer(Painter* painter, transform_fn transform, camera *m_camera, QImage *m_surface);
 
   /**
    * Update the renderer when the cairo surface/context changes
@@ -508,40 +500,60 @@ protected:
    * @param cairo The new cairo graphics state
    * @param m_surface The new cairo surface
    */
-  void update_renderer(cairo_t *cairo, cairo_surface_t *m_surface);
+  void update_renderer(Painter* painter, QImage *m_surface);
 
-private:
-  void draw_rectangle_path(point2d start, point2d end, bool fill_flag);
-
-  void draw_arc_path(point2d center,
-      double radius,
-      double start_angle,
-      double extent_angle,
-      double stretch_factor,
-      bool fill_flag);
-
-  // Pre-clipping function
+protected:
+  // Pre-clipping function — also used by deferred_renderer
   bool rectangle_off_screen(rectangle rect);
+
+  // Optional deferred-rendering hooks used by the Qt deferred/RHI paths.
+  virtual bool defer_fill_poly(const std::vector<point2d>& points) { (void)points; return false; }
+  virtual bool defer_arc(point2d center,
+                         double radius_x,
+                         double radius_y,
+                         double start_angle,
+                         double extent_angle,
+                         bool fill)
+  {
+    (void)center;
+    (void)radius_x;
+    (void)radius_y;
+    (void)start_angle;
+    (void)extent_angle;
+    (void)fill;
+    return false;
+  }
+  virtual bool defer_text(point2d point,
+                          const std::string& text,
+                          double bound_x,
+                          double bound_y)
+  {
+    (void)point;
+    (void)text;
+    (void)bound_x;
+    (void)bound_y;
+    return false;
+  }
+  virtual bool defer_surface(surface *p_surface,
+                             point2d point,
+                             double scale_factor)
+  {
+    (void)p_surface;
+    (void)point;
+    (void)scale_factor;
+    return false;
+  }
+
+  // Clip a line in world coordinates (Liang-Barsky); returns false if fully clipped.
+  // Exposed as a protected method so deferred_renderer can call it without
+  // duplicating the algorithm.
+  bool clip_line_world(const rectangle &clip_window, point2d &start, point2d &end);
 
   // Current coordinate system (World is the default)
   t_coordinate_system current_coordinate_system = WORLD;
 
-  // A non-owning pointer to a cairo graphics context.
-  cairo_t *m_cairo;
-
-#ifdef EZGL_USE_X11
-  // The x11 drawable
-  Drawable x11_drawable;
-
-  // The x11 display
-  Display *x11_display = nullptr;
-
-  // The x11 context
-  GC x11_context;
-
-  // Transparency flag, if set, cairo will be used
-  bool transparency_flag = false;
-#endif
+  Painter* m_painter{nullptr};
+  QFont current_font;
 
   transform_fn m_transform;
 
@@ -570,6 +582,16 @@ private:
 
   // Current color
   color current_color = {0, 0, 0, 255};
+
+private:
+  void draw_rectangle_path(point2d start, point2d end, bool fill_flag);
+
+  void draw_arc_path(point2d center,
+      double radius,
+      double start_angle,
+      double extent_angle,
+      double stretch_factor,
+      bool fill_flag);
 };
 }
 

@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/ezgl">
+        <file>fill_rect.vert.qsb</file>
+        <file>line.vert.qsb</file>
+        <file>line.frag.qsb</file>
+        <file>overlay.vert.qsb</file>
+        <file>overlay.frag.qsb</file>
+        <file>thick_line.vert.qsb</file>
+        <file>dashed_line.vert.qsb</file>
+        <file>dashed_line.frag.qsb</file>
+    </qresource>
+</RCC>

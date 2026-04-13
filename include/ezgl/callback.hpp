@@ -27,72 +27,22 @@
 
 #include <iostream>
 
-// Mouse button used for panning (left button (1) - middle button (2) - right button (3))
-#define PANNING_MOUSE_BUTTON 1
+#include "qt/ezgl_qtcompat.hpp"
+#define PANNING_MOUSE_BUTTON Qt::LeftButton
 
 namespace ezgl {
 
 /**** Callback functions for keyboard and mouse input, and for all the ezgl predefined buttons. *****/
 
-/**
- * React to a <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-key-press-event">keyboard
- * press event</a>.
- *
- * @param widget The GUI widget where this event came from.
- * @param event The keyboard event.
- * @param data A pointer to any user-specified data you passed in.
- *
- * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
- */
-gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
+bool press_key(QWidget* widget, QKeyEvent* event, void* data);
 
-/**
- * React to <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-button-press-event">mouse click
- * event</a>
- *
- * @param widget The GUI widget where this event came from.
- * @param event The click event.
- * @param data A pointer to any user-specified data you passed in.
- *
- * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
- */
-gboolean press_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
+bool press_mouse(QWidget*, QMouseEvent* event, void* data);
 
-/**
- * React to <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-button-release-event">mouse release
- * event</a>
- *
- * @param widget The GUI widget where this event came from.
- * @param event The click event.
- * @param data A pointer to any user-specified data you passed in.
- *
- * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
- */
-gboolean release_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
+bool release_mouse(QWidget*, QMouseEvent* event, void* data);
 
-/**
- * React to <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-button-release-event">mouse release
- * event</a>
- *
- * @param widget The GUI widget where this event came from.
- * @param event The click event.
- * @param data A pointer to any user-specified data you passed in.
- *
- * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
- */
-gboolean move_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
+bool move_mouse(QWidget*, QMouseEvent* event, void* data);
 
-/**
- * React to <a href = "https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-scroll-event"> scroll_event
- * event</a>
- *
- * @param widget The GUI widget where this event came from.
- * @param event The click event.
- * @param data A pointer to any user-specified data you passed in.
- *
- * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
- */
-gboolean scroll_mouse(GtkWidget *widget, GdkEvent *event, gpointer data);
+bool scroll_mouse(QWidget* widget, QWheelEvent* event, void* data);
 
 /**
  * React to the clicked zoom_fit button

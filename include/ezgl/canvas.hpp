@@ -24,11 +24,12 @@
 #include "ezgl/graphics.hpp"
 #include "ezgl/color.hpp"
 
-#include <cairo.h>
-#include <cairo-pdf.h>
-#include <cairo-svg.h>
-#include <gtk/gtk.h>
+#include "ezgl/qt/ezgl_qtcompat.hpp"
+#ifdef EZGL_RHI
+#include "ezgl/qt/rhi_canvas_widget.hpp"
+#endif
 
+#include <memory>
 #include <string>
 
 namespace ezgl {
@@ -36,6 +37,9 @@ namespace ezgl {
 /**** Functions in this class are for ezgl internal use; application code doesn't need to call them ****/
 
 class renderer;
+#ifdef EZGL_RHI
+class rhi_renderer;
+#endif
 
 /**
  * The signature of a function that draws to an ezgl::canvas.
@@ -84,6 +88,15 @@ public:
   void redraw();
 
   /**
+   * Redraw using only a camera (MVP) update — no geometry re-upload.
+   *
+   * On the RHI path this reuses the existing vertex buffers, rebuilds the
+   * cached overlay for the new camera, and avoids re-running the draw callback.
+   * Falls back to a full redraw on non-RHI paths or before the first frame.
+   */
+  void redraw_camera_only();
+
+  /**
    * Get an immutable reference to this canvas' camera.
    */
   camera const &get_camera() const
@@ -115,6 +128,13 @@ public:
   bool print_pdf(const char *file_name, int width = 0, int height = 0);
   bool print_svg(const char *file_name, int width = 0, int height = 0);
   bool print_png(const char *file_name, int width = 0, int height = 0);
+
+  /**
+   * Run the draw callback on an offscreen surface of the given size without
+   * saving any file. Use this to measure pure render time, separate from
+   * PNG/PDF encoding overhead.
+   */
+  void draw_offscreen(int width, int height);
   
   
 protected:
@@ -151,20 +171,41 @@ private:
   GtkWidget *m_drawing_area = nullptr;
 
   // The off-screen surface that can be drawn to.
-  cairo_surface_t *m_surface = nullptr;
+  QImage *m_surface = nullptr;
 
   // The off-screen cairo context that can be drawn to
-  cairo_t *m_context = nullptr;
+  Painter *m_painter = nullptr;
 
   // The animation renderer
   renderer *m_animation_renderer = nullptr;
 
-private:
+#ifdef EZGL_RHI
+  // Non-owning pointer to the RHI drawing widget (set when EZGL_RHI is active).
+  RhiCanvasWidget *m_rhi_widget = nullptr;
+  // Owning RHI renderer — created on first redraw(), reused across frames.
+  std::unique_ptr<rhi_renderer> m_rhi_renderer;
+  // Coalesce startup/show redraws so large geometry is uploaded once.
+  bool m_rhi_defer_redraw = false;
+  bool m_rhi_pending_redraw = false;
+  bool m_rhi_pending_camera_only = false;
+  bool m_rhi_has_drawn_frame = false;
+#endif
+
+  // Renders the canvas into an off-screen QImage; shared by print_pdf/print_svg/print_png.
+  QImage render_to_image(int surface_width, int surface_height);
+
+#ifndef HIDE_GTK_EVENT
   // Called each time our drawing area widget has changed (e.g., in size).
   static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *event, gpointer data);
+#endif // #ifndef HIDE_GTK_EVENT
 
   // Called each time we need to draw to our drawing area widget.
-  static gboolean draw_surface(GtkWidget *widget, cairo_t *context, gpointer data);
+  static gboolean draw_surface(GtkWidget *widget, Painter *painter, gpointer data);
+
+#ifdef EZGL_RHI
+  void begin_deferred_redraw_cycle();
+  void end_deferred_redraw_cycle();
+#endif
 };
 }
 
