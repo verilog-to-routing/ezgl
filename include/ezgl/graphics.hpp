@@ -24,23 +24,8 @@
 #include "ezgl/rectangle.hpp"
 #include "ezgl/camera.hpp"
 
-#ifdef EZGL_QT
 #include <ezgl/qt/ezgl_qtcompat.hpp>
 #include <ezgl/qt/painter.hpp>
-#else // EZGL_QT
-#include <cairo.h>
-#include <gdk/gdk.h>
-
-#ifdef CAIRO_HAS_XLIB_SURFACE
-#ifdef GDK_WINDOWING_X11
-#include <cairo-xlib.h>
-
-// Speed up draw calls by using X11 instead of cairo wherever possible. X11 is about twice as fast.
-// Cairo is always used if we're using a partially transparent color, so opaque rendering is faster.
-#define EZGL_USE_X11
-#endif
-#endif
-#endif // EZGL_QT
 
 
 #include <functional>
@@ -52,17 +37,10 @@
 
 namespace ezgl {
 
-#ifdef EZGL_QT
 /**
  * define ezgl::surface type used for drawing png bitmaps
  */
 typedef QImage surface;
-#else // EZGL_QT
-/**
- * define ezgl::surface type used for drawing png bitmaps
- */
-typedef cairo_surface_t surface;
-#endif // EZGL_QT
 
 /**
  * Available coordinate systems
@@ -574,26 +552,8 @@ protected:
   // Current coordinate system (World is the default)
   t_coordinate_system current_coordinate_system = WORLD;
 
-#ifdef EZGL_QT
   Painter* m_painter{nullptr};
   QFont current_font;
-#else
-  // A non-owning pointer to a cairo graphics context.
-  cairo_t *m_cairo;
-#ifdef EZGL_USE_X11
-  // The x11 drawable
-  Drawable x11_drawable;
-
-  // The x11 display
-  Display *x11_display = nullptr;
-
-  // The x11 context
-  GC x11_context;
-
-  // Transparency flag, if set, cairo will be used
-  bool transparency_flag = false;
-#endif
-#endif // EZGL_QT
 
   transform_fn m_transform;
 

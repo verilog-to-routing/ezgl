@@ -32,10 +32,6 @@
 #include <ctime>
 #include <vector>
 
-#ifdef EZGL_QT
-#else // EZGL_QT
-#include <gtk/gtk.h>
-#endif // EZGL_QT
 
 /**
  * A library for creating a graphical user interface.
@@ -71,19 +67,11 @@ using button_callback_fn = void (*)(GtkWidget *widget, application *app);
 /**
  * The signature of a user-defined callback function for mouse events
  */
-#ifdef EZGL_QT
 using mouse_callback_fn = void (*)(application *app, QMouseEvent *event, double x, double y);
-#else
-using mouse_callback_fn = void (*)(application *app, GdkEventButton *event, double x, double y);
-#endif
 /**
  * The signature of a user-defined callback function for keyboard events
  */
-#ifdef EZGL_QT
 using key_callback_fn = void (*)(application *app, QKeyEvent *event, const char *key_name);
-#else
-using key_callback_fn = void (*)(application *app, GdkEventKey *event, char *key_name);
-#endif
 
 /**
  * The signature of a user-defined callback function for the combo-box "changed" signal
@@ -177,22 +165,12 @@ public:
   };
 
 public:
-#ifdef EZGL_QT
   /**
    * Create an application.
    *
    * @param s The preconfigured settings.
    */
   explicit application(application::settings s, int& argc, char** argv);
-
-#else
-  /**
-   * Create an application.
-   *
-   * @param s The preconfigured settings.
-   */
-  explicit application(application::settings s);
-#endif
 
   /**
    * Add a canvas to the application.
@@ -548,11 +526,9 @@ public:
   [[deprecated("rename to find_object, move to EZGL lib")]]
   GObject *get_object(gchar const *name) const;
 
-#ifdef EZGL_QT
   QWidget* get_widget(gchar const *name) const { return qobject_cast<QWidget*>(get_object(name)); }
   QPushButton* get_push_button(gchar const *name) const { return qobject_cast<QPushButton*>(get_object(name)); }
   QAbstractButton* get_abstract_button(gchar const *name) const { return qobject_cast<QAbstractButton*>(get_object(name)); }
-#endif // EZGL_QT
 
   /**
    * Get the ID of the main window
@@ -591,9 +567,7 @@ private:
   // The GTK application.
   GtkApplication *m_application;
 
-#ifdef EZGL_QT
   QWidget* m_window{nullptr};
-#endif
 
 #ifndef HIDE_GTK_BUILDER
   // The GUI builder that parses an XML user interface.

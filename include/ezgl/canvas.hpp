@@ -24,17 +24,10 @@
 #include "ezgl/graphics.hpp"
 #include "ezgl/color.hpp"
 
-#ifdef EZGL_QT
 #include "ezgl/qt/ezgl_qtcompat.hpp"
 #ifdef EZGL_RHI
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 #endif
-#else // EZGL_QT
-#include <cairo.h>
-#include <cairo-pdf.h>
-#include <cairo-svg.h>
-#include <gtk/gtk.h>
-#endif // EZGL_QT
 
 #include <memory>
 #include <string>
@@ -44,7 +37,7 @@ namespace ezgl {
 /**** Functions in this class are for ezgl internal use; application code doesn't need to call them ****/
 
 class renderer;
-#if defined(EZGL_QT) && defined(EZGL_RHI)
+#ifdef EZGL_RHI
 class rhi_renderer;
 #endif
 
@@ -198,10 +191,8 @@ private:
   bool m_rhi_has_drawn_frame = false;
 #endif
 
-#ifdef EZGL_QT
   // Renders the canvas into an off-screen QImage; shared by print_pdf/print_svg/print_png.
   QImage render_to_image(int surface_width, int surface_height);
-#endif
 
 #ifndef HIDE_GTK_EVENT
   // Called each time our drawing area widget has changed (e.g., in size).

@@ -113,7 +113,6 @@ if(USE_QT)
     target_compile_definitions(
         ${PROJECT_NAME}
         PUBLIC
-        EZGL_QT
         HIDE_GTK_EVENT
         HIDE_GTK_BUILDER
     )

@@ -448,20 +448,12 @@ static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0])
 static void run_headless()
 {
   ezgl::application::settings s;
-#ifdef EZGL_QT
   s.main_ui_resource = ":/main.ui";
-#else
-  s.main_ui_resource = "/ezgl/main.ui";
-#endif
 
-#ifdef EZGL_QT
   static int   fake_argc    = 1;
   static char  fake_argv0[] = "renderer-stress-bench";
   static char *fake_argv[]  = {fake_argv0, nullptr};
   ezgl::application app(s, fake_argc, fake_argv);
-#else
-  ezgl::application app(s);
-#endif
 
   static int g_headless_t = 0;
   auto headless_dispatch = [](ezgl::renderer *g) {
@@ -547,22 +539,14 @@ static void run_ui(int initial_test)
   g_current_test = initial_test;
 
   ezgl::application::settings s;
-#ifdef EZGL_QT
   s.main_ui_resource = ":/main.ui";
-#else
-  s.main_ui_resource = "/ezgl/main.ui";
-#endif
   s.window_identifier = "MainWindow";
   s.canvas_identifier = "MainCanvas";
 
-#ifdef EZGL_QT
   static int   fake_argc    = 1;
   static char  fake_argv0[] = "renderer-stress-bench";
   static char *fake_argv[]  = {fake_argv0, nullptr};
   ezgl::application app(s, fake_argc, fake_argv);
-#else
-  ezgl::application app(s);
-#endif
 
   app.add_canvas("MainCanvas", draw_dispatch, WORLD, ezgl::WHITE);
   app.run(ui_setup, nullptr, nullptr, nullptr);

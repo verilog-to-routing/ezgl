@@ -1,5 +1,3 @@
-#ifdef EZGL_QT
-
 #include <ezgl/qt/drawingareawidget.hpp>
 #include <QPainter>
 
@@ -79,4 +77,4 @@ void DrawingAreaWidget::paintEvent(QPaintEvent* event)
 
 }
 
-#endif // EZGL_QT
+

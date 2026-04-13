@@ -20,7 +20,6 @@
 
 #include "ezgl/graphics.hpp"
 
-#ifdef EZGL_QT
 #include <QWidget>
 #include <QPainter>
 #include <QPdfWriter>
@@ -33,9 +32,6 @@
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 #include "ezgl/qt/rhi_renderer.hpp"   // full type needed for unique_ptr destruction
 #endif
-#else // EZGL_QT
-#include <gtk/gtk.h>
-#endif // EZGL_QT
 
 #include <cassert>
 #include <cmath>
@@ -43,7 +39,6 @@
 
 namespace ezgl {
 
-#if EZGL_QT
 QImage *create_surface(QWidget* widget)
 {
   ezgl::DrawingAreaWidget* drawableAreaWidget = qobject_cast<ezgl::DrawingAreaWidget*>(widget);
@@ -52,53 +47,18 @@ QImage *create_surface(QWidget* widget)
   }
   return nullptr;
 }
-#else
-static cairo_surface_t *create_surface(GtkWidget *widget)
-{
-  GdkWindow *parent_window = gtk_widget_get_window(widget);
-  int const width = gtk_widget_get_allocated_width(widget);
-  int const height = gtk_widget_get_allocated_height(widget);
-
-  // Cairo image surfaces are more efficient than normal Cairo surfaces
-  // However, you cannot use X11 functions to draw on image surfaces
-#ifdef EZGL_USE_X11
-  cairo_surface_t *p_surface = gdk_window_create_similar_surface(
-      parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
-#else
-  cairo_surface_t *p_surface = gdk_window_create_similar_image_surface(
-      parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
-#endif
-
-  // On HiDPI displays, Cairos surfaces are scaled to 2x or more
-  // However, EZGL doesn't support scaling yet
-  // Force the scaling factor to 1 for both x and y
-  cairo_surface_set_device_scale(p_surface, 1, 1);
-
-  return p_surface;
-}
-#endif
 
 static Painter *create_painter(QImage *p_surface)
 {
-#ifdef EZGL_QT
   Painter *painter = new Painter(p_surface);
 
   // Equivalent to CAIRO_ANTIALIAS_NONE
   painter->setAntialias(false);
   painter->setSmoothPixmap(false);
 
-#else // EZGL_QT
-  cairo_t *context = cairo_create(p_surface);
-
-  // Set the antialiasing mode of the rasterizer used for drawing shapes
-  // Set to CAIRO_ANTIALIAS_NONE for maximum speed
-  // See https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-antialias-t
-  cairo_set_antialias(context, CAIRO_ANTIALIAS_NONE);
-#endif // EZGL_QT
   return painter;
 }
 
-#ifdef EZGL_QT
 // Renders the canvas into an off-screen QImage of the given dimensions,
 // shared by print_pdf / print_svg / print_png.
 QImage canvas::render_to_image(int surface_width, int surface_height)
@@ -120,11 +80,9 @@ QImage canvas::render_to_image(int surface_width, int surface_height)
 
   return surface;
 }
-#endif // EZGL_QT
 
 bool canvas::print_pdf(const char *file_name, int output_width, int output_height)
 {
-#ifdef EZGL_QT
   const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
   const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
 
@@ -144,48 +102,10 @@ bool canvas::print_pdf(const char *file_name, int output_width, int output_heigh
   pdfPainter.end();
 
   return true;
-#else // EZGL_QT
-  cairo_surface_t *pdf_surface;
-  cairo_t *context;
-  int surface_width = 0;
-  int surface_height = 0;
-  
-  // create pdf surface based on canvas size
-  if(output_width == 0 && output_height == 0){
-    surface_width = gtk_widget_get_allocated_width(m_drawing_area);
-    surface_height = gtk_widget_get_allocated_height(m_drawing_area);
-  }else{
-      surface_width = output_width;
-      surface_height = output_height;
-  }
-  pdf_surface = cairo_pdf_surface_create(file_name, surface_width, surface_height);
-
-  if(pdf_surface == NULL)
-    return false; // failed to create due to errors such as out of memory
-  context = create_context(pdf_surface);
-
-  // draw on the newly created pdf surface & context
-  cairo_set_source_rgb(context, m_background_color.red / 255.0, m_background_color.green / 255.0,
-      m_background_color.blue / 255.0);
-  cairo_paint(context);
-
-  using namespace std::placeholders;
-  camera pdf_cam = m_camera;
-  pdf_cam.update_widget(surface_width, surface_height);
-  renderer g(context, std::bind(&camera::world_to_screen, pdf_cam, _1), &pdf_cam, pdf_surface);
-  m_draw_callback(&g);
-
-  // free surface & context
-  cairo_surface_destroy(pdf_surface);
-  cairo_destroy(context);
-
-  return true;
-#endif // EZGL_QT
 }
 
 bool canvas::print_svg(const char *file_name, int output_width, int output_height)
 {
-#ifdef EZGL_QT
   const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
   const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
 
@@ -203,122 +123,21 @@ bool canvas::print_svg(const char *file_name, int output_width, int output_heigh
   svgPainter.end();
 
   return true;
-#else // EZGL_QT
-  cairo_surface_t *svg_surface;
-  cairo_t *context;
-  int surface_width = 0;
-  int surface_height = 0;
-  
-  // create pdf surface based on canvas size
-  if(output_width == 0 && output_height == 0){
-    surface_width = gtk_widget_get_allocated_width(m_drawing_area);
-    surface_height = gtk_widget_get_allocated_height(m_drawing_area);
-  }else{
-      surface_width = output_width;
-      surface_height = output_height;
-  }
-  svg_surface = cairo_svg_surface_create(file_name, surface_width, surface_height);
-
-  if(svg_surface == NULL)
-    return false; // failed to create due to errors such as out of memory
-  context = create_context(svg_surface);
-
-  // draw on the newly created svg surface & context
-  cairo_set_source_rgb(context, m_background_color.red / 255.0, m_background_color.green / 255.0,
-      m_background_color.blue / 255.0);
-  cairo_paint(context);
-
-  using namespace std::placeholders;
-  camera svg_cam = m_camera;
-  svg_cam.update_widget(surface_width, surface_height);
-  renderer g(context, std::bind(&camera::world_to_screen, svg_cam, _1), &svg_cam, svg_surface);
-  m_draw_callback(&g);
-
-  // free surface & context
-  cairo_surface_destroy(svg_surface);
-  cairo_destroy(context);
-
-  return true;
-#endif // EZGL_QT
 }
 
 bool canvas::print_png(const char *file_name, int output_width, int output_height)
 {
-#ifdef EZGL_QT
   const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
   const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
 
   const QImage surface = render_to_image(w, h);
   return surface.save(file_name, "PNG");
-#else // EZGL_QT
-  cairo_surface_t *png_surface;
-  cairo_t *context;
-  int surface_width = 0;
-  int surface_height = 0;
-  
-  // create pdf surface based on canvas size
-  if(output_width == 0 && output_height == 0){
-    surface_width = gtk_widget_get_allocated_width(m_drawing_area);
-    surface_height = gtk_widget_get_allocated_height(m_drawing_area);
-  }else{
-      surface_width = output_width;
-      surface_height = output_height;
-  }
-  png_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, surface_width, surface_height);
-
-  if(png_surface == NULL)
-    return false; // failed to create due to errors such as out of memory
-  context = create_context(png_surface);
-
-  // draw on the newly created png surface & context
-  cairo_set_source_rgb(context, m_background_color.red / 255.0, m_background_color.green / 255.0,
-      m_background_color.blue / 255.0);
-  cairo_paint(context);
-
-  using namespace std::placeholders;
-  camera png_cam = m_camera;
-  png_cam.update_widget(surface_width, surface_height);
-  renderer g(context, std::bind(&camera::world_to_screen, png_cam, _1), &png_cam, png_surface);
-  m_draw_callback(&g);
-
-  // create png output file
-  cairo_surface_write_to_png(png_surface, file_name);
-
-  // free surface & context
-  cairo_surface_destroy(png_surface);
-  cairo_destroy(context);
-
-  return true;
-#endif // EZGL_QT
 }
 
 void canvas::draw_offscreen(int output_width, int output_height)
 {
-#ifdef EZGL_QT
   // Qt path: render_to_image already does draw-only; just discard the result.
   render_to_image(output_width, output_height);
-#else
-  cairo_surface_t *surface = cairo_image_surface_create(
-      CAIRO_FORMAT_ARGB32, output_width, output_height);
-  if(!surface)
-    return;
-  cairo_t *context = create_context(surface);
-
-  cairo_set_source_rgb(context,
-      m_background_color.red   / 255.0,
-      m_background_color.green / 255.0,
-      m_background_color.blue  / 255.0);
-  cairo_paint(context);
-
-  using namespace std::placeholders;
-  camera cam = m_camera;
-  cam.update_widget(output_width, output_height);
-  renderer g(context, std::bind(&camera::world_to_screen, cam, _1), &cam, surface);
-  m_draw_callback(&g);
-
-  cairo_surface_destroy(surface);
-  cairo_destroy(context);
-#endif
 }
 
 #ifndef HIDE_GTK_EVENT
@@ -366,13 +185,8 @@ gboolean canvas::draw_surface(GtkWidget *, Painter *painter, gpointer data)
   auto &p_surface = static_cast<canvas *>(data)->m_surface;
 
   // Assume surface is non-null.
-#ifdef EZGL_QT
   painter->set_source_surface(p_surface, 0, 0);
   painter->paint();
-#else
-  cairo_set_source_surface(context, p_surface, 0, 0);
-  cairo_paint(context);
-#endif
 
   return FALSE;
 }
@@ -405,7 +219,7 @@ canvas::~canvas()
   }
 }
 
-#if defined(EZGL_QT) && defined(EZGL_RHI)
+#ifdef EZGL_RHI
 void canvas::begin_deferred_redraw_cycle()
 {
   if (!m_rhi_widget)
@@ -448,7 +262,7 @@ void canvas::initialize(GtkWidget *drawing_area)
 
   m_drawing_area = drawing_area;
 
-#if defined(EZGL_QT) && defined(EZGL_RHI)
+#ifdef EZGL_RHI
   // ---- RHI path: RhiCanvasWidget takes over from DrawingAreaWidget ----------
   if (RhiCanvasWidget* rw = qobject_cast<RhiCanvasWidget*>(drawing_area)) {
     m_rhi_widget = rw;
@@ -489,12 +303,11 @@ void canvas::initialize(GtkWidget *drawing_area)
     g_info("canvas::initialize using RHI path.");
     return;
   }
-#endif // EZGL_QT && EZGL_RHI
+#endif // EZGL_RHI
 
   m_surface = create_surface(m_drawing_area);
   m_painter = new Painter(m_surface);
 
-#ifdef EZGL_QT
   // Before show(), the widget may have zero size (layout not yet resolved).
   // Guard against division-by-zero in camera::update_scale_factors().
   // The resize callback below fires as soon as the widget receives its real
@@ -529,11 +342,6 @@ void canvas::initialize(GtkWidget *drawing_area)
         m_animation_renderer->update_renderer(m_painter, m_surface);
     });
   }
-#else
-  m_camera.update_widget(width(), height());
-  // Draw to the newly created surface for the first time.
-  redraw();
-#endif
 
 #ifndef HIDE_GTK_EVENT
   // Connect to configure events in case our widget changes shape.
@@ -553,7 +361,7 @@ void canvas::initialize(GtkWidget *drawing_area)
 
 void canvas::redraw()
 {
-#if defined(EZGL_QT) && defined(EZGL_RHI)
+#ifdef EZGL_RHI
   if (m_rhi_widget) {
     using namespace std::placeholders;
     QColor bg(m_background_color.red,
@@ -583,17 +391,13 @@ void canvas::redraw()
     g_info("The canvas will be redrawn (RHI path).");
     return;
   }
-#endif // EZGL_QT && EZGL_RHI
+#endif // EZGL_RHI
 
   // Clear the screen and set the background color
   m_painter->set_source_rgb(m_background_color.red / 255.0,
       m_background_color.green / 255.0,
       m_background_color.blue / 255.0);
-#ifdef EZGL_QT
   m_painter->paint();
-#else
-  cairo_paint(m_context);
-#endif
 
   using namespace std::placeholders;
   deferred_renderer g(m_painter, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
@@ -607,7 +411,7 @@ void canvas::redraw()
 
 void canvas::redraw_camera_only()
 {
-#if defined(EZGL_QT) && defined(EZGL_RHI)
+#ifdef EZGL_RHI
   if (m_rhi_widget && m_rhi_renderer) {
     // Geometry is unchanged — reuse the cached GPU buffers and rebuild only
     // the overlay for the new camera transform.

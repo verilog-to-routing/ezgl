@@ -1,4 +1,4 @@
-#if defined(EZGL_QT) && defined(EZGL_RHI)
+#ifdef EZGL_RHI
 
 #include "ezgl/qt/rhi_renderer.hpp"
 #include "ezgl/camera.hpp"
@@ -1006,4 +1006,4 @@ void rhi_renderer::flush_mvp_only()
 
 } // namespace ezgl
 
-#endif // EZGL_QT && EZGL_RHI
+#endif // EZGL_RHI

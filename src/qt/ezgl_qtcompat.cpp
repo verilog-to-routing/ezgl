@@ -1,5 +1,3 @@
-#ifdef EZGL_QT
-
 #include <ezgl/qt/ezgl_qtcompat.hpp>
 #include <ezgl/qt/drawingareawidget.hpp>
 #ifdef EZGL_RHI
@@ -228,4 +226,4 @@ void log_message(const char* level,
   std::fputc('\n', stderr);
 }
 
-#endif // EZGL_QT
+

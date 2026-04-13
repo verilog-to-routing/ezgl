@@ -1,5 +1,3 @@
-#ifdef EZGL_QT
-
 #include <ezgl/qt/painter.hpp>
 
 namespace ezgl {
@@ -275,4 +273,4 @@ void Painter::surface_destroy(QImage* surface) {
 
 } // namespace ezgl
 
-#endif // EZGL_QT
+

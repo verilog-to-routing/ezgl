@@ -1,4 +1,4 @@
-#if defined(EZGL_QT) && defined(EZGL_RHI)
+#ifdef EZGL_RHI
 
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 
@@ -1155,4 +1155,4 @@ void RhiCanvasWidget::showEvent(QShowEvent* e)
 
 } // namespace ezgl
 
-#endif // EZGL_QT && EZGL_RHI
+#endif // EZGL_RHI
