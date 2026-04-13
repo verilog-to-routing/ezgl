@@ -526,6 +526,10 @@ void screen_coordinates_example(ezgl::renderer *g)
  */
 void draw_png_example(ezgl::renderer *g)
 {
+  ezgl::surface *png_surface = ezgl::renderer::load_png("small_image.png");
+  g->draw_surface(png_surface, {50, 200});
+  ezgl::renderer::free_surface(png_surface);
+
   g->set_font_size(10);
   g->set_color(ezgl::BLACK);
   g->draw_text ({50, 225}, "draw_surface", 200, DBL_MAX);
