@@ -141,7 +141,7 @@ void canvas::draw_offscreen(int output_width, int output_height)
 }
 
 #ifndef HIDE_GTK_EVENT
-bool canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, void* data)
+bool canvas::configure_event(QWidget *widget, GdkEventConfigure *, void* data)
 {
   // User data should have been set during the signal connection.
   g_return_val_if_fail(data != nullptr, FALSE);
@@ -179,7 +179,7 @@ bool canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, void* data)
 }
 #endif // #ifndef HIDE_GTK_EVENT
 
-bool canvas::draw_surface(GtkWidget *, Painter *painter, void* data)
+bool canvas::draw_surface(QWidget *, Painter *painter, void* data)
 {
   // Assume context and data are non-null.
   auto &p_surface = static_cast<canvas *>(data)->m_surface;
@@ -255,7 +255,7 @@ int canvas::height() const
   return gtk_widget_get_allocated_height(m_drawing_area);
 }
 
-void canvas::initialize(GtkWidget *drawing_area)
+void canvas::initialize(QWidget *drawing_area)
 {
   g_debug("~~~ canvas::initialize");
   g_return_if_fail(drawing_area != nullptr);

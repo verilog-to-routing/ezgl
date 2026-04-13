@@ -608,7 +608,7 @@ void application::create_popup_message_with_callback(dialog_callback_fn cbk_fn, 
 
 bool application::destroy_widget(const char* widget_name){
   //Searching for widget
-  GtkWidget* widget = find_widget(widget_name);
+  QWidget* widget = find_widget(widget_name);
 
   //If nothing found, returning false
   if(widget == nullptr){
@@ -620,7 +620,7 @@ bool application::destroy_widget(const char* widget_name){
   return true;
 }
 
-GtkWidget* application::find_widget(const char* widget_name){
+QWidget* application::find_widget(const char* widget_name){
   QWidget* widget = qobject_cast<QWidget*>(get_object(widget_name));
   assert(widget);
   return widget;
@@ -700,7 +700,7 @@ void application::refresh_drawing()
 void application::flush_drawing()
 {
   // get the main drawing area widget
-  GtkWidget *drawing_area = (GtkWidget *)get_object(m_canvas_id.c_str());
+  QWidget *drawing_area = (QWidget *)get_object(m_canvas_id.c_str());
 
   // queue a redraw of the widget and process pending events immediately
   gtk_widget_queue_draw(drawing_area);

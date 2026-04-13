@@ -100,7 +100,7 @@ bool press_mouse(QWidget*, QMouseEvent* event, void* data)
   return true; // consume the event
 }
 
-bool release_mouse(GtkWidget*, QMouseEvent* event, void* data)
+bool release_mouse(QWidget*, QMouseEvent* event, void* data)
 {
   auto application = static_cast<ezgl::application*>(data);
   const QPointF pos = event->position();
@@ -218,7 +218,7 @@ bool scroll_mouse(QWidget*, QWheelEvent* event, void* data)
   return true;
 }
 
-bool press_zoom_fit(GtkWidget *, void* data)
+bool press_zoom_fit(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -231,7 +231,7 @@ bool press_zoom_fit(GtkWidget *, void* data)
   return TRUE;
 }
 
-bool press_zoom_in(GtkWidget *, void* data)
+bool press_zoom_in(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -244,7 +244,7 @@ bool press_zoom_in(GtkWidget *, void* data)
   return TRUE;
 }
 
-bool press_zoom_out(GtkWidget *, void* data)
+bool press_zoom_out(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -257,7 +257,7 @@ bool press_zoom_out(GtkWidget *, void* data)
   return TRUE;
 }
 
-bool press_up(GtkWidget *, void* data)
+bool press_up(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -270,7 +270,7 @@ bool press_up(GtkWidget *, void* data)
   return TRUE;
 }
 
-bool press_down(GtkWidget *, void* data)
+bool press_down(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -283,7 +283,7 @@ bool press_down(GtkWidget *, void* data)
   return TRUE;
 }
 
-bool press_left(GtkWidget *, void* data)
+bool press_left(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -296,7 +296,7 @@ bool press_left(GtkWidget *, void* data)
   return TRUE;
 }
 
-bool press_right(GtkWidget *, void* data)
+bool press_right(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -309,7 +309,7 @@ bool press_right(GtkWidget *, void* data)
   return TRUE;
 }
 
-bool press_proceed(GtkWidget *, void* data)
+bool press_proceed(QWidget *, void* data)
 {
   auto ezgl_app = static_cast<ezgl::application *>(data);
   ezgl_app->quit();

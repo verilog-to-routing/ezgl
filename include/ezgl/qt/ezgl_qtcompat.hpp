@@ -44,7 +44,6 @@ private:
 };
 
 // gtk to qt types
-using GtkWidget = QWidget;
 using GtkButton = QPushButton;
 using GtkComboBoxText = QComboBox;
 using GtkComboBox = QComboBox;

@@ -529,8 +529,8 @@ static void ui_setup(ezgl::application *app, bool /*new_window*/)
 {
   g_app = app;
 
-  app->create_button("Prev", 6, [](GtkWidget *, ezgl::application *a) { switch_test(a, -1); });
-  app->create_button("Next", 7, [](GtkWidget *, ezgl::application *a) { switch_test(a, +1); });
+  app->create_button("Prev", 6, [](QWidget *, ezgl::application *a) { switch_test(a, -1); });
+  app->create_button("Next", 7, [](QWidget *, ezgl::application *a) { switch_test(a, +1); });
 
   app->refresh_drawing();
 }

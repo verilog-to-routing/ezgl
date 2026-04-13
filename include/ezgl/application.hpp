@@ -62,7 +62,7 @@ using setup_callback_fn = void (*)(application *app, bool new_window);
 /**
  * The signature of a button callback function
  */
-using button_callback_fn = void (*)(GtkWidget *widget, application *app);
+using button_callback_fn = void (*)(QWidget *widget, application *app);
 
 /**
  * The signature of a user-defined callback function for mouse events
@@ -406,9 +406,9 @@ public:
    * Button labels set using application::create_button 
    * 
    * @param widget_name string to be searched for
-   * @return GtkWidget* Pointer to GtkWidget. Can be cast to appropriate type
+   * @return QWidget* Pointer to QWidget. Can be cast to appropriate type
    */
-  GtkWidget* find_widget(const char* widget_name);
+  QWidget* find_widget(const char* widget_name);
 
   /**
    * Update the message in the status bar

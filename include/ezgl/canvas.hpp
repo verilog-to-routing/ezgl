@@ -47,7 +47,7 @@ class rhi_renderer;
 using draw_canvas_fn = void (*)(renderer*);
 
 /**
- * Responsible for creating, destroying, and maintaining the rendering context of a GtkWidget.
+ * Responsible for creating, destroying, and maintaining the rendering context of a QWidget.
  *
  * Underneath, the class relies on a GtkDrawingArea as its GUI widget along with cairo to provide the rendering context.
  * The class connects to the relevant GTK signals, namely configure and draw events, to remain responsive.
@@ -83,7 +83,7 @@ public:
   /**
    * Force the canvas to redraw itself.
    *
-   * This will invoke the ezgl::draw_canvas_fn callback and queue a redraw of the GtkWidget.
+   * This will invoke the ezgl::draw_canvas_fn callback and queue a redraw of the QWidget.
    */
   void redraw();
 
@@ -152,7 +152,7 @@ protected:
    * This function is required because GTK will not send activate/startup signals to an ezgl::application until control
    * of the program has been reliquished. The GUI is not built until ezgl::application receives an activate signal.
    */
-  void initialize(GtkWidget *drawing_area);
+  void initialize(QWidget *drawing_area);
 
 private:
   // Name of the canvas in XML.
@@ -168,7 +168,7 @@ private:
   color m_background_color;
 
   // A non-owning pointer to the drawing area inside a GTK window.
-  GtkWidget *m_drawing_area = nullptr;
+  QWidget *m_drawing_area = nullptr;
 
   // The off-screen surface that can be drawn to.
   QImage *m_surface = nullptr;
@@ -196,11 +196,11 @@ private:
 
 #ifndef HIDE_GTK_EVENT
   // Called each time our drawing area widget has changed (e.g., in size).
-  static bool configure_event(GtkWidget *widget, GdkEventConfigure *event, void* data);
+  static bool configure_event(QWidget *widget, GdkEventConfigure *event, void* data);
 #endif // #ifndef HIDE_GTK_EVENT
 
   // Called each time we need to draw to our drawing area widget.
-  static bool draw_surface(GtkWidget *widget, Painter *painter, void* data);
+  static bool draw_surface(QWidget *widget, Painter *painter, void* data);
 
 #ifdef EZGL_RHI
   void begin_deferred_redraw_cycle();

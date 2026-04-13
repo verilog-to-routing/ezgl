@@ -52,7 +52,7 @@ bool scroll_mouse(QWidget* widget, QWheelEvent* event, void* data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-bool press_zoom_fit(GtkWidget *widget, void* data);
+bool press_zoom_fit(QWidget *widget, void* data);
 
 /**
  * React to the clicked zoom_in button
@@ -62,7 +62,7 @@ bool press_zoom_fit(GtkWidget *widget, void* data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-bool press_zoom_in(GtkWidget *widget, void* data);
+bool press_zoom_in(QWidget *widget, void* data);
 
 /**
  * React to the clicked zoom_out button
@@ -72,7 +72,7 @@ bool press_zoom_in(GtkWidget *widget, void* data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-bool press_zoom_out(GtkWidget *widget, void* data);
+bool press_zoom_out(QWidget *widget, void* data);
 
 /**
  * React to the clicked up button
@@ -82,7 +82,7 @@ bool press_zoom_out(GtkWidget *widget, void* data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-bool press_up(GtkWidget *widget, void* data);
+bool press_up(QWidget *widget, void* data);
 
 /**
  * React to the clicked up button
@@ -92,7 +92,7 @@ bool press_up(GtkWidget *widget, void* data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-bool press_down(GtkWidget *widget, void* data);
+bool press_down(QWidget *widget, void* data);
 
 /**
  * React to the clicked up button
@@ -102,7 +102,7 @@ bool press_down(GtkWidget *widget, void* data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-bool press_left(GtkWidget *widget, void* data);
+bool press_left(QWidget *widget, void* data);
 
 /**
  * React to the clicked up button
@@ -112,7 +112,7 @@ bool press_left(GtkWidget *widget, void* data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-bool press_right(GtkWidget *widget, void* data);
+bool press_right(QWidget *widget, void* data);
 
 /**
  * React to the clicked proceed button
@@ -122,7 +122,7 @@ bool press_right(GtkWidget *widget, void* data);
  *
  * @return FALSE to allow other handlers to see this event, too. TRUE otherwise.
  */
-bool press_proceed(GtkWidget *widget, void* data);
+bool press_proceed(QWidget *widget, void* data);
 }
 
 #endif //EZGL_CALLBACK_HPP

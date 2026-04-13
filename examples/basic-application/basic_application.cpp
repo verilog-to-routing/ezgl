@@ -65,12 +65,12 @@ void draw_png_example(ezgl::renderer *g);
  * 
  * These are example callback functions for the UI elements
  */
-void animate_button_cbk(GtkWidget *widget, ezgl::application *application);
-void test_button_cbk(GtkWidget *widget, ezgl::application *application);
+void animate_button_cbk(QWidget *widget, ezgl::application *application);
+void test_button_cbk(QWidget *widget, ezgl::application *application);
 void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app);
-void delete_combo_box_cbk(GtkWidget* widget, ezgl::application *application);
-void create_dialog_button_cbk(GtkWidget *widget, ezgl::application *application);
-void create_mssg_button_cbk(GtkWidget* widget, ezgl::application *application);
+void delete_combo_box_cbk(QWidget* widget, ezgl::application *application);
+void create_dialog_button_cbk(QWidget *widget, ezgl::application *application);
+void create_mssg_button_cbk(QWidget* widget, ezgl::application *application);
 void dialog_cbk(GtkDialog* self, int response_id, ezgl::application* app);
 
 /**
@@ -538,7 +538,7 @@ void draw_png_example(ezgl::renderer *g)
 /**
  * A callback function to the Animate button. Creates an Animation in the main wundow
  */
-void animate_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
+void animate_button_cbk(QWidget */*widget*/, ezgl::application *application)
 {
   // Get a renderer that can be used to draw on top of the main canvas
   ezgl::renderer *g = application->get_renderer();
@@ -568,7 +568,7 @@ void animate_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
 /**
  * A callback function to test the Test button. Changes application message when button is pressed
  */
-void test_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
+void test_button_cbk(QWidget */*widget*/, ezgl::application *application)
 {
   // Update the status bar message
   application->update_message("Test Button Pressed");
@@ -595,7 +595,7 @@ void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app){
 /**
  * Callback function for the delete combo box button. Deletes combo box.
  */
-void delete_combo_box_cbk(GtkWidget* widget, ezgl::application* app){
+void delete_combo_box_cbk(QWidget* widget, ezgl::application* app){
   //Destroying widget. If function fails (could not find widget), changing message to reflect failure. 
   if(app->destroy_widget("TestComboBox")){
     app->update_message("Successfully deleted");
@@ -607,14 +607,14 @@ void delete_combo_box_cbk(GtkWidget* widget, ezgl::application* app){
 /**
  * Callback function for the create dialog button. Creates a dialog window and connects it to the dialog_cbk function
  */
-void create_dialog_button_cbk(GtkWidget* /*widget*/, ezgl::application *application){
+void create_dialog_button_cbk(QWidget* /*widget*/, ezgl::application *application){
   application->create_dialog_window(dialog_cbk, "Title", "THIS IS SOME TEXT. HELLO!");
 }
 
 /**
  * Callback function for the create message button. Creates a popup message
  */
-void create_mssg_button_cbk(GtkWidget* /*widget*/, ezgl::application* app){
+void create_mssg_button_cbk(QWidget* /*widget*/, ezgl::application* app){
   app->create_popup_message("My Message", "Hello, hit Done to Proceed");
 }
 
