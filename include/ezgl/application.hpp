@@ -131,7 +131,7 @@ public:
      * found <a href = "https://docs.gtk.org/gtk3/class.Widget.html#signals">here</a>.
      *
      * If not provided, application::register_default_buttons_callbacks function will be used, which assumes that the
-     * UI has GtkButton widgets named "ZoomFitButton", "ZoomInButton", "ZoomOutButton", "UpButton", "DownButton",
+     * UI has QPushButton widgets named "ZoomFitButton", "ZoomInButton", "ZoomOutButton", "UpButton", "DownButton",
      * "LeftButton", "RightButton", "ProceedButton"
      */
     connect_g_objects_fn setup_callbacks;
@@ -225,7 +225,7 @@ public:
    * @param insert_row the row in the right bar to insert the button.
    *         If there is already a button there, it and the following buttons shift down 1 row.
    * @param button_func callback function for the button
-   *          fn prototype: void fn_name(GtkButton* self, ezgl::application* app);
+   *          fn prototype: void fn_name(QPushButton* self, ezgl::application* app);
    * The function assumes that the UI has a GtkGrid named "InnerGrid"
    */
   void create_button(const char *button_text, int insert_row, button_callback_fn button_func);
@@ -523,7 +523,7 @@ public:
    *
    * @see application::run
    */
-  [[deprecated("rename to find_object, move to EZGL lib")]]
+  [[deprecated("rename to find_object")]]
   QObject *get_object(char const *name) const;
 
   QWidget* get_widget(char const *name) const { return qobject_cast<QWidget*>(get_object(name)); }

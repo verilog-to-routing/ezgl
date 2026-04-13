@@ -20,10 +20,6 @@
 #include <QMouseEvent>
 #include <QResizeEvent>
 
-// gtk to std types
-
-constexpr int EZGL_APPLICATION_DEFAULT_FLAGS = 0;
-
 namespace ezgl {
 class application;
 }
@@ -44,7 +40,6 @@ private:
 };
 
 // gtk to qt types
-using GtkButton = QPushButton;
 using GtkApplication = Application;
 using GdkWindow = QWindow;
 
