@@ -85,7 +85,7 @@ static int g_bench_n = 1000000;
 static constexpr int    IMG_W = 1000;
 static constexpr int    IMG_H = 1000;
 static const ezgl::rectangle WORLD{{0, 0}, (double)IMG_W, (double)IMG_H};
-static constexpr int    CLB_TILE_COLS = 128;
+static constexpr int    CLB_TILE_COLS = 512;
 static constexpr int    CLB_TILE_ROWS = CLB_TILE_COLS;
 static constexpr int    CLB_TILE_COUNT = CLB_TILE_COLS * CLB_TILE_ROWS;
 static constexpr double CLB_TILE_GAP_RATIO = 0.3;
