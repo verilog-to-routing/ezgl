@@ -110,6 +110,7 @@ using DeferredOverlayCommand =
 // ---- deferred_renderer ---------------------------------------------------
 
 class deferred_renderer : public renderer {
+  const double MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX = 5.0;
 public:
     deferred_renderer(Painter *painter,
                       transform_fn transform,

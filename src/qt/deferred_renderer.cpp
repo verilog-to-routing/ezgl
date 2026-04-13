@@ -638,10 +638,17 @@ void deferred_renderer::replay()
 
     auto world_text_visible =
         [this](point2d point, const std::string& text, double bound_x, double bound_y) {
+            const point2d world_scale = m_camera->get_world_scale_factor();
+            // When a WORLD-space text bound shrinks to only a few on-screen pixels at the
+            // current zoom level, the label is unreadable anyway, so return early and
+            // avoid the CPU cost of measuring text extents and running the fit checks below.
+            if (bound_y / world_scale.y < MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX) {
+                return false;
+            }
+
             text_extents_t text_extents{0, 0, 0, 0, 0, 0};
             m_painter->text_extents(text.c_str(), &text_extents);
 
-            const point2d world_scale = m_camera->get_world_scale_factor();
             const double scaled_width = text_extents.width * world_scale.x;
             const double scaled_height = text_extents.height * world_scale.y;
             const bool bounded_x = std::isfinite(bound_x) && bound_x < DBL_MAX;
