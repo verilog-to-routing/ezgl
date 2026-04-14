@@ -38,25 +38,6 @@ void gtk_main_quit()
   QApplication::quit();
 }
 
-Application* gtk_application_new(const char* appName, int unused)
-{
-  Q_UNUSED(unused);
-  g_debug("~~~ gtk_application_new RISKY");
-  static int argc = 0;
-  static char** argv = nullptr;
-  Application* app = new Application(argc, argv);
-  app->setApplicationName(appName);
-  return app;
-}
-
-Application* gtk_application_new(const char* appName, int& argc, char** argv)
-{
-  g_debug("~~~ gtk_application_new");
-  Application* app = new Application(argc, argv);
-  app->setApplicationName(appName);
-  return app;
-}
-
 // bool Application::eventFilter(QObject* obj, QEvent* event)
 // {
 //   auto* w = qobject_cast<QWidget*>(obj);

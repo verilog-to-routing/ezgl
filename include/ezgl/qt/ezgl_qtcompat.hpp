@@ -49,8 +49,6 @@ private:
 void gtk_main();
 void gtk_main_quit();
 
-Application* gtk_application_new(const char* appName, int);
-Application* gtk_application_new(const char* appName, int& argc, char** argv);
 void gtk_widget_destroy(QWidget* widget);
 int gtk_widget_get_allocated_width(QWidget* w);
 int gtk_widget_get_allocated_height(QWidget* w);

@@ -149,11 +149,13 @@ application::application(application::settings s, int& argc, char** argv)
     , m_window_id(s.window_identifier)
     , m_canvas_id(s.canvas_identifier)
     , m_application_id(s.application_identifier)
-    , m_application(gtk_application_new(s.application_identifier.c_str(), argc, argv))
+    , m_application(new Application(argc, argv))
 {
   // we moved this to run method
 
+  m_application->setApplicationName(s.application_identifier.c_str());
   m_application->setApp(this);
+  
   qInfo() << m_application->applicationName();
   qInfo() << m_application->arguments();
   // NOTE: do NOT load the UI file here. This constructor runs as a static
