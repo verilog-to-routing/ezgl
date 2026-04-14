@@ -50,8 +50,6 @@ void gtk_main();
 void gtk_main_quit();
 
 void gtk_widget_destroy(QWidget* widget);
-int gtk_widget_get_allocated_width(QWidget* w);
-int gtk_widget_get_allocated_height(QWidget* w);
 char* gtk_combo_box_text_get_active_text(QComboBox* combo);
 void gtk_widget_queue_draw(QWidget* widget);
 

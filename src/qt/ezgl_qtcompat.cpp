@@ -114,14 +114,6 @@ void gtk_widget_destroy(QWidget* widget)
   widget->deleteLater();
 }
 
-int gtk_widget_get_allocated_width(QWidget* w) {
-  return w->width();
-}
-
-int gtk_widget_get_allocated_height(QWidget* w) {
-  return w->height();
-}
-
 char* gtk_combo_box_text_get_active_text(QComboBox* combo)
 {
   if (!combo) {

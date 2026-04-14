@@ -208,12 +208,12 @@ void canvas::end_deferred_redraw_cycle()
 
 int canvas::width() const
 {
-  return gtk_widget_get_allocated_width(m_drawing_area);
+  return m_drawing_area->width();
 }
 
 int canvas::height() const
 {
-  return gtk_widget_get_allocated_height(m_drawing_area);
+  return m_drawing_area->height();
 }
 
 void canvas::initialize(QWidget *drawing_area)
