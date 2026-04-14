@@ -32,6 +32,13 @@
 #include <ctime>
 #include <vector>
 
+class QWidget;
+class QAbstractButton;
+class QPushButton;
+class QLineEdit;
+class QComboBox;
+class QSpinBox;
+class QCheckBox;
 
 /**
  * A library for creating a graphical user interface.
@@ -408,7 +415,7 @@ public:
    * @param widget_name string to be searched for
    * @return QWidget* Pointer to QWidget. Can be cast to appropriate type
    */
-  QWidget* find_widget(const char* widget_name);
+  QWidget* find_widget(const char* widget_name) const;
 
   /**
    * Update the message in the status bar
@@ -512,23 +519,12 @@ public:
    */
   canvas *get_canvas(std::string const &canvas_id) const;
 
-  /**
-   * Retrieve a GLib Object (i.e., a QObject).
-   *
-   * This is useful for retrieving GUI elements specified in your ui XML file(s). You should only call this function after
-   * the application has been run, otherwise the GUI elements will have not been created yet.
-   *
-   * @param name The ID of the object.
-   * @return The object with the ID, or NULL if it could not be found.
-   *
-   * @see application::run
-   */
-  [[deprecated("rename to find_object")]]
-  QObject *get_object(char const *name) const;
-
-  QWidget* get_widget(char const *name) const { return qobject_cast<QWidget*>(get_object(name)); }
-  QPushButton* get_push_button(char const *name) const { return qobject_cast<QPushButton*>(get_object(name)); }
-  QAbstractButton* get_abstract_button(char const *name) const { return qobject_cast<QAbstractButton*>(get_object(name)); }
+  QPushButton* find_push_button(const char *name) const;
+  QAbstractButton* find_button(const char *name) const;
+  QLineEdit* find_line_edit(const char *name) const;
+  QComboBox* find_combo_box(const char *name) const;
+  QSpinBox* find_spin_box(const char *name) const;
+  QCheckBox* find_check_box(const char *name) const;
 
   /**
    * Get the ID of the main window

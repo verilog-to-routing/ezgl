@@ -23,9 +23,14 @@
 #include <QApplication>
 #include <QGridLayout>
 #include <QLabel>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QCheckBox>
 #include <QVBoxLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
+
 #include "ezgl/qt/qtgladeloader.hpp"
 
 namespace ezgl {
@@ -38,7 +43,7 @@ namespace {
 
 QGridLayout* inner_grid_layout(application const* app)
 {
-  QWidget* inner_grid = app->get_widget("InnerGrid");
+  QWidget* inner_grid = app->find_widget("InnerGrid");
   g_return_val_if_fail(inner_grid != nullptr, nullptr);
 
   QGridLayout* layout = qobject_cast<QGridLayout*>(inner_grid->layout());
@@ -97,8 +102,8 @@ void application::startup(GtkApplication *gtk_app, void* user_data)
   g_return_if_fail(ezgl_app != nullptr);
 
   for(auto &c_pair : ezgl_app->m_canvases) {
-    QObject *drawing_area = ezgl_app->get_object(c_pair.second->id());
-    c_pair.second->initialize(GTK_WIDGET(drawing_area));
+    QWidget *drawing_area = ezgl_app->find_widget(c_pair.second->id());
+    c_pair.second->initialize(drawing_area);
   }
 
   g_info("application::startup successful.");
@@ -115,7 +120,7 @@ void application::activate(GtkApplication*, void* user_data)
 #endif
 
   // The main parent window needs to be explicitly added to our GTK application.
-  QWidget *window = ezgl_app->get_widget(ezgl_app->m_window_id.c_str());
+  QWidget *window = ezgl_app->find_widget(ezgl_app->m_window_id.c_str());
   window->show();
 
   // Setup the default callbacks for the mouse and key events
@@ -219,25 +224,59 @@ canvas *application::add_canvas(std::string const &canvas_id,
   return it.first->second.get();
 }
 
-QObject *application::get_object(char const *name) const
+QWidget *application::find_widget(char const *name) const
 {
-  // Getting an object from the GTK builder does not increase its reference count.
-  QObject* object = nullptr;
-  //qDebug() <<"~~~ " << "searching" << name;
-  for (QWidget* w: QApplication::allWidgets()) {
-    //qDebug() <<"~~~ iterate over" << w->objectName();
-    if (w->objectName() == name) {
-      //qDebug() << "~~~ [+] found" << w->objectName();
-      object = w;
+  QWidget* found = nullptr;
+  for (QWidget* widget: QApplication::allWidgets()) {
+    if (widget->objectName() == name) {
+      found = widget;
       break;
     }
   }
-  if (object == nullptr) {
-    qDebug() <<"~~~ [-] couldn't find" << name;
-  }
-  g_return_val_if_fail(object != nullptr, nullptr);
+  g_return_val_if_fail(found != nullptr, nullptr);
+  return found;
+}
 
-  return object;
+QPushButton* application::find_push_button(const char *name) const
+{
+  QPushButton* found = qobject_cast<QPushButton*>(find_widget(name));
+  g_return_val_if_fail(found != nullptr, nullptr);
+  return found;
+}
+
+QAbstractButton* application::find_button(const char *name) const
+{
+  QAbstractButton* found = qobject_cast<QAbstractButton*>(find_widget(name));
+  g_return_val_if_fail(found != nullptr, nullptr);
+  return found;
+}
+
+QLineEdit* application::find_line_edit(const char *name) const
+{
+  QLineEdit* found = qobject_cast<QLineEdit*>(find_widget(name));
+  g_return_val_if_fail(found != nullptr, nullptr);
+  return found;
+}
+
+QComboBox* application::find_combo_box(const char *name) const
+{
+  QComboBox* found = qobject_cast<QComboBox*>(find_widget(name));
+  g_return_val_if_fail(found != nullptr, nullptr);
+  return found;
+}
+
+QSpinBox* application::find_spin_box(const char *name) const
+{
+  QSpinBox* found = qobject_cast<QSpinBox*>(find_widget(name));
+  g_return_val_if_fail(found != nullptr, nullptr);
+  return found;
+}
+
+QCheckBox* application::find_check_box(const char *name) const
+{
+  QCheckBox* found = qobject_cast<QCheckBox*>(find_widget(name));
+  g_return_val_if_fail(found != nullptr, nullptr);
+  return found;
 }
 
 int application::run(setup_callback_fn initial_setup_user_callback,
@@ -305,11 +344,11 @@ void application::register_default_events_callbacks(ezgl::application *applicati
 {
   // Get a pointer to the main window GUI object by using its name.
   std::string main_window_id = application->get_main_window_id();
-  QObject *window = application->get_object(main_window_id.c_str());
+  QWidget *window = application->find_widget(main_window_id.c_str());
 
   // Get a pointer to the main canvas GUI object by using its name.
   std::string main_canvas_id = application->get_main_canvas_id();
-  QObject *main_canvas = application->get_object(main_canvas_id.c_str());
+  QWidget *main_canvas = application->find_widget(main_canvas_id.c_str());
 
 #ifndef HIDE_GTK_EVENT
   // We want to enable user event handlers for mouse clicks, key presses etc.
@@ -342,7 +381,7 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   // Helper: only connect if the button exists in this UI (VPR's main.ui omits
   // several navigation buttons that the basic-application example has).
   auto connect_if_present = [&](const char* name, auto slot) {
-    QPushButton* btn = application->get_push_button(name);
+    QPushButton* btn = application->find_push_button(name);
     if (btn) {
       QObject::connect(btn, &QPushButton::clicked, btn, slot);
     }
@@ -363,7 +402,7 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   // (quitOnLastWindowClosed=true by default), which is equivalent to GTK's
   // "destroy" → press_proceed path.  We just need to ensure press_proceed is
   // also called so VPR's internal state advances to the next stage.
-  QWidget* window = application->get_widget(application->get_main_window_id().c_str());
+  QWidget* window = application->find_widget(application->get_main_window_id().c_str());
   if (window) {
     // Prevent Qt from deleting the window on close so it can be reused
     // across stages (m_window->show() in subsequent run() calls).
@@ -378,8 +417,8 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
 
 void application::update_message(std::string const &message)
 {
-  // Get the StatusBar Object
-  QStatusBar* status_bar = qobject_cast<QStatusBar*>(get_object("StatusBar"));
+  // Get the StatusBar Widget
+  QStatusBar* status_bar = qobject_cast<QStatusBar*>(find_widget("StatusBar"));
 
   if (status_bar) {
     // Remove all previous messages from the message stack
@@ -620,13 +659,6 @@ bool application::destroy_widget(const char* widget_name){
   return true;
 }
 
-QWidget* application::find_widget(const char* widget_name){
-  QWidget* widget = qobject_cast<QWidget*>(get_object(widget_name));
-  assert(widget);
-  return widget;
-}
-
-
 bool application::destroy_button(const char *button_text_to_destroy)
 {
   QGridLayout* in_grid = inner_grid_layout(this);
@@ -700,7 +732,7 @@ void application::refresh_drawing()
 void application::flush_drawing()
 {
   // get the main drawing area widget
-  QWidget *drawing_area = (QWidget *)get_object(m_canvas_id.c_str());
+  QWidget *drawing_area = find_widget(m_canvas_id.c_str());
 
   // queue a redraw of the widget and process pending events immediately
   gtk_widget_queue_draw(drawing_area);
