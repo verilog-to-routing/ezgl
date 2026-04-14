@@ -47,9 +47,9 @@ private:
 #define Q_BUTTON(w) qobject_cast<QAbstractButton*>(w)
 
 enum {
-  GTK_RESPONSE_REJECT       = -2,
-  GTK_RESPONSE_ACCEPT       = -3,
-  GTK_RESPONSE_DELETE_EVENT = -4,
+  RESPONSE_REJECT       = -2,
+  RESPONSE_ACCEPT       = -3,
+  RESPONSE_DELETE_EVENT = -4,
 };
 
 #define g_return_val_if_fail(expr, val)      \

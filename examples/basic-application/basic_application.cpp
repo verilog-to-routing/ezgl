@@ -624,13 +624,13 @@ void create_mssg_button_cbk(QWidget* /*widget*/, ezgl::application* app){
 void dialog_cbk(QDialog* self, int response_id, ezgl::application* app){
   //Response_id is an integer/enumeration, so we can use a switch to read its value and act accordingly
   switch(response_id){
-    case GTK_RESPONSE_ACCEPT:
+    case RESPONSE_ACCEPT:
       app->update_message("USER ACCEPTED");
       break;
-    case GTK_RESPONSE_REJECT:
+    case RESPONSE_REJECT:
       app->update_message("USER REJECTED");
       break;
-    case GTK_RESPONSE_DELETE_EVENT:
+    case RESPONSE_DELETE_EVENT:
       app->update_message("USER CLOSED WINDOW");
       break;
     default:
