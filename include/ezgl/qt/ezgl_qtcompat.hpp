@@ -45,6 +45,7 @@ private:
 #define Q_DIALOG(w) qobject_cast<QDialog*>(w)
 #define Q_CHECKBOX(w) qobject_cast<QCheckBox*>(w)
 #define Q_BUTTON(w) qobject_cast<QAbstractButton*>(w)
+#define Q_LINEEDIT(w) qobject_cast<QLineEdit*>(w)
 
 enum {
   RESPONSE_REJECT       = -2,
