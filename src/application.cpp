@@ -236,13 +236,6 @@ QPushButton* application::find_push_button(const char *name) const
   return found;
 }
 
-QAbstractButton* application::find_button(const char *name) const
-{
-  QAbstractButton* found = qobject_cast<QAbstractButton*>(find_widget(name));
-  g_return_val_if_fail(found != nullptr, nullptr);
-  return found;
-}
-
 QLineEdit* application::find_line_edit(const char *name) const
 {
   QLineEdit* found = qobject_cast<QLineEdit*>(find_widget(name));

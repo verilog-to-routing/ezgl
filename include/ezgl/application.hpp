@@ -521,7 +521,6 @@ public:
   canvas *get_canvas(std::string const &canvas_id) const;
 
   QPushButton* find_push_button(const char *name) const;
-  QAbstractButton* find_button(const char *name) const;
   QLineEdit* find_line_edit(const char *name) const;
   QComboBox* find_combo_box(const char *name) const;
   QSpinBox* find_spin_box(const char *name) const;
