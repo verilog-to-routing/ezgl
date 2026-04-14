@@ -43,6 +43,8 @@ private:
 #define Q_WIDGET(w) qobject_cast<QWidget*>(w)
 #define Q_COMBO_BOX(w) qobject_cast<QComboBox*>(w)
 #define Q_DIALOG(w) qobject_cast<QDialog*>(w)
+#define Q_CHECKBOX(w) qobject_cast<QCheckBox*>(w)
+#define Q_BUTTON(w) qobject_cast<QAbstractButton*>(w)
 
 void gtk_main();
 void gtk_main_quit();
@@ -53,7 +55,6 @@ void gtk_widget_destroy(QWidget* widget);
 int gtk_widget_get_allocated_width(QWidget* w);
 int gtk_widget_get_allocated_height(QWidget* w);
 char* gtk_combo_box_text_get_active_text(QComboBox* combo);
-void gtk_combo_box_set_active(QComboBox* combo, int idx);
 void gtk_widget_queue_draw(QWidget* widget);
 
 void g_free(void* ptr);

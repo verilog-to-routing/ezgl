@@ -153,12 +153,6 @@ char* gtk_combo_box_text_get_active_text(QComboBox* combo)
   return result;
 }
 
-void gtk_combo_box_set_active(QComboBox* combo, int idx)
-{
-  combo->setCurrentIndex(idx);
-}
-
-
 void gtk_widget_queue_draw(QWidget* widget)
 {
   widget->update();
