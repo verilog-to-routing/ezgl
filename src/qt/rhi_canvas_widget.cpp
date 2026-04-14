@@ -634,7 +634,10 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     // thick_line.vert reads the viewport at offset 64 in the same UBO.
     u->updateDynamicBuffer(frame.mvp_ubuf.get(), 0, 64, mvp.constData());
     {
-        const float vp[2] = { float(width()), float(height()) };
+        // Use device-pixel size for the viewport uniform so that thick-line
+        // width calculations match the actual framebuffer resolution (HiDPI).
+        const QSize ps = renderTarget()->pixelSize();
+        const float vp[2] = { float(ps.width()), float(ps.height()) };
         u->updateDynamicBuffer(frame.mvp_ubuf.get(), 64, int(sizeof(vp)), vp);
     }
 
@@ -894,7 +897,10 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
     // --- Record draw commands ------------------------------------------------
     cb->beginPass(renderTarget(), bg, { 1.0f, 0 }, u);
-    cb->setViewport(QRhiViewport(0, 0, float(width()), float(height())));
+    // Use device-pixel size for the viewport so rendering fills the entire
+    // framebuffer on HiDPI / Retina displays (DPR > 1).
+    const QSize pixel_size = renderTarget()->pixelSize();
+    cb->setViewport(QRhiViewport(0, 0, float(pixel_size.width()), float(pixel_size.height())));
 
     const bool mvp_only_frame = !geom_dirty;
     const std::size_t total_line_buffer_sets        = frame.thin_line_vbufs.size();
