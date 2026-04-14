@@ -140,45 +140,6 @@ void canvas::draw_offscreen(int output_width, int output_height)
   render_to_image(output_width, output_height);
 }
 
-#ifndef HIDE_GTK_EVENT
-bool canvas::configure_event(QWidget *widget, GdkEventConfigure *, void* data)
-{
-  // User data should have been set during the signal connection.
-  g_return_val_if_fail(data != nullptr, FALSE);
-
-  auto ezgl_canvas = static_cast<canvas *>(data);
-  auto &p_surface = ezgl_canvas->m_surface;
-  auto &p_context = ezgl_canvas->m_context;
-
-  if(p_surface != nullptr) {
-    cairo_surface_destroy(p_surface);
-  }
-
-  if(p_context != nullptr) {
-    cairo_destroy(p_context);
-  }
-
-  // Something has changed, recreate the surface.
-  p_surface = create_surface(widget);
-
-  // Recreate the context
-  p_context = create_context(p_surface);
-
-  // The camera needs to be updated before we start drawing again.
-  ezgl_canvas->m_camera.update_widget(ezgl_canvas->width(), ezgl_canvas->height());
-
-  // Draw to the newly created surface.
-  ezgl_canvas->redraw();
-
-  // Update the animation renderer
-  if(ezgl_canvas->m_animation_renderer != nullptr)
-    ezgl_canvas->m_animation_renderer->update_renderer(p_context, p_surface);
-
-  g_info("canvas::configure_event has been handled.");
-  return TRUE; // the configure event was handled
-}
-#endif // #ifndef HIDE_GTK_EVENT
-
 bool canvas::draw_surface(QWidget *, Painter *painter, void* data)
 {
   // Assume context and data are non-null.
@@ -342,19 +303,6 @@ void canvas::initialize(QWidget *drawing_area)
         m_animation_renderer->update_renderer(m_painter, m_surface);
     });
   }
-
-#ifndef HIDE_GTK_EVENT
-  // Connect to configure events in case our widget changes shape.
-  g_signal_connect(m_drawing_area, "configure-event", G_CALLBACK(configure_event), this);
-  // Connect to draw events so that we draw our surface to the drawing area.
-  g_signal_connect(m_drawing_area, "draw", G_CALLBACK(draw_surface), this);
-
-  // GtkDrawingArea objects need specific events enabled explicitly.
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_PRESS_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_RELEASE_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_POINTER_MOTION_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_SCROLL_MASK);
-#endif // #ifndef HIDE_GTK_EVENT
 
   g_info("canvas::initialize successful.");
 }

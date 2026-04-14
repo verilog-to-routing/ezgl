@@ -565,11 +565,6 @@ private:
 
   QWidget* m_window{nullptr};
 
-#ifndef HIDE_GTK_BUILDER
-  // The GUI builder that parses an XML user interface.
-  GtkBuilder *m_builder;
-#endif // HIDE_GTK_BUILDER
-
   // The function to call when the application is starting up.
   connect_g_objects_fn m_register_callbacks{nullptr};
 

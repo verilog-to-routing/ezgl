@@ -109,14 +109,6 @@ if(USE_QT)
         Qt6::Xml
         Qt6::Svg)
 
-    # QT_MIGRATION_TODO, ASSERT_QT_MIGRATION_TODO
-    target_compile_definitions(
-        ${PROJECT_NAME}
-        PUBLIC
-        HIDE_GTK_EVENT
-        HIDE_GTK_BUILDER
-    )
-
     # ---- Qt RHI GPU renderer (optional, Qt >= 6.7) --------------------------
     if(EZGL_USE_RHI)
         if(Qt6_VERSION VERSION_GREATER_EQUAL "6.7.0")

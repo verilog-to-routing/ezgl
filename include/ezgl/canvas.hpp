@@ -194,11 +194,6 @@ private:
   // Renders the canvas into an off-screen QImage; shared by print_pdf/print_svg/print_png.
   QImage render_to_image(int surface_width, int surface_height);
 
-#ifndef HIDE_GTK_EVENT
-  // Called each time our drawing area widget has changed (e.g., in size).
-  static bool configure_event(QWidget *widget, GdkEventConfigure *event, void* data);
-#endif // #ifndef HIDE_GTK_EVENT
-
   // Called each time we need to draw to our drawing area widget.
   static bool draw_surface(QWidget *widget, Painter *painter, void* data);
 

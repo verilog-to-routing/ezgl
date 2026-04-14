@@ -149,31 +149,10 @@ renderer::renderer(Painter *painter,
   if (m_painter != nullptr) {
     current_font = m_painter->font();
   }
-#ifdef EZGL_USE_X11
-  // Check if the created cairo surface is an XLIB surface
-  if (cairo_surface_get_type(m_surface) == CAIRO_SURFACE_TYPE_XLIB) {
-    // get the underlying x11 drawable used by cairo surface
-    x11_drawable = cairo_xlib_surface_get_drawable(m_surface);
-
-    // get the x11 display
-    x11_display = cairo_xlib_surface_get_display(m_surface);
-
-    // create the x11 context from the drawable of the cairo surface
-    if (x11_display != nullptr) {
-      x11_context = XCreateGC(x11_display, x11_drawable, 0, 0);
-    }
-  }
-#endif
 }
 
 renderer::~renderer()
 {
-#ifdef EZGL_USE_X11
-  // free the x11 context
-  if (x11_display != nullptr) {
-    XFreeGC(x11_display, x11_context);
-  }
-#endif
 }
 
 bool renderer::clip_line_world(const rectangle &clip_window, point2d &start, point2d &end)
@@ -189,24 +168,6 @@ void renderer::update_renderer(Painter *painter, QImage *m_surface)
   if (m_painter != nullptr) {
     m_painter->setFont(current_font);
   }
-
-  // Update X11 Context
-#ifdef EZGL_USE_X11
-  // Check if the created cairo surface is an XLIB surface
-  if (cairo_surface_get_type(m_surface) == CAIRO_SURFACE_TYPE_XLIB) {
-    // get the underlying x11 drawable used by cairo surface
-    x11_drawable = cairo_xlib_surface_get_drawable(m_surface);
-
-    // get the x11 display
-    x11_display = cairo_xlib_surface_get_display(m_surface);
-
-    // create the x11 context from the drawable of the cairo surface
-    if (x11_display != nullptr) {
-      XFreeGC(x11_display, x11_context);
-      x11_context = XCreateGC(x11_display, x11_drawable, 0, 0);
-    }
-  }
-#endif
 
   // Restore graphics attributes
   set_color(current_color);
@@ -322,24 +283,6 @@ void renderer::set_color(uint_fast8_t red,
 
   // set current_color
   current_color = {red, green, blue, alpha};
-
-#ifdef EZGL_USE_X11
-  // check transparency
-  if(alpha != 255)
-    transparency_flag = true;
-  else
-    transparency_flag = false;
-
-  // set color for x11 (no transparency)
-  if (x11_display != nullptr) {
-    unsigned long xcolor = 0;
-    xcolor |= (red << 2 * 8 | red << 8 | red) & 0xFF0000;
-    xcolor |= (green << 2 * 8 | green << 8 | green) & 0xFF00;
-    xcolor |= (blue << 2 * 8 | blue << 8 | blue) & 0xFF;
-    xcolor |= 0xFF000000;
-    XSetForeground(x11_display, x11_context, xcolor);
-  }
-#endif
 }
 
 void renderer::set_line_cap(line_cap cap)
@@ -348,14 +291,6 @@ void renderer::set_line_cap(line_cap cap)
   m_painter->set_line_cap(cairo_cap);
 
   current_line_cap = cap;
-
-#ifdef EZGL_USE_X11
-  if (x11_display != nullptr) {
-    XSetLineAttributes(x11_display, x11_context, current_line_width,
-        current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
-        current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
-  }
-#endif
 }
 
 void renderer::set_line_dash(line_dash dash)
@@ -372,14 +307,6 @@ void renderer::set_line_dash(line_dash dash)
   }
 
   current_line_dash = dash;
-
-#ifdef EZGL_USE_X11
-  if (x11_display != nullptr) {
-    XSetLineAttributes(x11_display, x11_context, current_line_width,
-        current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
-        current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
-  }
-#endif
 }
 
 void renderer::set_line_width(int width)
@@ -387,14 +314,6 @@ void renderer::set_line_width(int width)
   m_painter->set_line_width(width == 0 ? 1 : width);
 
   current_line_width = width;
-
-#ifdef EZGL_USE_X11
-  if (x11_display != nullptr) {
-    XSetLineAttributes(x11_display, x11_context, current_line_width,
-        current_line_dash == line_dash::none ? LineSolid : LineOnOffDash,
-        current_line_cap == line_cap::butt ? CapButt : CapRound, JoinMiter);
-  }
-#endif
 }
 
 void renderer::set_font_size(double new_size)
@@ -468,13 +387,6 @@ void renderer::draw_line(point2d start, point2d end)
     start = m_transform(start);
     end = m_transform(end);
   }
-
-#ifdef EZGL_USE_X11
-  if(!transparency_flag && x11_display != nullptr) {
-    XDrawLine(x11_display, x11_drawable, x11_context, start.x, start.y, end.x, end.y);
-    return;
-  }
-#endif
 
   m_painter->move_to(start.x, start.y);
   m_painter->line_to(end.x, end.y);
@@ -558,33 +470,6 @@ void renderer::fill_poly(std::vector<point2d> const &points)
     return;
 
   point2d next_point = points[0];
-
-#ifdef EZGL_USE_X11
-  if(!transparency_flag && x11_display != nullptr) {
-    XPoint fixed_trans_points[X11_MAX_FIXED_POLY_PTS];
-    XPoint *trans_points = fixed_trans_points;
-
-    if(points.size() > X11_MAX_FIXED_POLY_PTS) {
-      trans_points = new XPoint[points.size()];
-    }
-
-    for(size_t i = 0; i < points.size(); i++) {
-      if(current_coordinate_system == WORLD)
-        next_point = m_transform(points[i]);
-      else
-        next_point = points[i];
-      trans_points[i].x = static_cast<long>(next_point.x);
-      trans_points[i].y = static_cast<long>(next_point.y);
-    }
-
-    XFillPolygon(x11_display, x11_drawable, x11_context, trans_points, points.size(), Complex,
-        CoordModeOrigin);
-
-    if(points.size() > X11_MAX_FIXED_POLY_PTS)
-      delete[] trans_points;
-    return;
-  }
-#endif
 
   if(current_coordinate_system == WORLD)
     next_point = m_transform(points[0]);
@@ -846,20 +731,6 @@ void renderer::draw_arc_path(point2d center,
 
   // calculate the new radius after transforming to the new coordinates
   radius = point_x.x - center.x;
-
-#ifdef EZGL_USE_X11
-  if(!transparency_flag && x11_display != nullptr) {
-    if(fill_flag)
-      XFillArc(x11_display, x11_drawable, x11_context, center.x - radius,
-          center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,
-          start_angle * 64, extent_angle * 64);
-    else
-      XDrawArc(x11_display, x11_drawable, x11_context, center.x - radius,
-          center.y - radius * stretch_factor, 2 * radius, 2 * radius * stretch_factor,
-          start_angle * 64, extent_angle * 64);
-    return;
-  }
-#endif
 
   // save the current state to undo the scaling needed for drawing ellipse
   m_painter->save();

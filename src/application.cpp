@@ -150,18 +150,7 @@ application::application(application::settings s, int& argc, char** argv)
     , m_canvas_id(s.canvas_identifier)
     , m_application_id(s.application_identifier)
     , m_application(gtk_application_new(s.application_identifier.c_str(), argc, argv))
-#ifndef HIDE_GTK_BUILDER
-    , m_builder(gtk_builder_new())
-#endif // HIDE_GTK_BUILDER
-#ifndef HIDE_GTK_EVENT
-    , m_register_callbacks(s.setup_callbacks)
-#endif // HIDE_GTK_EVENT
 {
-#ifdef EZGL_USE_X11
-  // Prefer x11 first, then other backends.
-  gdk_set_allowed_backends("x11,*");
-#endif
-
   // we moved this to run method
 
   m_application->setApp(this);
@@ -349,31 +338,6 @@ void application::register_default_events_callbacks(ezgl::application *applicati
   // Get a pointer to the main canvas GUI object by using its name.
   std::string main_canvas_id = application->get_main_canvas_id();
   QWidget *main_canvas = application->find_widget(main_canvas_id.c_str());
-
-#ifndef HIDE_GTK_EVENT
-  // We want to enable user event handlers for mouse clicks, key presses etc.
-  // when they are in the drawing area (MainCanvas).
-  // Connect press_key function to keyboard presses in the MainCanvas (drawing area).
-  // In the main.ui, this only works if the MainCanvas "can focus" and has 
-  // keyboard events selected. Hit tab to move focus from a widget (e.g. a dialog)
-  // to the MainCanvas when running the application.
-  g_signal_connect(main_canvas, "key_press_event", G_CALLBACK(press_key), application);
-
-  // Connect press_mouse function to mouse presses and releases in the MainCanvas.
-  g_signal_connect(main_canvas, "button_press_event", G_CALLBACK(press_mouse), application);
-
-  // Connect release_mouse function to mouse presses and releases in the MainCanvas.
-  g_signal_connect(main_canvas, "button_release_event", G_CALLBACK(release_mouse), application);
-
-  // Connect release_mouse function to mouse presses and releases in the MainCanvas.
-  g_signal_connect(main_canvas, "motion_notify_event", G_CALLBACK(move_mouse), application);
-
-  // Connect scroll_mouse function to the mouse scroll event (up, down, left and right)
-  g_signal_connect(main_canvas, "scroll_event", G_CALLBACK(scroll_mouse), application);
-
-  // Connect press_proceed function to the close button of the MainWindow
-  g_signal_connect(window, "destroy", G_CALLBACK(press_proceed), application);
-#endif // HIDE_GTK_EVENT
 }
 
 void application::register_default_buttons_callbacks(ezgl::application *application)
