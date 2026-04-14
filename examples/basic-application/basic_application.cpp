@@ -639,7 +639,7 @@ void dialog_cbk(QDialog* self, int response_id, ezgl::application* app){
   }
 
   //We always have to destroy the dialog window in the callback function or it will never close
-  gtk_widget_destroy(GTK_WIDGET(self));
+  gtk_widget_destroy(self);
 }
 
 /**

@@ -27,10 +27,6 @@ void Application::setApp(ezgl::application* app) {
   m_app = app;
 }
 
-bool GTK_IS_BUTTON(QObject* obj) {
-  return qobject_cast<QPushButton*>(obj) != nullptr;
-}
-
 QWidget* gtk_application_get_active_window(Application* app)
 {
   return Application::activeWindow();

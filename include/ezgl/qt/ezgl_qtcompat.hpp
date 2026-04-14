@@ -45,11 +45,6 @@ private:
 #define Q_COMBO_BOX(w) qobject_cast<QComboBox*>(w)
 #define Q_DIALOG(w) qobject_cast<QDialog*>(w)
 
-#define GTK_WIDGET(w) qobject_cast<QWidget*>(w)
-#define GTK_COMBO_BOX(w) qobject_cast<QComboBox*>(w)
-#define GTK_WINDOW(w) qobject_cast<QWidget*>(w)
-
-bool GTK_IS_BUTTON(QObject* obj);
 QWidget* gtk_application_get_active_window(Application* app);
 void gtk_main();
 void gtk_main_quit();
