@@ -84,7 +84,7 @@ void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor)
 void zoom_fit(canvas *cnv, rectangle region)
 {
   cnv->get_camera().set_world(region);
-  cnv->redraw();  // major viewport jump — rebuild geometry
+  cnv->redraw_camera_only();
 }
 
 void translate(canvas *cnv, double dx, double dy)
