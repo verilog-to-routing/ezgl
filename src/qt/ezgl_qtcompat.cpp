@@ -5,6 +5,8 @@
 #endif
 #include <ezgl/callback.hpp>
 
+#include <numbers>
+
 #include <QPainter>
 #include <QMouseEvent>
 #include <QKeyEvent>

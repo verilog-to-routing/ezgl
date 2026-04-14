@@ -274,9 +274,12 @@ else(USE_QT)
 
 endif(USE_QT)
 
-# add_compile_options does not seem to be working on the UG machines,
-# and we cannot set target properties in version 3.0.2
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+# Use target property to enforce C++20 — raw -std= flag gets overridden by Qt6's gnu++17
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
 
 if(EZGL_BUILD_EXAMPLES)
   add_subdirectory(examples)
