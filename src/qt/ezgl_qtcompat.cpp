@@ -114,18 +114,6 @@ void gtk_widget_destroy(QWidget* widget)
   widget->deleteLater();
 }
 
-char* gtk_combo_box_text_get_active_text(QComboBox* combo)
-{
-  if (!combo) {
-    return nullptr;
-  }
-
-  QByteArray utf8 = combo->currentText().toUtf8();
-  char* result = strdup(utf8.constData());  // caller must free()
-
-  return result;
-}
-
 void gtk_widget_queue_draw(QWidget* widget)
 {
   widget->update();

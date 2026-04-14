@@ -583,12 +583,11 @@ void test_button_cbk(QWidget */*widget*/, ezgl::application *application)
  */
 void combo_box_cbk(QComboBox* self, ezgl::application* app){
   //Getting text content of combo box. This call makes a copy that we must free
-  auto text = gtk_combo_box_text_get_active_text(self);
-  if(!text){  //Returning if the combo box is currently empty (Always check to avoid errors)
+  auto text = self->currentText();
+  if(text.isEmpty()){  //Returning if the combo box is currently empty (Always check to avoid errors)
     return;
   } else {  //Updating message to reflect new combo box value.
     app->update_message(text);
-    g_free (text);      // gtk made a copy that we own; need to free.
   }
 }
 
