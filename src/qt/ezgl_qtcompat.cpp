@@ -119,11 +119,6 @@ void gtk_widget_queue_draw(QWidget* widget)
   widget->update();
 }
 
-void g_free(void* ptr)
-{
-  g_debug("~~~ g_free");
-  free(ptr);
-}
 // gtk wrapper
 
 // Core logging function (printf-style)
