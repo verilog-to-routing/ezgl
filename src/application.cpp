@@ -297,7 +297,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     activate(nullptr, this);
     first_run = false;
     g_info("The event loop is now starting.");
-    return g_application_run(m_application, 0, 0);
+    return m_application->exec();
   } else {
     // Subsequent stage: reuse the existing window.
     // activate() is NOT called again to avoid double-registering callbacks.
@@ -314,7 +314,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
 #endif
     resume_run = true;
     g_info("The event loop is now resuming.");
-    return g_application_run(m_application, 0, 0);
+    return m_application->exec();
   }
 }
 
@@ -325,7 +325,7 @@ void application::quit()
     gtk_main_quit();
   } else {
     // Quit the GTK application (exit g_application_run())
-    g_application_quit(m_application);
+    m_application->exit(0);
   }
 }
 

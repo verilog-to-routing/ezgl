@@ -16,7 +16,7 @@ Application::Application(int& argc, char** argv): QApplication(argc, argv) {
   qInfo() << "Application()";
   // Use Fusion style for consistent disabled-widget rendering across platforms.
   // System styles (gtk2, breeze) often don't visually distinguish disabled widgets.
-  setStyle(QStyleFactory::create("Fusion"));
+  //setStyle(QStyleFactory::create("Fusion"));
 }
 
 Application::~Application() {
@@ -25,11 +25,6 @@ Application::~Application() {
 
 void Application::setApp(ezgl::application* app) {
   m_app = app;
-}
-
-QWidget* gtk_application_get_active_window(Application* app)
-{
-  return Application::activeWindow();
 }
 
 void gtk_main() {
@@ -41,20 +36,6 @@ void gtk_main_quit()
 {
   g_debug("~~~ gtk_main_quit");
   QApplication::quit();
-}
-
-int g_application_run(Application* app, int unsed1, int unsed2)
-{
-  Q_UNUSED(unsed1);
-  Q_UNUSED(unsed2);
-  g_debug("~~~ g_application_run");
-  return app->exec();
-}
-
-void g_application_quit(Application* app)
-{
-  g_debug("~~~ g_application_quit");
-  app->exit(0);
 }
 
 Application* gtk_application_new(const char* appName, int unused)

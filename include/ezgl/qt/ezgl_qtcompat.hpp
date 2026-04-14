@@ -40,17 +40,13 @@ private:
   ezgl::application* m_app{nullptr};
 };
 
-// gtk wrapper
 #define Q_WIDGET(w) qobject_cast<QWidget*>(w)
 #define Q_COMBO_BOX(w) qobject_cast<QComboBox*>(w)
 #define Q_DIALOG(w) qobject_cast<QDialog*>(w)
 
-QWidget* gtk_application_get_active_window(Application* app);
 void gtk_main();
 void gtk_main_quit();
 
-int g_application_run(Application* app, int, int);
-void g_application_quit(Application* app);
 Application* gtk_application_new(const char* appName, int);
 Application* gtk_application_new(const char* appName, int& argc, char** argv);
 void gtk_widget_destroy(QWidget* widget);
