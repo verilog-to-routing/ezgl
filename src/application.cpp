@@ -324,7 +324,7 @@ void application::quit()
 {
   if(resume_run) {
     // Quit the event loop (exit gtk_main())
-    gtk_main_quit();
+    qApp->exec();
   } else {
     // Quit the GTK application (exit g_application_run())
     m_application->exit(0);

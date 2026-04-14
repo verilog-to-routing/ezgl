@@ -16,7 +16,7 @@ Application::Application(int& argc, char** argv): QApplication(argc, argv) {
   qInfo() << "Application()";
   // Use Fusion style for consistent disabled-widget rendering across platforms.
   // System styles (gtk2, breeze) often don't visually distinguish disabled widgets.
-  //setStyle(QStyleFactory::create("Fusion"));
+  setStyle(QStyleFactory::create("Fusion"));
 }
 
 Application::~Application() {
@@ -26,37 +26,6 @@ Application::~Application() {
 void Application::setApp(ezgl::application* app) {
   m_app = app;
 }
-
-void gtk_main() {
-  g_debug("~~~ gtk_main");
-  qApp->exec();
-}
-
-void gtk_main_quit()
-{
-  g_debug("~~~ gtk_main_quit");
-  QApplication::quit();
-}
-
-// bool Application::eventFilter(QObject* obj, QEvent* event)
-// {
-//   auto* w = qobject_cast<QWidget*>(obj);
-//   if (!w) return false;
-
-//   switch (event->type()) {
-//   case QEvent::KeyPress:
-//     return press_key(w, static_cast<QKeyEvent*>(event), m_app);
-//   case QEvent::MouseButtonPress:
-//     return press_mouse(w, static_cast<QMouseEvent*>(event), m_app);
-//   case QEvent::MouseButtonRelease:
-//     return release_mouse(w, static_cast<QMouseEvent*>(event), m_app);
-//   case QEvent::MouseMove:
-//     return move_mouse(w, static_cast<QMouseEvent*>(event), m_app);
-//   case QEvent::Wheel:
-//     return scroll_mouse(w, static_cast<QWheelEvent*>(event), m_app);
-//   }
-  // return QObject::eventFilter(obj, event);
-// }
 
 bool Application::notify(QObject* obj, QEvent* event) {
     // Accept events from either widget type (QPainter path or RHI path).

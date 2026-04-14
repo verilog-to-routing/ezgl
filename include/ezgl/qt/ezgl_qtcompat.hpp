@@ -46,16 +46,11 @@ private:
 #define Q_CHECKBOX(w) qobject_cast<QCheckBox*>(w)
 #define Q_BUTTON(w) qobject_cast<QAbstractButton*>(w)
 
-void gtk_main();
-void gtk_main_quit();
-
 enum {
   GTK_RESPONSE_REJECT       = -2,
   GTK_RESPONSE_ACCEPT       = -3,
   GTK_RESPONSE_DELETE_EVENT = -4,
 };
-
-// gtk wrapper
 
 #define g_return_val_if_fail(expr, val)      \
 do {                                         \
