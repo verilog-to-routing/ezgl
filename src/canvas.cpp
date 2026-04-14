@@ -188,7 +188,7 @@ bool canvas::draw_surface(QWidget *, Painter *painter, void* data)
   painter->set_source_surface(p_surface, 0, 0);
   painter->paint();
 
-  return FALSE;
+  return false;
 }
 
 canvas::canvas(std::string canvas_id,

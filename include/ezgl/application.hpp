@@ -560,8 +560,8 @@ private:
   // The ID of the GTK application
   std::string m_application_id;
 
-  // The GTK application.
-  GtkApplication *m_application;
+  // The application.
+  Application *m_application;
 
   QWidget* m_window{nullptr};
 
@@ -584,10 +584,10 @@ private:
 
 private:
   // Called when our GtkApplication is initialized for the first time.
-  static void startup(GtkApplication *gtk_app, void* user_data);
+  static void startup(Application *app, void* user_data);
 
   // Called when GTK activates our application for the first time.
-  static void activate(GtkApplication *gtk_app, void* user_data);
+  static void activate(Application *app, void* user_data);
 
   // Called during application activation to setup the default callbacks for the prebuilt buttons
   static void register_default_buttons_callbacks(application *application);

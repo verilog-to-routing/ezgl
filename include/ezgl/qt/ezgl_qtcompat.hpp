@@ -26,6 +26,7 @@ class application;
 
 class Application final : public QApplication {
 public:
+[[deprecated("unite with ezgl::application")]]
   Application(int& argc, char** argv);
   virtual ~Application();
 
@@ -38,19 +39,6 @@ protected:
 private:
   ezgl::application* m_app{nullptr};
 };
-
-// gtk to qt types
-using GtkApplication = Application;
-using GdkWindow = QWindow;
-
-// cairo fake types
-using mouse_callback_fn = void*;
-using mouse_callback_fn = void*;
-using key_callback_fn = void*;
-// gtk fake types
-
-#define TRUE 1
-#define FALSE 0
 
 // gtk wrapper
 #define Q_WIDGET(w) qobject_cast<QWidget*>(w)

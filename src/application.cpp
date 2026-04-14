@@ -96,7 +96,7 @@ void insert_grid_row(QGridLayout* layout, int insert_row)
 
 } // namespace
 
-void application::startup(GtkApplication *gtk_app, void* user_data)
+void application::startup(Application *gtk_app, void* user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);
@@ -109,7 +109,7 @@ void application::startup(GtkApplication *gtk_app, void* user_data)
   g_info("application::startup successful.");
 }
 
-void application::activate(GtkApplication*, void* user_data)
+void application::activate(Application*, void* user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   g_return_if_fail(ezgl_app != nullptr);

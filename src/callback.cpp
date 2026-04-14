@@ -228,7 +228,7 @@ bool press_zoom_fit(QWidget *, void* data)
 
   ezgl::zoom_fit(canvas, canvas->get_camera().get_initial_world());
 
-  return TRUE;
+  return true;
 }
 
 bool press_zoom_in(QWidget *, void* data)
@@ -241,7 +241,7 @@ bool press_zoom_in(QWidget *, void* data)
 
   ezgl::zoom_in(canvas, 5.0 / 3.0);
 
-  return TRUE;
+  return true;
 }
 
 bool press_zoom_out(QWidget *, void* data)
@@ -254,7 +254,7 @@ bool press_zoom_out(QWidget *, void* data)
 
   ezgl::zoom_out(canvas, 5.0 / 3.0);
 
-  return TRUE;
+  return true;
 }
 
 bool press_up(QWidget *, void* data)
@@ -267,7 +267,7 @@ bool press_up(QWidget *, void* data)
 
   ezgl::translate_up(canvas, 5.0);
 
-  return TRUE;
+  return true;
 }
 
 bool press_down(QWidget *, void* data)
@@ -280,7 +280,7 @@ bool press_down(QWidget *, void* data)
 
   ezgl::translate_down(canvas, 5.0);
 
-  return TRUE;
+  return true;
 }
 
 bool press_left(QWidget *, void* data)
@@ -293,7 +293,7 @@ bool press_left(QWidget *, void* data)
 
   ezgl::translate_left(canvas, 5.0);
 
-  return TRUE;
+  return true;
 }
 
 bool press_right(QWidget *, void* data)
@@ -306,7 +306,7 @@ bool press_right(QWidget *, void* data)
 
   ezgl::translate_right(canvas, 5.0);
 
-  return TRUE;
+  return true;
 }
 
 bool press_proceed(QWidget *, void* data)
@@ -314,6 +314,6 @@ bool press_proceed(QWidget *, void* data)
   auto ezgl_app = static_cast<ezgl::application *>(data);
   ezgl_app->quit();
 
-  return TRUE;
+  return true;
 }
 }
