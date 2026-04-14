@@ -25,6 +25,7 @@
 #include "ezgl/callback.hpp"
 #include "ezgl/graphics.hpp"
 #include "ezgl/color.hpp"
+#include "ezgl/qt/switchbutton.hpp"
 
 #include <map>
 #include <memory>
@@ -525,6 +526,7 @@ public:
   QComboBox* find_combo_box(const char *name) const;
   QSpinBox* find_spin_box(const char *name) const;
   QCheckBox* find_check_box(const char *name) const;
+  SwitchButton* find_switch_button(const char *name) const;
 
   /**
    * Get the ID of the main window

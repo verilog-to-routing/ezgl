@@ -18,6 +18,7 @@
  */
 
 #include "ezgl/application.hpp"
+#include "ezgl/qt/switchbutton.hpp"
 
 #include <QObject>
 #include <QApplication>
@@ -266,6 +267,13 @@ QSpinBox* application::find_spin_box(const char *name) const
 QCheckBox* application::find_check_box(const char *name) const
 {
   QCheckBox* found = qobject_cast<QCheckBox*>(find_widget(name));
+  g_return_val_if_fail(found != nullptr, nullptr);
+  return found;
+}
+
+SwitchButton* application::find_switch_button(const char *name) const
+{
+  SwitchButton* found = qobject_cast<SwitchButton*>(find_widget(name));
   g_return_val_if_fail(found != nullptr, nullptr);
   return found;
 }
