@@ -103,24 +103,6 @@ bool Application::notify(QObject* obj, QEvent* event) {
     return QApplication::notify(obj, event);
 }
 
-void gtk_widget_destroy(QWidget* widget)
-{
-  g_debug("~~~ gtk_widget_destroy");
-  if (!widget)
-    return;
-
-  widget->hide();
-  widget->setParent(nullptr);
-  widget->deleteLater();
-}
-
-void gtk_widget_queue_draw(QWidget* widget)
-{
-  widget->update();
-}
-
-// gtk wrapper
-
 // Core logging function (printf-style)
 void log_message(const char* level,
     const char* file,

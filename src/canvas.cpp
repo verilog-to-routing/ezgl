@@ -352,7 +352,7 @@ void canvas::redraw()
   m_draw_callback(&g);
   g.flush();
 
-  gtk_widget_queue_draw(m_drawing_area);
+  m_drawing_area->update();
 
   g_info("The canvas will be redrawn.");
 }

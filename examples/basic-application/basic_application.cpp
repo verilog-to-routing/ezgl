@@ -587,7 +587,7 @@ void combo_box_cbk(QComboBox* self, ezgl::application* app){
   if(text.isEmpty()){  //Returning if the combo box is currently empty (Always check to avoid errors)
     return;
   } else {  //Updating message to reflect new combo box value.
-    app->update_message(text);
+    app->update_message(text.toStdString());
   }
 }
 
@@ -638,7 +638,7 @@ void dialog_cbk(QDialog* self, int response_id, ezgl::application* app){
   }
 
   //We always have to destroy the dialog window in the callback function or it will never close
-  gtk_widget_destroy(self);
+  self->deleteLater();
 }
 
 /**

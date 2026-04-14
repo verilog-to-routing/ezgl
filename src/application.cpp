@@ -621,7 +621,7 @@ bool application::destroy_widget(const char* widget_name){
   }
 
   //Deleting widget if found
-  gtk_widget_destroy(widget);
+  widget->deleteLater();
   return true;
 }
 
@@ -701,7 +701,7 @@ void application::flush_drawing()
   QWidget *drawing_area = find_widget(m_canvas_id.c_str());
 
   // queue a redraw of the widget and process pending events immediately
-  gtk_widget_queue_draw(drawing_area);
+  drawing_area->update();
   QCoreApplication::processEvents();
 }
 

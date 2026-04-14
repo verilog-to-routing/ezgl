@@ -49,9 +49,6 @@ private:
 void gtk_main();
 void gtk_main_quit();
 
-void gtk_widget_destroy(QWidget* widget);
-void gtk_widget_queue_draw(QWidget* widget);
-
 enum {
   GTK_RESPONSE_REJECT       = -2,
   GTK_RESPONSE_ACCEPT       = -3,
