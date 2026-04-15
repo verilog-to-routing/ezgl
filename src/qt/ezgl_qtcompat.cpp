@@ -5,11 +5,8 @@
 #endif
 #include <ezgl/callback.hpp>
 
-#include <QPainter>
 #include <QMouseEvent>
 #include <QKeyEvent>
-#include <QShowEvent>
-#include <QStyleFactory>
 #include <QLabel>
 #include <QLayout>
 #include <QGridLayout>

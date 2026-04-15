@@ -1,18 +1,10 @@
 #ifndef EZGL_QTCOMPAT_HPP
 #define EZGL_QTCOMPAT_HPP
 
-#include <QObject>
 #include <QApplication>
-#include <QImage>
 #include <QWidget>
-#include <QWindow>
 #include <QComboBox>
-#include <QPushButton>
 #include <QDialog>
-#include <QStatusBar>
-
-#include <QMouseEvent>
-#include <QResizeEvent>
 
 class QGridLayout;
 class QBoxLayout;
