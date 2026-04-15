@@ -45,16 +45,16 @@ namespace {
 QGridLayout* inner_grid_layout(application const* app)
 {
   QWidget* inner_grid = app->find_widget("InnerGrid");
-  g_return_val_if_fail(inner_grid != nullptr, nullptr);
+  return_val_if_fail(inner_grid != nullptr, nullptr);
 
   QGridLayout* layout = qobject_cast<QGridLayout*>(inner_grid->layout());
-  g_return_val_if_fail(layout != nullptr, nullptr);
+  return_val_if_fail(layout != nullptr, nullptr);
   return layout;
 }
 
 void insert_grid_row(QGridLayout* layout, int insert_row)
 {
-  g_return_if_fail(layout != nullptr);
+  return_if_fail(layout != nullptr);
 
   struct Placement {
     QWidget* widget;
@@ -100,20 +100,20 @@ void insert_grid_row(QGridLayout* layout, int insert_row)
 void application::startup(Application *gtk_app, void* user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
-  g_return_if_fail(ezgl_app != nullptr);
+  return_if_fail(ezgl_app != nullptr);
 
   for(auto &c_pair : ezgl_app->m_canvases) {
     QWidget *drawing_area = ezgl_app->find_widget(c_pair.second->id());
     c_pair.second->initialize(drawing_area);
   }
 
-  g_info("application::startup successful.");
+  q_info("application::startup successful.");
 }
 
 void application::activate(Application*, void* user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
-  g_return_if_fail(ezgl_app != nullptr);
+  return_if_fail(ezgl_app != nullptr);
 
 #ifdef EZGL_RHI
   for (auto &c_pair : ezgl_app->m_canvases)
@@ -142,7 +142,7 @@ void application::activate(Application*, void* user_data)
     c_pair.second->end_deferred_redraw_cycle();
 #endif
 
-  g_info("application::activate successful.");
+  q_info("application::activate successful.");
 }
 
 application::application(application::settings s, int& argc, char** argv)
@@ -171,7 +171,7 @@ application::application(application::settings s, int& argc, char** argv)
 
 application::~application()
 {
-  g_debug("application::~application");
+  q_debug("application::~application");
   // Do NOT delete m_application here.  ezgl::application is typically a
   // file-scope static, so its destructor runs during static teardown.
   // Deleting QApplication at that point crashes because Qt's own internal
@@ -187,7 +187,7 @@ canvas *application::get_canvas(const std::string &canvas_id) const
     return it->second.get();
   }
 
-  g_warning("Could not find canvas with name %s.", canvas_id.c_str());
+  q_warning("Could not find canvas with name %s.", canvas_id.c_str());
   return nullptr;
 }
 
@@ -198,7 +198,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
 {
   if(draw_callback == nullptr) {
     // A NULL draw callback means the canvas will never render anything to the screen.
-    g_warning("Canvas %s's draw callback is NULL.", canvas_id.c_str());
+    q_warning("Canvas %s's draw callback is NULL.", canvas_id.c_str());
   }
 
   // Can't use make_unique with protected constructor without fancy code that will confuse students, so we use new
@@ -208,9 +208,9 @@ canvas *application::add_canvas(std::string const &canvas_id,
 
   if(!it.second) {
     // std::map's emplace does not insert the value when the key is already present.
-    g_warning("Duplicate key (%s) ignored in application::add_canvas.", canvas_id.c_str());
+    q_warning("Duplicate key (%s) ignored in application::add_canvas.", canvas_id.c_str());
   } else {
-    g_info("The %s canvas has been added to the application.", canvas_id.c_str());
+    q_info("The %s canvas has been added to the application.", canvas_id.c_str());
   }
 
   return it.first->second.get();
@@ -225,49 +225,49 @@ QWidget *application::find_widget(char const *name) const
       break;
     }
   }
-  g_return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(found != nullptr, nullptr);
   return found;
 }
 
 QPushButton* application::find_push_button(const char *name) const
 {
   QPushButton* found = qobject_cast<QPushButton*>(find_widget(name));
-  g_return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(found != nullptr, nullptr);
   return found;
 }
 
 QLineEdit* application::find_line_edit(const char *name) const
 {
   QLineEdit* found = qobject_cast<QLineEdit*>(find_widget(name));
-  g_return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(found != nullptr, nullptr);
   return found;
 }
 
 QComboBox* application::find_combo_box(const char *name) const
 {
   QComboBox* found = qobject_cast<QComboBox*>(find_widget(name));
-  g_return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(found != nullptr, nullptr);
   return found;
 }
 
 QSpinBox* application::find_spin_box(const char *name) const
 {
   QSpinBox* found = qobject_cast<QSpinBox*>(find_widget(name));
-  g_return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(found != nullptr, nullptr);
   return found;
 }
 
 QCheckBox* application::find_check_box(const char *name) const
 {
   QCheckBox* found = qobject_cast<QCheckBox*>(find_widget(name));
-  g_return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(found != nullptr, nullptr);
   return found;
 }
 
 SwitchButton* application::find_switch_button(const char *name) const
 {
   SwitchButton* found = qobject_cast<SwitchButton*>(find_widget(name));
-  g_return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(found != nullptr, nullptr);
   return found;
 }
 
@@ -299,7 +299,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     startup(nullptr, this);
     activate(nullptr, this);
     first_run = false;
-    g_info("The event loop is now starting.");
+    q_info("The event loop is now starting.");
     return m_application->exec();
   } else {
     // Subsequent stage: reuse the existing window.
@@ -316,7 +316,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
       c_pair.second->end_deferred_redraw_cycle();
 #endif
     resume_run = true;
-    g_info("The event loop is now resuming.");
+    q_info("The event loop is now resuming.");
     return m_application->exec();
   }
 }

@@ -77,7 +77,7 @@ void box_pack_start(QBoxLayout* box,
 
 } // namespace ezgl
 
-#define g_return_val_if_fail(expr, val)      \
+#define return_val_if_fail(expr, val)      \
 do {                                         \
       if (!(expr)) {                         \
         std::cerr << "CRITICAL: '" \
@@ -88,7 +88,7 @@ do {                                         \
   }                                          \
 } while (0)
 
-#define g_return_if_fail(expr)               \
+#define return_if_fail(expr)               \
 do {                                         \
       if (!(expr)) {                         \
         std::cerr << "CRITICAL: '" \
@@ -115,17 +115,16 @@ constexpr const char* __filename_helper(const char* path)
 
 #define __FILENAME__ (__filename_helper(__FILE__))
 
-// Macros similar to g_info / g_warning
-#define g_info(fmt, ...)    \
+#define q_info(fmt, ...)    \
   log_message("INFO",    __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
 
-#define g_warning(fmt, ...) \
+#define q_warning(fmt, ...) \
   log_message("WARNING", __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
 
-#define g_error(fmt, ...) \
+#define q_error(fmt, ...) \
   log_message("ERROR", __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
 
-#define g_debug(fmt, ...) \
+#define q_debug(fmt, ...) \
   log_message("DEBUG", __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
 
 #endif // EZGL_QTCOMPAT_HPP

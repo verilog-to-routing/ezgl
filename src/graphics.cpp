@@ -350,7 +350,7 @@ void renderer::set_text_rotation(double degrees)
     rotation_angle = -degrees * std::numbers::pi / 180;
   }
   else {
-    g_warning("set_text_rotation: bad rotation angle of %f. Ignored!", degrees);
+    q_warning("set_text_rotation: bad rotation angle of %f. Ignored!", degrees);
   }
 }
 
@@ -786,7 +786,7 @@ void renderer::draw_surface(surface *p_surface, point2d point, double scale_fact
     return;
 
   if (p_surface->isNull()) {
-    g_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", (void*) p_surface);
+    q_warning("renderer::draw_surface: Error drawing surface at address %p; surface is not valid.", (void*) p_surface);
     return;
   }
 
@@ -850,11 +850,11 @@ surface *renderer::load_png(const char *file_path)
   QImage* image = new QImage;
 
   if (!QFile::exists(QString::fromLatin1(file_path))) {
-    g_warning("renderer::load_png: File %s not found.", file_path);
+    q_warning("renderer::load_png: File %s not found.", file_path);
   }
 
   if (!image->load(QString::fromLatin1(file_path))) {
-    g_warning("renderer::load_png: Error loading file %s.", file_path);
+    q_warning("renderer::load_png: Error loading file %s.", file_path);
   }
 
   return image;

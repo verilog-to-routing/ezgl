@@ -1109,7 +1109,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         + visible_dashed_line_buffer_sets
         + shared_render_buffer_objects;
 
-    g_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, mvp_only=%d, "
+    q_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, mvp_only=%d, "
             "styles(thin=%zu fill_rect=%zu fill_poly=%zu thick=%zu dashed=%zu), "
             "chunks(total=%zu visible=%zu thin=%zu/%zu fill_rect=%zu/%zu fill_poly=%zu/%zu thick=%zu/%zu dashed=%zu/%zu), "
             "prims(thin_verts=%llu fill_rects=%llu fill_poly_verts=%llu thick_lines=%llu dashed_lines=%llu), "

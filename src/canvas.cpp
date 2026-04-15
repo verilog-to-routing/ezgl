@@ -218,8 +218,8 @@ int canvas::height() const
 
 void canvas::initialize(QWidget *drawing_area)
 {
-  g_debug("~~~ canvas::initialize");
-  g_return_if_fail(drawing_area != nullptr);
+  q_debug("~~~ canvas::initialize");
+  return_if_fail(drawing_area != nullptr);
 
   m_drawing_area = drawing_area;
 
@@ -230,7 +230,7 @@ void canvas::initialize(QWidget *drawing_area)
 
     // Connect renderFailed → fall back to the QPainter path.
     QObject::connect(rw, &QRhiWidget::renderFailed, [this]() {
-      g_warning("RHI render failed — falling back to deferred_renderer (QPainter).");
+      q_warning("RHI render failed — falling back to deferred_renderer (QPainter).");
       m_rhi_widget   = nullptr;
       m_rhi_renderer.reset();
     });
@@ -261,7 +261,7 @@ void canvas::initialize(QWidget *drawing_area)
     if (rw->width() > 0 && rw->height() > 0) {
       m_camera.update_widget(rw->width(), rw->height());
     }
-    g_info("canvas::initialize using RHI path.");
+    q_info("canvas::initialize using RHI path.");
     return;
   }
 #endif // EZGL_RHI
@@ -304,7 +304,7 @@ void canvas::initialize(QWidget *drawing_area)
     });
   }
 
-  g_info("canvas::initialize successful.");
+  q_info("canvas::initialize successful.");
 }
 
 void canvas::redraw()
@@ -336,7 +336,7 @@ void canvas::redraw()
     m_rhi_pending_redraw = false;
     m_rhi_pending_camera_only = false;
     m_rhi_has_drawn_frame = true;
-    g_info("The canvas will be redrawn (RHI path).");
+    q_info("The canvas will be redrawn (RHI path).");
     return;
   }
 #endif // EZGL_RHI
@@ -354,7 +354,7 @@ void canvas::redraw()
 
   m_drawing_area->update();
 
-  g_info("The canvas will be redrawn.");
+  q_info("The canvas will be redrawn.");
 }
 
 void canvas::redraw_camera_only()
@@ -367,7 +367,7 @@ void canvas::redraw_camera_only()
     m_rhi_pending_redraw = false;
     m_rhi_pending_camera_only = false;
     m_rhi_has_drawn_frame = true;
-    g_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
+    q_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
     return;
   }
 #endif
