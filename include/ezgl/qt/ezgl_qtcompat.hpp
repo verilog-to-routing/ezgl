@@ -77,12 +77,6 @@ void box_pack_start(QBoxLayout* box,
 
 } // namespace ezgl
 
-enum {
-  RESPONSE_REJECT       = -2,
-  RESPONSE_ACCEPT       = -3,
-  RESPONSE_DELETE_EVENT = -4,
-};
-
 #define g_return_val_if_fail(expr, val)      \
 do {                                         \
       if (!(expr)) {                         \
