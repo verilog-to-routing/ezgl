@@ -11,6 +11,7 @@
 #include <QShowEvent>
 #include <QStyleFactory>
 #include <QLabel>
+#include <QLayout>
 
 // Application
 Application::Application(int& argc, char** argv): QApplication(argc, argv) {
