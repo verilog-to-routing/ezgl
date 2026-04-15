@@ -27,6 +27,7 @@
 #include <QApplication>
 #include <QGridLayout>
 #include <QLabel>
+#include <QPushButton>
 #include <QLineEdit>
 #include <QComboBox>
 #include <QSpinBox>
@@ -34,6 +35,7 @@
 #include <QVBoxLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QStatusBar>
 
 namespace ezgl {
 

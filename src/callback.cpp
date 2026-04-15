@@ -20,6 +20,9 @@
 #include "ezgl/qt/switchbutton.hpp"
 #include "ezgl/qt/qtutils.hpp"
 
+#include <QMouseEvent>
+#include <QWheelEvent>
+
 namespace ezgl {
 
 /**

@@ -5,6 +5,7 @@
 #endif
 #include <ezgl/callback.hpp>
 
+#include <QWindow>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QLabel>
