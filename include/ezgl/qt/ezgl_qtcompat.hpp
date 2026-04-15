@@ -49,6 +49,8 @@ private:
 
 namespace ezgl {
 
+QWidget* grid_new();
+
 void center_window(QWidget* w);
 
 void widget_set_margin_start(QWidget*, int);

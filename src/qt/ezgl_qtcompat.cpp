@@ -73,6 +73,13 @@ bool Application::notify(QObject* obj, QEvent* event) {
 
 namespace ezgl {
 
+QWidget* grid_new()
+{
+  QWidget* w = new QWidget;
+  w->setLayout(new QGridLayout);
+  return w;
+}
+
 static QScreen* screen_for_widget(QWidget* w)
 {
   if (!w)
