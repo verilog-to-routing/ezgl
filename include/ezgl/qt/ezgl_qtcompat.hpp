@@ -20,6 +20,8 @@
 #include <QMouseEvent>
 #include <QResizeEvent>
 
+class QGridLayout;
+
 namespace ezgl {
 class application;
 }
@@ -50,6 +52,12 @@ private:
 namespace ezgl {
 
 QWidget* grid_new();
+
+QGridLayout* get_grid_layout(QWidget* grid_container);
+
+QWidget* grid_get_child_at(QWidget* grid_container, int col, int row);
+
+void grid_attach(QWidget* grid_container, QWidget* child, int col, int row, int w, int h);
 
 void center_window(QWidget* w);
 

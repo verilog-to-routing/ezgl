@@ -12,6 +12,7 @@
 #include <QStyleFactory>
 #include <QLabel>
 #include <QLayout>
+#include <QGridLayout>
 
 // Application
 Application::Application(int& argc, char** argv): QApplication(argc, argv) {
@@ -78,6 +79,44 @@ QWidget* grid_new()
   QWidget* w = new QWidget;
   w->setLayout(new QGridLayout);
   return w;
+}
+
+QGridLayout* get_grid_layout(QWidget* grid_container)
+{
+  if (!grid_container) {
+    return nullptr;
+  }
+
+  return qobject_cast<QGridLayout*>(grid_container->layout());
+}
+
+QWidget* grid_get_child_at(QWidget* grid_container, int col, int row)
+{
+  QGridLayout* grid_layout = get_grid_layout(grid_container);
+  if (!grid_layout) {
+    return nullptr;
+  }
+
+  for (int i = 0; i < grid_layout->count(); ++i) {
+    int r, c, rs, cs;
+    grid_layout->getItemPosition(i, &r, &c, &rs, &cs);
+
+    if (r == row && c == col) {
+      if (auto item = grid_layout->itemAt(i)) {
+        return item->widget();
+      }
+    }
+  }
+  return nullptr;
+}
+
+void grid_attach(QWidget* grid_container, QWidget* child, int col, int row, int w, int h)
+{
+  QGridLayout* grid_layout = get_grid_layout(grid_container);
+  if (!grid_layout) {
+    return;
+  }
+  grid_layout->addWidget(child, row, col, h, w);
 }
 
 static QScreen* screen_for_widget(QWidget* w)
