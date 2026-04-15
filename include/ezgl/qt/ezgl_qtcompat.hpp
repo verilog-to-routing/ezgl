@@ -57,6 +57,7 @@ void widget_set_margin_top(QWidget*, int);
 void widget_set_margin_bottom(QWidget*, int);
 
 QList<QWidget*> widget_get_direct_children(QWidget* container);
+void widget_set_halign(QWidget* w, Qt::AlignmentFlag flag);
 
 }
 

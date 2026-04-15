@@ -10,6 +10,7 @@
 #include <QKeyEvent>
 #include <QShowEvent>
 #include <QStyleFactory>
+#include <QLabel>
 
 // Application
 Application::Application(int& argc, char** argv): QApplication(argc, argv) {
@@ -168,6 +169,15 @@ QList<QWidget*> widget_get_direct_children(QWidget* container)
       QString(),
       Qt::FindDirectChildrenOnly
       );
+}
+
+void widget_set_halign(QWidget* w, Qt::AlignmentFlag flag)
+{
+  if (auto* label = qobject_cast<QLabel*>(w)) {
+    label->setAlignment((label->alignment() & ~Qt::AlignHorizontal_Mask) | flag);
+  } else if (w->parentWidget() && w->parentWidget()->layout()) {
+    w->parentWidget()->layout()->setAlignment(w, flag);
+  }
 }
 
 }
