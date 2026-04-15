@@ -14,9 +14,6 @@
 // Application
 Application::Application(int& argc, char** argv): QApplication(argc, argv) {
   qInfo() << "Application()";
-  // Use Fusion style for consistent disabled-widget rendering across platforms.
-  // System styles (gtk2, breeze) often don't visually distinguish disabled widgets.
-  setStyle(QStyleFactory::create("Fusion"));
 }
 
 Application::~Application() {
@@ -71,6 +68,110 @@ bool Application::notify(QObject* obj, QEvent* event) {
 
     return QApplication::notify(obj, event);
 }
+
+namespace ezgl {
+
+static QScreen* screen_for_widget(QWidget* w)
+{
+  if (!w)
+    return QGuiApplication::primaryScreen();
+
+  // If the widget already has a native window handle, use its actual screen.
+  if (w->windowHandle() && w->windowHandle()->screen())
+    return w->windowHandle()->screen();
+
+  // Fallback: use the widget's associated screen if available.
+  if (w->screen())
+    return w->screen();
+
+  return QGuiApplication::primaryScreen();
+}
+
+void center_window(QWidget* window)
+{
+  if (!window)
+    return;
+
+  // Important: before show(), size may not be final yet.
+  // adjustSize() makes layout-based widgets get a sensible size.
+  if (!window->isVisible() && !window->testAttribute(Qt::WA_Resized))
+    window->adjustSize();
+
+  QScreen* screen = screen_for_widget(window);
+  if (!screen)
+    return;
+
+  // availableGeometry() excludes taskbars / system UI.
+  const QRect avail = screen->availableGeometry();
+
+  // frameGeometry() is better than width()/height() because it includes
+  // the outer window frame for top-level widgets.
+  QRect frame = window->frameGeometry();
+
+  // If the frame size is still empty, fall back to sizeHint().
+  if (frame.size().isEmpty()) {
+    const QSize sz = window->sizeHint().isValid() ? window->sizeHint() : QSize(400, 300);
+    frame.setSize(sz);
+  }
+
+  frame.moveCenter(avail.center());
+  window->move(frame.topLeft());
+}
+
+void widget_set_margin_start(QWidget* w, int m)
+{
+  if (!w) {
+    return;
+  }
+
+  QMargins margins = w->contentsMargins();
+  margins.setLeft(m);
+  w->setContentsMargins(margins);
+}
+
+void widget_set_margin_end(QWidget* w, int m)
+{
+  if (!w) {
+    return;
+  }
+
+  QMargins margins = w->contentsMargins();
+  margins.setRight(m);
+  w->setContentsMargins(margins);
+}
+
+void widget_set_margin_top(QWidget* w, int m)
+{
+  if (!w) {
+    return;
+  }
+
+  QMargins margins = w->contentsMargins();
+  margins.setTop(m);
+  w->setContentsMargins(margins);
+}
+
+void widget_set_margin_bottom(QWidget* w, int m)
+{
+  if (!w) {
+    return;
+  }
+
+  QMargins margins = w->contentsMargins();
+  margins.setBottom(m);
+  w->setContentsMargins(margins);
+}
+
+QList<QWidget*> widget_get_direct_children(QWidget* container)
+{
+  return container->findChildren<QWidget*>(
+      QString(),
+      Qt::FindDirectChildrenOnly
+      );
+}
+
+}
+
 
 // Core logging function (printf-style)
 void log_message(const char* level,

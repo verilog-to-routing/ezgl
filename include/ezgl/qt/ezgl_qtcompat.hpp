@@ -47,6 +47,19 @@ private:
 #define Q_BUTTON(w) qobject_cast<QAbstractButton*>(w)
 #define Q_LINEEDIT(w) qobject_cast<QLineEdit*>(w)
 
+namespace ezgl {
+
+void center_window(QWidget* w);
+
+void widget_set_margin_start(QWidget*, int);
+void widget_set_margin_end(QWidget*, int);
+void widget_set_margin_top(QWidget*, int);
+void widget_set_margin_bottom(QWidget*, int);
+
+QList<QWidget*> widget_get_direct_children(QWidget* container);
+
+}
+
 enum {
   RESPONSE_REJECT       = -2,
   RESPONSE_ACCEPT       = -3,
