@@ -4,7 +4,6 @@
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
-#include <functional>
 #include <iostream>
 
 #include <QObject>
@@ -21,6 +20,7 @@
 #include <QResizeEvent>
 
 class QGridLayout;
+class QBoxLayout;
 
 namespace ezgl {
 class application;
@@ -68,6 +68,12 @@ void widget_set_margin_bottom(QWidget*, int);
 
 QList<QWidget*> widget_get_direct_children(QWidget* container);
 void widget_set_halign(QWidget* w, Qt::AlignmentFlag flag);
+
+void box_pack_start(QBoxLayout* box,
+    QWidget* widget,
+    bool expand,
+    bool fill,
+    int padding);
 
 }
 
