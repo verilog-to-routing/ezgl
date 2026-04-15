@@ -624,14 +624,11 @@ void create_mssg_button_cbk(QWidget* /*widget*/, ezgl::application* app){
 void dialog_cbk(QDialog* self, int response_id, ezgl::application* app){
   //Response_id is an integer/enumeration, so we can use a switch to read its value and act accordingly
   switch(response_id){
-    case RESPONSE_ACCEPT:
+    case QDialog::Accepted:
       app->update_message("USER ACCEPTED");
       break;
-    case RESPONSE_REJECT:
+    case QDialog::Rejected:
       app->update_message("USER REJECTED");
-      break;
-    case RESPONSE_DELETE_EVENT:
-      app->update_message("USER CLOSED WINDOW");
       break;
     default:
       app->update_message("YOU SHOULD NOT SEE THIS");

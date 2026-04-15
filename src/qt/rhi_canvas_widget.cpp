@@ -1,6 +1,7 @@
 #ifdef EZGL_RHI
 
 #include "ezgl/qt/rhi_canvas_widget.hpp"
+#include "ezgl/loghelper.hpp"
 
 #include <algorithm>
 #include <rhi/qrhi.h>
@@ -14,7 +15,6 @@
 #include <cstring>
 #include <limits>
 
-#include "ezgl/qt/ezgl_qtcompat.hpp"
 
 // Q_INIT_RESOURCE must be called at global scope (not inside a namespace).
 // For static libraries, Qt resources are not automatically registered, so

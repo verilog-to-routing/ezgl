@@ -6,6 +6,7 @@
 #include <QtGlobal>
 
 #include <algorithm>
+#include <iostream>
 #include <cmath>
 #include <cstdint>
 #include <limits>

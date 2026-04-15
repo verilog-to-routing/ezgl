@@ -21,7 +21,8 @@
 #include <cassert>
 
 #include <QFile>
-#include "ezgl/qt/ezgl_qtcompat.hpp"
+
+#include "ezgl/loghelper.hpp"
 #include "ezgl/qt/painter.hpp"
 
 #include <numbers>

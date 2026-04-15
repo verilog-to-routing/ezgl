@@ -25,7 +25,7 @@
 #include <QPdfWriter>
 #include <QPageSize>
 #include <QSvgGenerator>
-#include "ezgl/qt/ezgl_qtcompat.hpp"
+#include "ezgl/loghelper.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
 #ifdef EZGL_RHI

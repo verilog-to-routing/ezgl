@@ -20,6 +20,9 @@
 #include "ezgl/application.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 
+#include "ezgl/qt/qtgladeloader.hpp"
+#include "ezgl/loghelper.hpp"
+
 #include <QObject>
 #include <QApplication>
 #include <QGridLayout>
@@ -31,8 +34,6 @@
 #include <QVBoxLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
-
-#include "ezgl/qt/qtgladeloader.hpp"
 
 namespace ezgl {
 
