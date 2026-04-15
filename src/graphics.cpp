@@ -22,7 +22,7 @@
 
 #include <QFile>
 
-#include "ezgl/loghelper.hpp"
+#include "ezgl/logutils.hpp"
 #include "ezgl/qt/painter.hpp"
 
 #include <numbers>

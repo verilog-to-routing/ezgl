@@ -1,7 +1,7 @@
 #ifdef EZGL_RHI
 
 #include "ezgl/qt/rhi_canvas_widget.hpp"
-#include "ezgl/loghelper.hpp"
+#include "ezgl/logutils.hpp"
 
 #include <algorithm>
 #include <rhi/qrhi.h>

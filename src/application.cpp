@@ -21,7 +21,7 @@
 #include "ezgl/qt/switchbutton.hpp"
 
 #include "ezgl/qt/qtgladeloader.hpp"
-#include "ezgl/loghelper.hpp"
+#include "ezgl/logutils.hpp"
 
 #include <QObject>
 #include <QApplication>
