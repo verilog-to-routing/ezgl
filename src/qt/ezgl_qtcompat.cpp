@@ -251,7 +251,20 @@ void box_pack_start(QBoxLayout* box,
   }
 }
 
+QWidget* dialog_get_content_area(QWidget* dialog)
+{
+  if (!dialog) return nullptr;
+
+  if (!dialog->layout()) {
+    auto* layout = new QVBoxLayout(dialog);
+    layout->setContentsMargins(0,0,0,0);
+    layout->setSpacing(0);
+  }
+
+  return dialog;
 }
+
+} // ezgl namespace
 
 
 // Core logging function (printf-style)

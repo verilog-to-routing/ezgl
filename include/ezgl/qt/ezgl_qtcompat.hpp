@@ -75,7 +75,9 @@ void box_pack_start(QBoxLayout* box,
     bool fill,
     int padding);
 
-}
+QWidget* dialog_get_content_area(QWidget* dialog);
+
+} // namespace ezgl
 
 enum {
   RESPONSE_REJECT       = -2,
