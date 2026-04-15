@@ -27,7 +27,7 @@
 
 #include <iostream>
 
-#include "qt/ezgl_qtcompat.hpp"
+#include "qt/qtutils.hpp"
 #define PANNING_MOUSE_BUTTON Qt::LeftButton
 
 namespace ezgl {

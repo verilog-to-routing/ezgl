@@ -18,7 +18,7 @@
 
 #include "ezgl/callback.hpp"
 #include "ezgl/qt/switchbutton.hpp"
-#include "ezgl/qt/ezgl_qtcompat.hpp"
+#include "ezgl/qt/qtutils.hpp"
 
 namespace ezgl {
 

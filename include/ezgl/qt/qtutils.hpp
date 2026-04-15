@@ -1,5 +1,5 @@
-#ifndef EZGL_QTCOMPAT_HPP
-#define EZGL_QTCOMPAT_HPP
+#ifndef EZGL_QTUTILS_HPP
+#define EZGL_QTUTILS_HPP
 
 #include <QApplication>
 #include <QWidget>
@@ -64,4 +64,4 @@ void box_pack_start(QBoxLayout* box,
 
 } // namespace ezgl
 
-#endif // EZGL_QTCOMPAT_HPP
+#endif // EZGL_QTUTILS_HPP

@@ -72,7 +72,7 @@ add_library(
   include/ezgl/graphics.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
-  include/ezgl/qt/ezgl_qtcompat.hpp
+  include/ezgl/qt/qtutils.hpp
   include/ezgl/qt/qtgladeloader.hpp
   include/ezgl/qt/switchbutton.hpp
   include/ezgl/qt/drawingareawidget.hpp
@@ -85,7 +85,7 @@ add_library(
   src/callback.cpp
   src/graphics.cpp
 
-  src/qt/ezgl_qtcompat.cpp
+  src/qt/qtutils.cpp
   src/qt/qtgladeloader.cpp
   src/qt/switchbutton.cpp
   src/qt/drawingareawidget.cpp

@@ -24,7 +24,7 @@
 #include "ezgl/graphics.hpp"
 #include "ezgl/color.hpp"
 
-#include "ezgl/qt/ezgl_qtcompat.hpp"
+#include "ezgl/qt/qtutils.hpp"
 #ifdef EZGL_RHI
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 #endif
