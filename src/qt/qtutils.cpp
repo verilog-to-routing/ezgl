@@ -100,7 +100,7 @@ QWidget* grid_get_child_at(QWidget* grid_container, int col, int row)
     grid_layout->getItemPosition(i, &r, &c, &rs, &cs);
 
     if (r == row && c == col) {
-      if (auto item = grid_layout->itemAt(i)) {
+      if (auto* item = grid_layout->itemAt(i)) {
         return item->widget();
       }
     }

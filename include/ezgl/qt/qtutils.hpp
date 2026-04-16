@@ -6,9 +6,9 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QLineEdit>
+#include <QGridLayout>
 #include <QWidget>
 
-class QGridLayout;
 class QBoxLayout;
 
 namespace ezgl {
@@ -40,6 +40,11 @@ QWidget* grid_new();
 QGridLayout* get_grid_layout(QWidget* grid_container);
 
 QWidget* grid_get_child_at(QWidget* grid_container, int col, int row);
+
+template<typename T>
+inline T* grid_get_child_at(QWidget* grid_container, int col, int row) {
+    return qobject_cast<T*>(grid_get_child_at(grid_container, col, row));
+}
 
 void grid_attach(QWidget* grid_container, QWidget* child, int col, int row, int w, int h);
 
