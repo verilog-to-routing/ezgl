@@ -22,9 +22,15 @@
 
 #include "ezgl/qt/qtgladeloader.hpp"
 #include "ezgl/logutils.hpp"
+#include <ezgl/qt/drawingareawidget.hpp>
+#ifdef EZGL_RHI
+#include <ezgl/qt/rhi_canvas_widget.hpp>
+#endif
 
 #include <QObject>
 #include <QApplication>
+#include <QMouseEvent>
+#include <QKeyEvent>
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -100,7 +106,7 @@ void insert_grid_row(QGridLayout* layout, int insert_row)
 
 } // namespace
 
-void application::startup(Application *gtk_app, void* user_data)
+void application::startup(void* user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   return_if_fail(ezgl_app != nullptr);
@@ -113,7 +119,7 @@ void application::startup(Application *gtk_app, void* user_data)
   q_info("application::startup successful.");
 }
 
-void application::activate(Application*, void* user_data)
+void application::activate(void* user_data)
 {
   auto ezgl_app = static_cast<application *>(user_data);
   return_if_fail(ezgl_app != nullptr);
@@ -149,19 +155,18 @@ void application::activate(Application*, void* user_data)
 }
 
 application::application(application::settings s, int& argc, char** argv)
-    : m_main_ui(s.main_ui_resource)
+    : QApplication(argc, argv)
+    , m_main_ui(s.main_ui_resource)
     , m_window_id(s.window_identifier)
     , m_canvas_id(s.canvas_identifier)
     , m_application_id(s.application_identifier)
-    , m_application(new Application(argc, argv))
 {
   // we moved this to run method
 
-  m_application->setApplicationName(s.application_identifier.c_str());
-  m_application->setApp(this);
-  
-  qInfo() << m_application->applicationName();
-  qInfo() << m_application->arguments();
+  setApplicationName(s.application_identifier.c_str());
+
+  qInfo() << applicationName();
+  qInfo() << arguments();
   // NOTE: do NOT load the UI file here. This constructor runs as a static
   // initializer (before main()), so Qt resources registered by the
   // application's .qrc file are not yet available.  Loading is deferred to
@@ -175,12 +180,46 @@ application::application(application::settings s, int& argc, char** argv)
 application::~application()
 {
   q_debug("application::~application");
-  // Do NOT delete m_application here.  ezgl::application is typically a
-  // file-scope static, so its destructor runs during static teardown.
-  // Deleting QApplication at that point crashes because Qt's own internal
-  // statics (font cache, style engine, etc.) may already be destroyed.
-  // The process is exiting; the OS reclaims the memory.
-  m_application->quit();
+  quit();
+}
+
+bool application::notify(QObject* obj, QEvent* event)
+{
+    QWidget* w = qobject_cast<ezgl::DrawingAreaWidget*>(obj);
+#ifdef EZGL_RHI
+    if (!w)
+        w = qobject_cast<ezgl::RhiCanvasWidget*>(obj);
+#endif
+    if (!w) {
+        return QApplication::notify(obj, event);
+    }
+
+    bool consumed = false;
+
+    switch (event->type()) {
+    case QEvent::KeyPress:
+        consumed = press_key(w, static_cast<QKeyEvent*>(event), this);
+        break;
+    case QEvent::MouseButtonPress:
+        consumed = press_mouse(w, static_cast<QMouseEvent*>(event), this);
+        break;
+    case QEvent::MouseButtonRelease:
+        consumed = release_mouse(w, static_cast<QMouseEvent*>(event), this);
+        break;
+    case QEvent::MouseMove:
+        consumed = move_mouse(w, static_cast<QMouseEvent*>(event), this);
+        break;
+    case QEvent::Wheel:
+        consumed = scroll_mouse(w, static_cast<QWheelEvent*>(event), this);
+        break;
+    default:
+        break;
+    }
+
+    if (consumed) {
+        return true;
+    }
+    return QApplication::notify(obj, event);
 }
 
 canvas *application::get_canvas(const std::string &canvas_id) const
@@ -299,11 +338,11 @@ int application::run(setup_callback_fn initial_setup_user_callback,
       QtGladeLoader uiLoader;
       m_window = uiLoader.loadFile(QString::fromStdString(m_main_ui));
     }
-    startup(nullptr, this);
-    activate(nullptr, this);
+    startup(this);
+    activate(this);
     first_run = false;
     q_info("The event loop is now starting.");
-    return m_application->exec();
+    return exec();
   } else {
     // Subsequent stage: reuse the existing window.
     // activate() is NOT called again to avoid double-registering callbacks.
@@ -320,7 +359,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
 #endif
     resume_run = true;
     q_info("The event loop is now resuming.");
-    return m_application->exec();
+    return exec();
   }
 }
 
@@ -331,7 +370,7 @@ void application::quit()
     qApp->exec();
   } else {
     // Quit the GTK application (exit g_application_run())
-    m_application->exit(0);
+    exit(0);
   }
 }
 
@@ -378,8 +417,8 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
     // across stages (m_window->show() in subsequent run() calls).
     window->setAttribute(Qt::WA_DeleteOnClose, false);
 
-    QObject::connect(application->m_application, &QApplication::lastWindowClosed,
-                     application->m_application, [application](){
+    QObject::connect(application, &QApplication::lastWindowClosed,
+                     application, [application](){
       press_proceed(nullptr, application);
     });
   }

@@ -1,31 +1,11 @@
 #ifndef EZGL_QTUTILS_HPP
 #define EZGL_QTUTILS_HPP
 
-#include <QApplication>
+#include <QList>
 
 class QWidget;
 class QBoxLayout;
 class QGridLayout;
-
-namespace ezgl {
-class application;
-}
-
-class Application final : public QApplication {
-public:
-[[deprecated("unite with ezgl::application")]]
-  Application(int& argc, char** argv);
-  virtual ~Application();
-
-  void setApp(ezgl::application* app);
-
-protected:
-  // bool eventFilter(QObject* obj, QEvent* event) override final;
-  bool notify(QObject* receiver, QEvent* event) override final;
-
-private:
-  ezgl::application* m_app{nullptr};
-};
 
 namespace ezgl {
 

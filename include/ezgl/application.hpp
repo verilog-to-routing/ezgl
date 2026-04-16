@@ -27,6 +27,8 @@
 #include "ezgl/color.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 
+#include <QApplication>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -98,7 +100,8 @@ using dialog_callback_fn = void (*)(QDialog* self, int response_id, application*
  * application object, but only after the object has been initialized by GTK via application::run.
  * application is a singleton class: only create one.
  */
-class application {
+class application : public QApplication {
+  Q_OBJECT
 public:
   /**
    * Configuration settings for the application.
@@ -548,6 +551,9 @@ public:
    */
   void quit();
 
+protected:
+  bool notify(QObject* receiver, QEvent* event) override;
+
 private:
   // The package path to the XML file that describes the UI.
   std::string m_main_ui;
@@ -560,9 +566,6 @@ private:
 
   // The ID of the GTK application
   std::string m_application_id;
-
-  // The application.
-  Application *m_application;
 
   QWidget* m_window{nullptr};
 
@@ -580,10 +583,10 @@ private:
 
 private:
   // Called when our GtkApplication is initialized for the first time.
-  static void startup(Application *app, void* user_data);
+  static void startup(void* user_data);
 
   // Called when GTK activates our application for the first time.
-  static void activate(Application *app, void* user_data);
+  static void activate(void* user_data);
 
   // Called during application activation to setup the default callbacks for the prebuilt buttons
   static void register_default_buttons_callbacks(application *application);
