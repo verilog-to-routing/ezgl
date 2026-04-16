@@ -4,8 +4,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <iomanip>
 #include <iostream>
 #include <source_location>
+#include <sstream>
 #include <string_view>
 
 // These two must remain macros:
@@ -99,6 +101,77 @@ inline void q_debug(detail::log_fmt f, ...) {
     log_message_v("DEBUG", detail::filename(f.loc.file_name()).data(),
                   static_cast<int>(f.loc.line()), f.str, ap);
     va_end(ap);
+}
+
+// ---------------------------------------------------------------------------
+// Stream-based logging — use when building the message with << is cleaner
+// than a printf format string.
+//
+// Usage:
+//   q_debug_stream() << "value=" << x << " other=" << y;
+//
+// The message is flushed (via log_message) when the temporary is destroyed
+// at the end of the full expression.
+// ---------------------------------------------------------------------------
+class log_stream {
+public:
+    log_stream(const char* level, const char* file, int line)
+        : level_(level), file_(file), line_(line) {}
+
+    log_stream(const log_stream&) = delete;
+    log_stream& operator=(const log_stream&) = delete;
+
+    log_stream(log_stream&& other) noexcept
+        : level_(other.level_), file_(other.file_), line_(other.line_),
+          oss_(std::move(other.oss_)), moved_(false)
+    {
+        other.moved_ = true;
+    }
+
+    ~log_stream() {
+        if (!moved_)
+            log_message(level_, file_, line_, "%s", oss_.str().c_str());
+    }
+
+    template<typename T>
+    log_stream& operator<<(const T& v) { oss_ << v; return *this; }
+
+    // Support stream manipulators: std::fixed, std::setprecision, etc.
+    log_stream& operator<<(std::ostream& (*manip)(std::ostream&)) {
+        manip(oss_);
+        return *this;
+    }
+
+private:
+    const char*        level_;
+    const char*        file_;
+    int                line_;
+    std::ostringstream oss_;
+    bool               moved_ = false;
+};
+
+inline log_stream q_info_stream(
+    std::source_location loc = std::source_location::current()) {
+    return log_stream("INFO", detail::filename(loc.file_name()).data(),
+                      static_cast<int>(loc.line()));
+}
+
+inline log_stream q_warning_stream(
+    std::source_location loc = std::source_location::current()) {
+    return log_stream("WARNING", detail::filename(loc.file_name()).data(),
+                      static_cast<int>(loc.line()));
+}
+
+inline log_stream q_error_stream(
+    std::source_location loc = std::source_location::current()) {
+    return log_stream("ERROR", detail::filename(loc.file_name()).data(),
+                      static_cast<int>(loc.line()));
+}
+
+inline log_stream q_debug_stream(
+    std::source_location loc = std::source_location::current()) {
+    return log_stream("DEBUG", detail::filename(loc.file_name()).data(),
+                      static_cast<int>(loc.line()));
 }
 
 } // namespace ezgl

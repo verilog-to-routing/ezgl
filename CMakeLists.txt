@@ -239,6 +239,9 @@ if(USE_QT)
             )
 
             target_compile_definitions(${PROJECT_NAME} PUBLIC EZGL_RHI)
+            target_compile_definitions(${PROJECT_NAME} PUBLIC
+                $<$<CONFIG:Debug>:EZGL_RENDERER_DEBUG>
+            )
 
             # Qt 6.7 ships QRhiWidget inside Qt6::Widgets (no extra module needed).
             # QRhi itself lives in Qt6::Gui — already linked above.

@@ -1092,6 +1092,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
 
     cb->endPass();
 
+#ifdef EZGL_RENDERER_DEBUG
     const auto frame_end = std::chrono::steady_clock::now();
     const double frame_ms = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
     const std::size_t visible_line_buffer_sets        = countVisibleBuffers(visible_line_buffer_mask);
@@ -1113,55 +1114,52 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         + visible_dashed_line_buffer_sets
         + shared_render_buffer_objects;
 
-    q_debug("RHI render() CPU time %.3f ms (update_geom %.3f ms) (frame_slot=%d, geom_dirty=%d, mvp_only=%d, "
-            "styles(thin=%zu fill_rect=%zu fill_poly=%zu thick=%zu dashed=%zu), "
-            "chunks(total=%zu visible=%zu thin=%zu/%zu fill_rect=%zu/%zu fill_poly=%zu/%zu thick=%zu/%zu dashed=%zu/%zu), "
-            "prims(thin_verts=%llu fill_rects=%llu fill_poly_verts=%llu thick_lines=%llu dashed_lines=%llu), "
-            "buffer_sets(total=%zu visible=%zu thin=%zu/%zu fill_rect=%zu/%zu fill_poly=%zu/%zu thick=%zu/%zu dashed=%zu/%zu), "
-            "buffer_objects(total=%zu visible=%zu shared=%zu))",
-            frame_ms,
-            bake_geom_ms,
-            frame_slot,
-            int(geom_dirty),
-            int(mvp_only_frame),
-            frame.gpu_scene.thin_lines.size(),
-            frame.gpu_scene.fill_rects.size(),
-            frame.gpu_scene.fill_polys.size(),
-            frame.gpu_scene.thick_lines.size(),
-            frame.gpu_scene.dashed_lines.size(),
-            considered_chunk_count,
-            visible_chunk_count,
-            countTotalChunks(frame.gpu_scene.thin_lines),
-            visible_line_chunks,
-            countTotalChunks(frame.gpu_scene.fill_rects),
-            visible_fill_rect_chunks,
-            countTotalChunks(frame.gpu_scene.fill_polys),
-            visible_fill_poly_chunks,
-            countTotalChunks(frame.gpu_scene.thick_lines),
-            visible_thick_line_chunks,
-            countTotalChunks(frame.gpu_scene.dashed_lines),
-            visible_dashed_line_chunks,
-            visible_line_verts,
-            visible_fill_rects,
-            visible_fill_poly_verts,
-            visible_thick_line_instances,
-            visible_dashed_line_instances,
-            total_stream_buffer_sets,
-            visible_stream_buffer_sets,
-            total_line_buffer_sets,
-            visible_line_buffer_sets,
-            total_fill_rect_buffer_sets,
-            visible_fill_rect_buffer_sets,
-            total_fill_poly_buffer_sets,
-            visible_fill_poly_buffer_sets,
-            total_thick_line_buffer_sets,
-            visible_thick_line_buffer_sets,
-            total_dashed_line_buffer_sets,
-            visible_dashed_line_buffer_sets,
-            total_render_buffer_objects,
-            visible_render_buffer_objects,
-            shared_render_buffer_objects);
+    q_debug_stream()
+        << std::fixed << std::setprecision(3)
+        << "RHI render() CPU time " << frame_ms << " ms"
+        << " (update_geom " << bake_geom_ms << " ms)"
+        << " (frame_slot=" << frame_slot
+        << ", geom_dirty=" << int(geom_dirty)
+        << ", mvp_only=" << int(mvp_only_frame) << ")"
+        << " styles("
+            << "thin=" << frame.gpu_scene.thin_lines.size()
+            << " fill_rect=" << frame.gpu_scene.fill_rects.size()
+            << " fill_poly=" << frame.gpu_scene.fill_polys.size()
+            << " thick=" << frame.gpu_scene.thick_lines.size()
+            << " dashed=" << frame.gpu_scene.dashed_lines.size()
+        << ")"
+        << " chunks("
+            << "total=" << considered_chunk_count
+            << " visible=" << visible_chunk_count
+            << " thin=" << countTotalChunks(frame.gpu_scene.thin_lines) << "/" << visible_line_chunks
+            << " fill_rect=" << countTotalChunks(frame.gpu_scene.fill_rects) << "/" << visible_fill_rect_chunks
+            << " fill_poly=" << countTotalChunks(frame.gpu_scene.fill_polys) << "/" << visible_fill_poly_chunks
+            << " thick=" << countTotalChunks(frame.gpu_scene.thick_lines) << "/" << visible_thick_line_chunks
+            << " dashed=" << countTotalChunks(frame.gpu_scene.dashed_lines) << "/" << visible_dashed_line_chunks
+        << ")"
+        << " prims("
+            << "thin_verts=" << visible_line_verts
+            << " fill_rects=" << visible_fill_rects
+            << " fill_poly_verts=" << visible_fill_poly_verts
+            << " thick_lines=" << visible_thick_line_instances
+            << " dashed_lines=" << visible_dashed_line_instances
+        << ")"
+        << " buffer_sets("
+            << "total=" << total_stream_buffer_sets
+            << " visible=" << visible_stream_buffer_sets
+            << " thin=" << total_line_buffer_sets << "/" << visible_line_buffer_sets
+            << " fill_rect=" << total_fill_rect_buffer_sets << "/" << visible_fill_rect_buffer_sets
+            << " fill_poly=" << total_fill_poly_buffer_sets << "/" << visible_fill_poly_buffer_sets
+            << " thick=" << total_thick_line_buffer_sets << "/" << visible_thick_line_buffer_sets
+            << " dashed=" << total_dashed_line_buffer_sets << "/" << visible_dashed_line_buffer_sets
+        << ")"
+        << " buffer_objects("
+            << "total=" << total_render_buffer_objects
+            << " visible=" << visible_render_buffer_objects
+            << " shared=" << shared_render_buffer_objects
+        << ")";
 }
+#endif
 
 void RhiCanvasWidget::releaseResources()
 {

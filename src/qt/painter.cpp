@@ -266,11 +266,6 @@ void Painter::set_source_rgba(double r, double g, double b, double a) {
   setColor(c);
 }
 
-void Painter::surface_destroy(QImage* surface) {
-  qDebug("~~~cairo_surface_destroy");
-  delete surface;
-}
-
 } // namespace ezgl
 
 

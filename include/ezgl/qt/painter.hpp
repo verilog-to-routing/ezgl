@@ -75,8 +75,6 @@ public:
   void set_line_cap(Qt::PenCapStyle cap);
   void set_source_rgb(double r, double g, double b);
   void set_source_rgba(double r, double g, double b, double a);
-  [[deprecated]]
-  void surface_destroy(QImage* surface);
   // draw low level api
 
   // text
