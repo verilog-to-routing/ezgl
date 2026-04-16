@@ -1,12 +1,12 @@
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/camera.hpp"
+#include "ezgl/logutils.hpp"
 
 #include <QPen>
 #include <QBrush>
 #include <QColor>
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 #include <limits>
 #include <type_traits>
 #include <variant>
@@ -43,17 +43,17 @@ struct DeferredVisibleStats {
 
 static void print_visible_stats(const DeferredVisibleStats& stats)
 {
-    std::cout << "~~~ deferred QPainter visible primitives:"
-              << " total=" << stats.total()
-              << " lines=" << stats.lines
-              << " fill_rects=" << stats.filled_rects
-              << " draw_rects=" << stats.outlined_rects
-              << " fill_polys=" << stats.filled_polys
-              << " draw_arcs=" << stats.outlined_arcs
-              << " fill_arcs=" << stats.filled_arcs
-              << " text=" << stats.texts
-              << " surfaces=" << stats.surfaces
-              << std::endl;
+    q_debug_stream()
+        << "deferred QPainter visible primitives:"
+        << " total=" << stats.total()
+        << " lines=" << stats.lines
+        << " fill_rects=" << stats.filled_rects
+        << " draw_rects=" << stats.outlined_rects
+        << " fill_polys=" << stats.filled_polys
+        << " draw_arcs=" << stats.outlined_arcs
+        << " fill_arcs=" << stats.filled_arcs
+        << " text=" << stats.texts
+        << " surfaces=" << stats.surfaces;
 }
 
 static QColor unpack_color(uint32_t rgba)
@@ -709,7 +709,9 @@ void deferred_renderer::replay()
     std::vector<const DeferredOverlayCommand*> visible_overlay_commands;
     visible_overlay_commands.reserve(m_overlay_commands.size());
 
+#ifdef EZGL_RENDERER_DEBUG
     DeferredVisibleStats stats;
+#endif // EZGL_RENDERER_DEBUG
 
     // lines
     for (const auto &batch : m_line_batches) {
@@ -723,7 +725,9 @@ void deferred_renderer::replay()
         if (visible_lines.empty())
             continue;
 
+#ifdef EZGL_RENDERER_DEBUG
         stats.lines += visible_lines.size();
+#endif // EZGL_RENDERER_DEBUG
         visible_line_batches.push_back({batch.style, std::move(visible_lines)});
     }
 
@@ -738,7 +742,9 @@ void deferred_renderer::replay()
         if (visible_rects.empty())
             continue;
 
+#ifdef EZGL_RENDERER_DEBUG
         stats.filled_rects += visible_rects.size();
+#endif // EZGL_RENDERER_DEBUG
         visible_fill_rect_batches.push_back({batch.style, {}, std::move(visible_rects)});
     }
 
@@ -753,8 +759,9 @@ void deferred_renderer::replay()
         }
         if (visible_rects.empty())
             continue;
-
+#ifdef EZGL_RENDERER_DEBUG
         stats.outlined_rects += visible_rects.size();
+#endif // EZGL_RENDERER_DEBUG
         visible_draw_rect_batches.push_back({{}, batch.style, std::move(visible_rects)});
     }
 
@@ -811,8 +818,9 @@ void deferred_renderer::replay()
                 } else if (!world_poly_visible(cmd.points)) {
                     return false;
                 }
-
+#ifdef EZGL_RENDERER_DEBUG
                 ++stats.filled_polys;
+#endif // EZGL_RENDERER_DEBUG
                 return true;
             } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
                 if (cmd.state.coordinate_system == SCREEN) {
@@ -821,11 +829,12 @@ void deferred_renderer::replay()
                 } else if (!world_arc_visible(cmd.center, cmd.radius_x, cmd.radius_y)) {
                     return false;
                 }
-
+#ifdef EZGL_RENDERER_DEBUG
                 if (cmd.fill)
                     ++stats.filled_arcs;
                 else
                     ++stats.outlined_arcs;
+#endif // EZGL_RENDERER_DEBUG
                 return true;
             } else if constexpr (std::is_same_v<T, DeferredTextCommand>) {
                 DeferredPainterState state;
@@ -839,8 +848,9 @@ void deferred_renderer::replay()
                 } else if (!world_text_visible(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y)) {
                     return false;
                 }
-
+#ifdef EZGL_RENDERER_DEBUG
                 ++stats.texts;
+#endif // EZGL_RENDERER_DEBUG
                 return true;
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
                 apply_painter_state(cmd.state);
@@ -850,8 +860,9 @@ void deferred_renderer::replay()
                 } else if (!world_surface_visible(cmd.p_surface, cmd.anchor_point, cmd.scale_factor)) {
                     return false;
                 }
-
+#ifdef EZGL_RENDERER_DEBUG
                 ++stats.surfaces;
+#endif // EZGL_RENDERER_DEBUG
                 return true;
             }
             return false;
@@ -861,7 +872,9 @@ void deferred_renderer::replay()
             visible_overlay_commands.push_back(&command);
     }
 
+#ifdef EZGL_RENDERER_DEBUG
     print_visible_stats(stats);
+#endif // EZGL_RENDERER_DEBUG
 
     for (const auto& batch : visible_line_batches) {
         QPen pen = make_pen(batch.style);

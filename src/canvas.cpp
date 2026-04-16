@@ -25,7 +25,7 @@
 #include <QPdfWriter>
 #include <QPageSize>
 #include <QSvgGenerator>
-#include "ezgl/qt/ezgl_qtcompat.hpp"
+#include "ezgl/logutils.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
 #ifdef EZGL_RHI
@@ -140,46 +140,7 @@ void canvas::draw_offscreen(int output_width, int output_height)
   render_to_image(output_width, output_height);
 }
 
-#ifndef HIDE_GTK_EVENT
-gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointer data)
-{
-  // User data should have been set during the signal connection.
-  g_return_val_if_fail(data != nullptr, FALSE);
-
-  auto ezgl_canvas = static_cast<canvas *>(data);
-  auto &p_surface = ezgl_canvas->m_surface;
-  auto &p_context = ezgl_canvas->m_context;
-
-  if(p_surface != nullptr) {
-    cairo_surface_destroy(p_surface);
-  }
-
-  if(p_context != nullptr) {
-    cairo_destroy(p_context);
-  }
-
-  // Something has changed, recreate the surface.
-  p_surface = create_surface(widget);
-
-  // Recreate the context
-  p_context = create_context(p_surface);
-
-  // The camera needs to be updated before we start drawing again.
-  ezgl_canvas->m_camera.update_widget(ezgl_canvas->width(), ezgl_canvas->height());
-
-  // Draw to the newly created surface.
-  ezgl_canvas->redraw();
-
-  // Update the animation renderer
-  if(ezgl_canvas->m_animation_renderer != nullptr)
-    ezgl_canvas->m_animation_renderer->update_renderer(p_context, p_surface);
-
-  g_info("canvas::configure_event has been handled.");
-  return TRUE; // the configure event was handled
-}
-#endif // #ifndef HIDE_GTK_EVENT
-
-gboolean canvas::draw_surface(GtkWidget *, Painter *painter, gpointer data)
+bool canvas::draw_surface(QWidget *, Painter *painter, void* data)
 {
   // Assume context and data are non-null.
   auto &p_surface = static_cast<canvas *>(data)->m_surface;
@@ -188,7 +149,7 @@ gboolean canvas::draw_surface(GtkWidget *, Painter *painter, gpointer data)
   painter->set_source_surface(p_surface, 0, 0);
   painter->paint();
 
-  return FALSE;
+  return false;
 }
 
 canvas::canvas(std::string canvas_id,
@@ -208,10 +169,6 @@ canvas::~canvas()
   if(m_painter != nullptr) {
     delete m_painter;
     m_painter = nullptr;
-  }
-
-  if(m_surface != nullptr) {
-    delete m_surface;
   }
 
   if(m_animation_renderer != nullptr) {
@@ -247,18 +204,17 @@ void canvas::end_deferred_redraw_cycle()
 
 int canvas::width() const
 {
-  return gtk_widget_get_allocated_width(m_drawing_area);
+  return m_drawing_area->width();
 }
 
 int canvas::height() const
 {
-  return gtk_widget_get_allocated_height(m_drawing_area);
+  return m_drawing_area->height();
 }
 
-void canvas::initialize(GtkWidget *drawing_area)
+void canvas::initialize(QWidget *drawing_area)
 {
-  g_debug("~~~ canvas::initialize");
-  g_return_if_fail(drawing_area != nullptr);
+  return_if_fail("initialize drawing_area", drawing_area != nullptr);
 
   m_drawing_area = drawing_area;
 
@@ -269,7 +225,7 @@ void canvas::initialize(GtkWidget *drawing_area)
 
     // Connect renderFailed → fall back to the QPainter path.
     QObject::connect(rw, &QRhiWidget::renderFailed, [this]() {
-      g_warning("RHI render failed — falling back to deferred_renderer (QPainter).");
+      q_warning("RHI render failed — falling back to deferred_renderer (QPainter).");
       m_rhi_widget   = nullptr;
       m_rhi_renderer.reset();
     });
@@ -300,7 +256,7 @@ void canvas::initialize(GtkWidget *drawing_area)
     if (rw->width() > 0 && rw->height() > 0) {
       m_camera.update_widget(rw->width(), rw->height());
     }
-    g_info("canvas::initialize using RHI path.");
+    q_info("canvas::initialize using RHI path.");
     return;
   }
 #endif // EZGL_RHI
@@ -343,20 +299,7 @@ void canvas::initialize(GtkWidget *drawing_area)
     });
   }
 
-#ifndef HIDE_GTK_EVENT
-  // Connect to configure events in case our widget changes shape.
-  g_signal_connect(m_drawing_area, "configure-event", G_CALLBACK(configure_event), this);
-  // Connect to draw events so that we draw our surface to the drawing area.
-  g_signal_connect(m_drawing_area, "draw", G_CALLBACK(draw_surface), this);
-
-  // GtkDrawingArea objects need specific events enabled explicitly.
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_PRESS_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_RELEASE_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_POINTER_MOTION_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_SCROLL_MASK);
-#endif // #ifndef HIDE_GTK_EVENT
-
-  g_info("canvas::initialize successful.");
+  q_info("canvas::initialize successful.");
 }
 
 void canvas::redraw()
@@ -388,7 +331,7 @@ void canvas::redraw()
     m_rhi_pending_redraw = false;
     m_rhi_pending_camera_only = false;
     m_rhi_has_drawn_frame = true;
-    g_info("The canvas will be redrawn (RHI path).");
+    q_info("The canvas will be redrawn (RHI path).");
     return;
   }
 #endif // EZGL_RHI
@@ -404,9 +347,9 @@ void canvas::redraw()
   m_draw_callback(&g);
   g.flush();
 
-  gtk_widget_queue_draw(m_drawing_area);
+  m_drawing_area->update();
 
-  g_info("The canvas will be redrawn.");
+  q_info("The canvas will be redrawn.");
 }
 
 void canvas::redraw_camera_only()
@@ -419,7 +362,7 @@ void canvas::redraw_camera_only()
     m_rhi_pending_redraw = false;
     m_rhi_pending_camera_only = false;
     m_rhi_has_drawn_frame = true;
-    g_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
+    q_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
     return;
   }
 #endif

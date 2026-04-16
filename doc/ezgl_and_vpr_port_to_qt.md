@@ -362,13 +362,6 @@ Example:
 ```code
   // ...
 
-#ifdef EZGL_USE_X11
-  if(!transparency_flag && x11_display != nullptr) {
-    XDrawLine(x11_display, x11_drawable, x11_context, start.x, start.y, end.x, end.y);
-    return;
-  }
-#endif
-
   cairo_move_to(m_cairo, start.x, start.y);
   cairo_line_to(m_cairo, end.x, end.y);
   cairo_stroke(m_cairo);
@@ -380,13 +373,6 @@ Example:
 void renderer::draw_line(point2d start, point2d end)
 {
   // ...
-
-#ifdef EZGL_USE_X11
-  if(!transparency_flag && x11_display != nullptr) {
-    XDrawLine(x11_display, x11_drawable, x11_context, start.x, start.y, end.x, end.y);
-    return;
-  }
-#endif
 
   cairo_move_to(m_cairo, start.x, start.y);
   cairo_line_to(m_cairo, end.x, end.y);

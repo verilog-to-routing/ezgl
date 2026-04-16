@@ -11,7 +11,8 @@ DrawingAreaWidget::DrawingAreaWidget(QWidget* parent): QWidget(parent)
 
 DrawingAreaWidget::~DrawingAreaWidget()
 {
-
+  delete m_image;
+  m_image = nullptr;
 }
 
 QImage* DrawingAreaWidget::createSurface() {

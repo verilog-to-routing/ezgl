@@ -31,6 +31,8 @@
 
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QComboBox>
+#include <QDialog>
 
 //FUNCTION DECLARATIONS
 
@@ -65,13 +67,13 @@ void draw_png_example(ezgl::renderer *g);
  * 
  * These are example callback functions for the UI elements
  */
-void animate_button_cbk(GtkWidget *widget, ezgl::application *application);
-void test_button_cbk(GtkWidget *widget, ezgl::application *application);
-void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app);
-void delete_combo_box_cbk(GtkWidget* widget, ezgl::application *application);
-void create_dialog_button_cbk(GtkWidget *widget, ezgl::application *application);
-void create_mssg_button_cbk(GtkWidget* widget, ezgl::application *application);
-void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app);
+void animate_button_cbk(QWidget *widget, ezgl::application *application);
+void test_button_cbk(QWidget *widget, ezgl::application *application);
+void combo_box_cbk(QComboBox* self, ezgl::application* app);
+void delete_combo_box_cbk(QWidget* widget, ezgl::application *application);
+void create_dialog_button_cbk(QWidget *widget, ezgl::application *application);
+void create_mssg_button_cbk(QWidget* widget, ezgl::application *application);
+void dialog_cbk(QDialog* self, int response_id, ezgl::application* app);
 
 /**
  * EVENT CALLBACK FUNCTIONS
@@ -538,7 +540,7 @@ void draw_png_example(ezgl::renderer *g)
 /**
  * A callback function to the Animate button. Creates an Animation in the main wundow
  */
-void animate_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
+void animate_button_cbk(QWidget */*widget*/, ezgl::application *application)
 {
   // Get a renderer that can be used to draw on top of the main canvas
   ezgl::renderer *g = application->get_renderer();
@@ -568,7 +570,7 @@ void animate_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
 /**
  * A callback function to test the Test button. Changes application message when button is pressed
  */
-void test_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
+void test_button_cbk(QWidget */*widget*/, ezgl::application *application)
 {
   // Update the status bar message
   application->update_message("Test Button Pressed");
@@ -581,21 +583,20 @@ void test_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
  * Callback function for the example combo box. Sets message to currently active option.
  * Function trigerred when currently selected option changes. 
  */
-void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app){
+void combo_box_cbk(QComboBox* self, ezgl::application* app){
   //Getting text content of combo box. This call makes a copy that we must free
-  auto text = gtk_combo_box_text_get_active_text(self);
-  if(!text){  //Returning if the combo box is currently empty (Always check to avoid errors)
+  auto text = self->currentText();
+  if(text.isEmpty()){  //Returning if the combo box is currently empty (Always check to avoid errors)
     return;
   } else {  //Updating message to reflect new combo box value.
-    app->update_message(text);
-    g_free (text);      // gtk made a copy that we own; need to free.
+    app->update_message(text.toStdString());
   }
 }
 
 /**
  * Callback function for the delete combo box button. Deletes combo box.
  */
-void delete_combo_box_cbk(GtkWidget* widget, ezgl::application* app){
+void delete_combo_box_cbk(QWidget* widget, ezgl::application* app){
   //Destroying widget. If function fails (could not find widget), changing message to reflect failure. 
   if(app->destroy_widget("TestComboBox")){
     app->update_message("Successfully deleted");
@@ -607,14 +608,14 @@ void delete_combo_box_cbk(GtkWidget* widget, ezgl::application* app){
 /**
  * Callback function for the create dialog button. Creates a dialog window and connects it to the dialog_cbk function
  */
-void create_dialog_button_cbk(GtkWidget* /*widget*/, ezgl::application *application){
+void create_dialog_button_cbk(QWidget* /*widget*/, ezgl::application *application){
   application->create_dialog_window(dialog_cbk, "Title", "THIS IS SOME TEXT. HELLO!");
 }
 
 /**
  * Callback function for the create message button. Creates a popup message
  */
-void create_mssg_button_cbk(GtkWidget* /*widget*/, ezgl::application* app){
+void create_mssg_button_cbk(QWidget* /*widget*/, ezgl::application* app){
   app->create_popup_message("My Message", "Hello, hit Done to Proceed");
 }
 
@@ -622,24 +623,21 @@ void create_mssg_button_cbk(GtkWidget* /*widget*/, ezgl::application* app){
  * Callback function for dialog window created by "Create Dialog Window" button. 
  * Updates application message to reflect user answer to dialog window. 
  */
-void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
+void dialog_cbk(QDialog* self, int response_id, ezgl::application* app){
   //Response_id is an integer/enumeration, so we can use a switch to read its value and act accordingly
   switch(response_id){
-    case GTK_RESPONSE_ACCEPT:
+    case QDialog::Accepted:
       app->update_message("USER ACCEPTED");
       break;
-    case GTK_RESPONSE_REJECT:
+    case QDialog::Rejected:
       app->update_message("USER REJECTED");
-      break;
-    case GTK_RESPONSE_DELETE_EVENT:
-      app->update_message("USER CLOSED WINDOW");
       break;
     default:
       app->update_message("YOU SHOULD NOT SEE THIS");
   }
 
   //We always have to destroy the dialog window in the callback function or it will never close
-  gtk_widget_destroy(GTK_WIDGET(self));
+  self->deleteLater();
 }
 
 /**

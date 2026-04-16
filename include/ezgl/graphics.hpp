@@ -24,7 +24,7 @@
 #include "ezgl/rectangle.hpp"
 #include "ezgl/camera.hpp"
 
-#include <ezgl/qt/ezgl_qtcompat.hpp>
+#include <ezgl/qt/qtutils.hpp>
 #include <ezgl/qt/painter.hpp>
 
 
@@ -462,7 +462,6 @@ public:
    *
    * @return a pointer to the created surface. This should later be freed using free_surface()
    */
-  [[deprecated]]
   static surface *load_png(const char *file_path);
 
   /**

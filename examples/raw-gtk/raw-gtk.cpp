@@ -2,14 +2,14 @@
 
 #include <iostream>
 
-gboolean press_key(GtkWidget *widget, GdkEventKey *event, gpointer data);
-gboolean click_mouse(GtkWidget *widget, GdkEventButton *event, gpointer data);
-gboolean draw_canvas(GtkWidget *widget, cairo_t *cairo, gpointer data);
+bool press_key(QWidget *widget, GdkEventKey *event, void* data);
+bool click_mouse(QWidget *widget, GdkEventButton *event, void* data);
+bool draw_canvas(QWidget *widget, cairo_t *cairo, void* data);
 
 int main(int argc, char **argv)
 {
   GtkBuilder *builder;
-  GObject *window;
+  QObject *window;
   GError *error = nullptr;
 
   gtk_init(&argc, &argv);
@@ -33,7 +33,7 @@ int main(int argc, char **argv)
   return 0;
 }
 
-gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
+bool press_key(QWidget *, GdkEventKey *event, void*)
 {
   // see: https://developer.gnome.org/gdk3/stable/gdk3-Keyboard-Handling.html
   std::cout << gdk_keyval_name(event->keyval) << " was pressed.\n";
@@ -41,7 +41,7 @@ gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer)
   return FALSE; // propagate the event
 }
 
-gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
+bool click_mouse(QWidget *, GdkEventButton *event, void*)
 {
   if(event->type == GDK_BUTTON_PRESS) {
     std::cout << "User clicked mouse at " << event->x << ", " << event->y << "\n";
@@ -52,7 +52,7 @@ gboolean click_mouse(GtkWidget *, GdkEventButton *event, gpointer)
   return TRUE; // consume the event
 }
 
-gboolean draw_canvas(GtkWidget *, cairo_t *cairo, gpointer)
+bool draw_canvas(QWidget *, cairo_t *cairo, void*)
 {
   return FALSE; // propagate event
 }

@@ -2,6 +2,7 @@
 
 #include "ezgl/qt/rhi_renderer.hpp"
 #include "ezgl/camera.hpp"
+#include "ezgl/logutils.hpp"
 
 #include <QtGlobal>
 
@@ -1123,6 +1124,7 @@ void rhi_renderer::flush()
     constexpr double kBytesPerMb = 1024.0 * 1024.0;
     SceneBuffers scene_buffers = build_scene_buffers();
 
+#ifdef EZGL_RENDERER_DEBUG
     double line_verts_mb          = 0.0;
     double fill_rect_instances_mb = 0.0;
     double fill_poly_verts_mb     = 0.0;
@@ -1164,13 +1166,17 @@ void rhi_renderer::flush()
         + dashed_instances_mb
         + style_uniforms_mb;
 
-    std::cout << "~~~ sending to GPU total=" << total_mb << " mb" << std::endl
-              << "    line_verts=" << line_verts_mb << " mb" << std::endl
-              << "    fill_rect_instances=" << fill_rect_instances_mb << " mb" << std::endl
-              << "    fill_poly_verts=" << fill_poly_verts_mb << " mb" << std::endl
-              << "    thick_instances=" << thick_instances_mb << " mb" << std::endl
-              << "    dashed_instances=" << dashed_instances_mb << " mb" << std::endl
-              << "    style_uniforms=" << style_uniforms_mb << " mb" << std::endl;
+    q_debug_stream()
+        << std::fixed << std::setprecision(3)
+        << "sending to GPU"
+        << " total=" << total_mb << " mb"
+        << " line_verts=" << line_verts_mb << " mb"
+        << " fill_rect_instances=" << fill_rect_instances_mb << " mb"
+        << " fill_poly_verts=" << fill_poly_verts_mb << " mb"
+        << " thick_instances=" << thick_instances_mb << " mb"
+        << " dashed_instances=" << dashed_instances_mb << " mb"
+        << " style_uniforms=" << style_uniforms_mb << " mb";
+#endif // EZGL_RENDERER_DEBUG
 
     m_rhi_widget->set_frame_data(
         std::move(scene_buffers),

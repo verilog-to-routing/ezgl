@@ -72,12 +72,14 @@ add_library(
   include/ezgl/graphics.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
-  include/ezgl/qt/ezgl_qtcompat.hpp
+  include/ezgl/logutils.hpp
+  include/ezgl/qt/qtutils.hpp
   include/ezgl/qt/qtgladeloader.hpp
   include/ezgl/qt/switchbutton.hpp
   include/ezgl/qt/drawingareawidget.hpp
   include/ezgl/qt/painter.hpp
   include/ezgl/qt/deferred_renderer.hpp
+  src/logutils.cpp
   src/application.cpp
   src/camera.cpp
   src/canvas.cpp
@@ -85,7 +87,7 @@ add_library(
   src/callback.cpp
   src/graphics.cpp
 
-  src/qt/ezgl_qtcompat.cpp
+  src/qt/qtutils.cpp
   src/qt/qtgladeloader.cpp
   src/qt/switchbutton.cpp
   src/qt/drawingareawidget.cpp
@@ -108,14 +110,6 @@ if(USE_QT)
         Qt6::Widgets
         Qt6::Xml
         Qt6::Svg)
-
-    # QT_MIGRATION_TODO, ASSERT_QT_MIGRATION_TODO
-    target_compile_definitions(
-        ${PROJECT_NAME}
-        PUBLIC
-        HIDE_GTK_EVENT
-        HIDE_GTK_BUILDER
-    )
 
     # ---- Qt RHI GPU renderer (optional, Qt >= 6.7) --------------------------
     if(EZGL_USE_RHI)
@@ -244,6 +238,9 @@ if(USE_QT)
             )
 
             target_compile_definitions(${PROJECT_NAME} PUBLIC EZGL_RHI)
+            target_compile_definitions(${PROJECT_NAME} PUBLIC
+                $<$<CONFIG:Debug>:EZGL_RENDERER_DEBUG>
+            )
 
             # Qt 6.7 ships QRhiWidget inside Qt6::Widgets (no extra module needed).
             # QRhi itself lives in Qt6::Gui — already linked above.
