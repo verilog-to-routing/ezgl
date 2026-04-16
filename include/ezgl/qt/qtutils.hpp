@@ -2,9 +2,11 @@
 #define EZGL_QTUTILS_HPP
 
 #include <QApplication>
-#include <QWidget>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
+#include <QLineEdit>
+#include <QWidget>
 
 class QGridLayout;
 class QBoxLayout;
@@ -29,13 +31,9 @@ private:
   ezgl::application* m_app{nullptr};
 };
 
-#define Q_WIDGET(w) qobject_cast<QWidget*>(w)
-#define Q_COMBO_BOX(w) qobject_cast<QComboBox*>(w)
-#define Q_DIALOG(w) qobject_cast<QDialog*>(w)
-#define Q_CHECKBOX(w) qobject_cast<QCheckBox*>(w)
-#define Q_LINEEDIT(w) qobject_cast<QLineEdit*>(w)
-
 namespace ezgl {
+
+inline QLineEdit* to_lineedit(QObject* w)  { return qobject_cast<QLineEdit*>(w); }
 
 QWidget* grid_new();
 
