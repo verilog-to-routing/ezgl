@@ -680,10 +680,12 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         u->uploadTexture(frame.overlay_tex.get(), overlay);
     }
 
+    double bake_geom_ms = 0.0;
     if (geom_dirty) {
         if (!scene_buffers) {
             qFatal("RhiCanvasWidget: geom_dirty set without cached scene data");
         }
+        const auto bake_start = std::chrono::steady_clock::now();
 
         struct PendingUpload {
             quint32     buffer_index = 0;
@@ -889,6 +891,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                 m_frame_slot_geom_valid.resize(m_frame_resources.size(), false);
             m_frame_slot_geom_valid[std::size_t(frame_slot)] = true;
         }
+        bake_geom_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - bake_start).count();
     }
     // Camera-only frame: geometry pools and style UBO are reused.
 
@@ -1109,13 +1113,14 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         + visible_dashed_line_buffer_sets
         + shared_render_buffer_objects;
 
-    q_debug("RHI render() CPU time %.3f ms (frame_slot=%d, geom_dirty=%d, mvp_only=%d, "
+    q_debug("RHI render() CPU time %.3f ms (update_geom %.3f ms) (frame_slot=%d, geom_dirty=%d, mvp_only=%d, "
             "styles(thin=%zu fill_rect=%zu fill_poly=%zu thick=%zu dashed=%zu), "
             "chunks(total=%zu visible=%zu thin=%zu/%zu fill_rect=%zu/%zu fill_poly=%zu/%zu thick=%zu/%zu dashed=%zu/%zu), "
             "prims(thin_verts=%llu fill_rects=%llu fill_poly_verts=%llu thick_lines=%llu dashed_lines=%llu), "
             "buffer_sets(total=%zu visible=%zu thin=%zu/%zu fill_rect=%zu/%zu fill_poly=%zu/%zu thick=%zu/%zu dashed=%zu/%zu), "
             "buffer_objects(total=%zu visible=%zu shared=%zu))",
             frame_ms,
+            bake_geom_ms,
             frame_slot,
             int(geom_dirty),
             int(mvp_only_frame),
