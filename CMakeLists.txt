@@ -117,8 +117,7 @@ if(USE_QT)
             message(STATUS "ezgl: Enabling Qt RHI renderer (Qt ${Qt6_VERSION})")
 
             # QRhi / QShader live in Qt6::Gui private headers.
-            #find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
-            find_package(Qt6 QUIET COMPONENTS Gui)
+            find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
             target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::GuiPrivate)
 
             # Bake GLSL shaders to .qsb as part of the build when qsb is available.
@@ -271,9 +270,12 @@ else(USE_QT)
 
 endif(USE_QT)
 
-# add_compile_options does not seem to be working on the UG machines,
-# and we cannot set target properties in version 3.0.2
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+# Use target property to enforce C++20 — raw -std= flag gets overridden by Qt6's gnu++17
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
 
 if(EZGL_BUILD_EXAMPLES)
   add_subdirectory(examples)

@@ -1,5 +1,7 @@
 #include <ezgl/qt/painter.hpp>
 
+#include <numbers>
+
 namespace ezgl {
 
 // Pen
