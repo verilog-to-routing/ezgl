@@ -54,16 +54,16 @@ namespace {
 QGridLayout* inner_grid_layout(application const* app)
 {
   QWidget* inner_grid = app->find_widget("InnerGrid");
-  return_val_if_fail(inner_grid != nullptr, nullptr);
+  return_val_if_fail("find inner_grid", inner_grid != nullptr, nullptr);
 
   QGridLayout* layout = qobject_cast<QGridLayout*>(inner_grid->layout());
-  return_val_if_fail(layout != nullptr, nullptr);
+  return_val_if_fail("layout in inner_grid", layout != nullptr, nullptr);
   return layout;
 }
 
 void insert_grid_row(QGridLayout* layout, int insert_row)
 {
-  return_if_fail(layout != nullptr);
+  return_if_fail("insert_grid_row layout", layout != nullptr);
 
   struct Placement {
     QWidget* widget;
@@ -258,7 +258,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
   return it.first->second.get();
 }
 
-QWidget *application::find_widget(char const *name) const
+QWidget *application::find_widget(char const *name, bool skip_notfound_report) const
 {
   QWidget* found = nullptr;
   for (QWidget* widget: QApplication::allWidgets()) {
@@ -267,49 +267,53 @@ QWidget *application::find_widget(char const *name) const
       break;
     }
   }
-  return_val_if_fail(found != nullptr, nullptr);
+  if (!skip_notfound_report) {
+    return_val_if_fail(name, found != nullptr, nullptr);
+  }
   return found;
 }
 
-QPushButton* application::find_push_button(const char *name) const
+QPushButton* application::find_push_button(const char *name, bool skip_notfound_report) const
 {
-  QPushButton* found = qobject_cast<QPushButton*>(find_widget(name));
-  return_val_if_fail(found != nullptr, nullptr);
+  QPushButton* found = qobject_cast<QPushButton*>(find_widget(name, skip_notfound_report));
+  if (!skip_notfound_report) {
+    return_val_if_fail(name, found != nullptr, nullptr);
+  }
   return found;
 }
 
 QLineEdit* application::find_line_edit(const char *name) const
 {
   QLineEdit* found = qobject_cast<QLineEdit*>(find_widget(name));
-  return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(name, found != nullptr, nullptr);
   return found;
 }
 
 QComboBox* application::find_combo_box(const char *name) const
 {
   QComboBox* found = qobject_cast<QComboBox*>(find_widget(name));
-  return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(name, found != nullptr, nullptr);
   return found;
 }
 
 QSpinBox* application::find_spin_box(const char *name) const
 {
   QSpinBox* found = qobject_cast<QSpinBox*>(find_widget(name));
-  return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(name, found != nullptr, nullptr);
   return found;
 }
 
 QCheckBox* application::find_check_box(const char *name) const
 {
   QCheckBox* found = qobject_cast<QCheckBox*>(find_widget(name));
-  return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(name, found != nullptr, nullptr);
   return found;
 }
 
 SwitchButton* application::find_switch_button(const char *name) const
 {
   SwitchButton* found = qobject_cast<SwitchButton*>(find_widget(name));
-  return_val_if_fail(found != nullptr, nullptr);
+  return_val_if_fail(name, found != nullptr, nullptr);
   return found;
 }
 
@@ -380,20 +384,21 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
 {
   // Helper: only connect if the button exists in this UI (VPR's main.ui omits
   // several navigation buttons that the basic-application example has).
-  auto connect_if_present = [&](const char* name, auto slot) {
-    QPushButton* btn = application->find_push_button(name);
+  auto connect_if_present = [&](const char* name, auto slot, bool skip_notfound_report = false) {
+    QPushButton* btn = application->find_push_button(name, skip_notfound_report);
     if (btn) {
       QObject::connect(btn, &QPushButton::clicked, btn, slot);
     }
   };
 
+  const bool skip_notfound_report = true;
   connect_if_present("ZoomFitButton", [application](){ press_zoom_fit(nullptr, application); });
-  connect_if_present("ZoomInButton",  [application](){ press_zoom_in(nullptr, application); });
-  connect_if_present("ZoomOutButton", [application](){ press_zoom_out(nullptr, application); });
-  connect_if_present("UpButton",      [application](){ press_up(nullptr, application); });
-  connect_if_present("DownButton",    [application](){ press_down(nullptr, application); });
-  connect_if_present("LeftButton",    [application](){ press_left(nullptr, application); });
-  connect_if_present("RightButton",   [application](){ press_right(nullptr, application); });
+  connect_if_present("ZoomInButton",  [application](){ press_zoom_in(nullptr, application); }, skip_notfound_report);
+  connect_if_present("ZoomOutButton", [application](){ press_zoom_out(nullptr, application); }, skip_notfound_report);
+  connect_if_present("UpButton",      [application](){ press_up(nullptr, application); }, skip_notfound_report);
+  connect_if_present("DownButton",    [application](){ press_down(nullptr, application); }, skip_notfound_report);
+  connect_if_present("LeftButton",    [application](){ press_left(nullptr, application); }, skip_notfound_report);
+  connect_if_present("RightButton",   [application](){ press_right(nullptr, application); }, skip_notfound_report);
   connect_if_present("ProceedButton", [application](){ press_proceed(nullptr, application); });
 
   // Connect the window's close (X button) to press_proceed so that closing

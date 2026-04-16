@@ -419,7 +419,7 @@ public:
    * @param widget_name string to be searched for
    * @return QWidget* Pointer to QWidget. Can be cast to appropriate type
    */
-  QWidget* find_widget(const char* widget_name) const;
+  QWidget* find_widget(const char* widget_name, bool skip_notfound_report = false) const;
 
   /**
    * Update the message in the status bar
@@ -523,7 +523,7 @@ public:
    */
   canvas *get_canvas(std::string const &canvas_id) const;
 
-  QPushButton* find_push_button(const char *name) const;
+  QPushButton* find_push_button(const char *name, bool skip_notfound_report = false) const;
   QLineEdit* find_line_edit(const char *name) const;
   QComboBox* find_combo_box(const char *name) const;
   QSpinBox* find_spin_box(const char *name) const;

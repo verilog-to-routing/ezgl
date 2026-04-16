@@ -13,10 +13,11 @@
 // These two must remain macros:
 //   - they use #expr to stringify the condition (only macros can do that)
 //   - they inject 'return' into the *caller's* scope (functions cannot return on behalf of a caller)
-#define return_val_if_fail(expr, val)      \
+#define return_val_if_fail(label, expr, val)      \
 do {                                         \
       if (!(expr)) {                         \
-        std::cerr << "CRITICAL: '" \
+        std::cerr << "CRITICAL: '"           \
+        << label << " "                      \
         << #expr << "' failed at "           \
         << __FILE__ << ":" << __LINE__       \
         << std::endl;                        \
@@ -24,10 +25,11 @@ do {                                         \
   }                                          \
 } while (0)
 
-#define return_if_fail(expr)               \
+#define return_if_fail(label, expr)          \
 do {                                         \
       if (!(expr)) {                         \
-        std::cerr << "CRITICAL: '" \
+        std::cerr << "CRITICAL: '"           \
+        << label << " "                      \
         << #expr << "' failed at "           \
         << __FILE__ << ":" << __LINE__       \
         << std::endl;                        \
