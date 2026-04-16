@@ -31,6 +31,8 @@
 
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QComboBox>
+#include <QDialog>
 
 //FUNCTION DECLARATIONS
 
