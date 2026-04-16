@@ -5,7 +5,11 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
+#include <source_location>
 
+// These two must remain macros:
+//   - they use #expr to stringify the condition (only macros can do that)
+//   - they inject 'return' into the *caller's* scope (functions cannot return on behalf of a caller)
 #define return_val_if_fail(expr, val)      \
 do {                                         \
       if (!(expr)) {                         \
@@ -29,29 +33,73 @@ do {                                         \
   }                                          \
 } while (0)
 
-void log_message(const char* level, const char* file, int line, const char* fmt, ...);
+namespace ezgl {
 
+// Returns the filename portion of a full path.
 constexpr const char* __filename_helper(const char* path)
 {
-  const char* file = path;
-  for (const char* p = path; *p != '\0'; ++p) {
-    if (*p == '/' || *p == '\\') {
-      file = p + 1;
+    const char* file = path;
+    for (const char* p = path; *p != '\0'; ++p) {
+        if (*p == '/' || *p == '\\') {
+            file = p + 1;
+        }
     }
-  }
-  return file;
+    return file;
 }
 
-#define __FILENAME__ (__filename_helper(__FILE__))
+// Core log functions.
+// Output format: "YYYY-MM-DD HH:MM:SS LEVEL: file:line: message\n"
+// External parsers rely on this format — do not change it.
+void log_message(const char* level, const char* file, int line, const char* fmt, ...);
+void log_message_v(const char* level, const char* file, int line, const char* fmt, va_list ap);
 
-#define q_info(fmt, ...)    \
-  log_message("INFO",    __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
+namespace detail {
 
-#define q_warning(fmt, ...) \
-  log_message("WARNING", __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
+// Implicitly constructed from a string literal at the call site.
+// std::source_location::current() is evaluated at the *construction site* (i.e. the caller),
+// so file/line always point to the q_* call, not to the inline function body.
+struct log_fmt {
+    const char* str;
+    std::source_location loc;
 
-#define q_error(fmt, ...) \
-  log_message("ERROR", __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
+    // Intentionally implicit — the caller writes q_info("fmt", ...) with no extra syntax.
+    log_fmt(const char* str,  // NOLINT(google-explicit-constructor)
+            std::source_location loc = std::source_location::current()) noexcept
+        : str(str), loc(loc) {}
+};
 
-#define q_debug(fmt, ...) \
-  log_message("DEBUG", __FILENAME__, __LINE__, fmt, ##__VA_ARGS__)
+} // namespace detail
+
+inline void q_info(detail::log_fmt f, ...) {
+    va_list ap;
+    va_start(ap, f);
+    log_message_v("INFO", __filename_helper(f.loc.file_name()),
+                  static_cast<int>(f.loc.line()), f.str, ap);
+    va_end(ap);
+}
+
+inline void q_warning(detail::log_fmt f, ...) {
+    va_list ap;
+    va_start(ap, f);
+    log_message_v("WARNING", __filename_helper(f.loc.file_name()),
+                  static_cast<int>(f.loc.line()), f.str, ap);
+    va_end(ap);
+}
+
+inline void q_error(detail::log_fmt f, ...) {
+    va_list ap;
+    va_start(ap, f);
+    log_message_v("ERROR", __filename_helper(f.loc.file_name()),
+                  static_cast<int>(f.loc.line()), f.str, ap);
+    va_end(ap);
+}
+
+inline void q_debug(detail::log_fmt f, ...) {
+    va_list ap;
+    va_start(ap, f);
+    log_message_v("DEBUG", __filename_helper(f.loc.file_name()),
+                  static_cast<int>(f.loc.line()), f.str, ap);
+    va_end(ap);
+}
+
+} // namespace ezgl

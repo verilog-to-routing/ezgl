@@ -72,12 +72,14 @@ add_library(
   include/ezgl/graphics.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
+  include/ezgl/logutils.hpp
   include/ezgl/qt/qtutils.hpp
   include/ezgl/qt/qtgladeloader.hpp
   include/ezgl/qt/switchbutton.hpp
   include/ezgl/qt/drawingareawidget.hpp
   include/ezgl/qt/painter.hpp
   include/ezgl/qt/deferred_renderer.hpp
+  src/logutils.cpp
   src/application.cpp
   src/camera.cpp
   src/canvas.cpp

@@ -249,39 +249,4 @@ void box_pack_start(QBoxLayout* box,
   }
 }
 
-} // ezgl namespace
-
-
-// Core logging function (printf-style)
-void log_message(const char* level,
-    const char* file,
-    int line,
-    const char* fmt,
-    ...)
-{
-  // timestamp (optional, but nice to have)
-  std::time_t t = std::time(nullptr);
-  std::tm tm{};
-#if defined(_WIN32)
-  localtime_s(&tm, &t);
-#else
-  localtime_r(&t, &tm);
-#endif
-
-  char time_buf[32];
-  std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
-
-  // prefix: time + level + file:line
-  std::fprintf(stderr, "%s %s: %s:%d: ",
-      time_buf, level, file, line);
-
-  // body (printf-style)
-  va_list ap;
-  va_start(ap, fmt);
-  std::vfprintf(stderr, fmt, ap);
-  va_end(ap);
-
-  std::fputc('\n', stderr);
-}
-
-
+} // namespace ezgl
