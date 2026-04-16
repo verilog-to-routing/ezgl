@@ -582,11 +582,7 @@ private:
   bool resume_run;
 
 private:
-  // Called when our GtkApplication is initialized for the first time.
-  static void startup(void* user_data);
-
-  // Called when GTK activates our application for the first time.
-  static void activate(void* user_data);
+  void init();
 
   // Called during application activation to setup the default callbacks for the prebuilt buttons
   static void register_default_buttons_callbacks(application *application);

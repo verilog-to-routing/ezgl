@@ -106,52 +106,41 @@ void insert_grid_row(QGridLayout* layout, int insert_row)
 
 } // namespace
 
-void application::startup(void* user_data)
+void application::init()
 {
-  auto ezgl_app = static_cast<application *>(user_data);
-  return_if_fail(ezgl_app != nullptr);
-
-  for(auto &c_pair : ezgl_app->m_canvases) {
-    QWidget *drawing_area = ezgl_app->find_widget(c_pair.second->id());
+  for(auto &c_pair : m_canvases) {
+    QWidget *drawing_area = find_widget(c_pair.second->id());
     c_pair.second->initialize(drawing_area);
   }
 
-  q_info("application::startup successful.");
-}
-
-void application::activate(void* user_data)
-{
-  auto ezgl_app = static_cast<application *>(user_data);
-  return_if_fail(ezgl_app != nullptr);
-
 #ifdef EZGL_RHI
-  for (auto &c_pair : ezgl_app->m_canvases)
+  for (auto &c_pair : m_canvases)
     c_pair.second->begin_deferred_redraw_cycle();
 #endif
 
   // The main parent window needs to be explicitly added to our GTK application.
-  QWidget *window = ezgl_app->find_widget(ezgl_app->m_window_id.c_str());
+  QWidget *window = find_widget(m_window_id.c_str());
   window->show();
 
   // Setup the default callbacks for the mouse and key events
-  register_default_events_callbacks(ezgl_app);
+  register_default_events_callbacks(this);
 
-  if(ezgl_app->m_register_callbacks != nullptr) {
-    ezgl_app->m_register_callbacks(ezgl_app);
+  if(m_register_callbacks != nullptr) {
+    m_register_callbacks(this);
   } else {
     // Setup the default callbacks for the prebuilt buttons
-    register_default_buttons_callbacks(ezgl_app);
+    register_default_buttons_callbacks(this);
   }
 
-  if(ezgl_app->initial_setup_callback != nullptr)
-    ezgl_app->initial_setup_callback(ezgl_app, true);
+  if(initial_setup_callback != nullptr)
+    initial_setup_callback(this, true);
 
 #ifdef EZGL_RHI
-  for (auto &c_pair : ezgl_app->m_canvases)
+  for (auto &c_pair : m_canvases)
     c_pair.second->end_deferred_redraw_cycle();
 #endif
 
-  q_info("application::activate successful.");
+  q_info("application::init successful.");
 }
 
 application::application(application::settings s, int& argc, char** argv)
@@ -338,14 +327,12 @@ int application::run(setup_callback_fn initial_setup_user_callback,
       QtGladeLoader uiLoader;
       m_window = uiLoader.loadFile(QString::fromStdString(m_main_ui));
     }
-    startup(this);
-    activate(this);
+    init();
     first_run = false;
     q_info("The event loop is now starting.");
     return exec();
   } else {
     // Subsequent stage: reuse the existing window.
-    // activate() is NOT called again to avoid double-registering callbacks.
 #ifdef EZGL_RHI
     for (auto &c_pair : m_canvases)
       c_pair.second->begin_deferred_redraw_cycle();
