@@ -171,10 +171,6 @@ canvas::~canvas()
     m_painter = nullptr;
   }
 
-  if(m_surface != nullptr) {
-    delete m_surface;
-  }
-
   if(m_animation_renderer != nullptr) {
     delete m_animation_renderer;
   }

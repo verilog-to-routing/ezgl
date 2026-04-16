@@ -167,8 +167,22 @@ application::application(application::settings s, int& argc, char** argv)
 
 application::~application()
 {
-  q_debug("application::~application");
-  quit();
+  // Disconnect all signal/slot connections on this object first.
+  // This prevents lastWindowClosed (and any other signal) from firing
+  // callbacks into a half-destroyed application while we clean up below.
+  QObject::disconnect(this, nullptr, nullptr, nullptr);
+
+  // Explicitly destroy canvases while the window still exists so that
+  // active Painter objects are ended before DrawingAreaWidget is deleted.
+  m_canvases.clear();
+
+  // Delete the window (and all child widgets) before the base-class
+  // QCoreApplication::~QCoreApplication runs.  The base class calls
+  // processEvents(), which can dispatch queued paint events; deleting
+  // m_window here removes those queued events so they are never dispatched
+  // to already-freed widget surfaces.
+  delete m_window;
+  m_window = nullptr;
 }
 
 bool application::notify(QObject* obj, QEvent* event)
