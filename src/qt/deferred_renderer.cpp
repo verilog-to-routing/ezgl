@@ -848,8 +848,9 @@ void deferred_renderer::replay()
                 } else if (!world_text_visible(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y)) {
                     return false;
                 }
-
+#ifdef EZGL_RENDERER_DEBUG
                 ++stats.texts;
+#endif // EZGL_RENDERER_DEBUG
                 return true;
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
                 apply_painter_state(cmd.state);
@@ -859,8 +860,9 @@ void deferred_renderer::replay()
                 } else if (!world_surface_visible(cmd.p_surface, cmd.anchor_point, cmd.scale_factor)) {
                     return false;
                 }
-
+#ifdef EZGL_RENDERER_DEBUG
                 ++stats.surfaces;
+#endif // EZGL_RENDERER_DEBUG
                 return true;
             }
             return false;

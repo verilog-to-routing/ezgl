@@ -1158,8 +1158,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
             << " visible=" << visible_render_buffer_objects
             << " shared=" << shared_render_buffer_objects
         << ")";
+#endif // EZGL_RENDERER_DEBUG
 }
-#endif
 
 void RhiCanvasWidget::releaseResources()
 {
