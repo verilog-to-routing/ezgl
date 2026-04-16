@@ -578,9 +578,6 @@ private:
   // A flag that indicates if the run() was called before or not to allow multiple reruns
   bool first_run;
 
-  // A flag that indicates if we are resuming an older run to allow proper quitting
-  bool resume_run;
-
 private:
   void init();
 

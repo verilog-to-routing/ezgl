@@ -163,7 +163,6 @@ application::application(application::settings s, int& argc, char** argv)
   // completed.
 
   first_run = true;
-  resume_run = false;
 }
 
 application::~application()
@@ -344,7 +343,6 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     for (auto &c_pair : m_canvases)
       c_pair.second->end_deferred_redraw_cycle();
 #endif
-    resume_run = true;
     q_info("The event loop is now resuming.");
     return exec();
   }
@@ -352,13 +350,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
 
 void application::quit()
 {
-  if(resume_run) {
-    // Quit the event loop (exit gtk_main())
-    qApp->exec();
-  } else {
-    // Quit the GTK application (exit g_application_run())
-    exit(0);
-  }
+  exit(0);
 }
 
 void application::register_default_events_callbacks(ezgl::application *application)
