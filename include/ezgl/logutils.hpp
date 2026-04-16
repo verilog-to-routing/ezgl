@@ -6,6 +6,7 @@
 #include <ctime>
 #include <iostream>
 #include <source_location>
+#include <string_view>
 
 // These two must remain macros:
 //   - they use #expr to stringify the condition (only macros can do that)
@@ -35,18 +36,6 @@ do {                                         \
 
 namespace ezgl {
 
-// Returns the filename portion of a full path.
-constexpr const char* __filename_helper(const char* path)
-{
-    const char* file = path;
-    for (const char* p = path; *p != '\0'; ++p) {
-        if (*p == '/' || *p == '\\') {
-            file = p + 1;
-        }
-    }
-    return file;
-}
-
 // Core log functions.
 // Output format: "YYYY-MM-DD HH:MM:SS LEVEL: file:line: message\n"
 // External parsers rely on this format — do not change it.
@@ -54,6 +43,16 @@ void log_message(const char* level, const char* file, int line, const char* fmt,
 void log_message_v(const char* level, const char* file, int line, const char* fmt, va_list ap);
 
 namespace detail {
+
+// Returns the basename portion of a compiler-provided file path.
+// source_location::file_name() often returns a full or relative path; this
+// strips everything up to the last '/' or '\' so the log always shows
+// "file.cpp:42" rather than "/full/path/to/file.cpp:42".
+constexpr std::string_view filename(std::string_view path) noexcept
+{
+    const auto pos = path.find_last_of("/\\");
+    return (pos == std::string_view::npos) ? path : path.substr(pos + 1);
+}
 
 // Implicitly constructed from a string literal at the call site.
 // std::source_location::current() is evaluated at the *construction site* (i.e. the caller),
@@ -73,7 +72,7 @@ struct log_fmt {
 inline void q_info(detail::log_fmt f, ...) {
     va_list ap;
     va_start(ap, f);
-    log_message_v("INFO", __filename_helper(f.loc.file_name()),
+    log_message_v("INFO", detail::filename(f.loc.file_name()).data(),
                   static_cast<int>(f.loc.line()), f.str, ap);
     va_end(ap);
 }
@@ -81,7 +80,7 @@ inline void q_info(detail::log_fmt f, ...) {
 inline void q_warning(detail::log_fmt f, ...) {
     va_list ap;
     va_start(ap, f);
-    log_message_v("WARNING", __filename_helper(f.loc.file_name()),
+    log_message_v("WARNING", detail::filename(f.loc.file_name()).data(),
                   static_cast<int>(f.loc.line()), f.str, ap);
     va_end(ap);
 }
@@ -89,7 +88,7 @@ inline void q_warning(detail::log_fmt f, ...) {
 inline void q_error(detail::log_fmt f, ...) {
     va_list ap;
     va_start(ap, f);
-    log_message_v("ERROR", __filename_helper(f.loc.file_name()),
+    log_message_v("ERROR", detail::filename(f.loc.file_name()).data(),
                   static_cast<int>(f.loc.line()), f.str, ap);
     va_end(ap);
 }
@@ -97,7 +96,7 @@ inline void q_error(detail::log_fmt f, ...) {
 inline void q_debug(detail::log_fmt f, ...) {
     va_list ap;
     va_start(ap, f);
-    log_message_v("DEBUG", __filename_helper(f.loc.file_name()),
+    log_message_v("DEBUG", detail::filename(f.loc.file_name()).data(),
                   static_cast<int>(f.loc.line()), f.str, ap);
     va_end(ap);
 }
