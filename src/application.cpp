@@ -154,8 +154,6 @@ application::application(application::settings s, int& argc, char** argv)
 
   setApplicationName(s.application_identifier.c_str());
 
-  qInfo() << applicationName();
-  qInfo() << arguments();
   // NOTE: do NOT load the UI file here. This constructor runs as a static
   // initializer (before main()), so Qt resources registered by the
   // application's .qrc file are not yet available.  Loading is deferred to
