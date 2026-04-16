@@ -530,6 +530,9 @@ public:
   QCheckBox* find_check_box(const char *name) const;
   SwitchButton* find_switch_button(const char *name) const;
 
+  void hide_widget(const std::string& widgetName);
+  void show_widget(const std::string& widgetName);
+
   /**
    * Get the ID of the main window
    */

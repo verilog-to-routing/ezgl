@@ -749,6 +749,20 @@ renderer *application::get_renderer()
   return cnv->create_animation_renderer();
 }
 
+void application::hide_widget(const std::string& widgetName) {
+  QWidget* widget = find_widget(widgetName.c_str());
+  if (widget) {
+    widget->hide();
+  }
+}
+
+void application::show_widget(const std::string& widgetName) {
+  QWidget* widget = find_widget(widgetName.c_str());
+  if (widget) {
+    widget->show();
+  }
+}
+
 void set_disable_event_loop(bool new_setting)
 {
   disable_event_loop = new_setting;
