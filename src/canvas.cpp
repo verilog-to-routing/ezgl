@@ -218,7 +218,6 @@ int canvas::height() const
 
 void canvas::initialize(QWidget *drawing_area)
 {
-  q_debug("~~~ canvas::initialize");
   return_if_fail(drawing_area != nullptr);
 
   m_drawing_area = drawing_area;
