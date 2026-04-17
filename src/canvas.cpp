@@ -196,8 +196,16 @@ int canvas::height() const
 
 void canvas::redraw()
 {
-  if (m_backend)
+  if (!m_backend)
+    return;
+  if (m_frame_timing_fn) {
+    const auto t0 = std::chrono::high_resolution_clock::now();
     m_backend->redraw();
+    const auto t1 = std::chrono::high_resolution_clock::now();
+    m_frame_timing_fn(std::chrono::duration<double, std::milli>(t1 - t0).count());
+  } else {
+    m_backend->redraw();
+  }
 }
 
 void canvas::redraw_camera_only()

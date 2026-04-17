@@ -26,6 +26,8 @@
 #include "ezgl/qt/qtutils.hpp"
 #include "ezgl/qt/render_backend.hpp"
 
+#include <chrono>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -113,6 +115,17 @@ public:
   }
 
   /**
+   * Register a callback invoked after each canvas::redraw() completes.
+   * Receives the total CPU time of the redraw in milliseconds — for RHI this
+   * includes both command recording and flush(); for QPainter backends it
+   * covers the full draw callback execution.
+   */
+  void set_frame_timing_callback(std::function<void(double /*ms*/)> fn)
+  {
+    m_frame_timing_fn = std::move(fn);
+  }
+
+  /**
    * Create an animation renderer that can be used to draw on top of the current canvas
    */
   renderer *create_animation_renderer();
@@ -171,6 +184,9 @@ private:
 
   // Requested backend type — set before run(), used by initialize() to pick the backend.
   renderer_type m_renderer_type = renderer_type::rhi;
+
+  // Optional post-redraw timing callback.
+  std::function<void(double)> m_frame_timing_fn;
 
   // Active rendering backend — selected at initialize() time based on widget type.
   std::unique_ptr<render_backend> m_backend;

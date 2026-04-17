@@ -498,23 +498,24 @@ static double             g_last_frame_ms = -1.0;
 static void draw_dispatch(ezgl::renderer *g)
 {
   g_bench_n = TESTS[g_current_test].count;
-
-  auto t0 = std::chrono::high_resolution_clock::now();
   TESTS[g_current_test].fn(g);
-  auto t1 = std::chrono::high_resolution_clock::now();
-  g_last_frame_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+}
+
+static void on_frame_complete(double ms)
+{
+  g_last_frame_ms = ms;
 
   {
     std::string label(TESTS[g_current_test].label);
     label.erase(label.find_last_not_of(" \t") + 1);
-    write_result("ui:" + std::to_string(g_bench_n) + " " + label, g_last_frame_ms);
+    write_result("ui:" + std::to_string(g_bench_n) + " " + label, ms);
   }
 
   if (g_app) {
     std::ostringstream oss;
     oss << TESTS[g_current_test].label
         << " | " << g_bench_n << " primitives"
-        << " | " << std::fixed << std::setprecision(2) << g_last_frame_ms << " ms";
+        << " | " << std::fixed << std::setprecision(2) << ms << " ms";
     g_app->update_message(oss.str());
   }
 }
@@ -552,6 +553,7 @@ static void run_ui(int initial_test, ezgl::renderer_type renderer)
 
   ezgl::canvas *c = app.add_canvas("MainCanvas", draw_dispatch, WORLD, ezgl::WHITE);
   c->set_renderer_type(renderer);
+  c->set_frame_timing_callback(on_frame_complete);
   app.run(ui_setup, nullptr, nullptr, nullptr);
 }
 
