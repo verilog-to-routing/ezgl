@@ -395,9 +395,6 @@ void rhi_renderer::fill_poly(std::vector<point2d> const& points)
         y_max = std::max(y_max, points[i].y);
     }
 
-    if (rectangle_off_screen({{x_min, y_min}, {x_max, y_max}}))
-        return;
-
     const std::vector<Triangle> triangles = triangulate_simple_polygon(points);
     if (triangles.empty()) {
         qWarning("rhi_renderer: failed to triangulate polygon with %llu points",
