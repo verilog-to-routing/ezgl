@@ -529,11 +529,6 @@ void rhi_renderer::render_cached_overlay()
 
 // ---- helpers ---------------------------------------------------------------
 
-inline PosVertex rhi_renderer::make_vertex(point2d p) const
-{
-    return PosVertex{float(p.x), float(p.y)};
-}
-
 std::uint32_t rhi_renderer::current_packed_color() const
 {
     return pack_color_rgba(current_color);
@@ -646,8 +641,8 @@ void rhi_renderer::append_thin_line_segment(RhiTileBatch& tile,
                                             std::uint32_t rgba)
 {
     TileThinLineBatch& batch = ensure_thin_line_batch(tile, style_key, rgba);
-    batch.verts.push_back(make_vertex(start));
-    batch.verts.push_back(make_vertex(end));
+    batch.verts.emplace_back(float(start.x), float(start.y));
+    batch.verts.emplace_back(float(end.x), float(end.y));
 }
 
 void rhi_renderer::append_fill_rect(RhiTileBatch& tile,
@@ -677,9 +672,9 @@ void rhi_renderer::append_fill_triangle(RhiTileBatch& tile,
         return;
 
     TileFillPolyBatch& batch = ensure_fill_poly_batch(tile, style_key, rgba);
-    batch.verts.push_back(make_vertex(a));
-    batch.verts.push_back(make_vertex(b));
-    batch.verts.push_back(make_vertex(c));
+    batch.verts.emplace_back(float(a.x), float(a.y));
+    batch.verts.emplace_back(float(b.x), float(b.y));
+    batch.verts.emplace_back(float(c.x), float(c.y));
 }
 
 void rhi_renderer::ensure_tile_grid()

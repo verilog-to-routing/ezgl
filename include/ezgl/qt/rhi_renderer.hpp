@@ -167,7 +167,6 @@ private:
 
     // ---- helpers ------------------------------------------------------------
 
-    PosVertex make_vertex(point2d world_pt) const;
     std::uint32_t current_packed_color() const;
     StyleKey current_style_key(PrimitiveType primitive_type,
                                float         line_width_px = 0.0f) const;
