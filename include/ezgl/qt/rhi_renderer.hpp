@@ -113,7 +113,7 @@ public:
     void flush_mvp_only();
 
 private:
-    static constexpr int kTileGridDimension = 32;
+    static constexpr int kTileGridDimension = 16;
 
     struct TileThinLineBatch {
         StyleKey               style_key = 0;
