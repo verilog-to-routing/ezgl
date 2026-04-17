@@ -23,11 +23,8 @@
 #include "ezgl/rectangle.hpp"
 #include "ezgl/graphics.hpp"
 #include "ezgl/color.hpp"
-
 #include "ezgl/qt/qtutils.hpp"
-#ifdef EZGL_RHI
-#include "ezgl/qt/rhi_canvas_widget.hpp"
-#endif
+#include "ezgl/qt/render_backend.hpp"
 
 #include <memory>
 #include <string>
@@ -35,15 +32,6 @@
 namespace ezgl {
 
 /**** Functions in this class are for ezgl internal use; application code doesn't need to call them ****/
-
-#ifdef EZGL_RHI
-class rhi_renderer;
-#endif
-
-/**
- * The signature of a function that draws to an ezgl::canvas.
- */
-using draw_canvas_fn = void (*)(renderer*);
 
 /**
  * Responsible for creating, destroying, and maintaining the rendering context of a QWidget.
@@ -59,7 +47,7 @@ public:
   /**
    * Destructor.
    */
-  ~canvas();
+  ~canvas() = default;
 
   /**
    * Get the name (identifier) of the canvas.
@@ -115,14 +103,14 @@ public:
    * Create an animation renderer that can be used to draw on top of the current canvas
    */
   renderer *create_animation_renderer();
-  
+
   /**
-   * print_pdf, print_svg, and print_png generate a PDF, SVG, or PNG output file showing 
-   * all the graphical content of the current canvas. 
-   * 
+   * print_pdf, print_svg, and print_png generate a PDF, SVG, or PNG output file showing
+   * all the graphical content of the current canvas.
+   *
    * @param file_name   name of the output file
    * @return            returns true if the function has successfully generated the output file, otherwise
-   *                    failed due to errors such as out of memory occurs. 
+   *                    failed due to errors such as out of memory occurs.
    */
   bool print_pdf(const char *file_name, int width = 0, int height = 0);
   bool print_svg(const char *file_name, int width = 0, int height = 0);
@@ -134,8 +122,7 @@ public:
    * PNG/PDF encoding overhead.
    */
   void draw_offscreen(int width, int height);
-  
-  
+
 protected:
   // Only the ezgl::application can create and initialize a canvas object.
   friend class application;
@@ -166,40 +153,17 @@ private:
   // The background color of the drawing area
   color m_background_color;
 
-  // A non-owning pointer to the drawing area inside a GTK window.
+  // A non-owning pointer to the drawing area inside a window.
   QWidget *m_drawing_area = nullptr;
 
-  // The off-screen surface that can be drawn to.
-  QImage *m_surface = nullptr;
-
-  // The off-screen cairo context that can be drawn to
-  Painter *m_painter = nullptr;
-
-  // The animation renderer
-  renderer *m_animation_renderer = nullptr;
-
-#ifdef EZGL_RHI
-  // Non-owning pointer to the RHI drawing widget (set when EZGL_RHI is active).
-  RhiCanvasWidget *m_rhi_widget = nullptr;
-  // Owning RHI renderer — created on first redraw(), reused across frames.
-  std::unique_ptr<rhi_renderer> m_rhi_renderer;
-  // Coalesce startup/show redraws so large geometry is uploaded once.
-  bool m_rhi_defer_redraw = false;
-  bool m_rhi_pending_redraw = false;
-  bool m_rhi_pending_camera_only = false;
-  bool m_rhi_has_drawn_frame = false;
-#endif
+  // Active rendering backend — selected at initialize() time based on widget type.
+  std::unique_ptr<render_backend> m_backend;
 
   // Renders the canvas into an off-screen QImage; shared by print_pdf/print_svg/print_png.
   QImage render_to_image(int surface_width, int surface_height);
 
-  // Called each time we need to draw to our drawing area widget.
-  static bool draw_surface(QWidget *widget, Painter *painter, void* data);
-
-#ifdef EZGL_RHI
   void begin_deferred_redraw_cycle();
   void end_deferred_redraw_cycle();
-#endif
 };
 }
 

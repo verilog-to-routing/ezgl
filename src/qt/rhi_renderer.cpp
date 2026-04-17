@@ -1,5 +1,3 @@
-#ifdef EZGL_RHI
-
 #include "ezgl/qt/rhi_renderer.hpp"
 #include "ezgl/camera.hpp"
 #include "ezgl/logutils.hpp"
@@ -1291,5 +1289,3 @@ void rhi_renderer::flush_mvp_only()
 }
 
 } // namespace ezgl
-
-#endif // EZGL_RHI

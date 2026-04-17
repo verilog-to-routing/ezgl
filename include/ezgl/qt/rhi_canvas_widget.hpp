@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef EZGL_RHI
-
 #include "ezgl/rectangle.hpp"
 
 #include <QRhiWidget>
@@ -367,5 +365,3 @@ private:
 };
 
 } // namespace ezgl
-
-#endif // EZGL_RHI

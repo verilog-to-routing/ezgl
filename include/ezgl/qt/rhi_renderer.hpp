@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef EZGL_RHI
-
 #include "ezgl/irenderer.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
@@ -278,5 +276,3 @@ private:
 };
 
 } // namespace ezgl
-
-#endif // EZGL_RHI

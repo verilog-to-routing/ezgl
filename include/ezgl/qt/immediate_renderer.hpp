@@ -45,9 +45,6 @@ public:
 
     void update_renderer(Painter* painter, QImage* surface);
 
-protected:
-    friend class canvas;
-
     immediate_renderer(Painter* painter, transform_fn transform,
                        camera* cam, QImage* surface);
 };

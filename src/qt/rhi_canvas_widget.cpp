@@ -1,5 +1,3 @@
-#ifdef EZGL_RHI
-
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 #include "ezgl/logutils.hpp"
 
@@ -1223,5 +1221,3 @@ void RhiCanvasWidget::showEvent(QShowEvent* e)
 }
 
 } // namespace ezgl
-
-#endif // EZGL_RHI

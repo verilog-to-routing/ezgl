@@ -23,9 +23,7 @@
 #include "ezgl/qt/qtgladeloader.hpp"
 #include "ezgl/logutils.hpp"
 #include <ezgl/qt/drawingareawidget.hpp>
-#ifdef EZGL_RHI
 #include <ezgl/qt/rhi_canvas_widget.hpp>
-#endif
 
 #include <QObject>
 #include <QApplication>
@@ -113,10 +111,8 @@ void application::init()
     c_pair.second->initialize(drawing_area);
   }
 
-#ifdef EZGL_RHI
   for (auto &c_pair : m_canvases)
     c_pair.second->begin_deferred_redraw_cycle();
-#endif
 
   // The main parent window needs to be explicitly added to our GTK application.
   QWidget *window = find_widget(m_window_id.c_str());
@@ -135,10 +131,8 @@ void application::init()
   if(initial_setup_callback != nullptr)
     initial_setup_callback(this, true);
 
-#ifdef EZGL_RHI
   for (auto &c_pair : m_canvases)
     c_pair.second->end_deferred_redraw_cycle();
-#endif
 
   q_info("application::init successful.");
 }
@@ -186,10 +180,8 @@ application::~application()
 bool application::notify(QObject* obj, QEvent* event)
 {
     QWidget* w = qobject_cast<ezgl::DrawingAreaWidget*>(obj);
-#ifdef EZGL_RHI
     if (!w)
         w = qobject_cast<ezgl::RhiCanvasWidget*>(obj);
-#endif
     if (!w) {
         return QApplication::notify(obj, event);
     }
@@ -348,17 +340,13 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     return exec();
   } else {
     // Subsequent stage: reuse the existing window.
-#ifdef EZGL_RHI
     for (auto &c_pair : m_canvases)
       c_pair.second->begin_deferred_redraw_cycle();
-#endif
     m_window->show();
     if (initial_setup_callback != nullptr)
       initial_setup_callback(this, false);
-#ifdef EZGL_RHI
     for (auto &c_pair : m_canvases)
       c_pair.second->end_deferred_redraw_cycle();
-#endif
     q_info("The event loop is now resuming.");
     return exec();
   }

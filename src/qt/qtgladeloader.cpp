@@ -1,9 +1,7 @@
 #include "ezgl/qt/qtgladeloader.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
-#ifdef EZGL_RHI
 #include "ezgl/qt/rhi_canvas_widget.hpp"
-#endif
 
 #include <QFile>
 #include <QWidget>
@@ -340,11 +338,7 @@ QWidget* QtGladeLoader::buildGtkDrawingArea(const QDomElement& objEl, QWidget* p
 {
   // Create the canvas with its final parent so QRhiWidget never exists as a
   // transient top-level widget before layouts and visibility are applied.
-#ifdef EZGL_RHI
   QWidget* w = new ezgl::RhiCanvasWidget(parent);
-#else
-  QWidget* w = new ezgl::DrawingAreaWidget(parent);
-#endif
   w->setObjectName(getId(objEl));
   m_widgets.insert(w->objectName(), w);
 
