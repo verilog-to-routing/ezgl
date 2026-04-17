@@ -136,11 +136,12 @@ std::size_t alignUp(std::size_t value, std::size_t alignment)
     return remainder == 0 ? value : (value + alignment - remainder);
 }
 
-struct ColorUniform {
-    float rgba[4];
+struct StyleUniform {
+    float color[4];
+    float line[4]; // x: width_px, y: dash_px, z: gap_px, w: unused
 };
-static_assert(sizeof(ColorUniform) == 16,
-              "ColorUniform must match a std140 vec4");
+static_assert(sizeof(StyleUniform) == 32,
+              "StyleUniform must match two std140 vec4 values");
 
 struct OverlayVertex {
     float x;
@@ -151,14 +152,30 @@ struct OverlayVertex {
 static_assert(sizeof(OverlayVertex) == 16,
               "OverlayVertex must be 16 bytes");
 
-ColorUniform makeColorUniform(std::uint32_t rgba)
+StyleUniform makeStyleUniform(ezgl::StyleKey style_key, std::uint32_t rgba)
 {
     constexpr float kScale = 1.0f / 255.0f;
-    return ColorUniform{{
+    float width_px = float(ezgl::style_key_line_width(style_key));
+    if (width_px <= 0.0f)
+        width_px = 1.0f;
+
+    float dash_px = 0.0f;
+    float gap_px = 0.0f;
+    if (ezgl::style_key_line_dash(style_key) != 0) {
+        dash_px = 5.0f * width_px;
+        gap_px  = 3.0f * width_px;
+    }
+
+    return StyleUniform{{
         float((rgba >>  0) & 0xFF) * kScale,
         float((rgba >>  8) & 0xFF) * kScale,
         float((rgba >> 16) & 0xFF) * kScale,
         float((rgba >> 24) & 0xFF) * kScale
+    }, {
+        width_px,
+        dash_px,
+        gap_px,
+        0.0f
     }};
 }
 
@@ -247,8 +264,8 @@ void buildFillRectPipeline(QRhi*                                  rhi,
  *
  * Vertex format uses QuadCorner in binding 0 and ThickLineInstance in binding 1.
  * The vertex shader (thick_line.vert) expands each
- * vertex perpendicularly using the MVP + viewport uniforms.
- * The fragment shader reads color from the dynamic style UBO.
+ * vertex perpendicularly using the MVP + viewport uniforms plus width from
+ * the dynamic style UBO. The fragment shader reads color from the same UBO.
  */
 void buildThickLinePipeline(QRhi*                                   rhi,
                             std::unique_ptr<QRhiGraphicsPipeline>&  pso,
@@ -258,8 +275,8 @@ void buildThickLinePipeline(QRhi*                                   rhi,
                             QRhiRenderPassDescriptor*                rpDesc)
 {
     // Instanced rendering:
-    //   Binding 0 (PerVertex)   — QuadCorner   (t, side)        — 4 corners, constant
-    //   Binding 1 (PerInstance) — ThickLineInstance (x0,y0,x1,y1,width_px)
+    //   Binding 0 (PerVertex)   — QuadCorner   (t, side) — 4 corners, constant
+    //   Binding 1 (PerInstance) — ThickLineInstance (x0,y0,x1,y1)
     QRhiVertexInputLayout layout;
     layout.setBindings({
         QRhiVertexInputBinding(sizeof(ezgl::QuadCorner)),
@@ -275,10 +292,7 @@ void buildThickLinePipeline(QRhi*                                   rhi,
                                  offsetof(ezgl::ThickLineInstance, x0)),
         // location 2: inEnd (x1, y1) — from binding 1, per instance
         QRhiVertexInputAttribute(1, 2, QRhiVertexInputAttribute::Float2,
-                                 offsetof(ezgl::ThickLineInstance, x1)),
-        // location 3: inWidthPx — from binding 1, per instance
-        QRhiVertexInputAttribute(1, 3, QRhiVertexInputAttribute::Float,
-                                 offsetof(ezgl::ThickLineInstance, width_px))
+                                 offsetof(ezgl::ThickLineInstance, x1))
     });
 
     QRhiGraphicsPipeline::TargetBlend blend;
@@ -311,7 +325,7 @@ void buildDashedLinePipeline(QRhi*                                   rhi,
                              QRhiRenderPassDescriptor*                rpDesc)
 {
     // Binding 0 (PerVertex)   — QuadCorner (t, side)
-    // Binding 1 (PerInstance) — DashedLineInstance
+    // Binding 1 (PerInstance) — DashedLineInstance (x0,y0,x1,y1,phase_world)
     QRhiVertexInputLayout layout;
     layout.setBindings({
         QRhiVertexInputBinding(sizeof(ezgl::QuadCorner)),
@@ -326,12 +340,6 @@ void buildDashedLinePipeline(QRhi*                                   rhi,
         QRhiVertexInputAttribute(1, 2, QRhiVertexInputAttribute::Float2,
                                  offsetof(ezgl::DashedLineInstance, x1)),
         QRhiVertexInputAttribute(1, 3, QRhiVertexInputAttribute::Float,
-                                 offsetof(ezgl::DashedLineInstance, width_px)),
-        QRhiVertexInputAttribute(1, 4, QRhiVertexInputAttribute::Float,
-                                 offsetof(ezgl::DashedLineInstance, dash_px)),
-        QRhiVertexInputAttribute(1, 5, QRhiVertexInputAttribute::Float,
-                                 offsetof(ezgl::DashedLineInstance, gap_px)),
-        QRhiVertexInputAttribute(1, 6, QRhiVertexInputAttribute::Float,
                                  offsetof(ezgl::DashedLineInstance, phase_world))
     });
 
@@ -546,9 +554,10 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
                 frame.mvp_ubuf.get()),
             QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 1,
-                QRhiShaderResourceBinding::FragmentStage,
+                QRhiShaderResourceBinding::VertexStage
+                    | QRhiShaderResourceBinding::FragmentStage,
                 frame.style_ubuf.get(),
-                sizeof(ColorUniform))
+                sizeof(StyleUniform))
         });
         frame.srb->create();
 
@@ -698,7 +707,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         };
 
         const std::size_t style_stride =
-            alignUp(sizeof(ColorUniform), std::size_t(rhi()->ubufAlignment()));
+            alignUp(sizeof(StyleUniform), std::size_t(rhi()->ubufAlignment()));
         const std::size_t total_style_count =
             scene_buffers->thin_lines.size()
             + scene_buffers->fill_rects.size()
@@ -708,10 +717,10 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         std::vector<std::uint8_t> style_uniform_bytes(total_style_count * style_stride, 0);
         std::size_t next_style_index = 0;
 
-        auto assign_style_offset = [&](std::uint32_t rgba) {
+        auto assign_style_offset = [&](ezgl::StyleKey style_key, std::uint32_t rgba) {
             const std::size_t offset = next_style_index * style_stride;
-            const ColorUniform color = makeColorUniform(rgba);
-            std::memcpy(style_uniform_bytes.data() + offset, &color, sizeof(ColorUniform));
+            const StyleUniform style = makeStyleUniform(style_key, rgba);
+            std::memcpy(style_uniform_bytes.data() + offset, &style, sizeof(StyleUniform));
             ++next_style_index;
             return quint32(offset);
         };
@@ -743,7 +752,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                 GpuStyleBuffer gpu_buffer;
                 gpu_buffer.style_key = style_key;
                 gpu_buffer.rgba = scene_buffer.rgba;
-                gpu_buffer.style_offset = assign_style_offset(scene_buffer.rgba);
+                gpu_buffer.style_offset = assign_style_offset(style_key, scene_buffer.rgba);
 
                 for (const Chunk& chunk : scene_buffer.chunks) {
                     std::size_t remaining = chunk.count;

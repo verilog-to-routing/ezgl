@@ -543,15 +543,18 @@ std::uint32_t rhi_renderer::current_packed_color() const
 }
 
 StyleKey rhi_renderer::current_style_key(PrimitiveType primitive_type,
-                                         float         line_width_px,
-                                         float         dash_px,
-                                         float         gap_px) const
+                                         float         line_width_px) const
 {
-    (void)primitive_type;
-    (void)line_width_px;
-    (void)dash_px;
-    (void)gap_px;
-    return StyleKey(current_packed_color());
+    const int rounded_width = int(std::lround(line_width_px));
+    const std::uint16_t packed_width = std::uint16_t(
+        std::clamp(rounded_width, 0, 65535));
+    const std::uint8_t packed_dash = primitive_type == PrimitiveType::DashedLine
+        ? std::uint8_t(current_line_dash)
+        : 0;
+    return pack_style_key(primitive_type,
+                          current_packed_color(),
+                          packed_width,
+                          packed_dash);
 }
 
 static bool matches_style_key(StyleKey lhs, StyleKey rhs)
@@ -844,7 +847,6 @@ void rhi_renderer::append_fill_triangle_to_tiles(point2d    a,
 void rhi_renderer::append_thick_segment(RhiTileBatch& tile,
                                         point2d       start,
                                         point2d       end,
-                                        float         width_px,
                                         StyleKey      style_key,
                                         std::uint32_t rgba)
 {
@@ -853,20 +855,18 @@ void rhi_renderer::append_thick_segment(RhiTileBatch& tile,
     if (std::sqrt(dx * dx + dy * dy) < 1e-10)
         return; // degenerate (zero-length) segment
 
-    // One instance record (20 bytes) per segment.
+    // One instance record (16 bytes) per segment.
     // The vertex shader reconstructs all 4 quad corners from this record plus
     // the constant 4-corner quad buffer — no per-vertex duplication of endpoints.
     TileThickLineBatch& batch = ensure_thick_line_batch(tile, style_key, rgba);
     batch.instances.push_back({
         float(start.x), float(start.y),
-        float(end.x),   float(end.y),
-        width_px
+        float(end.x),   float(end.y)
     });
 }
 
 void rhi_renderer::append_thick_line_to_tiles(point2d    start,
                                               point2d    end,
-                                              float      width_px,
                                               StyleKey   style_key,
                                               std::uint32_t rgba)
 {
@@ -886,7 +886,6 @@ void rhi_renderer::append_thick_line_to_tiles(point2d    start,
             append_thick_segment(tile,
                                  clipped_start,
                                  clipped_end,
-                                 width_px,
                                  style_key,
                                  rgba);
         }
@@ -895,12 +894,11 @@ void rhi_renderer::append_thick_line_to_tiles(point2d    start,
 
 void rhi_renderer::append_thick_draw_segment_to_tiles(point2d    start,
                                                       point2d    end,
-                                                      float      width_px,
                                                       StyleKey   style_key,
                                                       std::uint32_t rgba)
 {
     // Reuses the same geometry pool as thick draw_lines (same pipeline).
-    append_thick_line_to_tiles(start, end, width_px, style_key, rgba);
+    append_thick_line_to_tiles(start, end, style_key, rgba);
 }
 
 // ---- dashed line helpers ---------------------------------------------------
@@ -908,9 +906,6 @@ void rhi_renderer::append_thick_draw_segment_to_tiles(point2d    start,
 void rhi_renderer::append_dashed_segment(RhiTileBatch& tile,
                                          point2d       start,
                                          point2d       end,
-                                         float         width_px,
-                                         float         dash_px,
-                                         float         gap_px,
                                          float         phase_world,
                                          StyleKey      style_key,
                                          std::uint32_t rgba)
@@ -924,15 +919,12 @@ void rhi_renderer::append_dashed_segment(RhiTileBatch& tile,
     batch.instances.push_back({
         float(start.x), float(start.y),
         float(end.x),   float(end.y),
-        width_px, dash_px, gap_px, phase_world
+        phase_world
     });
 }
 
 void rhi_renderer::append_dashed_line_to_tiles(point2d    start,
                                                point2d    end,
-                                               float      width_px,
-                                               float      dash_px,
-                                               float      gap_px,
                                                StyleKey   style_key,
                                                std::uint32_t rgba)
 {
@@ -955,7 +947,6 @@ void rhi_renderer::append_dashed_line_to_tiles(point2d    start,
             const float phase_world = float(std::sqrt(phase_dx * phase_dx
                                                       + phase_dy * phase_dy));
             append_dashed_segment(tile, clipped_start, clipped_end,
-                                  width_px, dash_px, gap_px,
                                   phase_world, style_key, rgba);
         }
     }
@@ -963,35 +954,10 @@ void rhi_renderer::append_dashed_line_to_tiles(point2d    start,
 
 void rhi_renderer::append_dashed_draw_segment_to_tiles(point2d    start,
                                                        point2d    end,
-                                                       float      width_px,
-                                                       float      dash_px,
-                                                       float      gap_px,
                                                        StyleKey   style_key,
                                                        std::uint32_t rgba)
 {
-    append_dashed_line_to_tiles(start, end, width_px, dash_px, gap_px, style_key, rgba);
-}
-
-// Convert the active line dash mode to screen-pixel dash/gap lengths.
-// Phase continuity across tile clipping is handled separately via phase_world.
-void rhi_renderer::set_dash_pattern(float width_px,
-                                    float& dash_px,
-                                    float& gap_px) const
-{
-    switch (current_line_dash) {
-        case ezgl::line_dash::none:
-            dash_px = 0.0f;
-            gap_px = 0.0f;
-            return;
-        case ezgl::line_dash::asymmetric_5_3:
-            dash_px = 5.0f * width_px;
-            gap_px  = 3.0f * width_px;
-            return;
-        default:
-            dash_px = 5.0f * width_px;
-            gap_px  = 3.0f * width_px;
-            return;
-    }
+    append_dashed_line_to_tiles(start, end, style_key, rgba);
 }
 
 // World→NDC matrix derived from camera state and widget dimensions.
@@ -1043,23 +1009,22 @@ void rhi_renderer::draw_line(point2d start, point2d end)
     }
     if (m_skip_tile_writes)
         return;
+    if (rectangle_off_screen({start, end}))
+        return;
 
     const std::uint32_t rgba = current_packed_color();
 
     if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
-        float dash_px = 0.0f;
-        float gap_px = 0.0f;
-        set_dash_pattern(w, dash_px, gap_px);
-        append_dashed_line_to_tiles(start, end, w, dash_px, gap_px,
-                                    current_style_key(PrimitiveType::DashedLine, w, dash_px, gap_px),
+        append_dashed_line_to_tiles(start, end,
+                                    current_style_key(PrimitiveType::DashedLine, w),
                                     rgba);
         return;
     }
 
     if (current_line_width > 1) {
         const float w = float(current_line_width);
-        append_thick_line_to_tiles(start, end, w,
+        append_thick_line_to_tiles(start, end,
                                    current_style_key(PrimitiveType::ThickLine, w),
                                    rgba);
         return;
@@ -1077,6 +1042,8 @@ void rhi_renderer::fill_rectangle(point2d start, point2d end)
         return;
     }
     if (m_skip_tile_writes)
+        return;
+    if (rectangle_off_screen({start, end}))
         return;
 
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
@@ -1105,6 +1072,8 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
     }
     if (m_skip_tile_writes)
         return;
+    if (rectangle_off_screen({start, end}))
+        return;
 
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
@@ -1112,24 +1081,21 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
 
     if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
-        float dash_px = 0.0f;
-        float gap_px = 0.0f;
-        set_dash_pattern(w, dash_px, gap_px);
-        const StyleKey style_key = current_style_key(PrimitiveType::DashedLine, w, dash_px, gap_px);
-        append_dashed_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, dash_px, gap_px, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, dash_px, gap_px, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, dash_px, gap_px, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, dash_px, gap_px, style_key, rgba);
+        const StyleKey style_key = current_style_key(PrimitiveType::DashedLine, w);
+        append_dashed_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_key, rgba);
+        append_dashed_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_key, rgba);
+        append_dashed_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_key, rgba);
+        append_dashed_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_key, rgba);
         return;
     }
 
     if (current_line_width > 1) {
         const float w = float(current_line_width);
         const StyleKey style_key = current_style_key(PrimitiveType::ThickLine, w);
-        append_thick_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, w, style_key, rgba);
-        append_thick_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, w, style_key, rgba);
-        append_thick_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, w, style_key, rgba);
-        append_thick_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, w, style_key, rgba);
+        append_thick_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_key, rgba);
+        append_thick_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_key, rgba);
+        append_thick_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_key, rgba);
+        append_thick_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_key, rgba);
         return;
     }
 
@@ -1277,27 +1243,27 @@ void rhi_renderer::flush()
     for (const auto& [style_key, buffer] : scene_buffers.thin_lines) {
         (void)style_key;
         line_verts_mb += double(buffer.verts.size() * sizeof(PosVertex)) / kBytesPerMb;
-        style_uniforms_mb += double(sizeof(float) * 4) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
     }
     for (const auto& [style_key, buffer] : scene_buffers.fill_rects) {
         (void)style_key;
         fill_rect_instances_mb += double(buffer.instances.size() * sizeof(FillRectInstance)) / kBytesPerMb;
-        style_uniforms_mb += double(sizeof(float) * 4) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
     }
     for (const auto& [style_key, buffer] : scene_buffers.fill_polys) {
         (void)style_key;
         fill_poly_verts_mb += double(buffer.verts.size() * sizeof(PosVertex)) / kBytesPerMb;
-        style_uniforms_mb += double(sizeof(float) * 4) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
     }
     for (const auto& [style_key, buffer] : scene_buffers.thick_lines) {
         (void)style_key;
         thick_instances_mb += double(buffer.instances.size() * sizeof(ThickLineInstance)) / kBytesPerMb;
-        style_uniforms_mb += double(sizeof(float) * 4) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
     }
     for (const auto& [style_key, buffer] : scene_buffers.dashed_lines) {
         (void)style_key;
         dashed_instances_mb += double(buffer.instances.size() * sizeof(DashedLineInstance)) / kBytesPerMb;
-        style_uniforms_mb += double(sizeof(float) * 4) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
     }
 
     const double total_mb =

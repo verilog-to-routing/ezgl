@@ -170,9 +170,7 @@ private:
     PosVertex make_vertex(point2d world_pt) const;
     std::uint32_t current_packed_color() const;
     StyleKey current_style_key(PrimitiveType primitive_type,
-                               float         line_width_px = 0.0f,
-                               float         dash_px = 0.0f,
-                               float         gap_px = 0.0f) const;
+                               float         line_width_px = 0.0f) const;
     TileThinLineBatch& ensure_thin_line_batch(RhiTileBatch& tile,
                                               StyleKey     style_key,
                                               std::uint32_t rgba);
@@ -221,46 +219,31 @@ private:
     void append_thick_segment(RhiTileBatch& tile,
                               point2d       start,
                               point2d       end,
-                              float         width_px,
                               StyleKey      style_key,
                               std::uint32_t rgba);
     void append_thick_line_to_tiles(point2d    start,
                                     point2d    end,
-                                    float      width_px,
                                     StyleKey   style_key,
                                     std::uint32_t rgba);
     void append_thick_draw_segment_to_tiles(point2d    start,
                                             point2d    end,
-                                            float      width_px,
                                             StyleKey   style_key,
                                             std::uint32_t rgba);
 
     void append_dashed_segment(RhiTileBatch& tile,
                                point2d       start,
                                point2d       end,
-                               float         width_px,
-                               float         dash_px,
-                               float         gap_px,
                                float         phase_world,
                                StyleKey      style_key,
                                std::uint32_t rgba);
     void append_dashed_line_to_tiles(point2d    start,
                                      point2d    end,
-                                     float      width_px,
-                                     float      dash_px,
-                                     float      gap_px,
                                      StyleKey   style_key,
                                      std::uint32_t rgba);
     void append_dashed_draw_segment_to_tiles(point2d    start,
                                              point2d    end,
-                                             float      width_px,
-                                             float      dash_px,
-                                             float      gap_px,
                                              StyleKey   style_key,
                                              std::uint32_t rgba);
-    void set_dash_pattern(float width_px,
-                          float& dash_px,
-                          float& gap_px) const;
     void begin_overlay_frame();
     void render_cached_overlay();
     void ensure_tile_grid();

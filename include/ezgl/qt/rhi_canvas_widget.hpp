@@ -53,43 +53,35 @@ static_assert(sizeof(QuadCorner) == 8, "QuadCorner must be 8 bytes");
 /**
  * Per-instance data for one thick-line segment (instanced rendering).
  *
- * Memory cost: 20 bytes per line, vs 144 bytes with a per-vertex approach
- * (6 expanded vertices × 24 bytes).  For N lines: 7× less RAM.
+ * Width is part of the per-style uniform, so all segments in the same style
+ * batch share it without repeating it in every instance.
  *
  *   Offset  0 : float x0, y0   — world-space start
  *   Offset  8 : float x1, y1   — world-space end
- *   Offset 16 : float width_px — full line width in screen pixels
  */
 struct ThickLineInstance {
     float x0, y0;
     float x1, y1;
-    float width_px;
 };
-static_assert(sizeof(ThickLineInstance) == 20, "ThickLineInstance must be 20 bytes");
+static_assert(sizeof(ThickLineInstance) == 16, "ThickLineInstance must be 16 bytes");
 
 /**
  * Per-instance data for one dashed-line segment (instanced rendering).
  *
- * Memory cost: 32 bytes per line. Same TriangleStrip quad as thick lines;
- * the fragment shader discards gap fragments using screen-pixel distance
- * while preserving phase continuity across tile-clipped segments.
+ * Width, dash, and gap are per-style uniforms. The only dashed-only instance
+ * value is phase_world, which preserves dash phase across tile-clipped
+ * segments.
  *
  *   Offset  0 : float x0, y0         — world-space clipped start
  *   Offset  8 : float x1, y1         — world-space clipped end
- *   Offset 16 : float width_px       — full line width in screen pixels (>= 1)
- *   Offset 20 : float dash_px        — dash run length in screen pixels
- *   Offset 24 : float gap_px         — gap length in screen pixels
- *   Offset 28 : float phase_world    — world-space distance from original segment start to x0/y0
+ *   Offset 16 : float phase_world    — world-space distance from original segment start to x0/y0
  */
 struct DashedLineInstance {
     float x0, y0;
     float x1, y1;
-    float width_px;
-    float dash_px;
-    float gap_px;
     float phase_world;
 };
-static_assert(sizeof(DashedLineInstance) == 32, "DashedLineInstance must be 32 bytes");
+static_assert(sizeof(DashedLineInstance) == 20, "DashedLineInstance must be 20 bytes");
 
 struct FillRectInstance {
     float x0, y0;
@@ -106,6 +98,27 @@ enum class PrimitiveType : std::uint8_t {
     ThickLine,
     DashedLine,
 };
+
+inline constexpr StyleKey pack_style_key(PrimitiveType primitive_type,
+                                         std::uint32_t rgba,
+                                         std::uint16_t line_width_px,
+                                         std::uint8_t line_dash) noexcept
+{
+    return StyleKey(rgba)
+        | (StyleKey(line_width_px) << 32)
+        | (StyleKey(line_dash) << 48)
+        | (StyleKey(std::uint8_t(primitive_type)) << 56);
+}
+
+inline constexpr std::uint16_t style_key_line_width(StyleKey key) noexcept
+{
+    return std::uint16_t((key >> 32) & 0xFFFFu);
+}
+
+inline constexpr std::uint8_t style_key_line_dash(StyleKey key) noexcept
+{
+    return std::uint8_t((key >> 48) & 0xFFu);
+}
 
 struct Chunk {
     rectangle     world_bounds;
