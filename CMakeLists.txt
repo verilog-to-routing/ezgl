@@ -69,7 +69,9 @@ add_library(
   include/ezgl/color.hpp
   include/ezgl/control.hpp
   include/ezgl/callback.hpp
+  include/ezgl/irenderer.hpp
   include/ezgl/graphics.hpp
+  include/ezgl/qt/renderer_base.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
   include/ezgl/logutils.hpp
@@ -93,6 +95,7 @@ add_library(
   src/qt/drawingareawidget.cpp
   src/qt/painter.cpp
   src/qt/deferred_renderer.cpp
+  src/qt/renderer_base.cpp
 )
 
 target_include_directories(

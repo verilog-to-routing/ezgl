@@ -1,6 +1,7 @@
 #pragma once
 
-#include "ezgl/graphics.hpp"
+#include "ezgl/irenderer.hpp"
+#include "ezgl/qt/renderer_base.hpp"
 #include "ezgl/qt/painter.hpp"
 
 #include <QLineF>
@@ -107,8 +108,8 @@ using DeferredOverlayCommand =
 
 // ---- deferred_renderer ---------------------------------------------------
 
-class deferred_renderer : public renderer {
-  const double MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX = 5.0;
+class deferred_renderer : public irenderer, protected RendererBase {
+    const double MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX = 5.0;
 public:
     deferred_renderer(Painter *painter,
                       transform_fn transform,
@@ -117,7 +118,34 @@ public:
 
     ~deferred_renderer() override = default;
 
-    // Hot-path overrides — collect into batches instead of drawing immediately.
+    // ---- irenderer: coordinate system / viewport ---------------------------
+
+    void set_coordinate_system(t_coordinate_system cs) override;
+    void set_visible_world(rectangle new_world) override;
+    rectangle get_visible_world() override;
+    rectangle get_visible_screen() const override;
+    rectangle world_to_screen(const rectangle& box) override;
+
+    // ---- irenderer: state setters ------------------------------------------
+
+    void set_color(color c) override;
+    void set_color(color c, uint_fast8_t alpha) override;
+    void set_color(uint_fast8_t r, uint_fast8_t g, uint_fast8_t b,
+                   uint_fast8_t a = 255) override;
+    void set_line_cap(line_cap cap) override;
+    void set_line_dash(line_dash dash) override;
+    void set_line_width(int width) override;
+    void set_font_size(double size) override;
+    void format_font(std::string const& family, font_slant slant,
+                     font_weight weight) override;
+    void format_font(std::string const& family, font_slant slant,
+                     font_weight weight, double new_size) override;
+    void set_text_rotation(double degrees) override;
+    void set_horiz_justification(justification j) override;
+    void set_vert_justification(justification j) override;
+
+    // ---- irenderer: hot-path draw calls (batched) --------------------------
+
     void draw_line(point2d start, point2d end) override;
 
     void fill_rectangle(point2d start, point2d end) override;
@@ -128,28 +156,40 @@ public:
     void draw_rectangle(point2d start, double width, double height) override;
     void draw_rectangle(rectangle r) override;
 
-    // Flush all batches to the underlying QPainter, then reset.
+    // ---- irenderer: overlay draw calls (deferred to command queue) ---------
+
+    void fill_poly(std::vector<point2d> const& points) override;
+    void draw_elliptic_arc(point2d center, double radius_x, double radius_y,
+                           double start_angle, double extent_angle) override;
+    void draw_arc(point2d center, double radius,
+                  double start_angle, double extent_angle) override;
+    void fill_elliptic_arc(point2d center, double radius_x, double radius_y,
+                           double start_angle, double extent_angle) override;
+    void fill_arc(point2d center, double radius,
+                  double start_angle, double extent_angle) override;
+    void draw_text(point2d point, std::string const& text) override;
+    void draw_text(point2d point, std::string const& text,
+                   double bound_x, double bound_y) override;
+    void draw_surface(surface* p_surface, point2d anchor_point,
+                      double scale_factor = 1) override;
+
+    // ---- Flush all batches to the underlying QPainter, then reset ----------
     void flush();
+
+    // ---- Methods used by rhi_renderer --------------------------------------
+
+    // Replay stored overlay commands without resetting (for camera-only update).
+    void replay_overlay();
+
+    // Discard all stored commands and batches (called at begin of new frame).
+    void clear_overlay_and_batches();
+
+    // Redirect the internal painter to a new surface (called after resize).
+    void set_painter_surface(Painter* painter, QImage* surface);
 
 protected:
     void replay();
     void clear_deferred_primitives();
-    bool is_replaying_deferred_commands() const { return m_replaying_commands; }
-
-    bool defer_fill_poly(const std::vector<point2d>& points) override;
-    bool defer_arc(point2d center,
-                   double radius_x,
-                   double radius_y,
-                   double start_angle,
-                   double extent_angle,
-                   bool fill) override;
-    bool defer_text(point2d point,
-                    const std::string& text,
-                    double bound_x,
-                    double bound_y) override;
-    bool defer_surface(surface *p_surface,
-                       point2d point,
-                       double scale_factor) override;
 
 private:
     void ensure_overlay_index_grid();
@@ -185,6 +225,9 @@ private:
 
     QRectF to_screen_rect(point2d start, point2d end);
 
+    void push_arc_command(point2d center, double radius_x, double radius_y,
+                          double start_angle, double extent_angle, bool fill);
+
     // Batch vectors — maintain submission order for painter's algorithm.
     std::vector<LineBatch>     m_line_batches;
     std::vector<FillRectBatch> m_fill_rect_batches;
@@ -202,9 +245,6 @@ private:
     std::vector<std::uint32_t>           m_unindexed_overlay_commands;
     std::vector<std::uint32_t>           m_overlay_query_marks;
     std::uint32_t                        m_overlay_query_generation = 1;
-    bool                                 m_replaying_commands = false;
 };
 
 } // namespace ezgl
-
-

@@ -18,7 +18,7 @@
 
 #include "ezgl/canvas.hpp"
 
-#include "ezgl/graphics.hpp"
+#include "ezgl/graphics.hpp"   // immediate_renderer
 
 #include <QWidget>
 #include <QPainter>
@@ -295,7 +295,7 @@ void canvas::initialize(QWidget *drawing_area)
       m_camera.update_widget(width(), height());
       redraw();
       if (m_animation_renderer != nullptr)
-        m_animation_renderer->update_renderer(m_painter, m_surface);
+        static_cast<immediate_renderer*>(m_animation_renderer)->update_renderer(m_painter, m_surface);
     });
   }
 
@@ -374,7 +374,7 @@ renderer *canvas::create_animation_renderer()
 {
   if(m_animation_renderer == nullptr) {
     using namespace std::placeholders;
-    m_animation_renderer = new renderer(m_painter, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
+    m_animation_renderer = new immediate_renderer(m_painter, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
   }
 
   return m_animation_renderer;

@@ -3,6 +3,7 @@
 #include "ezgl/qt/rhi_renderer.hpp"
 #include "ezgl/camera.hpp"
 #include "ezgl/logutils.hpp"
+#include <functional>
 
 #include <QtGlobal>
 
@@ -237,25 +238,221 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
                              camera*          cam,
                              draw_callback_fn draw_callback,
                              QColor           bg_color)
-    : deferred_renderer(nullptr,   // painter is wired up below
-                        std::move(transform),
-                        cam,
-                        nullptr)   // surface not used in Qt path
+    : RendererBase(nullptr,    // painter is wired up below via update_painter()
+                   transform,  // copy — m_overlay_deferred also needs it
+                   cam,
+                   nullptr)    // surface not used in RHI path
     , m_rhi_widget(widget)
     , m_bg_color(bg_color)
     , m_overlay(std::max(1, widget->width()),
                 std::max(1, widget->height()),
                 QImage::Format_ARGB32_Premultiplied)
     , m_overlay_painter(&m_overlay)
+    , m_overlay_deferred(std::make_unique<deferred_renderer>(
+          &m_overlay_painter,
+          std::move(transform),   // move the second copy into overlay renderer
+          cam,
+          &m_overlay))
 {
     (void)draw_callback;
     ensure_tile_grid();
     clear_tile_geometry();
-    clear_deferred_primitives();
+    m_overlay_deferred->clear_overlay_and_batches();
     m_overlay.fill(Qt::transparent);
-    update_renderer(&m_overlay_painter, &m_overlay);
+    update_painter(&m_overlay_painter, &m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
+}
+
+// ---- irenderer: coordinate system / viewport ------------------------------
+
+void rhi_renderer::set_coordinate_system(t_coordinate_system cs)
+{
+    do_set_coordinate_system(cs);
+    m_overlay_deferred->set_coordinate_system(cs);
+}
+
+void rhi_renderer::set_visible_world(rectangle new_world)
+{
+    do_set_visible_world(new_world);
+    m_overlay_deferred->set_visible_world(new_world);
+}
+
+rectangle rhi_renderer::get_visible_world()
+{
+    return get_visible_world_impl();
+}
+
+rectangle rhi_renderer::get_visible_screen() const
+{
+    return get_visible_screen_impl();
+}
+
+rectangle rhi_renderer::world_to_screen(const rectangle& box)
+{
+    return world_to_screen_impl(box);
+}
+
+// ---- irenderer: state setters ---------------------------------------------
+
+void rhi_renderer::set_color(color c)
+{
+    do_set_color(c);
+    m_overlay_deferred->set_color(c);
+}
+
+void rhi_renderer::set_color(color c, uint_fast8_t alpha)
+{
+    do_set_color(c, alpha);
+    m_overlay_deferred->set_color(c, alpha);
+}
+
+void rhi_renderer::set_color(uint_fast8_t r, uint_fast8_t g,
+                              uint_fast8_t b, uint_fast8_t a)
+{
+    do_set_color(r, g, b, a);
+    m_overlay_deferred->set_color(r, g, b, a);
+}
+
+void rhi_renderer::set_line_cap(line_cap cap)
+{
+    do_set_line_cap(cap);
+    m_overlay_deferred->set_line_cap(cap);
+}
+
+void rhi_renderer::set_line_dash(line_dash dash)
+{
+    do_set_line_dash(dash);
+    m_overlay_deferred->set_line_dash(dash);
+}
+
+void rhi_renderer::set_line_width(int width)
+{
+    do_set_line_width(width);
+    m_overlay_deferred->set_line_width(width);
+}
+
+void rhi_renderer::set_font_size(double size)
+{
+    do_set_font_size(size);
+    m_overlay_deferred->set_font_size(size);
+}
+
+void rhi_renderer::format_font(std::string const& family,
+                                font_slant slant, font_weight weight)
+{
+    do_format_font(family, slant, weight);
+    m_overlay_deferred->format_font(family, slant, weight);
+}
+
+void rhi_renderer::format_font(std::string const& family,
+                                font_slant slant, font_weight weight,
+                                double new_size)
+{
+    do_set_font_size(new_size);
+    do_format_font(family, slant, weight);
+    m_overlay_deferred->format_font(family, slant, weight, new_size);
+}
+
+void rhi_renderer::set_text_rotation(double degrees)
+{
+    do_set_text_rotation(degrees);
+    m_overlay_deferred->set_text_rotation(degrees);
+}
+
+void rhi_renderer::set_horiz_justification(justification j)
+{
+    do_set_horiz_justification(j);
+    m_overlay_deferred->set_horiz_justification(j);
+}
+
+void rhi_renderer::set_vert_justification(justification j)
+{
+    do_set_vert_justification(j);
+    m_overlay_deferred->set_vert_justification(j);
+}
+
+// ---- irenderer: overlay draw calls ----------------------------------------
+
+void rhi_renderer::fill_poly(std::vector<point2d> const& points)
+{
+    if (current_coordinate_system != WORLD) {
+        m_overlay_deferred->fill_poly(points);
+        return;
+    }
+    if (m_skip_tile_writes)
+        return;
+
+    if (points.size() < 3)
+        return;
+
+    double x_min = points[0].x, x_max = points[0].x;
+    double y_min = points[0].y, y_max = points[0].y;
+    for (std::size_t i = 1; i < points.size(); ++i) {
+        x_min = std::min(x_min, points[i].x);
+        x_max = std::max(x_max, points[i].x);
+        y_min = std::min(y_min, points[i].y);
+        y_max = std::max(y_max, points[i].y);
+    }
+
+    if (rectangle_off_screen({{x_min, y_min}, {x_max, y_max}}))
+        return;
+
+    const std::vector<Triangle> triangles = triangulate_simple_polygon(points);
+    if (triangles.empty()) {
+        qWarning("rhi_renderer: failed to triangulate polygon with %llu points",
+                 static_cast<unsigned long long>(points.size()));
+        return;
+    }
+
+    const StyleKey style_key = current_style_key(PrimitiveType::FilledPoly);
+    const std::uint32_t rgba = current_packed_color();
+    for (const Triangle& triangle : triangles) {
+        append_fill_triangle_to_tiles(triangle.a, triangle.b, triangle.c, style_key, rgba);
+    }
+}
+
+void rhi_renderer::draw_elliptic_arc(point2d center, double radius_x, double radius_y,
+                                      double start_angle, double extent_angle)
+{
+    m_overlay_deferred->draw_elliptic_arc(center, radius_x, radius_y,
+                                          start_angle, extent_angle);
+}
+
+void rhi_renderer::draw_arc(point2d center, double radius,
+                             double start_angle, double extent_angle)
+{
+    m_overlay_deferred->draw_arc(center, radius, start_angle, extent_angle);
+}
+
+void rhi_renderer::fill_elliptic_arc(point2d center, double radius_x, double radius_y,
+                                      double start_angle, double extent_angle)
+{
+    m_overlay_deferred->fill_elliptic_arc(center, radius_x, radius_y,
+                                          start_angle, extent_angle);
+}
+
+void rhi_renderer::fill_arc(point2d center, double radius,
+                             double start_angle, double extent_angle)
+{
+    m_overlay_deferred->fill_arc(center, radius, start_angle, extent_angle);
+}
+
+void rhi_renderer::draw_text(point2d point, std::string const& text)
+{
+    m_overlay_deferred->draw_text(point, text);
+}
+
+void rhi_renderer::draw_text(point2d point, std::string const& text,
+                              double bound_x, double bound_y)
+{
+    m_overlay_deferred->draw_text(point, text, bound_x, bound_y);
+}
+
+void rhi_renderer::draw_surface(surface* p_surface, point2d anchor_point,
+                                 double scale_factor)
+{
+    m_overlay_deferred->draw_surface(p_surface, anchor_point, scale_factor);
 }
 
 // ---- frame lifecycle -------------------------------------------------------
@@ -264,7 +461,7 @@ void rhi_renderer::begin_frame()
 {
     ensure_tile_grid();
     clear_tile_geometry();
-    clear_deferred_primitives();
+    m_overlay_deferred->clear_overlay_and_batches();
     m_skip_tile_writes = false;
 
     // End painter if still active (shouldn't normally happen).
@@ -283,7 +480,8 @@ void rhi_renderer::begin_frame()
     m_overlay_painter.begin(&m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
-    update_renderer(&m_overlay_painter, &m_overlay);
+    update_painter(&m_overlay_painter, &m_overlay);
+    m_overlay_deferred->set_painter_surface(&m_overlay_painter, &m_overlay);
 
     // Match the deferred path semantics: each redraw starts from the renderer
     // defaults rather than inheriting state from the previous frame.
@@ -317,20 +515,8 @@ void rhi_renderer::begin_overlay_frame()
     m_overlay_painter.begin(&m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
-    update_renderer(&m_overlay_painter, &m_overlay);
-
-    current_coordinate_system = WORLD;
-    rotation_angle = 0.0;
-    horiz_justification = justification::center;
-    vert_justification = justification::center;
-    current_color = {0, 0, 0, 255};
-    current_line_width = 0;
-    current_line_cap = line_cap::butt;
-    current_line_dash = line_dash::none;
-    set_color(current_color);
-    set_line_width(current_line_width);
-    set_line_cap(current_line_cap);
-    set_line_dash(current_line_dash);
+    update_painter(&m_overlay_painter, &m_overlay);
+    m_overlay_deferred->set_painter_surface(&m_overlay_painter, &m_overlay);
 
     m_skip_tile_writes = false;
 }
@@ -338,7 +524,7 @@ void rhi_renderer::begin_overlay_frame()
 void rhi_renderer::render_cached_overlay()
 {
     begin_overlay_frame();
-    replay();
+    m_overlay_deferred->replay_overlay();
 
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
@@ -848,55 +1034,11 @@ QMatrix4x4 rhi_renderer::compute_mvp() const
     return m;
 }
 
-bool rhi_renderer::defer_fill_poly(const std::vector<point2d>& points)
-{
-    if (is_replaying_deferred_commands())
-        return false;
-
-    if (current_coordinate_system != WORLD)
-        return deferred_renderer::defer_fill_poly(points);
-
-    if (m_skip_tile_writes)
-        return true;
-
-    if (points.size() < 3)
-        return true;
-
-    double x_min = points[0].x;
-    double x_max = points[0].x;
-    double y_min = points[0].y;
-    double y_max = points[0].y;
-    for (std::size_t i = 1; i < points.size(); ++i) {
-        x_min = std::min(x_min, points[i].x);
-        x_max = std::max(x_max, points[i].x);
-        y_min = std::min(y_min, points[i].y);
-        y_max = std::max(y_max, points[i].y);
-    }
-
-    if (rectangle_off_screen({{x_min, y_min}, {x_max, y_max}}))
-        return true;
-
-    const std::vector<Triangle> triangles = triangulate_simple_polygon(points);
-    if (triangles.empty()) {
-        qWarning("rhi_renderer: failed to triangulate polygon with %llu points",
-                 static_cast<unsigned long long>(points.size()));
-        return true;
-    }
-
-    const StyleKey style_key = current_style_key(PrimitiveType::FilledPoly);
-    const std::uint32_t rgba = current_packed_color();
-    for (const Triangle& triangle : triangles) {
-        append_fill_triangle_to_tiles(triangle.a, triangle.b, triangle.c, style_key, rgba);
-    }
-
-    return true;
-}
-
 void rhi_renderer::draw_line(point2d start, point2d end)
 {
     if (current_coordinate_system != WORLD) {
-        // SCREEN mode is part of the cached overlay replay path.
-        deferred_renderer::draw_line(start, end);
+        // SCREEN mode goes to the cached overlay replay path.
+        m_overlay_deferred->draw_line(start, end);
         return;
     }
     if (m_skip_tile_writes)
@@ -931,7 +1073,7 @@ void rhi_renderer::draw_line(point2d start, point2d end)
 void rhi_renderer::fill_rectangle(point2d start, point2d end)
 {
     if (current_coordinate_system != WORLD) {
-        deferred_renderer::fill_rectangle(start, end);
+        m_overlay_deferred->fill_rectangle(start, end);
         return;
     }
     if (m_skip_tile_writes)
@@ -958,7 +1100,7 @@ void rhi_renderer::fill_rectangle(rectangle r)
 void rhi_renderer::draw_rectangle(point2d start, point2d end)
 {
     if (current_coordinate_system != WORLD) {
-        deferred_renderer::draw_rectangle(start, end);
+        m_overlay_deferred->draw_rectangle(start, end);
         return;
     }
     if (m_skip_tile_writes)
@@ -1181,7 +1323,7 @@ void rhi_renderer::flush()
     m_rhi_widget->set_frame_data(
         std::move(scene_buffers),
         compute_mvp(),
-        get_visible_world(),
+        get_visible_world_impl(),
         m_overlay,
         m_bg_color);
 
@@ -1193,7 +1335,7 @@ void rhi_renderer::flush()
 void rhi_renderer::flush_mvp_only()
 {
     render_cached_overlay();
-    m_rhi_widget->set_mvp_and_overlay(compute_mvp(), get_visible_world(), m_overlay);
+    m_rhi_widget->set_mvp_and_overlay(compute_mvp(), get_visible_world_impl(), m_overlay);
     m_rhi_widget->update();
 }
 

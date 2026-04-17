@@ -3,9 +3,11 @@
 #include "ezgl/logutils.hpp"
 
 #include <QPen>
+#include <cfloat>
 #include <QBrush>
 #include <QColor>
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <limits>
 #include <type_traits>
@@ -73,7 +75,6 @@ static QPen make_pen(const LineStyleKey &s)
     pen.setCapStyle(Qt::PenCapStyle(s.line_cap));
 
     if (s.line_dash != 0) {
-        // asymmetric_5_3 pattern (same as Painter::set_dash)
         double w = s.line_width > 0 ? double(s.line_width) : 1.0;
         QList<double> pat = {5.0 / w, 3.0 / w};
         pen.setStyle(Qt::CustomDashLine);
@@ -90,8 +91,104 @@ deferred_renderer::deferred_renderer(Painter *painter,
                                      transform_fn transform,
                                      camera *cam,
                                      QImage *surface)
-    : renderer(painter, std::move(transform), cam, surface)
+    : RendererBase(painter, std::move(transform), cam, surface)
 {}
+
+// ---- irenderer: coordinate system / viewport -----------------------------
+
+void deferred_renderer::set_coordinate_system(t_coordinate_system cs)
+{
+    do_set_coordinate_system(cs);
+}
+
+void deferred_renderer::set_visible_world(rectangle new_world)
+{
+    do_set_visible_world(new_world);
+}
+
+rectangle deferred_renderer::get_visible_world()
+{
+    return get_visible_world_impl();
+}
+
+rectangle deferred_renderer::get_visible_screen() const
+{
+    return get_visible_screen_impl();
+}
+
+rectangle deferred_renderer::world_to_screen(const rectangle& box)
+{
+    return world_to_screen_impl(box);
+}
+
+// ---- irenderer: state setters --------------------------------------------
+
+void deferred_renderer::set_color(color c)
+{
+    do_set_color(c);
+}
+
+void deferred_renderer::set_color(color c, uint_fast8_t alpha)
+{
+    do_set_color(c, alpha);
+}
+
+void deferred_renderer::set_color(uint_fast8_t r, uint_fast8_t g,
+                                  uint_fast8_t b, uint_fast8_t a)
+{
+    do_set_color(r, g, b, a);
+}
+
+void deferred_renderer::set_line_cap(line_cap cap)
+{
+    do_set_line_cap(cap);
+}
+
+void deferred_renderer::set_line_dash(line_dash dash)
+{
+    do_set_line_dash(dash);
+}
+
+void deferred_renderer::set_line_width(int width)
+{
+    do_set_line_width(width);
+}
+
+void deferred_renderer::set_font_size(double size)
+{
+    do_set_font_size(size);
+}
+
+void deferred_renderer::format_font(std::string const& family,
+                                    font_slant slant, font_weight weight)
+{
+    do_format_font(family, slant, weight);
+}
+
+void deferred_renderer::format_font(std::string const& family,
+                                    font_slant slant, font_weight weight,
+                                    double new_size)
+{
+    do_set_font_size(new_size);
+    do_format_font(family, slant, weight);
+}
+
+void deferred_renderer::set_text_rotation(double degrees)
+{
+    do_set_text_rotation(degrees);
+}
+
+void deferred_renderer::set_horiz_justification(justification j)
+{
+    do_set_horiz_justification(j);
+}
+
+void deferred_renderer::set_vert_justification(justification j)
+{
+    do_set_vert_justification(j);
+}
+
+// ---- spatial index -------------------------------------------------------
 
 void deferred_renderer::ensure_overlay_index_grid()
 {
@@ -206,17 +303,17 @@ void deferred_renderer::apply_painter_state(const DeferredPainterState& state)
     vert_justification = state.vert_just;
     current_font = state.font;
     m_painter->setFont(current_font);
-    set_color(state.draw_color);
-    set_line_width(state.line_width);
-    set_line_cap(state.line_cap_style);
-    set_line_dash(state.line_dash_style);
+    // Call RendererBase non-virtual do_set_* directly to avoid recursive dispatch.
+    do_set_color(state.draw_color);
+    do_set_line_width(state.line_width);
+    do_set_line_cap(state.line_cap_style);
+    do_set_line_dash(state.line_dash_style);
 }
 
 // ---- batch insertion -----------------------------------------------------
 
 void deferred_renderer::add_line(const LineStyleKey &s, QLineF line)
 {
-    // type tag in top 4 bits to distinguish from draw_rect with same style
     uint64_t k = s.key() ^ (uint64_t(1) << 60);
     auto it = m_line_idx.find(k);
     if (it == m_line_idx.end()) {
@@ -268,7 +365,7 @@ QRectF deferred_renderer::to_screen_rect(point2d start, point2d end)
 
 QRectF deferred_renderer::screen_viewport_rect() const
 {
-    rectangle viewport = get_visible_screen();
+    rectangle viewport = get_visible_screen_impl();
     return QRectF(viewport.left(), viewport.bottom(), viewport.width(), viewport.height());
 }
 
@@ -395,7 +492,7 @@ bool deferred_renderer::screen_surface_visible(surface *p_surface,
     return screen_rect_visible(QRectF(top_left.x, top_left.y, s_width, s_height));
 }
 
-// ---- overridden draw calls -----------------------------------------------
+// ---- hot-path draw calls (batched) ---------------------------------------
 
 void deferred_renderer::draw_line(point2d start, point2d end)
 {
@@ -403,7 +500,7 @@ void deferred_renderer::draw_line(point2d start, point2d end)
         return;
 
     if (current_coordinate_system == WORLD) {
-        rectangle clip = get_visible_world();
+        rectangle clip = get_visible_world_impl();
         if (!clip_line_world(clip, start, end))
             return;
         start = m_transform(start);
@@ -447,20 +544,18 @@ void deferred_renderer::draw_rectangle(rectangle r)
     draw_rectangle({r.left(), r.bottom()}, {r.right(), r.top()});
 }
 
-// ---- flush ---------------------------------------------------------------
+// ---- overlay draw calls (stored in command queue) ------------------------
 
-bool deferred_renderer::defer_fill_poly(const std::vector<point2d>& points)
+void deferred_renderer::fill_poly(std::vector<point2d> const& points)
 {
-    if (m_replaying_commands)
-        return false;
+    assert(points.size() > 1);
 
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     m_overlay_commands.emplace_back(DeferredPolyCommand{capture_painter_state(), points});
+
     if (current_coordinate_system == WORLD && !points.empty()) {
-        double x_min = points.front().x;
-        double x_max = points.front().x;
-        double y_min = points.front().y;
-        double y_max = points.front().y;
+        double x_min = points.front().x, x_max = points.front().x;
+        double y_min = points.front().y, y_max = points.front().y;
         for (std::size_t i = 1; i < points.size(); ++i) {
             x_min = std::min(x_min, points[i].x);
             x_max = std::max(x_max, points[i].x);
@@ -471,19 +566,12 @@ bool deferred_renderer::defer_fill_poly(const std::vector<point2d>& points)
     } else {
         m_unindexed_overlay_commands.push_back(command_index);
     }
-    return true;
 }
 
-bool deferred_renderer::defer_arc(point2d center,
-                                  double radius_x,
-                                  double radius_y,
-                                  double start_angle,
-                                  double extent_angle,
-                                  bool fill)
+void deferred_renderer::push_arc_command(point2d center, double radius_x,
+                                         double radius_y, double start_angle,
+                                         double extent_angle, bool fill)
 {
-    if (m_replaying_commands)
-        return false;
-
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     m_overlay_commands.emplace_back(DeferredArcCommand{
         capture_painter_state(),
@@ -502,17 +590,42 @@ bool deferred_renderer::defer_arc(point2d center,
     } else {
         m_unindexed_overlay_commands.push_back(command_index);
     }
-    return true;
 }
 
-bool deferred_renderer::defer_text(point2d point,
-                                   const std::string& text,
-                                   double bound_x,
-                                   double bound_y)
+void deferred_renderer::draw_elliptic_arc(point2d center, double radius_x,
+                                          double radius_y, double start_angle,
+                                          double extent_angle)
 {
-    if (m_replaying_commands)
-        return false;
+    push_arc_command(center, radius_x, radius_y, start_angle, extent_angle, false);
+}
 
+void deferred_renderer::draw_arc(point2d center, double radius,
+                                 double start_angle, double extent_angle)
+{
+    push_arc_command(center, radius, radius, start_angle, extent_angle, false);
+}
+
+void deferred_renderer::fill_elliptic_arc(point2d center, double radius_x,
+                                          double radius_y, double start_angle,
+                                          double extent_angle)
+{
+    push_arc_command(center, radius_x, radius_y, start_angle, extent_angle, true);
+}
+
+void deferred_renderer::fill_arc(point2d center, double radius,
+                                 double start_angle, double extent_angle)
+{
+    push_arc_command(center, radius, radius, start_angle, extent_angle, true);
+}
+
+void deferred_renderer::draw_text(point2d point, std::string const& text)
+{
+    draw_text(point, text, DBL_MAX, DBL_MAX);
+}
+
+void deferred_renderer::draw_text(point2d point, std::string const& text,
+                                  double bound_x, double bound_y)
+{
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     const point2d recorded_world_scale = m_camera->get_world_scale_factor();
     m_overlay_commands.emplace_back(DeferredTextCommand{
@@ -551,16 +664,11 @@ bool deferred_renderer::defer_text(point2d point,
     } else {
         m_unindexed_overlay_commands.push_back(command_index);
     }
-    return true;
 }
 
-bool deferred_renderer::defer_surface(surface *p_surface,
-                                      point2d point,
-                                      double scale_factor)
+void deferred_renderer::draw_surface(surface *p_surface, point2d point,
+                                     double scale_factor)
 {
-    if (m_replaying_commands)
-        return false;
-
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     m_overlay_commands.emplace_back(DeferredSurfaceCommand{
         capture_painter_state(),
@@ -569,8 +677,9 @@ bool deferred_renderer::defer_surface(surface *p_surface,
         scale_factor
     });
     m_unindexed_overlay_commands.push_back(command_index);
-    return true;
 }
+
+// ---- flush / replay / reset ----------------------------------------------
 
 void deferred_renderer::replay()
 {
@@ -614,10 +723,8 @@ void deferred_renderer::replay()
         if (points.empty())
             return false;
 
-        double x_min = points.front().x;
-        double x_max = points.front().x;
-        double y_min = points.front().y;
-        double y_max = points.front().y;
+        double x_min = points.front().x, x_max = points.front().x;
+        double y_min = points.front().y, y_max = points.front().y;
         for (std::size_t i = 1; i < points.size(); ++i) {
             x_min = std::min(x_min, points[i].x);
             x_max = std::max(x_max, points[i].x);
@@ -637,9 +744,6 @@ void deferred_renderer::replay()
     auto world_text_visible =
         [this](point2d point, const std::string& text, double bound_x, double bound_y) {
             const point2d world_scale = m_camera->get_world_scale_factor();
-            // When a WORLD-space text bound shrinks to only a few on-screen pixels at the
-            // current zoom level, the label is unreadable anyway, so return early and
-            // avoid the CPU cost of measuring text extents and running the fit checks below.
             if (bound_y / world_scale.y < MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX) {
                 return false;
             }
@@ -771,12 +875,14 @@ void deferred_renderer::replay()
                                      m_unindexed_overlay_commands.begin(),
                                      m_unindexed_overlay_commands.end());
 
+    const rectangle visible_world = get_visible_world_impl();
+
     if (!m_indexed_world_overlay_buckets.empty()
         && !m_overlay_commands.empty()
-        && m_overlay_index_scene_bounds.right() >= get_visible_world().left()
-        && m_overlay_index_scene_bounds.left() <= get_visible_world().right()
-        && m_overlay_index_scene_bounds.top() >= get_visible_world().bottom()
-        && m_overlay_index_scene_bounds.bottom() <= get_visible_world().top()) {
+        && m_overlay_index_scene_bounds.right() >= visible_world.left()
+        && m_overlay_index_scene_bounds.left() <= visible_world.right()
+        && m_overlay_index_scene_bounds.top() >= visible_world.bottom()
+        && m_overlay_index_scene_bounds.bottom() <= visible_world.top()) {
         if (m_overlay_query_marks.size() < m_overlay_commands.size())
             m_overlay_query_marks.resize(m_overlay_commands.size(), 0);
         ++m_overlay_query_generation;
@@ -785,7 +891,6 @@ void deferred_renderer::replay()
             m_overlay_query_generation = 1;
         }
 
-        const rectangle visible_world = get_visible_world();
         const int min_tx = clamp_overlay_tile_x(visible_world.left());
         const int max_tx = clamp_overlay_tile_x(visible_world.right());
         const int min_ty = clamp_overlay_tile_y(visible_world.bottom());
@@ -897,45 +1002,52 @@ void deferred_renderer::replay()
         m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
     }
 
-    m_replaying_commands = true;
     for (const DeferredOverlayCommand* command : visible_overlay_commands) {
         std::visit([this, &resolve_text_replay_state](const auto& cmd) {
             apply_painter_state(cmd.state);
             using T = std::decay_t<decltype(cmd)>;
             if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
-                renderer::fill_poly(cmd.points);
+                // Non-virtual: call RendererBase directly to avoid re-entering the overlay queue.
+                do_fill_poly(cmd.points);
             } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
-                if (cmd.fill) {
-                    renderer::fill_elliptic_arc(cmd.center,
-                                                cmd.radius_x,
-                                                cmd.radius_y,
-                                                cmd.start_angle,
-                                                cmd.extent_angle);
-                } else {
-                    renderer::draw_elliptic_arc(cmd.center,
-                                                cmd.radius_x,
-                                                cmd.radius_y,
-                                                cmd.start_angle,
-                                                cmd.extent_angle);
-                }
+                const double stretch = cmd.radius_x > 0.0
+                    ? cmd.radius_y / cmd.radius_x : 1.0;
+                do_draw_arc_path(cmd.center, cmd.radius_x, cmd.start_angle,
+                                 cmd.extent_angle, stretch, cmd.fill);
             } else if constexpr (std::is_same_v<T, DeferredTextCommand>) {
                 DeferredPainterState state = cmd.state;
                 if (!resolve_text_replay_state(cmd, state))
                     return;
                 apply_painter_state(state);
-                renderer::draw_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
+                do_draw_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
-                renderer::draw_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
+                do_draw_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
             }
         }, *command);
     }
-    m_replaying_commands = false;
 }
 
 void deferred_renderer::flush()
 {
     replay();
     reset();
+}
+
+void deferred_renderer::replay_overlay()
+{
+    replay();
+    // Commands are preserved — not reset — so the overlay can be replayed
+    // again on the next camera-only update.
+}
+
+void deferred_renderer::clear_overlay_and_batches()
+{
+    reset();
+}
+
+void deferred_renderer::set_painter_surface(Painter* painter, QImage* surface)
+{
+    update_painter(painter, surface);
 }
 
 void deferred_renderer::clear_deferred_primitives()
@@ -960,5 +1072,3 @@ void deferred_renderer::reset()
 }
 
 } // namespace ezgl
-
-
