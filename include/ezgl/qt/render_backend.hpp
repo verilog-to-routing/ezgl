@@ -6,6 +6,8 @@ namespace ezgl {
 
 using draw_canvas_fn = void (*)(renderer*);
 
+enum class renderer_type { immediate, deferred, rhi };
+
 /**
  * Abstract rendering backend owned by canvas.
  *

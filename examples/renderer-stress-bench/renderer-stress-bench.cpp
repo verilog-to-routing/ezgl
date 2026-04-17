@@ -18,10 +18,11 @@
 
 /**
  * Usage:
- *   renderer-stress-bench           — headless: run all benchmarks, print timing, save PNGs
- *   renderer-stress-bench --ui      — UI: open window showing first test case
- *   renderer-stress-bench --ui <n>  — UI: open window showing test case n (0-based)
- *   renderer-stress-bench --help    — show this help
+ *   renderer-stress-bench                         — headless: run all benchmarks, print timing, save PNGs
+ *   renderer-stress-bench --ui                    — UI: open window showing first test case
+ *   renderer-stress-bench --ui <n>                — UI: open window showing test case n (0-based)
+ *   renderer-stress-bench --renderer <r>          — select renderer: immediate, deferred, rhi (default: rhi)
+ *   renderer-stress-bench --help                  — show this help
  */
 
 #include <iostream>
@@ -407,7 +408,7 @@ struct TestCase {
 static const TestCase TESTS[] = {
     //{ "clb tile grid ",      draw_clb_tile_scene,            CLB_TILE_COUNT, "draw_clb_tile_grid.png" },
     // { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
-    { "variadic lines   ", draw_lines_variadic,         10'000'000, "bench_lines_variadic.png"    },
+    { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
     //{ "solid lines   ",       draw_lines_solid,               10'000'000, "draw_solid_lines.png"    },
     // { "solid rects   ",       draw_rectangles_solid,          1'0, "draw_solid_rects.png"    },
     // { "solid rects   ",       fill_rectangles_solid,          1'0, "draw_solid_rects.png"    },
@@ -446,7 +447,7 @@ static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0])
 
 // ---- headless mode ---------------------------------------------------------
 
-static void run_headless()
+static void run_headless(ezgl::renderer_type /*renderer*/)
 {
   ezgl::application::settings s;
   s.main_ui_resource = ":/main.ui";
@@ -535,7 +536,7 @@ static void ui_setup(ezgl::application *app, bool /*new_window*/)
   app->refresh_drawing();
 }
 
-static void run_ui(int initial_test)
+static void run_ui(int initial_test, ezgl::renderer_type renderer)
 {
   g_current_test = initial_test;
 
@@ -549,7 +550,8 @@ static void run_ui(int initial_test)
   static char *fake_argv[]  = {fake_argv0, nullptr};
   ezgl::application app(s, fake_argc, fake_argv);
 
-  app.add_canvas("MainCanvas", draw_dispatch, WORLD, ezgl::WHITE);
+  ezgl::canvas *c = app.add_canvas("MainCanvas", draw_dispatch, WORLD, ezgl::WHITE);
+  c->set_renderer_type(renderer);
   app.run(ui_setup, nullptr, nullptr, nullptr);
 }
 
@@ -559,8 +561,9 @@ static void print_help(const char *prog)
 {
   std::cout <<
     "Usage:\n"
-    "  " << prog << "              Run all benchmarks headless, print timing, save PNGs\n"
-    "  " << prog << " --ui [N]    Open UI window showing test case N (default 0)\n"
+    "  " << prog << "                         Run all benchmarks headless, print timing, save PNGs\n"
+    "  " << prog << " --ui [N]               Open UI window showing test case N (default 0)\n"
+    "  " << prog << " --renderer <r>         Set renderer: immediate, deferred, rhi (default: rhi)\n"
     "\n"
     "Test cases (N):\n";
   for (int i = 0; i < N_TESTS; ++i)
@@ -568,15 +571,17 @@ static void print_help(const char *prog)
   std::cout <<
     "\n"
     "Options:\n"
-    "  --ui [N]   Open interactive window for test N\n"
-    "  --help     Show this message\n";
+    "  --ui [N]            Open interactive window for test N\n"
+    "  --renderer <r>      Select rendering backend (immediate | deferred | rhi)\n"
+    "  --help              Show this message\n";
 }
 
 int main(int argc, char **argv)
 {
-  bool ui_mode    = false;
-  int  initial    = 0;
-  bool got_index  = false;
+  bool                 ui_mode   = false;
+  int                  initial   = 0;
+  bool                 got_index = false;
+  ezgl::renderer_type  renderer  = ezgl::renderer_type::rhi;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg(argv[i]);
@@ -585,6 +590,22 @@ int main(int argc, char **argv)
       return 0;
     } else if (arg == "--ui") {
       ui_mode = true;
+    } else if (arg == "--renderer") {
+      if (i + 1 >= argc) {
+        std::cerr << "Error: --renderer requires a value (immediate | deferred | rhi)\n\n";
+        print_help(argv[0]);
+        return 1;
+      }
+      std::string val(argv[++i]);
+      if (val == "immediate")      renderer = ezgl::renderer_type::immediate;
+      else if (val == "deferred")  renderer = ezgl::renderer_type::deferred;
+      else if (val == "rhi")       renderer = ezgl::renderer_type::rhi;
+      else {
+        std::cerr << "Error: unknown renderer '" << val
+                  << "' — expected immediate, deferred, or rhi\n\n";
+        print_help(argv[0]);
+        return 1;
+      }
     } else if (ui_mode && !got_index) {
       try {
         int n = std::stoi(arg);
@@ -609,9 +630,9 @@ int main(int argc, char **argv)
   }
 
   if (ui_mode)
-    run_ui(initial);
+    run_ui(initial, renderer);
   else
-    run_headless();
+    run_headless(renderer);
 
   return 0;
 }

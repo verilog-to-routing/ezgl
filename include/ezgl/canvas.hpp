@@ -100,6 +100,19 @@ public:
   }
 
   /**
+   * Set the rendering backend type. Must be called before application::run().
+   */
+  void set_renderer_type(renderer_type t)
+  {
+    m_renderer_type = t;
+  }
+
+  renderer_type get_renderer_type() const
+  {
+    return m_renderer_type;
+  }
+
+  /**
    * Create an animation renderer that can be used to draw on top of the current canvas
    */
   renderer *create_animation_renderer();
@@ -155,6 +168,9 @@ private:
 
   // A non-owning pointer to the drawing area inside a window.
   QWidget *m_drawing_area = nullptr;
+
+  // Requested backend type — set before run(), used by initialize() to pick the backend.
+  renderer_type m_renderer_type = renderer_type::rhi;
 
   // Active rendering backend — selected at initialize() time based on widget type.
   std::unique_ptr<render_backend> m_backend;

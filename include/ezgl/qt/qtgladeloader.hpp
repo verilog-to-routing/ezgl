@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ezgl/qt/render_backend.hpp"
+
 #include <QMainWindow>
 #include <QDomDocument>
 #include <QDomElement>
@@ -12,6 +14,13 @@ class QGridLayout;
 class QtGladeLoader {
 public:
   QMainWindow* loadFile(const QString& uiGladePath);
+
+  /**
+   * Select which widget type to create for every GtkDrawingArea in the UI file.
+   * renderer_type::rhi  → RhiCanvasWidget  (GPU path, default)
+   * anything else       → DrawingAreaWidget (QPainter path)
+   */
+  void setRendererType(ezgl::renderer_type t) { m_renderer_type = t; }
 
 private:
   QWidget* buildObjectElement(const QDomElement& objEl, QWidget* parent = nullptr);
@@ -44,6 +53,7 @@ private:
   static bool propertyBool(const QDomElement& objEl, const char* propName, bool def);
 
   QHash<QString, QWidget*> m_widgets;
+  ezgl::renderer_type m_renderer_type = ezgl::renderer_type::rhi;
 };
 
 

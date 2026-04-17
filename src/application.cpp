@@ -332,6 +332,9 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     // called from main(), all .qrc static initializers have completed.
     if (!m_window) {
       QtGladeLoader uiLoader;
+      auto it = m_canvases.find(m_canvas_id);
+      if (it != m_canvases.end())
+        uiLoader.setRendererType(it->second->get_renderer_type());
       m_window = uiLoader.loadFile(QString::fromStdString(m_main_ui));
     }
     init();

@@ -76,6 +76,7 @@ add_library(
   include/ezgl/qt/deferred_renderer.hpp
   include/ezgl/qt/render_backend.hpp
   include/ezgl/qt/deferred_backend.hpp
+  include/ezgl/qt/immediate_backend.hpp
   src/logutils.cpp
   src/application.cpp
   src/camera.cpp
@@ -90,6 +91,7 @@ add_library(
   src/qt/immediate_renderer.cpp
   src/qt/deferred_renderer.cpp
   src/qt/deferred_backend.cpp
+  src/qt/immediate_backend.cpp
   src/qt/irenderer.cpp
 )
 

@@ -336,10 +336,11 @@ QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl, QWidget* parent)
 
 QWidget* QtGladeLoader::buildGtkDrawingArea(const QDomElement& objEl, QWidget* parent)
 {
-  // Create the canvas with its final parent so QRhiWidget never exists as a
-  // transient top-level widget before layouts and visibility are applied.
-  QWidget* w = new ezgl::RhiCanvasWidget(parent);
-  w->setObjectName(getId(objEl));
+  const QString id = getId(objEl);
+  QWidget* w = (m_renderer_type == ezgl::renderer_type::rhi)
+               ? static_cast<QWidget*>(new ezgl::RhiCanvasWidget(parent))
+               : static_cast<QWidget*>(new ezgl::DrawingAreaWidget(parent));
+  w->setObjectName(id);
   m_widgets.insert(w->objectName(), w);
 
   applyCommonProperties(w, objEl);

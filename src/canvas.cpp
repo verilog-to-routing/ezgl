@@ -20,6 +20,7 @@
 #include "ezgl/qt/deferred_backend.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
+#include "ezgl/qt/immediate_backend.hpp"
 #include "ezgl/qt/rhi_backend.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 
@@ -133,6 +134,9 @@ void canvas::initialize(QWidget *drawing_area)
   m_drawing_area = drawing_area;
 
   if (RhiCanvasWidget* rw = qobject_cast<RhiCanvasWidget*>(drawing_area)) {
+    if (m_renderer_type != renderer_type::rhi)
+      q_warning("canvas::initialize: rhi widget but renderer_type is not rhi — using rhi anyway.");
+
     m_backend = std::make_unique<rhi_backend>(rw, m_draw_callback, &m_camera, m_background_color);
 
     QObject::connect(rw, &QRhiWidget::renderFailed, [this]() {
@@ -155,7 +159,13 @@ void canvas::initialize(QWidget *drawing_area)
   }
 
   if (DrawingAreaWidget* daw = qobject_cast<DrawingAreaWidget*>(drawing_area)) {
-    m_backend = std::make_unique<deferred_backend>(daw, m_draw_callback, &m_camera, m_background_color);
+    if (m_renderer_type == renderer_type::rhi)
+      q_warning("canvas::initialize: DrawingAreaWidget but renderer_type is rhi — using deferred.");
+
+    if (m_renderer_type == renderer_type::immediate)
+      m_backend = std::make_unique<immediate_backend>(daw, m_draw_callback, &m_camera, m_background_color);
+    else
+      m_backend = std::make_unique<deferred_backend>(daw, m_draw_callback, &m_camera, m_background_color);
 
     if (width() > 0 && height() > 0) {
       m_camera.update_widget(width(), height());
