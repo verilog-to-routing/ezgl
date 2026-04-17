@@ -1009,8 +1009,6 @@ void rhi_renderer::draw_line(point2d start, point2d end)
     }
     if (m_skip_tile_writes)
         return;
-    if (rectangle_off_screen({start, end}))
-        return;
 
     const std::uint32_t rgba = current_packed_color();
 
@@ -1043,8 +1041,6 @@ void rhi_renderer::fill_rectangle(point2d start, point2d end)
     }
     if (m_skip_tile_writes)
         return;
-    if (rectangle_off_screen({start, end}))
-        return;
 
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
     const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
@@ -1071,8 +1067,6 @@ void rhi_renderer::draw_rectangle(point2d start, point2d end)
         return;
     }
     if (m_skip_tile_writes)
-        return;
-    if (rectangle_off_screen({start, end}))
         return;
 
     const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };

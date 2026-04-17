@@ -10,7 +10,6 @@
 #include <QShowEvent>
 #include <QFile>
 #include <QMutexLocker>
-#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -590,7 +589,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     if (!m_initialized || m_frame_resources.empty())
         return;
 
-    const auto frame_start = std::chrono::steady_clock::now();
+    const scope_timer frame_timer;
     const int frame_slot = currentFrameResourceIndex(rhi(), m_frame_resources.size());
 
     // --- Snapshot pending frame under lock -----------------------------------
@@ -697,7 +696,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         if (!scene_buffers) {
             qFatal("RhiCanvasWidget: geom_dirty set without cached scene data");
         }
-        const auto bake_start = std::chrono::steady_clock::now();
+        const scope_timer bake_timer;
 
         struct PendingUpload {
             quint32     buffer_index = 0;
@@ -903,8 +902,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                 m_frame_slot_geom_valid.resize(m_frame_resources.size(), false);
             m_frame_slot_geom_valid[std::size_t(frame_slot)] = true;
         }
-        bake_geom_ms = std::chrono::duration<double, std::milli>(
-            std::chrono::steady_clock::now() - bake_start).count();
+        bake_geom_ms = bake_timer.elapsed_ms();
     }
     // Camera-only frame: geometry pools and style UBO are reused.
 
@@ -1108,8 +1106,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     cb->endPass();
 
 #ifdef EZGL_RENDERER_DEBUG
-    const auto frame_end = std::chrono::steady_clock::now();
-    const double frame_ms = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
+    const double frame_ms = frame_timer.elapsed_ms();
     const std::size_t visible_line_buffer_sets        = countVisibleBuffers(visible_line_buffer_mask);
     const std::size_t visible_fill_rect_buffer_sets   = countVisibleBuffers(visible_fill_rect_buffer_mask);
     const std::size_t visible_fill_poly_buffer_sets   = countVisibleBuffers(visible_fill_poly_buffer_mask);
