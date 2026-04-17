@@ -68,31 +68,31 @@ public:
 
     // ---- irenderer: hot-path GPU draw calls --------------------------------
 
-    void draw_line(point2d start, point2d end) override;
+    void draw_line(const point2d& start, const point2d& end) override;
 
-    void fill_rectangle(point2d start, point2d end) override;
-    void fill_rectangle(point2d start, double width, double height) override;
+    void fill_rectangle(const point2d& start, const point2d& end) override;
+    void fill_rectangle(const point2d& start, double width, double height) override;
     void fill_rectangle(rectangle r) override;
 
-    void draw_rectangle(point2d start, point2d end) override;
-    void draw_rectangle(point2d start, double width, double height) override;
+    void draw_rectangle(const point2d& start, const point2d& end) override;
+    void draw_rectangle(const point2d& start, double width, double height) override;
     void draw_rectangle(rectangle r) override;
 
     // ---- irenderer: overlay draw calls (forwarded to m_overlay_deferred) ---
 
     void fill_poly(std::vector<point2d> const& points) override;
-    void draw_elliptic_arc(point2d center, double radius_x, double radius_y,
+    void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
-    void draw_arc(point2d center, double radius,
+    void draw_arc(const point2d& center, double radius,
                   double start_angle, double extent_angle) override;
-    void fill_elliptic_arc(point2d center, double radius_x, double radius_y,
+    void fill_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
-    void fill_arc(point2d center, double radius,
+    void fill_arc(const point2d& center, double radius,
                   double start_angle, double extent_angle) override;
-    void draw_text(point2d point, std::string const& text) override;
-    void draw_text(point2d point, std::string const& text,
+    void draw_text(const point2d& point, std::string const& text) override;
+    void draw_text(const point2d& point, std::string const& text,
                    double bound_x, double bound_y) override;
-    void draw_surface(surface* p_surface, point2d anchor_point,
+    void draw_surface(surface* p_surface, const point2d& anchor_point,
                       double scale_factor = 1) override;
 
     // ---- Frame lifecycle ---------------------------------------------------
@@ -186,61 +186,61 @@ private:
                                                   StyleKey     style_key,
                                                   std::uint32_t rgba);
     void append_thin_line_segment(RhiTileBatch& tile,
-                                  point2d       start,
-                                  point2d       end,
+                                  const point2d& start,
+                                  const point2d& end,
                                   StyleKey      style_key,
                                   std::uint32_t rgba);
     void append_fill_rect(RhiTileBatch& tile,
-                          point2d       p0,
-                          point2d       p1,
+                          const point2d& p0,
+                          const point2d& p1,
                           StyleKey      style_key,
                           std::uint32_t rgba);
     void append_fill_triangle(RhiTileBatch& tile,
-                              point2d       a,
-                              point2d       b,
-                              point2d       c,
+                              const point2d& a,
+                              const point2d& b,
+                              const point2d& c,
                               StyleKey      style_key,
                               std::uint32_t rgba);
-    void append_line_to_tiles(point2d start,
-                              point2d end,
+    void append_line_to_tiles(const point2d& start,
+                              const point2d& end,
                               StyleKey style_key,
                               std::uint32_t rgba);
-    void append_fill_rect_to_tiles(point2d p0,
-                                   point2d p1,
+    void append_fill_rect_to_tiles(const point2d& p0,
+                                   const point2d& p1,
                                    StyleKey style_key,
                                    std::uint32_t rgba);
-    void append_fill_triangle_to_tiles(point2d    a,
-                                       point2d    b,
-                                       point2d    c,
+    void append_fill_triangle_to_tiles(const point2d& a,
+                                       const point2d& b,
+                                       const point2d& c,
                                        StyleKey   style_key,
                                        std::uint32_t rgba);
 
     void append_thick_segment(RhiTileBatch& tile,
-                              point2d       start,
-                              point2d       end,
+                              const point2d& start,
+                              const point2d& end,
                               StyleKey      style_key,
                               std::uint32_t rgba);
-    void append_thick_line_to_tiles(point2d    start,
-                                    point2d    end,
+    void append_thick_line_to_tiles(const point2d& start,
+                                    const point2d& end,
                                     StyleKey   style_key,
                                     std::uint32_t rgba);
-    void append_thick_draw_segment_to_tiles(point2d    start,
-                                            point2d    end,
+    void append_thick_draw_segment_to_tiles(const point2d& start,
+                                            const point2d& end,
                                             StyleKey   style_key,
                                             std::uint32_t rgba);
 
     void append_dashed_segment(RhiTileBatch& tile,
-                               point2d       start,
-                               point2d       end,
+                               const point2d& start,
+                               const point2d& end,
                                float         phase_world,
                                StyleKey      style_key,
                                std::uint32_t rgba);
-    void append_dashed_line_to_tiles(point2d    start,
-                                     point2d    end,
+    void append_dashed_line_to_tiles(const point2d& start,
+                                     const point2d& end,
                                      StyleKey   style_key,
                                      std::uint32_t rgba);
-    void append_dashed_draw_segment_to_tiles(point2d    start,
-                                             point2d    end,
+    void append_dashed_draw_segment_to_tiles(const point2d& start,
+                                             const point2d& end,
                                              StyleKey   style_key,
                                              std::uint32_t rgba);
     void begin_overlay_frame();

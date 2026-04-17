@@ -65,32 +65,32 @@ public:
 
     // ---- irenderer: draw calls ----------------------------------------------
 
-    void draw_line(point2d start, point2d end) override;
+    void draw_line(const point2d& start, const point2d& end) override;
 
-    void draw_rectangle(point2d start, point2d end) override;
-    void draw_rectangle(point2d start, double width, double height) override;
+    void draw_rectangle(const point2d& start, const point2d& end) override;
+    void draw_rectangle(const point2d& start, double width, double height) override;
     void draw_rectangle(rectangle r) override;
 
-    void fill_rectangle(point2d start, point2d end) override;
-    void fill_rectangle(point2d start, double width, double height) override;
+    void fill_rectangle(const point2d& start, const point2d& end) override;
+    void fill_rectangle(const point2d& start, double width, double height) override;
     void fill_rectangle(rectangle r) override;
 
     void fill_poly(std::vector<point2d> const& points) override;
 
-    void draw_elliptic_arc(point2d center, double radius_x, double radius_y,
+    void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
-    void draw_arc(point2d center, double radius,
+    void draw_arc(const point2d& center, double radius,
                   double start_angle, double extent_angle) override;
-    void fill_elliptic_arc(point2d center, double radius_x, double radius_y,
+    void fill_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
-    void fill_arc(point2d center, double radius,
+    void fill_arc(const point2d& center, double radius,
                   double start_angle, double extent_angle) override;
 
-    void draw_text(point2d point, std::string const& text) override;
-    void draw_text(point2d point, std::string const& text,
+    void draw_text(const point2d& point, std::string const& text) override;
+    void draw_text(const point2d& point, std::string const& text,
                    double bound_x, double bound_y) override;
 
-    void draw_surface(surface* p_surface, point2d anchor_point,
+    void draw_surface(surface* p_surface, const point2d& anchor_point,
                       double scale_factor = 1) override;
 
     // ---- Update painter after surface resize --------------------------------

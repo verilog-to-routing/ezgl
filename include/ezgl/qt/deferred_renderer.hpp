@@ -146,31 +146,31 @@ public:
 
     // ---- irenderer: hot-path draw calls (batched) --------------------------
 
-    void draw_line(point2d start, point2d end) override;
+    void draw_line(const point2d& start, const point2d& end) override;
 
-    void fill_rectangle(point2d start, point2d end) override;
-    void fill_rectangle(point2d start, double width, double height) override;
+    void fill_rectangle(const point2d& start, const point2d& end) override;
+    void fill_rectangle(const point2d& start, double width, double height) override;
     void fill_rectangle(rectangle r) override;
 
-    void draw_rectangle(point2d start, point2d end) override;
-    void draw_rectangle(point2d start, double width, double height) override;
+    void draw_rectangle(const point2d& start, const point2d& end) override;
+    void draw_rectangle(const point2d& start, double width, double height) override;
     void draw_rectangle(rectangle r) override;
 
     // ---- irenderer: overlay draw calls (deferred to command queue) ---------
 
     void fill_poly(std::vector<point2d> const& points) override;
-    void draw_elliptic_arc(point2d center, double radius_x, double radius_y,
+    void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
-    void draw_arc(point2d center, double radius,
+    void draw_arc(const point2d& center, double radius,
                   double start_angle, double extent_angle) override;
-    void fill_elliptic_arc(point2d center, double radius_x, double radius_y,
+    void fill_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
-    void fill_arc(point2d center, double radius,
+    void fill_arc(const point2d& center, double radius,
                   double start_angle, double extent_angle) override;
-    void draw_text(point2d point, std::string const& text) override;
-    void draw_text(point2d point, std::string const& text,
+    void draw_text(const point2d& point, std::string const& text) override;
+    void draw_text(const point2d& point, std::string const& text,
                    double bound_x, double bound_y) override;
-    void draw_surface(surface* p_surface, point2d anchor_point,
+    void draw_surface(surface* p_surface, const point2d& anchor_point,
                       double scale_factor = 1) override;
 
     // ---- Flush all batches to the underlying QPainter, then reset ----------
@@ -205,15 +205,15 @@ private:
     bool screen_rect_visible(const QRectF& rect, double padding = 0.0) const;
     bool screen_line_visible(const QLineF& line, double line_width) const;
     bool screen_poly_visible(const std::vector<point2d>& points) const;
-    bool screen_arc_visible(point2d center,
+    bool screen_arc_visible(const point2d& center,
                             double radius_x,
                             double radius_y) const;
-    bool screen_text_visible(point2d point,
+    bool screen_text_visible(const point2d& point,
                              const std::string& text,
                              double bound_x,
                              double bound_y) const;
     bool screen_surface_visible(surface *p_surface,
-                                point2d point,
+                                const point2d& point,
                                 double scale_factor) const;
 
     LineStyleKey current_line_style() const;
@@ -223,9 +223,9 @@ private:
     void add_fill_rect(const FillStyleKey &s, QRectF rect);
     void add_draw_rect(const LineStyleKey &s, QRectF rect);
 
-    QRectF to_screen_rect(point2d start, point2d end);
+    QRectF to_screen_rect(const point2d& start, const point2d& end);
 
-    void push_arc_command(point2d center, double radius_x, double radius_y,
+    void push_arc_command(const point2d& center, double radius_x, double radius_y,
                           double start_angle, double extent_angle, bool fill);
 
     // Batch vectors — maintain submission order for painter's algorithm.

@@ -350,16 +350,18 @@ void deferred_renderer::add_draw_rect(const LineStyleKey &s, QRectF rect)
 
 // ---- coordinate helper ---------------------------------------------------
 
-QRectF deferred_renderer::to_screen_rect(point2d start, point2d end)
+QRectF deferred_renderer::to_screen_rect(const point2d& start, const point2d& end)
 {
+    point2d rect_start = start;
+    point2d rect_end = end;
     if (current_coordinate_system == WORLD) {
-        start = m_transform(start);
-        end   = m_transform(end);
+        rect_start = m_transform(rect_start);
+        rect_end   = m_transform(rect_end);
     }
-    double x = std::min(start.x, end.x);
-    double y = std::min(start.y, end.y);
-    double w = std::abs(end.x - start.x);
-    double h = std::abs(end.y - start.y);
+    double x = std::min(rect_start.x, rect_end.x);
+    double y = std::min(rect_start.y, rect_end.y);
+    double w = std::abs(rect_end.x - rect_start.x);
+    double h = std::abs(rect_end.y - rect_start.y);
     return QRectF(x, y, w, h);
 }
 
@@ -425,7 +427,7 @@ bool deferred_renderer::screen_poly_visible(const std::vector<point2d>& points) 
     return screen_rect_visible(QRectF(x_min, y_min, x_max - x_min, y_max - y_min));
 }
 
-bool deferred_renderer::screen_arc_visible(point2d center,
+bool deferred_renderer::screen_arc_visible(const point2d& center,
                                            double radius_x,
                                            double radius_y) const
 {
@@ -435,7 +437,7 @@ bool deferred_renderer::screen_arc_visible(point2d center,
                                       2.0 * radius_y));
 }
 
-bool deferred_renderer::screen_text_visible(point2d point,
+bool deferred_renderer::screen_text_visible(const point2d& point,
                                             const std::string& text,
                                             double bound_x,
                                             double bound_y) const
@@ -469,7 +471,7 @@ bool deferred_renderer::screen_text_visible(point2d point,
 }
 
 bool deferred_renderer::screen_surface_visible(surface *p_surface,
-                                               point2d point,
+                                               const point2d& point,
                                                double scale_factor) const
 {
     if (p_surface == nullptr || p_surface->isNull())
@@ -494,30 +496,32 @@ bool deferred_renderer::screen_surface_visible(surface *p_surface,
 
 // ---- hot-path draw calls (batched) ---------------------------------------
 
-void deferred_renderer::draw_line(point2d start, point2d end)
+void deferred_renderer::draw_line(const point2d& start, const point2d& end)
 {
     if (rectangle_off_screen({start, end}))
         return;
 
+    point2d draw_start = start;
+    point2d draw_end = end;
     if (current_coordinate_system == WORLD) {
         rectangle clip = get_visible_world_impl();
-        if (!clip_line_world(clip, start, end))
+        if (!clip_line_world(clip, draw_start, draw_end))
             return;
-        start = m_transform(start);
-        end   = m_transform(end);
+        draw_start = m_transform(draw_start);
+        draw_end   = m_transform(draw_end);
     }
 
-    add_line(current_line_style(), QLineF(start.x, start.y, end.x, end.y));
+    add_line(current_line_style(), QLineF(draw_start.x, draw_start.y, draw_end.x, draw_end.y));
 }
 
-void deferred_renderer::fill_rectangle(point2d start, point2d end)
+void deferred_renderer::fill_rectangle(const point2d& start, const point2d& end)
 {
     if (rectangle_off_screen({start, end}))
         return;
     add_fill_rect(current_fill_style(), to_screen_rect(start, end));
 }
 
-void deferred_renderer::fill_rectangle(point2d start, double width, double height)
+void deferred_renderer::fill_rectangle(const point2d& start, double width, double height)
 {
     fill_rectangle(start, {start.x + width, start.y + height});
 }
@@ -527,14 +531,14 @@ void deferred_renderer::fill_rectangle(rectangle r)
     fill_rectangle({r.left(), r.bottom()}, {r.right(), r.top()});
 }
 
-void deferred_renderer::draw_rectangle(point2d start, point2d end)
+void deferred_renderer::draw_rectangle(const point2d& start, const point2d& end)
 {
     if (rectangle_off_screen({start, end}))
         return;
     add_draw_rect(current_line_style(), to_screen_rect(start, end));
 }
 
-void deferred_renderer::draw_rectangle(point2d start, double width, double height)
+void deferred_renderer::draw_rectangle(const point2d& start, double width, double height)
 {
     draw_rectangle(start, {start.x + width, start.y + height});
 }
@@ -568,7 +572,7 @@ void deferred_renderer::fill_poly(std::vector<point2d> const& points)
     }
 }
 
-void deferred_renderer::push_arc_command(point2d center, double radius_x,
+void deferred_renderer::push_arc_command(const point2d& center, double radius_x,
                                          double radius_y, double start_angle,
                                          double extent_angle, bool fill)
 {
@@ -592,38 +596,38 @@ void deferred_renderer::push_arc_command(point2d center, double radius_x,
     }
 }
 
-void deferred_renderer::draw_elliptic_arc(point2d center, double radius_x,
+void deferred_renderer::draw_elliptic_arc(const point2d& center, double radius_x,
                                           double radius_y, double start_angle,
                                           double extent_angle)
 {
     push_arc_command(center, radius_x, radius_y, start_angle, extent_angle, false);
 }
 
-void deferred_renderer::draw_arc(point2d center, double radius,
+void deferred_renderer::draw_arc(const point2d& center, double radius,
                                  double start_angle, double extent_angle)
 {
     push_arc_command(center, radius, radius, start_angle, extent_angle, false);
 }
 
-void deferred_renderer::fill_elliptic_arc(point2d center, double radius_x,
+void deferred_renderer::fill_elliptic_arc(const point2d& center, double radius_x,
                                           double radius_y, double start_angle,
                                           double extent_angle)
 {
     push_arc_command(center, radius_x, radius_y, start_angle, extent_angle, true);
 }
 
-void deferred_renderer::fill_arc(point2d center, double radius,
+void deferred_renderer::fill_arc(const point2d& center, double radius,
                                  double start_angle, double extent_angle)
 {
     push_arc_command(center, radius, radius, start_angle, extent_angle, true);
 }
 
-void deferred_renderer::draw_text(point2d point, std::string const& text)
+void deferred_renderer::draw_text(const point2d& point, std::string const& text)
 {
     draw_text(point, text, DBL_MAX, DBL_MAX);
 }
 
-void deferred_renderer::draw_text(point2d point, std::string const& text,
+void deferred_renderer::draw_text(const point2d& point, std::string const& text,
                                   double bound_x, double bound_y)
 {
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
@@ -666,7 +670,7 @@ void deferred_renderer::draw_text(point2d point, std::string const& text,
     }
 }
 
-void deferred_renderer::draw_surface(surface *p_surface, point2d point,
+void deferred_renderer::draw_surface(surface *p_surface, const point2d& point,
                                      double scale_factor)
 {
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
@@ -735,14 +739,14 @@ void deferred_renderer::replay()
         return !rectangle_off_screen({{x_min, y_min}, {x_max, y_max}});
     };
 
-    auto world_arc_visible = [this](point2d center, double radius_x, double radius_y) {
+    auto world_arc_visible = [this](const point2d& center, double radius_x, double radius_y) {
         return !rectangle_off_screen(
             {{center.x - radius_x, center.y - radius_y},
              {center.x + radius_x, center.y + radius_y}});
     };
 
     auto world_text_visible =
-        [this](point2d point, const std::string& text, double bound_x, double bound_y) {
+        [this](const point2d& point, const std::string& text, double bound_x, double bound_y) {
             const point2d world_scale = m_camera->get_world_scale_factor();
             if (bound_y / world_scale.y < MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX) {
                 return false;
@@ -779,7 +783,7 @@ void deferred_renderer::replay()
         };
 
     auto world_surface_visible =
-        [this](surface *p_surface, point2d point, double scale_factor) {
+        [this](surface *p_surface, const point2d& point, double scale_factor) {
             if (p_surface == nullptr || p_surface->isNull())
                 return false;
 

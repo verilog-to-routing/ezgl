@@ -71,14 +71,14 @@ protected:
     // Non-virtual; used directly by deferred_renderer::replay() and rhi_renderer
     // overlay replay so that virtual dispatch never re-enters the deferred path.
 
-    void do_draw_line(point2d start, point2d end);
-    void do_draw_rectangle_path(point2d start, point2d end, bool fill);
+    void do_draw_line(const point2d& start, const point2d& end);
+    void do_draw_rectangle_path(const point2d& start, const point2d& end, bool fill);
     void do_fill_poly(const std::vector<point2d>& points);
-    void do_draw_arc_path(point2d center, double radius, double start_angle,
+    void do_draw_arc_path(const point2d& center, double radius, double start_angle,
                           double extent_angle, double stretch_factor, bool fill);
-    void do_draw_text(point2d point, const std::string& text,
+    void do_draw_text(const point2d& point, const std::string& text,
                       double bound_x, double bound_y);
-    void do_draw_surface(surface* p_surface, point2d anchor, double scale_factor);
+    void do_draw_surface(surface* p_surface, const point2d& anchor, double scale_factor);
 };
 
 } // namespace ezgl

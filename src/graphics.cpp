@@ -130,21 +130,21 @@ void immediate_renderer::set_vert_justification(justification vert_just)
 
 // ---- Draw calls -------------------------------------------------------------
 
-void immediate_renderer::draw_line(point2d start, point2d end)
+void immediate_renderer::draw_line(const point2d& start, const point2d& end)
 {
     if (rectangle_off_screen({start, end}))
         return;
     do_draw_line(start, end);
 }
 
-void immediate_renderer::draw_rectangle(point2d start, point2d end)
+void immediate_renderer::draw_rectangle(const point2d& start, const point2d& end)
 {
     if (rectangle_off_screen({start, end}))
         return;
     do_draw_rectangle_path(start, end, false);
 }
 
-void immediate_renderer::draw_rectangle(point2d start, double width, double height)
+void immediate_renderer::draw_rectangle(const point2d& start, double width, double height)
 {
     point2d end{start.x + width, start.y + height};
     if (rectangle_off_screen({start, end}))
@@ -161,14 +161,14 @@ void immediate_renderer::draw_rectangle(rectangle r)
     do_draw_rectangle_path(bl, tr, false);
 }
 
-void immediate_renderer::fill_rectangle(point2d start, point2d end)
+void immediate_renderer::fill_rectangle(const point2d& start, const point2d& end)
 {
     if (rectangle_off_screen({start, end}))
         return;
     do_draw_rectangle_path(start, end, true);
 }
 
-void immediate_renderer::fill_rectangle(point2d start, double width, double height)
+void immediate_renderer::fill_rectangle(const point2d& start, double width, double height)
 {
     point2d end{start.x + width, start.y + height};
     if (rectangle_off_screen({start, end}))
@@ -203,7 +203,7 @@ void immediate_renderer::fill_poly(std::vector<point2d> const& points)
     do_fill_poly(points);
 }
 
-void immediate_renderer::draw_elliptic_arc(point2d center, double radius_x,
+void immediate_renderer::draw_elliptic_arc(const point2d& center, double radius_x,
                                            double radius_y, double start_angle,
                                            double extent_angle)
 {
@@ -214,7 +214,7 @@ void immediate_renderer::draw_elliptic_arc(point2d center, double radius_x,
                      radius_y / radius_x, false);
 }
 
-void immediate_renderer::draw_arc(point2d center, double radius,
+void immediate_renderer::draw_arc(const point2d& center, double radius,
                                   double start_angle, double extent_angle)
 {
     if (rectangle_off_screen({{center.x - radius, center.y - radius},
@@ -223,7 +223,7 @@ void immediate_renderer::draw_arc(point2d center, double radius,
     do_draw_arc_path(center, radius, start_angle, extent_angle, 1.0, false);
 }
 
-void immediate_renderer::fill_elliptic_arc(point2d center, double radius_x,
+void immediate_renderer::fill_elliptic_arc(const point2d& center, double radius_x,
                                            double radius_y, double start_angle,
                                            double extent_angle)
 {
@@ -234,7 +234,7 @@ void immediate_renderer::fill_elliptic_arc(point2d center, double radius_x,
                      radius_y / radius_x, true);
 }
 
-void immediate_renderer::fill_arc(point2d center, double radius,
+void immediate_renderer::fill_arc(const point2d& center, double radius,
                                   double start_angle, double extent_angle)
 {
     if (rectangle_off_screen({{center.x - radius, center.y - radius},
@@ -243,18 +243,18 @@ void immediate_renderer::fill_arc(point2d center, double radius,
     do_draw_arc_path(center, radius, start_angle, extent_angle, 1.0, true);
 }
 
-void immediate_renderer::draw_text(point2d point, std::string const& text)
+void immediate_renderer::draw_text(const point2d& point, std::string const& text)
 {
     do_draw_text(point, text, DBL_MAX, DBL_MAX);
 }
 
-void immediate_renderer::draw_text(point2d point, std::string const& text,
+void immediate_renderer::draw_text(const point2d& point, std::string const& text,
                                    double bound_x, double bound_y)
 {
     do_draw_text(point, text, bound_x, bound_y);
 }
 
-void immediate_renderer::draw_surface(surface* p_surface, point2d anchor_point,
+void immediate_renderer::draw_surface(surface* p_surface, const point2d& anchor_point,
                                       double scale_factor)
 {
     do_draw_surface(p_surface, anchor_point, scale_factor);

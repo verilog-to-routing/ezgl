@@ -71,26 +71,26 @@ public:
     virtual void set_horiz_justification(justification horiz_just) = 0;
     virtual void set_vert_justification(justification vert_just) = 0;
 
-    virtual void draw_line(point2d start, point2d end) = 0;
-    virtual void draw_rectangle(point2d start, point2d end) = 0;
-    virtual void draw_rectangle(point2d start, double width, double height) = 0;
+    virtual void draw_line(const point2d& start, const point2d& end) = 0;
+    virtual void draw_rectangle(const point2d& start, const point2d& end) = 0;
+    virtual void draw_rectangle(const point2d& start, double width, double height) = 0;
     virtual void draw_rectangle(rectangle r) = 0;
-    virtual void fill_rectangle(point2d start, point2d end) = 0;
-    virtual void fill_rectangle(point2d start, double width, double height) = 0;
+    virtual void fill_rectangle(const point2d& start, const point2d& end) = 0;
+    virtual void fill_rectangle(const point2d& start, double width, double height) = 0;
     virtual void fill_rectangle(rectangle r) = 0;
     virtual void fill_poly(std::vector<point2d> const& points) = 0;
-    virtual void draw_elliptic_arc(point2d center, double radius_x, double radius_y,
+    virtual void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                                    double start_angle, double extent_angle) = 0;
-    virtual void draw_arc(point2d center, double radius,
+    virtual void draw_arc(const point2d& center, double radius,
                           double start_angle, double extent_angle) = 0;
-    virtual void fill_elliptic_arc(point2d center, double radius_x, double radius_y,
+    virtual void fill_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                                    double start_angle, double extent_angle) = 0;
-    virtual void fill_arc(point2d center, double radius,
+    virtual void fill_arc(const point2d& center, double radius,
                           double start_angle, double extent_angle) = 0;
-    virtual void draw_text(point2d point, std::string const& text) = 0;
-    virtual void draw_text(point2d point, std::string const& text,
+    virtual void draw_text(const point2d& point, std::string const& text) = 0;
+    virtual void draw_text(const point2d& point, std::string const& text,
                            double bound_x, double bound_y) = 0;
-    virtual void draw_surface(surface* p_surface, point2d anchor_point,
+    virtual void draw_surface(surface* p_surface, const point2d& anchor_point,
                               double scale_factor = 1) = 0;
 
     static surface* load_png(const char* file_path);

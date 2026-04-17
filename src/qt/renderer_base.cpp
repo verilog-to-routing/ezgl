@@ -208,34 +208,38 @@ void RendererBase::do_set_visible_world(rectangle new_world)
 
 // ---- Immediate-mode draw implementations ------------------------------------
 
-void RendererBase::do_draw_line(point2d start, point2d end)
+void RendererBase::do_draw_line(const point2d& start, const point2d& end)
 {
     if (rectangle_off_screen({start, end}))
         return;
 
+    point2d draw_start = start;
+    point2d draw_end = end;
     if (current_coordinate_system == WORLD) {
         rectangle clip = get_visible_world_impl();
-        if (!clip_line(clip, start, end))
+        if (!clip_line(clip, draw_start, draw_end))
             return;
-        start = m_transform(start);
-        end   = m_transform(end);
+        draw_start = m_transform(draw_start);
+        draw_end   = m_transform(draw_end);
     }
 
-    m_painter->move_to(start.x, start.y);
-    m_painter->line_to(end.x, end.y);
+    m_painter->move_to(draw_start.x, draw_start.y);
+    m_painter->line_to(draw_end.x, draw_end.y);
     m_painter->stroke();
 }
 
-void RendererBase::do_draw_rectangle_path(point2d start, point2d end, bool fill)
+void RendererBase::do_draw_rectangle_path(const point2d& start, const point2d& end, bool fill)
 {
+    point2d draw_start = start;
+    point2d draw_end = end;
     if (current_coordinate_system == WORLD) {
-        start = m_transform(start);
-        end   = m_transform(end);
+        draw_start = m_transform(draw_start);
+        draw_end   = m_transform(draw_end);
     }
-    m_painter->move_to(start.x, start.y);
-    m_painter->line_to(start.x, end.y);
-    m_painter->line_to(end.x,   end.y);
-    m_painter->line_to(end.x,   start.y);
+    m_painter->move_to(draw_start.x, draw_start.y);
+    m_painter->line_to(draw_start.x, draw_end.y);
+    m_painter->line_to(draw_end.x,   draw_end.y);
+    m_painter->line_to(draw_end.x,   draw_start.y);
     m_painter->close_path();
     if (fill) m_painter->fill();
     else      m_painter->stroke();
@@ -266,37 +270,38 @@ void RendererBase::do_fill_poly(const std::vector<point2d>& points)
     m_painter->fill();
 }
 
-void RendererBase::do_draw_arc_path(point2d center, double radius, double start_angle,
+void RendererBase::do_draw_arc_path(const point2d& center, double radius, double start_angle,
                                     double extent_angle, double stretch_factor, bool fill)
 {
-    point2d point_x = {center.x + radius, center.y};
+    point2d draw_center = center;
+    point2d point_x = {draw_center.x + radius, draw_center.y};
     if (current_coordinate_system == WORLD) {
-        center  = m_transform(center);
+        draw_center  = m_transform(draw_center);
         point_x = m_transform(point_x);
     }
-    radius = point_x.x - center.x;
+    radius = point_x.x - draw_center.x;
 
     m_painter->save();
     m_painter->scale(1.0 / stretch_factor, 1.0);
-    center.x = center.x * stretch_factor;
+    draw_center.x = draw_center.x * stretch_factor;
     radius   = radius   * stretch_factor;
     m_painter->new_path();
 
     if (fill) {
-        m_painter->move_to(center.x, center.y);
+        m_painter->move_to(draw_center.x, draw_center.y);
     } else {
         double a0_rad = -start_angle * std::numbers::pi / 180.0;
-        m_painter->move_to(center.x + radius * std::cos(a0_rad),
-                           center.y + radius * std::sin(a0_rad));
+        m_painter->move_to(draw_center.x + radius * std::cos(a0_rad),
+                           draw_center.y + radius * std::sin(a0_rad));
     }
 
     double end_angle = start_angle + extent_angle;
     if (extent_angle >= 0) {
-        m_painter->arc_negative(center.x, center.y, radius,
+        m_painter->arc_negative(draw_center.x, draw_center.y, radius,
                                 -start_angle * std::numbers::pi / 180.0,
                                 -end_angle   * std::numbers::pi / 180.0);
     } else {
-        m_painter->arc(center.x, center.y, radius,
+        m_painter->arc(draw_center.x, draw_center.y, radius,
                        -start_angle * std::numbers::pi / 180.0,
                        -end_angle   * std::numbers::pi / 180.0);
     }
@@ -307,7 +312,7 @@ void RendererBase::do_draw_arc_path(point2d center, double radius, double start_
     m_painter->restore();
 }
 
-void RendererBase::do_draw_text(point2d point, const std::string& text,
+void RendererBase::do_draw_text(const point2d& point, const std::string& text,
                                 double bound_x, double bound_y)
 {
     text_extents_t text_extents{0, 0, 0, 0, 0, 0};
@@ -388,7 +393,7 @@ void RendererBase::do_draw_text(point2d point, const std::string& text,
     m_painter->restore();
 }
 
-void RendererBase::do_draw_surface(surface* p_surface, point2d anchor, double scale_factor)
+void RendererBase::do_draw_surface(surface* p_surface, const point2d& anchor, double scale_factor)
 {
     if (p_surface == nullptr || p_surface->isNull()) {
         q_warning("do_draw_surface: null/invalid surface at %p", (void*)p_surface);
