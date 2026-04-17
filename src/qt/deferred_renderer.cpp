@@ -91,102 +91,8 @@ deferred_renderer::deferred_renderer(Painter *painter,
                                      transform_fn transform,
                                      camera *cam,
                                      QImage *surface)
-    : RendererBase(painter, std::move(transform), cam, surface)
+    : irenderer(painter, std::move(transform), cam, surface)
 {}
-
-// ---- irenderer: coordinate system / viewport -----------------------------
-
-void deferred_renderer::set_coordinate_system(t_coordinate_system cs)
-{
-    do_set_coordinate_system(cs);
-}
-
-void deferred_renderer::set_visible_world(rectangle new_world)
-{
-    do_set_visible_world(new_world);
-}
-
-rectangle deferred_renderer::get_visible_world()
-{
-    return get_visible_world_impl();
-}
-
-rectangle deferred_renderer::get_visible_screen() const
-{
-    return get_visible_screen_impl();
-}
-
-rectangle deferred_renderer::world_to_screen(const rectangle& box)
-{
-    return world_to_screen_impl(box);
-}
-
-// ---- irenderer: state setters --------------------------------------------
-
-void deferred_renderer::set_color(color c)
-{
-    do_set_color(c);
-}
-
-void deferred_renderer::set_color(color c, uint_fast8_t alpha)
-{
-    do_set_color(c, alpha);
-}
-
-void deferred_renderer::set_color(uint_fast8_t r, uint_fast8_t g,
-                                  uint_fast8_t b, uint_fast8_t a)
-{
-    do_set_color(r, g, b, a);
-}
-
-void deferred_renderer::set_line_cap(line_cap cap)
-{
-    do_set_line_cap(cap);
-}
-
-void deferred_renderer::set_line_dash(line_dash dash)
-{
-    do_set_line_dash(dash);
-}
-
-void deferred_renderer::set_line_width(int width)
-{
-    do_set_line_width(width);
-}
-
-void deferred_renderer::set_font_size(double size)
-{
-    do_set_font_size(size);
-}
-
-void deferred_renderer::format_font(std::string const& family,
-                                    font_slant slant, font_weight weight)
-{
-    do_format_font(family, slant, weight);
-}
-
-void deferred_renderer::format_font(std::string const& family,
-                                    font_slant slant, font_weight weight,
-                                    double new_size)
-{
-    do_set_font_size(new_size);
-    do_format_font(family, slant, weight);
-}
-
-void deferred_renderer::set_text_rotation(double degrees)
-{
-    do_set_text_rotation(degrees);
-}
-
-void deferred_renderer::set_horiz_justification(justification j)
-{
-    do_set_horiz_justification(j);
-}
-
-void deferred_renderer::set_vert_justification(justification j)
-{
-    do_set_vert_justification(j);
-}
 
 // ---- spatial index -------------------------------------------------------
 
@@ -303,11 +209,11 @@ void deferred_renderer::apply_painter_state(const DeferredPainterState& state)
     vert_justification = state.vert_just;
     current_font = state.font;
     m_painter->setFont(current_font);
-    // Call RendererBase non-virtual do_set_* directly to avoid recursive dispatch.
-    do_set_color(state.draw_color);
-    do_set_line_width(state.line_width);
-    do_set_line_cap(state.line_cap_style);
-    do_set_line_dash(state.line_dash_style);
+    // Call base renderer methods explicitly to avoid recursive dispatch.
+    irenderer::set_color(state.draw_color);
+    irenderer::set_line_width(state.line_width);
+    irenderer::set_line_cap(state.line_cap_style);
+    irenderer::set_line_dash(state.line_dash_style);
 }
 
 // ---- batch insertion -----------------------------------------------------
@@ -367,7 +273,7 @@ QRectF deferred_renderer::to_screen_rect(const point2d& start, const point2d& en
 
 QRectF deferred_renderer::screen_viewport_rect() const
 {
-    rectangle viewport = get_visible_screen_impl();
+    rectangle viewport = irenderer::get_visible_screen();
     return QRectF(viewport.left(), viewport.bottom(), viewport.width(), viewport.height());
 }
 
@@ -504,7 +410,7 @@ void deferred_renderer::draw_line(const point2d& start, const point2d& end)
     point2d draw_start = start;
     point2d draw_end = end;
     if (current_coordinate_system == WORLD) {
-        rectangle clip = get_visible_world_impl();
+        rectangle clip = irenderer::get_visible_world();
         if (!clip_line_world(clip, draw_start, draw_end))
             return;
         draw_start = m_transform(draw_start);
@@ -879,7 +785,7 @@ void deferred_renderer::replay()
                                      m_unindexed_overlay_commands.begin(),
                                      m_unindexed_overlay_commands.end());
 
-    const rectangle visible_world = get_visible_world_impl();
+    const rectangle visible_world = irenderer::get_visible_world();
 
     if (!m_indexed_world_overlay_buckets.empty()
         && !m_overlay_commands.empty()
@@ -1011,21 +917,21 @@ void deferred_renderer::replay()
             apply_painter_state(cmd.state);
             using T = std::decay_t<decltype(cmd)>;
             if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
-                // Non-virtual: call RendererBase directly to avoid re-entering the overlay queue.
-                do_fill_poly(cmd.points);
+                // Paint directly to avoid re-entering the overlay queue.
+                paint_poly(cmd.points);
             } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
                 const double stretch = cmd.radius_x > 0.0
                     ? cmd.radius_y / cmd.radius_x : 1.0;
-                do_draw_arc_path(cmd.center, cmd.radius_x, cmd.start_angle,
-                                 cmd.extent_angle, stretch, cmd.fill);
+                paint_arc_path(cmd.center, cmd.radius_x, cmd.start_angle,
+                               cmd.extent_angle, stretch, cmd.fill);
             } else if constexpr (std::is_same_v<T, DeferredTextCommand>) {
                 DeferredPainterState state = cmd.state;
                 if (!resolve_text_replay_state(cmd, state))
                     return;
                 apply_painter_state(state);
-                do_draw_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
+                paint_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
-                do_draw_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
+                paint_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
             }
         }, *command);
     }

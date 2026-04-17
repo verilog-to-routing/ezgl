@@ -71,7 +71,6 @@ add_library(
   include/ezgl/callback.hpp
   include/ezgl/irenderer.hpp
   include/ezgl/graphics.hpp
-  include/ezgl/qt/renderer_base.hpp
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
   include/ezgl/logutils.hpp
@@ -80,6 +79,7 @@ add_library(
   include/ezgl/qt/switchbutton.hpp
   include/ezgl/qt/drawingareawidget.hpp
   include/ezgl/qt/painter.hpp
+  include/ezgl/qt/immediate_renderer.hpp
   include/ezgl/qt/deferred_renderer.hpp
   src/logutils.cpp
   src/application.cpp
@@ -87,15 +87,14 @@ add_library(
   src/canvas.cpp
   src/control.cpp
   src/callback.cpp
-  src/graphics.cpp
-
   src/qt/qtutils.cpp
   src/qt/qtgladeloader.cpp
   src/qt/switchbutton.cpp
   src/qt/drawingareawidget.cpp
   src/qt/painter.cpp
+  src/qt/immediate_renderer.cpp
   src/qt/deferred_renderer.cpp
-  src/qt/renderer_base.cpp
+  src/qt/irenderer.cpp
 )
 
 target_include_directories(

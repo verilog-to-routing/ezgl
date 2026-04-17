@@ -3,7 +3,6 @@
 #ifdef EZGL_RHI
 
 #include "ezgl/irenderer.hpp"
-#include "ezgl/qt/renderer_base.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 
@@ -28,7 +27,7 @@ namespace ezgl {
  * replayed into m_overlay when the camera changes without re-running the
  * application draw callback.
  */
-class rhi_renderer : public irenderer, protected RendererBase {
+class rhi_renderer : public irenderer {
 public:
     using draw_callback_fn = void (*)(renderer*);
 

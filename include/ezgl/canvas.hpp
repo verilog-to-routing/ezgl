@@ -36,7 +36,6 @@ namespace ezgl {
 
 /**** Functions in this class are for ezgl internal use; application code doesn't need to call them ****/
 
-// renderer is a type alias for irenderer (defined in irenderer.hpp, included via graphics.hpp).
 #ifdef EZGL_RHI
 class rhi_renderer;
 #endif

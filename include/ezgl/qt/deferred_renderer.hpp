@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ezgl/irenderer.hpp"
-#include "ezgl/qt/renderer_base.hpp"
 #include "ezgl/qt/painter.hpp"
 
 #include <QLineF>
@@ -108,7 +107,7 @@ using DeferredOverlayCommand =
 
 // ---- deferred_renderer ---------------------------------------------------
 
-class deferred_renderer : public irenderer, protected RendererBase {
+class deferred_renderer : public irenderer {
     const double MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX = 5.0;
 public:
     deferred_renderer(Painter *painter,
@@ -117,32 +116,6 @@ public:
                       QImage *surface);
 
     ~deferred_renderer() override = default;
-
-    // ---- irenderer: coordinate system / viewport ---------------------------
-
-    void set_coordinate_system(t_coordinate_system cs) override;
-    void set_visible_world(rectangle new_world) override;
-    rectangle get_visible_world() override;
-    rectangle get_visible_screen() const override;
-    rectangle world_to_screen(const rectangle& box) override;
-
-    // ---- irenderer: state setters ------------------------------------------
-
-    void set_color(color c) override;
-    void set_color(color c, uint_fast8_t alpha) override;
-    void set_color(uint_fast8_t r, uint_fast8_t g, uint_fast8_t b,
-                   uint_fast8_t a = 255) override;
-    void set_line_cap(line_cap cap) override;
-    void set_line_dash(line_dash dash) override;
-    void set_line_width(int width) override;
-    void set_font_size(double size) override;
-    void format_font(std::string const& family, font_slant slant,
-                     font_weight weight) override;
-    void format_font(std::string const& family, font_slant slant,
-                     font_weight weight, double new_size) override;
-    void set_text_rotation(double degrees) override;
-    void set_horiz_justification(justification j) override;
-    void set_vert_justification(justification j) override;
 
     // ---- irenderer: hot-path draw calls (batched) --------------------------
 

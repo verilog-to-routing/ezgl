@@ -238,7 +238,7 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
                              camera*          cam,
                              draw_callback_fn draw_callback,
                              QColor           bg_color)
-    : RendererBase(nullptr,    // painter is wired up below via update_painter()
+    : irenderer(nullptr,    // painter is wired up below via update_painter()
                    transform,  // copy — m_overlay_deferred also needs it
                    cam,
                    nullptr)    // surface not used in RHI path
@@ -268,80 +268,80 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
 
 void rhi_renderer::set_coordinate_system(t_coordinate_system cs)
 {
-    do_set_coordinate_system(cs);
+    irenderer::set_coordinate_system(cs);
     m_overlay_deferred->set_coordinate_system(cs);
 }
 
 void rhi_renderer::set_visible_world(rectangle new_world)
 {
-    do_set_visible_world(new_world);
+    irenderer::set_visible_world(new_world);
     m_overlay_deferred->set_visible_world(new_world);
 }
 
 rectangle rhi_renderer::get_visible_world()
 {
-    return get_visible_world_impl();
+    return irenderer::get_visible_world();
 }
 
 rectangle rhi_renderer::get_visible_screen() const
 {
-    return get_visible_screen_impl();
+    return irenderer::get_visible_screen();
 }
 
 rectangle rhi_renderer::world_to_screen(const rectangle& box)
 {
-    return world_to_screen_impl(box);
+    return irenderer::world_to_screen(box);
 }
 
 // ---- irenderer: state setters ---------------------------------------------
 
 void rhi_renderer::set_color(color c)
 {
-    do_set_color(c);
+    irenderer::set_color(c);
     m_overlay_deferred->set_color(c);
 }
 
 void rhi_renderer::set_color(color c, uint_fast8_t alpha)
 {
-    do_set_color(c, alpha);
+    irenderer::set_color(c, alpha);
     m_overlay_deferred->set_color(c, alpha);
 }
 
 void rhi_renderer::set_color(uint_fast8_t r, uint_fast8_t g,
                               uint_fast8_t b, uint_fast8_t a)
 {
-    do_set_color(r, g, b, a);
+    irenderer::set_color(r, g, b, a);
     m_overlay_deferred->set_color(r, g, b, a);
 }
 
 void rhi_renderer::set_line_cap(line_cap cap)
 {
-    do_set_line_cap(cap);
+    irenderer::set_line_cap(cap);
     m_overlay_deferred->set_line_cap(cap);
 }
 
 void rhi_renderer::set_line_dash(line_dash dash)
 {
-    do_set_line_dash(dash);
+    irenderer::set_line_dash(dash);
     m_overlay_deferred->set_line_dash(dash);
 }
 
 void rhi_renderer::set_line_width(int width)
 {
-    do_set_line_width(width);
+    irenderer::set_line_width(width);
     m_overlay_deferred->set_line_width(width);
 }
 
 void rhi_renderer::set_font_size(double size)
 {
-    do_set_font_size(size);
+    irenderer::set_font_size(size);
     m_overlay_deferred->set_font_size(size);
 }
 
 void rhi_renderer::format_font(std::string const& family,
                                 font_slant slant, font_weight weight)
 {
-    do_format_font(family, slant, weight);
+    irenderer::format_font(family, slant, weight);
     m_overlay_deferred->format_font(family, slant, weight);
 }
 
@@ -349,26 +349,25 @@ void rhi_renderer::format_font(std::string const& family,
                                 font_slant slant, font_weight weight,
                                 double new_size)
 {
-    do_set_font_size(new_size);
-    do_format_font(family, slant, weight);
+    irenderer::format_font(family, slant, weight, new_size);
     m_overlay_deferred->format_font(family, slant, weight, new_size);
 }
 
 void rhi_renderer::set_text_rotation(double degrees)
 {
-    do_set_text_rotation(degrees);
+    irenderer::set_text_rotation(degrees);
     m_overlay_deferred->set_text_rotation(degrees);
 }
 
 void rhi_renderer::set_horiz_justification(justification j)
 {
-    do_set_horiz_justification(j);
+    irenderer::set_horiz_justification(j);
     m_overlay_deferred->set_horiz_justification(j);
 }
 
 void rhi_renderer::set_vert_justification(justification j)
 {
-    do_set_vert_justification(j);
+    irenderer::set_vert_justification(j);
     m_overlay_deferred->set_vert_justification(j);
 }
 
@@ -1275,7 +1274,7 @@ void rhi_renderer::flush()
     m_rhi_widget->set_frame_data(
         std::move(scene_buffers),
         compute_mvp(),
-        get_visible_world_impl(),
+        irenderer::get_visible_world(),
         m_overlay,
         m_bg_color);
 
@@ -1287,7 +1286,7 @@ void rhi_renderer::flush()
 void rhi_renderer::flush_mvp_only()
 {
     render_cached_overlay();
-    m_rhi_widget->set_mvp_and_overlay(compute_mvp(), get_visible_world_impl(), m_overlay);
+    m_rhi_widget->set_mvp_and_overlay(compute_mvp(), irenderer::get_visible_world(), m_overlay);
     m_rhi_widget->update();
 }
 

@@ -1,11 +1,15 @@
-#include "ezgl/qt/renderer_base.hpp"
+#include "ezgl/irenderer.hpp"
+#include "ezgl/camera.hpp"
 #include "ezgl/logutils.hpp"
+#include "ezgl/qt/painter.hpp"
+#include "ezgl/qt/qtutils.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cfloat>
 #include <cmath>
 #include <numbers>
-#include <algorithm>
+#include <utility>
 #include <QFile>
 
 namespace ezgl {
@@ -46,7 +50,7 @@ static bool clip_line(const rectangle& w, point2d& p1, point2d& p2)
 
 // ---- Construction ------------------------------------------------------------
 
-RendererBase::RendererBase(Painter* painter, transform_fn transform, camera* cam, QImage*)
+irenderer::irenderer(Painter* painter, transform_fn transform, camera* cam, QImage*)
     : m_painter(painter)
     , m_transform(std::move(transform))
     , m_camera(cam)
@@ -57,36 +61,36 @@ RendererBase::RendererBase(Painter* painter, transform_fn transform, camera* cam
 
 // ---- Painter / camera utilities ----------------------------------------------
 
-void RendererBase::update_painter(Painter* painter, QImage*)
+void irenderer::update_painter(Painter* painter, QImage*)
 {
     m_painter = painter;
     if (m_painter != nullptr) {
         m_painter->setFont(current_font);
     }
-    do_set_color(current_color);
-    do_set_line_width(current_line_width);
-    do_set_line_cap(current_line_cap);
-    do_set_line_dash(current_line_dash);
+    irenderer::set_color(current_color);
+    irenderer::set_line_width(current_line_width);
+    irenderer::set_line_cap(current_line_cap);
+    irenderer::set_line_dash(current_line_dash);
 }
 
-bool RendererBase::rectangle_off_screen(rectangle rect)
+bool irenderer::rectangle_off_screen(rectangle rect)
 {
     if (current_coordinate_system == SCREEN)
         return false;
 
-    rectangle visible = get_visible_world_impl();
+    rectangle visible = irenderer::get_visible_world();
     return rect.right()  < visible.left()
         || rect.left()   > visible.right()
         || rect.top()    < visible.bottom()
         || rect.bottom() > visible.top();
 }
 
-bool RendererBase::clip_line_world(const rectangle& clip_window, point2d& start, point2d& end)
+bool irenderer::clip_line_world(const rectangle& clip_window, point2d& start, point2d& end)
 {
     return clip_line(clip_window, start, end);
 }
 
-rectangle RendererBase::get_visible_world_impl()
+rectangle irenderer::get_visible_world()
 {
     rectangle world  = m_camera->get_world();
     rectangle screen = m_camera->get_screen();
@@ -94,41 +98,41 @@ rectangle RendererBase::get_visible_world_impl()
     return {(world.bottom_left() - margin), (world.top_right() + margin)};
 }
 
-rectangle RendererBase::get_visible_screen_impl() const
+rectangle irenderer::get_visible_screen() const
 {
     return m_camera->get_widget();
 }
 
-rectangle RendererBase::world_to_screen_impl(const rectangle& box)
+rectangle irenderer::world_to_screen(const rectangle& box)
 {
     return rectangle(m_transform(box.bottom_left()), m_transform(box.top_right()));
 }
 
 // ---- State-setter implementations -------------------------------------------
 
-void RendererBase::do_set_color(color c)
+void irenderer::set_color(color c)
 {
-    do_set_color(c.red, c.green, c.blue, c.alpha);
+    irenderer::set_color(c.red, c.green, c.blue, c.alpha);
 }
 
-void RendererBase::do_set_color(color c, uint_fast8_t alpha)
+void irenderer::set_color(color c, uint_fast8_t alpha)
 {
-    do_set_color(c.red, c.green, c.blue, alpha);
+    irenderer::set_color(c.red, c.green, c.blue, alpha);
 }
 
-void RendererBase::do_set_color(uint_fast8_t r, uint_fast8_t g, uint_fast8_t b, uint_fast8_t a)
+void irenderer::set_color(uint_fast8_t r, uint_fast8_t g, uint_fast8_t b, uint_fast8_t a)
 {
     m_painter->set_source_rgba(r / 255.0, g / 255.0, b / 255.0, a / 255.0);
     current_color = {r, g, b, a};
 }
 
-void RendererBase::do_set_line_cap(line_cap cap)
+void irenderer::set_line_cap(line_cap cap)
 {
     m_painter->set_line_cap(static_cast<Qt::PenCapStyle>(cap));
     current_line_cap = cap;
 }
 
-void RendererBase::do_set_line_dash(line_dash dash)
+void irenderer::set_line_dash(line_dash dash)
 {
     if (dash == line_dash::none) {
         m_painter->set_dash(nullptr, 0, 0);
@@ -139,19 +143,19 @@ void RendererBase::do_set_line_dash(line_dash dash)
     current_line_dash = dash;
 }
 
-void RendererBase::do_set_line_width(int width)
+void irenderer::set_line_width(int width)
 {
     m_painter->set_line_width(width == 0 ? 1 : width);
     current_line_width = width;
 }
 
-void RendererBase::do_set_font_size(double size)
+void irenderer::set_font_size(double size)
 {
     current_font.setPixelSize(std::max(1, int(std::lround(size))));
     m_painter->set_font_size(size);
 }
 
-void RendererBase::do_format_font(const std::string& family, font_slant slant, font_weight weight)
+void irenderer::format_font(const std::string& family, font_slant slant, font_weight weight)
 {
     current_font.setFamily(QString::fromStdString(family));
     current_font.setStyle(static_cast<QFont::Style>(slant));
@@ -161,7 +165,14 @@ void RendererBase::do_format_font(const std::string& family, font_slant slant, f
                                 static_cast<QFont::Weight>(weight));
 }
 
-void RendererBase::do_set_text_rotation(double degrees)
+void irenderer::format_font(const std::string& family, font_slant slant,
+                           font_weight weight, double new_size)
+{
+    irenderer::set_font_size(new_size);
+    irenderer::format_font(family, slant, weight);
+}
+
+void irenderer::set_text_rotation(double degrees)
 {
     if (degrees >= -360.0 && degrees <= 360.0)
         rotation_angle = -degrees * std::numbers::pi / 180.0;
@@ -169,24 +180,24 @@ void RendererBase::do_set_text_rotation(double degrees)
         q_warning("set_text_rotation: bad angle %f — ignored", degrees);
 }
 
-void RendererBase::do_set_horiz_justification(justification j)
+void irenderer::set_horiz_justification(justification j)
 {
     if (j != justification::top && j != justification::bottom)
         horiz_justification = j;
 }
 
-void RendererBase::do_set_vert_justification(justification j)
+void irenderer::set_vert_justification(justification j)
 {
     if (j != justification::right && j != justification::left)
         vert_justification = j;
 }
 
-void RendererBase::do_set_coordinate_system(t_coordinate_system cs)
+void irenderer::set_coordinate_system(t_coordinate_system cs)
 {
     current_coordinate_system = cs;
 }
 
-void RendererBase::do_set_visible_world(rectangle new_world)
+void irenderer::set_visible_world(rectangle new_world)
 {
     point2d n_center = new_world.center();
     double  n_width  = new_world.width();
@@ -206,9 +217,9 @@ void RendererBase::do_set_visible_world(rectangle new_world)
     m_camera->set_world(new_world);
 }
 
-// ---- Immediate-mode draw implementations ------------------------------------
+// ---- Immediate-mode paint helpers -------------------------------------------
 
-void RendererBase::do_draw_line(const point2d& start, const point2d& end)
+void irenderer::paint_line(const point2d& start, const point2d& end)
 {
     if (rectangle_off_screen({start, end}))
         return;
@@ -216,7 +227,7 @@ void RendererBase::do_draw_line(const point2d& start, const point2d& end)
     point2d draw_start = start;
     point2d draw_end = end;
     if (current_coordinate_system == WORLD) {
-        rectangle clip = get_visible_world_impl();
+        rectangle clip = irenderer::get_visible_world();
         if (!clip_line(clip, draw_start, draw_end))
             return;
         draw_start = m_transform(draw_start);
@@ -228,7 +239,7 @@ void RendererBase::do_draw_line(const point2d& start, const point2d& end)
     m_painter->stroke();
 }
 
-void RendererBase::do_draw_rectangle_path(const point2d& start, const point2d& end, bool fill)
+void irenderer::paint_rectangle_path(const point2d& start, const point2d& end, bool fill)
 {
     point2d draw_start = start;
     point2d draw_end = end;
@@ -245,7 +256,7 @@ void RendererBase::do_draw_rectangle_path(const point2d& start, const point2d& e
     else      m_painter->stroke();
 }
 
-void RendererBase::do_fill_poly(const std::vector<point2d>& points)
+void irenderer::paint_poly(const std::vector<point2d>& points)
 {
     assert(points.size() > 1);
 
@@ -270,8 +281,8 @@ void RendererBase::do_fill_poly(const std::vector<point2d>& points)
     m_painter->fill();
 }
 
-void RendererBase::do_draw_arc_path(const point2d& center, double radius, double start_angle,
-                                    double extent_angle, double stretch_factor, bool fill)
+void irenderer::paint_arc_path(const point2d& center, double radius, double start_angle,
+                               double extent_angle, double stretch_factor, bool fill)
 {
     point2d draw_center = center;
     point2d point_x = {draw_center.x + radius, draw_center.y};
@@ -312,8 +323,8 @@ void RendererBase::do_draw_arc_path(const point2d& center, double radius, double
     m_painter->restore();
 }
 
-void RendererBase::do_draw_text(const point2d& point, const std::string& text,
-                                double bound_x, double bound_y)
+void irenderer::paint_text(const point2d& point, const std::string& text,
+                           double bound_x, double bound_y)
 {
     text_extents_t text_extents{0, 0, 0, 0, 0, 0};
     m_painter->text_extents(text.c_str(), &text_extents);
@@ -393,10 +404,10 @@ void RendererBase::do_draw_text(const point2d& point, const std::string& text,
     m_painter->restore();
 }
 
-void RendererBase::do_draw_surface(surface* p_surface, const point2d& anchor, double scale_factor)
+void irenderer::paint_surface(surface* p_surface, const point2d& anchor, double scale_factor)
 {
     if (p_surface == nullptr || p_surface->isNull()) {
-        q_warning("do_draw_surface: null/invalid surface at %p", (void*)p_surface);
+        q_warning("draw_surface: null/invalid surface at %p", (void*)p_surface);
         return;
     }
 
