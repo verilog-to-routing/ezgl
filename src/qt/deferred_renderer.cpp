@@ -456,9 +456,25 @@ void deferred_renderer::draw_rectangle(rectangle r)
 
 // ---- overlay draw calls (stored in command queue) ------------------------
 
+void deferred_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
+{
+    const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
+    m_overlay_commands.emplace_back(DeferredPolyCommand{capture_painter_state(), {a, b, c}});
+
+    if (current_coordinate_system == WORLD) {
+        const double x_min = std::min({a.x, b.x, c.x});
+        const double x_max = std::max({a.x, b.x, c.x});
+        const double y_min = std::min({a.y, b.y, c.y});
+        const double y_max = std::max({a.y, b.y, c.y});
+        index_world_overlay_command(command_index, {{x_min, y_min}, {x_max, y_max}});
+    } else {
+        m_unindexed_overlay_commands.push_back(command_index);
+    }
+}
+
 void deferred_renderer::fill_poly(std::vector<point2d> const& points)
 {
-    assert(points.size() > 1);
+    assert(points.size() > 3);
 
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     m_overlay_commands.emplace_back(DeferredPolyCommand{capture_painter_state(), points});

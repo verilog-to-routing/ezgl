@@ -1,5 +1,6 @@
 #include "ezgl/qt/immediate_renderer.hpp"
 
+#include <cassert>
 #include <cfloat>
 #include <utility>
 
@@ -76,8 +77,14 @@ void immediate_renderer::fill_rectangle(rectangle r)
     paint_rectangle_path(bl, tr, true);
 }
 
+void immediate_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
+{
+    paint_poly({a, b, c});
+}
+
 void immediate_renderer::fill_poly(const std::vector<point2d>& points)
 {
+    assert(points.size() > 3);
     paint_poly(points);
 }
 

@@ -26,6 +26,7 @@ public:
     void fill_rectangle(rectangle r) override;
 
     void fill_poly(const std::vector<point2d>& points) override;
+    void fill_triangle(const point2d& a, const point2d& b, const point2d& c) override;
 
     void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;

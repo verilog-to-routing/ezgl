@@ -78,6 +78,7 @@ public:
     // ---- irenderer: overlay draw calls (forwarded to m_overlay_deferred) ---
 
     void fill_poly(std::vector<point2d> const& points) override;
+    void fill_triangle(const point2d& a, const point2d& b, const point2d& c) override;
     void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
     void draw_arc(const point2d& center, double radius,

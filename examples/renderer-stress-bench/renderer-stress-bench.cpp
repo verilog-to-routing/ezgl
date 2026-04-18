@@ -93,10 +93,10 @@ static constexpr int    CLB_TILE_COUNT = CLB_TILE_COLS * CLB_TILE_ROWS;
 static constexpr double CLB_TILE_GAP_RATIO = 0.3;
 
 // Approximate VPR scene counts (profiled from a mid-size design).
-static constexpr int VPR_N_RATE = 10;
+static constexpr int VPR_N_RATE = 1;
 static constexpr int VPR_N_THIN_LINES   = 71'554'146/VPR_N_RATE;  // thin_verts / 2
 static constexpr int VPR_N_FILL_RECTS   = 115'482/VPR_N_RATE;
-static constexpr int VPR_N_FILL_POLYS   = 34'943'940/VPR_N_RATE;  // fill_poly_verts / 6 (6-pt arrowhead)
+static constexpr int VPR_N_FILL_POLYS   = 34'943'940/VPR_N_RATE;  // routing arrowheads (3-pt triangle)
 static constexpr int VPR_N_DASHED_LINES = 443'724/VPR_N_RATE;
 
 struct GridLayout {
@@ -454,7 +454,7 @@ void vpr_complex_scene(ezgl::renderer *g)
     }
   }
 
-  // ---- Routing direction arrowheads (6-point fill_poly) ----
+  // ---- Routing direction arrowheads (3-point triangle) ----
   {
     ezgl::scope_timer t("build Routing direction arrowheads " + std::to_string(VPR_N_FILL_POLYS));
     const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_FILL_POLYS))));
@@ -463,20 +463,11 @@ void vpr_complex_scene(ezgl::renderer *g)
     const double hw = cell_w * 0.45;
     const double hh = cell_h * 0.45;
 
-    // Pre-allocate once to avoid per-call heap allocation.
-    std::vector<ezgl::point2d> arrow(6);
-
     g->set_color(ezgl::color(0, 120, 255, 180));
     for (int i = 0; i < VPR_N_FILL_POLYS; ++i) {
       const double cx = WORLD.left()   + ((i % cols) + 0.5) * cell_w;
       const double cy = WORLD.bottom() + ((i / cols) + 0.5) * cell_h;
-      arrow[0] = {cx - hw,  cy - hh * 0.4};
-      arrow[1] = {cx,       cy - hh * 0.4};
-      arrow[2] = {cx,       cy - hh};
-      arrow[3] = {cx + hw,  cy};
-      arrow[4] = {cx,       cy + hh};
-      arrow[5] = {cx,       cy + hh * 0.4};
-      g->fill_poly(arrow);
+      g->fill_triangle({cx - hw, cy}, {cx + hw, cy - hh}, {cx + hw, cy + hh});
     }
   }
 

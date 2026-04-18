@@ -6,6 +6,8 @@
 #include <QtGlobal>
 
 #include <algorithm>
+#include <array>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -75,6 +77,54 @@ std::vector<ezgl::point2d> normalized_polygon_points(const std::vector<ezgl::poi
         polygon.pop_back();
 
     return polygon;
+}
+
+// ---- stack-allocated polygon helpers (hot-path, zero heap alloc) -----------
+
+// Max vertices after Sutherland-Hodgman clipping of a triangle against a rect:
+// 3 original + 4 clip planes × 1 new vertex each = 7. Use 8 for safety.
+static constexpr int kMaxClipVerts = 8;
+
+struct SmallPoly {
+    std::array<ezgl::point2d, kMaxClipVerts> v;
+    int n = 0;
+    bool empty() const noexcept { return n == 0; }
+    const ezgl::point2d& back() const noexcept { return v[n - 1]; }
+    void push_back(const ezgl::point2d& p) noexcept { if (n < kMaxClipVerts) v[n++] = p; }
+};
+
+template<typename InsideFn, typename IntersectFn>
+static SmallPoly clip_polygon_edge_small(const SmallPoly& poly, InsideFn inside, IntersectFn intersect)
+{
+    SmallPoly out;
+    if (poly.n == 0) return out;
+    ezgl::point2d prev = poly.v[poly.n - 1];
+    bool prev_inside = inside(prev);
+    for (int i = 0; i < poly.n; ++i) {
+        const ezgl::point2d& cur = poly.v[i];
+        const bool cur_inside = inside(cur);
+        if (cur_inside != prev_inside)
+            out.push_back(intersect(prev, cur));
+        if (cur_inside)
+            out.push_back(cur);
+        prev = cur;
+        prev_inside = cur_inside;
+    }
+    return out;
+}
+
+// O(n) convexity test — returns true if pts form a convex polygon.
+static bool is_convex_polygon(const std::vector<ezgl::point2d>& pts)
+{
+    const std::size_t n = pts.size();
+    bool has_pos = false, has_neg = false;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double c = cross(pts[i], pts[(i + 1) % n], pts[(i + 2) % n]);
+        if (c > kPolygonEpsilon) has_pos = true;
+        else if (c < -kPolygonEpsilon) has_neg = true;
+        if (has_pos && has_neg) return false;
+    }
+    return true;
 }
 
 std::vector<Triangle> triangulate_simple_polygon(const std::vector<ezgl::point2d>& input)
@@ -174,6 +224,45 @@ ezgl::point2d intersect_horizontal(const ezgl::point2d& a,
 
     const double t = (y - a.y) / dy;
     return {a.x + t * (b.x - a.x), y};
+}
+
+// Clip a triangle to a rect with zero heap allocations.
+static SmallPoly clip_triangle_to_rect(const ezgl::point2d& a,
+                                       const ezgl::point2d& b,
+                                       const ezgl::point2d& c,
+                                       const ezgl::rectangle& clip)
+{
+    SmallPoly poly;
+    poly.v[0] = a; poly.v[1] = b; poly.v[2] = c; poly.n = 3;
+
+    poly = clip_polygon_edge_small(poly,
+        [&](const ezgl::point2d& p){ return p.x >= clip.left()   - kPolygonEpsilon; },
+        [&](const ezgl::point2d& u, const ezgl::point2d& v_){ return intersect_vertical(u, v_, clip.left()); });
+    if (poly.n < 3) return SmallPoly{};
+
+    poly = clip_polygon_edge_small(poly,
+        [&](const ezgl::point2d& p){ return p.x <= clip.right()  + kPolygonEpsilon; },
+        [&](const ezgl::point2d& u, const ezgl::point2d& v_){ return intersect_vertical(u, v_, clip.right()); });
+    if (poly.n < 3) return SmallPoly{};
+
+    poly = clip_polygon_edge_small(poly,
+        [&](const ezgl::point2d& p){ return p.y >= clip.bottom() - kPolygonEpsilon; },
+        [&](const ezgl::point2d& u, const ezgl::point2d& v_){ return intersect_horizontal(u, v_, clip.bottom()); });
+    if (poly.n < 3) return SmallPoly{};
+
+    poly = clip_polygon_edge_small(poly,
+        [&](const ezgl::point2d& p){ return p.y <= clip.top()    + kPolygonEpsilon; },
+        [&](const ezgl::point2d& u, const ezgl::point2d& v_){ return intersect_horizontal(u, v_, clip.top()); });
+    if (poly.n < 3) return SmallPoly{};
+
+    // Mirror normalized_polygon_points: remove adjacent duplicates + closing duplicate.
+    SmallPoly norm;
+    for (int i = 0; i < poly.n; ++i) {
+        if (norm.n > 0 && norm.back() == poly.v[i]) continue;
+        norm.push_back(poly.v[i]);
+    }
+    if (norm.n > 1 && norm.v[0] == norm.back()) norm.n--;
+    return norm;
 }
 
 template<typename InsideFn, typename IntersectFn>
@@ -380,30 +469,41 @@ void rhi_renderer::fill_poly(std::vector<point2d> const& points)
     if (m_skip_tile_writes)
         return;
 
-    if (points.size() < 3)
-        return;
+    assert(points.size() > 3);
 
-    double x_min = points[0].x, x_max = points[0].x;
-    double y_min = points[0].y, y_max = points[0].y;
-    for (std::size_t i = 1; i < points.size(); ++i) {
-        x_min = std::min(x_min, points[i].x);
-        x_max = std::max(x_max, points[i].x);
-        y_min = std::min(y_min, points[i].y);
-        y_max = std::max(y_max, points[i].y);
+    const StyleKey style_key = current_style_key(PrimitiveType::FilledPoly);
+    const std::uint32_t rgba = current_packed_color();
+
+    // Fast path: convex polygon — O(n) fan triangulation, zero intermediate allocs.
+    if (is_convex_polygon(points)) {
+        for (std::size_t i = 1; i + 1 < points.size(); ++i)
+            append_fill_triangle_to_tiles(points[0], points[i], points[i + 1], style_key, rgba);
+        return;
     }
 
+    // General case: O(n²) ear-clipping for non-convex polygons.
     const std::vector<Triangle> triangles = triangulate_simple_polygon(points);
     if (triangles.empty()) {
         qWarning("rhi_renderer: failed to triangulate polygon with %llu points",
                  static_cast<unsigned long long>(points.size()));
         return;
     }
-
-    const StyleKey style_key = current_style_key(PrimitiveType::FilledPoly);
-    const std::uint32_t rgba = current_packed_color();
     for (const Triangle& triangle : triangles) {
         append_fill_triangle_to_tiles(triangle.a, triangle.b, triangle.c, style_key, rgba);
     }
+}
+
+void rhi_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
+{
+    if (current_coordinate_system != WORLD) {
+        m_overlay_deferred->fill_triangle(a, b, c);
+        return;
+    }
+    if (m_skip_tile_writes)
+        return;
+    const StyleKey style_key = current_style_key(PrimitiveType::FilledPoly);
+    const std::uint32_t rgba = current_packed_color();
+    append_fill_triangle_to_tiles(a, b, c, style_key, rgba);
 }
 
 void rhi_renderer::draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
@@ -813,19 +913,16 @@ void rhi_renderer::append_fill_triangle_to_tiles(const point2d& a,
     const int max_tx = clamp_tile_x(bounds.right());
     const int min_ty = clamp_tile_y(bounds.bottom());
     const int max_ty = clamp_tile_y(bounds.top());
-    const std::vector<point2d> triangle = {a, b, c};
-
     for (int ty = min_ty; ty <= max_ty; ++ty) {
         for (int tx = min_tx; tx <= max_tx; ++tx) {
             RhiTileBatch& tile = tile_at(tx, ty);
-            const std::vector<point2d> clipped =
-                clip_convex_polygon_to_rect(triangle, tile.world_bounds);
-            if (clipped.size() < 3)
+            const SmallPoly clipped = clip_triangle_to_rect(a, b, c, tile.world_bounds);
+            if (clipped.n < 3)
                 continue;
 
-            const point2d anchor = clipped.front();
-            for (std::size_t i = 1; i + 1 < clipped.size(); ++i) {
-                append_fill_triangle(tile, anchor, clipped[i], clipped[i + 1], style_key, rgba);
+            const point2d& anchor = clipped.v[0];
+            for (int i = 1; i + 1 < clipped.n; ++i) {
+                append_fill_triangle(tile, anchor, clipped.v[i], clipped.v[i + 1], style_key, rgba);
             }
         }
     }
