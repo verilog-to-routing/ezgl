@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdarg>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -8,7 +9,9 @@
 #include <iostream>
 #include <source_location>
 #include <sstream>
+#include <string>
 #include <string_view>
+#include <utility>
 
 // These two must remain macros:
 //   - they use #expr to stringify the condition (only macros can do that)
@@ -175,5 +178,126 @@ inline log_stream q_debug_stream(
     return log_stream("DEBUG", detail::filename(loc.file_name()).data(),
                       static_cast<int>(loc.line()));
 }
+
+class scope_timer {
+public:
+    enum class log_level {
+        none,
+        debug,
+        info,
+        warning,
+        error,
+    };
+
+    enum class time_unit {
+        automatic,
+        milliseconds,
+        seconds,
+        minutes,
+    };
+
+    scope_timer() = default;
+
+    explicit scope_timer(std::string label,
+                         log_level level = log_level::debug,
+                         time_unit unit = time_unit::automatic,
+                         std::source_location loc = std::source_location::current())
+        : label_(std::move(label))
+        , level_(level)
+        , unit_(unit)
+        , loc_(loc)
+    {}
+
+    scope_timer(const scope_timer&) = delete;
+    scope_timer& operator=(const scope_timer&) = delete;
+    scope_timer(scope_timer&&) = delete;
+    scope_timer& operator=(scope_timer&&) = delete;
+
+    ~scope_timer() noexcept
+    {
+        if (level_ == log_level::none || label_.empty())
+            return;
+
+        try {
+            const std::string elapsed = elapsed_string(unit_);
+            log_message(level_name(level_),
+                        detail::filename(loc_.file_name()).data(),
+                        static_cast<int>(loc_.line()),
+                        "%s took %s",
+                        label_.c_str(),
+                        elapsed.c_str());
+        } catch (...) {
+            // Destructors must not throw while unwinding another exception.
+        }
+    }
+
+    double elapsed_ms() const noexcept
+    {
+        return std::chrono::duration<double, std::milli>(
+            clock::now() - start_).count();
+    }
+
+    double elapsed_sec() const noexcept
+    {
+        return std::chrono::duration<double>(
+            clock::now() - start_).count();
+    }
+
+    double elapsed_min() const noexcept
+    {
+        return elapsed_sec() / 60.0;
+    }
+
+    std::string elapsed_string(time_unit unit = time_unit::automatic) const
+    {
+        const double ms = elapsed_ms();
+        if (unit == time_unit::automatic) {
+            if (ms < 1000.0)
+                unit = time_unit::milliseconds;
+            else if (ms < 60000.0)
+                unit = time_unit::seconds;
+            else
+                unit = time_unit::minutes;
+        }
+
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(3);
+        switch (unit) {
+            case time_unit::milliseconds:
+                oss << ms << " ms";
+                break;
+            case time_unit::seconds:
+                oss << (ms / 1000.0) << " sec";
+                break;
+            case time_unit::minutes:
+                oss << (ms / 60000.0) << " min";
+                break;
+            case time_unit::automatic:
+                break;
+        }
+        return oss.str();
+    }
+
+private:
+    using clock = std::chrono::steady_clock;
+
+    static constexpr const char* level_name(log_level level) noexcept
+    {
+        switch (level) {
+            case log_level::debug:   return "DEBUG";
+            case log_level::info:    return "INFO";
+            case log_level::warning: return "WARNING";
+            case log_level::error:   return "ERROR";
+            case log_level::none:    return "DEBUG";
+        }
+        return "DEBUG";
+    }
+
+    clock::time_point   start_ = clock::now();
+    std::string         label_;
+    log_level           level_ = log_level::none;
+    time_unit           unit_ = time_unit::automatic;
+    std::source_location loc_ = std::source_location::current();
+};
 
 } // namespace ezgl

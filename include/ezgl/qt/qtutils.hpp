@@ -2,6 +2,7 @@
 #define EZGL_QTUTILS_HPP
 
 #include <QList>
+#include <QObject>
 
 class QWidget;
 class QBoxLayout;

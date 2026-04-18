@@ -22,8 +22,9 @@
  * This example shows you how to create an application using the EZGL library.
  */
 
-#include <iostream>
 #include <chrono>
+#include <cfloat>
+#include <iostream>
 #include <thread>
 #include <vector>
 #include "ezgl/application.hpp"
@@ -704,4 +705,3 @@ void act_on_key_press(ezgl::application *application, QKeyEvent */*event*/, cons
 
   std::cout << key_name <<" key is pressed" << std::endl;
 }
-

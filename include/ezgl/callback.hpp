@@ -28,6 +28,9 @@
 #include <iostream>
 
 #include "qt/qtutils.hpp"
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QWheelEvent>
 #define PANNING_MOUSE_BUTTON Qt::LeftButton
 
 namespace ezgl {

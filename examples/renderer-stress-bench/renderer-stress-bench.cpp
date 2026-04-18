@@ -18,10 +18,11 @@
 
 /**
  * Usage:
- *   renderer-stress-bench           — headless: run all benchmarks, print timing, save PNGs
- *   renderer-stress-bench --ui      — UI: open window showing first test case
- *   renderer-stress-bench --ui <n>  — UI: open window showing test case n (0-based)
- *   renderer-stress-bench --help    — show this help
+ *   renderer-stress-bench                         — headless: run all benchmarks, print timing, save PNGs
+ *   renderer-stress-bench --ui                    — UI: open window showing first test case
+ *   renderer-stress-bench --ui <n>                — UI: open window showing test case n (0-based)
+ *   renderer-stress-bench --renderer <r>          — select renderer: immediate, deferred, rhi (default: rhi)
+ *   renderer-stress-bench --help                  — show this help
  */
 
 #include <iostream>
@@ -401,52 +402,60 @@ struct TestCase {
   const char          *label;
   ezgl::draw_canvas_fn fn;
   int                  count;
-  const char          *output_file;
 };
 
+static std::string label_to_filename(const char *label)
+{
+  std::string s(label);
+  s.erase(s.find_last_not_of(" \t") + 1);
+  for (char &c : s)
+    if (c == ' ') c = '_';
+  return s + ".png";
+}
+
 static const TestCase TESTS[] = {
-    { "clb tile grid ",      draw_clb_tile_scene,            CLB_TILE_COUNT, "draw_clb_tile_grid.png" },
-    // { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
-    //{ "variadic lines   ", draw_lines_variadic,         200'000'000, "bench_lines_variadic.png"    },
-    //{ "solid lines   ",       draw_lines_solid,               200'000'000, "draw_solid_lines.png"    },
-    // { "solid rects   ",       draw_rectangles_solid,          1'0, "draw_solid_rects.png"    },
-    // { "solid rects   ",       fill_rectangles_solid,          1'0, "draw_solid_rects.png"    },
-    //{ "solid   ",       draw_solid,                           1'000'000, "draw_solid.png"    },
-    // { "variadic   ",       draw_variadic,               1'000, "bench_variadic.png"    },
-  //{ "solid lines      ", draw_lines_solid,           200'000'000, "bench_lines_solid.png"       },
-  //{ "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,         400'000'000, "bench_lines_variadic.png"    },
+    //{ "clb tile grid",      draw_clb_tile_scene,            CLB_TILE_COUNT },
+    // { "variadic rects",    draw_rectangles_variadic,         1'000 },
+    { "variadic lines",    draw_lines_variadic,         1'000'000 },
+    //{ "solid lines",        draw_lines_solid,               10'000'000 },
+    // { "solid rects",        draw_rectangles_solid,          1'0 },
+    // { "solid rects",        fill_rectangles_solid,          1'0 },
+    //{ "solid",              draw_solid,                     1'000'000 },
+    // { "variadic",           draw_variadic,                    1'000 },
+  //{ "solid lines",        draw_lines_solid,           200'000'000 },
+  //{ "variadic lines",     draw_lines_variadic,          1'000'000 },
+  // { "variadic lines",     draw_lines_variadic,        400'000'000 },
       //////////////////
-    // { "solid lines      ", draw_lines_solid,              1000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,             10'000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,            100'000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,           1'000'000, "bench_lines_solid.png"       },
-  // { "transparen lines ", draw_lines_transparent,        1000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,       10'000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,      100'000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,     1'000'000, "bench_lines_transparent.png" },
-  // { "solid rects      ", draw_rectangles_solid,         1000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,        10'000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,       100'000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,      1'000'000, "bench_rects_solid.png"       },
-  // { "transparen rects ", draw_rectangles_transparent,   1000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent,  10'000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent, 100'000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent,1'000'000, "bench_rects_transparent.png" },
-  // { "variadic lines   ", draw_lines_variadic,            1000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,           10'000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,          100'000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,       1000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,      10'000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,     100'000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,    1'000'000, "bench_rects_variadic.png"    },
+    // { "solid lines",        draw_lines_solid,              1000 },
+  // { "solid lines",        draw_lines_solid,             10'000 },
+  // { "solid lines",        draw_lines_solid,            100'000 },
+  // { "solid lines",        draw_lines_solid,           1'000'000 },
+  // { "transparen lines",   draw_lines_transparent,        1000 },
+  // { "transparen lines",   draw_lines_transparent,       10'000 },
+  // { "transparen lines",   draw_lines_transparent,      100'000 },
+  // { "transparen lines",   draw_lines_transparent,     1'000'000 },
+  // { "solid rects",        draw_rectangles_solid,         1000 },
+  // { "solid rects",        draw_rectangles_solid,        10'000 },
+  // { "solid rects",        draw_rectangles_solid,       100'000 },
+  // { "solid rects",        draw_rectangles_solid,      1'000'000 },
+  // { "transparen rects",   draw_rectangles_transparent,   1000 },
+  // { "transparen rects",   draw_rectangles_transparent,  10'000 },
+  // { "transparen rects",   draw_rectangles_transparent, 100'000 },
+  // { "transparen rects",   draw_rectangles_transparent,1'000'000 },
+  // { "variadic lines",     draw_lines_variadic,            1000 },
+  // { "variadic lines",     draw_lines_variadic,           10'000 },
+  // { "variadic lines",     draw_lines_variadic,          100'000 },
+  // { "variadic lines",     draw_lines_variadic,         1'000'000 },
+  // { "variadic rects",     draw_rectangles_variadic,       1000 },
+  // { "variadic rects",     draw_rectangles_variadic,      10'000 },
+  // { "variadic rects",     draw_rectangles_variadic,     100'000 },
+  // { "variadic rects",     draw_rectangles_variadic,    1'000'000 },
 };
 static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
 
 // ---- headless mode ---------------------------------------------------------
 
-static void run_headless()
+static void run_headless(ezgl::renderer_type renderer)
 {
   ezgl::application::settings s;
   s.main_ui_resource = ":/main.ui";
@@ -463,6 +472,7 @@ static void run_headless()
 
   app.add_canvas("headless_canvas", headless_dispatch, WORLD, ezgl::WHITE);
   ezgl::canvas *c = app.get_canvas("headless_canvas");
+  c->set_renderer_type(renderer);
 
   for (int t = 0; t < N_TESTS; ++t) {
     const TestCase &tc = TESTS[t];
@@ -484,7 +494,7 @@ static void run_headless()
     write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
 
     // Save PNG once (untimed) for visual verification.
-    c->print_png(tc.output_file, IMG_W, IMG_H);
+    c->print_png(label_to_filename(tc.label).c_str(), IMG_W, IMG_H);
   }
 }
 
@@ -497,23 +507,24 @@ static double             g_last_frame_ms = -1.0;
 static void draw_dispatch(ezgl::renderer *g)
 {
   g_bench_n = TESTS[g_current_test].count;
-
-  auto t0 = std::chrono::high_resolution_clock::now();
   TESTS[g_current_test].fn(g);
-  auto t1 = std::chrono::high_resolution_clock::now();
-  g_last_frame_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+}
+
+static void on_frame_complete(double ms)
+{
+  g_last_frame_ms = ms;
 
   {
     std::string label(TESTS[g_current_test].label);
     label.erase(label.find_last_not_of(" \t") + 1);
-    write_result("ui:" + std::to_string(g_bench_n) + " " + label, g_last_frame_ms);
+    write_result("ui:" + std::to_string(g_bench_n) + " " + label, ms);
   }
 
   if (g_app) {
     std::ostringstream oss;
     oss << TESTS[g_current_test].label
         << " | " << g_bench_n << " primitives"
-        << " | " << std::fixed << std::setprecision(2) << g_last_frame_ms << " ms";
+        << " | " << std::fixed << std::setprecision(2) << ms << " ms";
     g_app->update_message(oss.str());
   }
 }
@@ -535,7 +546,7 @@ static void ui_setup(ezgl::application *app, bool /*new_window*/)
   app->refresh_drawing();
 }
 
-static void run_ui(int initial_test)
+static void run_ui(int initial_test, ezgl::renderer_type renderer)
 {
   g_current_test = initial_test;
 
@@ -549,7 +560,9 @@ static void run_ui(int initial_test)
   static char *fake_argv[]  = {fake_argv0, nullptr};
   ezgl::application app(s, fake_argc, fake_argv);
 
-  app.add_canvas("MainCanvas", draw_dispatch, WORLD, ezgl::WHITE);
+  ezgl::canvas *c = app.add_canvas("MainCanvas", draw_dispatch, WORLD, ezgl::WHITE);
+  c->set_renderer_type(renderer);
+  c->set_frame_timing_callback(on_frame_complete);
   app.run(ui_setup, nullptr, nullptr, nullptr);
 }
 
@@ -559,8 +572,9 @@ static void print_help(const char *prog)
 {
   std::cout <<
     "Usage:\n"
-    "  " << prog << "              Run all benchmarks headless, print timing, save PNGs\n"
-    "  " << prog << " --ui [N]    Open UI window showing test case N (default 0)\n"
+    "  " << prog << "                         Run all benchmarks headless, print timing, save PNGs\n"
+    "  " << prog << " --ui [N]               Open UI window showing test case N (default 0)\n"
+    "  " << prog << " --renderer <r>         Set renderer: immediate, deferred, rhi (default: rhi)\n"
     "\n"
     "Test cases (N):\n";
   for (int i = 0; i < N_TESTS; ++i)
@@ -568,15 +582,17 @@ static void print_help(const char *prog)
   std::cout <<
     "\n"
     "Options:\n"
-    "  --ui [N]   Open interactive window for test N\n"
-    "  --help     Show this message\n";
+    "  --ui [N]            Open interactive window for test N\n"
+    "  --renderer <r>      Select rendering backend (immediate | deferred | rhi)\n"
+    "  --help              Show this message\n";
 }
 
 int main(int argc, char **argv)
 {
-  bool ui_mode    = false;
-  int  initial    = 0;
-  bool got_index  = false;
+  bool                 ui_mode   = false;
+  int                  initial   = 0;
+  bool                 got_index = false;
+  ezgl::renderer_type  renderer  = ezgl::renderer_type::rhi;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg(argv[i]);
@@ -585,6 +601,22 @@ int main(int argc, char **argv)
       return 0;
     } else if (arg == "--ui") {
       ui_mode = true;
+    } else if (arg == "--renderer") {
+      if (i + 1 >= argc) {
+        std::cerr << "Error: --renderer requires a value (immediate | deferred | rhi)\n\n";
+        print_help(argv[0]);
+        return 1;
+      }
+      std::string val(argv[++i]);
+      if (val == "immediate")      renderer = ezgl::renderer_type::immediate;
+      else if (val == "deferred")  renderer = ezgl::renderer_type::deferred;
+      else if (val == "rhi")       renderer = ezgl::renderer_type::rhi;
+      else {
+        std::cerr << "Error: unknown renderer '" << val
+                  << "' — expected immediate, deferred, or rhi\n\n";
+        print_help(argv[0]);
+        return 1;
+      }
     } else if (ui_mode && !got_index) {
       try {
         int n = std::stoi(arg);
@@ -609,9 +641,9 @@ int main(int argc, char **argv)
   }
 
   if (ui_mode)
-    run_ui(initial);
+    run_ui(initial, renderer);
   else
-    run_headless();
+    run_headless(renderer);
 
   return 0;
 }
