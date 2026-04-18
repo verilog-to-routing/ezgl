@@ -447,7 +447,7 @@ static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0])
 
 // ---- headless mode ---------------------------------------------------------
 
-static void run_headless(ezgl::renderer_type /*renderer*/)
+static void run_headless(ezgl::renderer_type renderer)
 {
   ezgl::application::settings s;
   s.main_ui_resource = ":/main.ui";
@@ -464,6 +464,7 @@ static void run_headless(ezgl::renderer_type /*renderer*/)
 
   app.add_canvas("headless_canvas", headless_dispatch, WORLD, ezgl::WHITE);
   ezgl::canvas *c = app.get_canvas("headless_canvas");
+  c->set_renderer_type(renderer);
 
   for (int t = 0; t < N_TESTS; ++t) {
     const TestCase &tc = TESTS[t];

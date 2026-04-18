@@ -32,6 +32,7 @@ public:
     void end_deferred_redraw_cycle() override;
     void on_resize(int w, int h) override;
     renderer* create_animation_renderer() override;
+    QImage render_to_image(int w, int h) override;
 
 private:
     RhiCanvasWidget*              m_widget;

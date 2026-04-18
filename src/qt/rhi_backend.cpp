@@ -3,6 +3,7 @@
 #include "ezgl/logutils.hpp"
 
 #include <functional>
+#include <QImage>
 
 namespace ezgl {
 
@@ -104,6 +105,27 @@ void rhi_backend::on_resize(int w, int h)
 renderer* rhi_backend::create_animation_renderer()
 {
     return nullptr;
+}
+
+QImage rhi_backend::render_to_image(int w, int h)
+{
+    if (!m_renderer || !m_widget)
+        return {};
+
+    m_renderer->begin_frame();
+    m_draw_callback(m_renderer.get());
+    m_renderer->flush();
+
+    QImage frame = m_widget->grabFramebuffer();
+    if (frame.isNull())
+        return {};
+
+    const int target_w = (w > 0) ? w : frame.width();
+    const int target_h = (h > 0) ? h : frame.height();
+    if (target_w != frame.width() || target_h != frame.height())
+        return frame.scaled(target_w, target_h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+
+    return frame;
 }
 
 } // namespace ezgl
