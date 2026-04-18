@@ -474,7 +474,7 @@ void deferred_renderer::fill_triangle(const point2d& a, const point2d& b, const 
 
 void deferred_renderer::fill_poly(std::vector<point2d> const& points)
 {
-    assert(points.size() > 3);
+    assert(points.size() > 3 && "if points.size() == 3 use fill_triangle method instead, it's much faster");
 
     const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
     m_overlay_commands.emplace_back(DeferredPolyCommand{capture_painter_state(), points});
