@@ -402,46 +402,54 @@ struct TestCase {
   const char          *label;
   ezgl::draw_canvas_fn fn;
   int                  count;
-  const char          *output_file;
 };
 
+static std::string label_to_filename(const char *label)
+{
+  std::string s(label);
+  s.erase(s.find_last_not_of(" \t") + 1);
+  for (char &c : s)
+    if (c == ' ') c = '_';
+  return s + ".png";
+}
+
 static const TestCase TESTS[] = {
-    //{ "clb tile grid ",      draw_clb_tile_scene,            CLB_TILE_COUNT, "draw_clb_tile_grid.png" },
-    // { "variadic rects   ", draw_rectangles_variadic,         1'000, "bench_rects_variadic.png"    },
-    { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
-    //{ "solid lines   ",       draw_lines_solid,               10'000'000, "draw_solid_lines.png"    },
-    // { "solid rects   ",       draw_rectangles_solid,          1'0, "draw_solid_rects.png"    },
-    // { "solid rects   ",       fill_rectangles_solid,          1'0, "draw_solid_rects.png"    },
-    //{ "solid   ",       draw_solid,                           1'000'000, "draw_solid.png"    },
-    // { "variadic   ",       draw_variadic,               1'000, "bench_variadic.png"    },
-  //{ "solid lines      ", draw_lines_solid,           200'000'000, "bench_lines_solid.png"       },
-  //{ "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,         400'000'000, "bench_lines_variadic.png"    },
+    //{ "clb tile grid",      draw_clb_tile_scene,            CLB_TILE_COUNT },
+    // { "variadic rects",    draw_rectangles_variadic,         1'000 },
+    { "variadic lines",    draw_lines_variadic,         1'000'000 },
+    //{ "solid lines",        draw_lines_solid,               10'000'000 },
+    // { "solid rects",        draw_rectangles_solid,          1'0 },
+    // { "solid rects",        fill_rectangles_solid,          1'0 },
+    //{ "solid",              draw_solid,                     1'000'000 },
+    // { "variadic",           draw_variadic,                    1'000 },
+  //{ "solid lines",        draw_lines_solid,           200'000'000 },
+  //{ "variadic lines",     draw_lines_variadic,          1'000'000 },
+  // { "variadic lines",     draw_lines_variadic,        400'000'000 },
       //////////////////
-    // { "solid lines      ", draw_lines_solid,              1000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,             10'000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,            100'000, "bench_lines_solid.png"       },
-  // { "solid lines      ", draw_lines_solid,           1'000'000, "bench_lines_solid.png"       },
-  // { "transparen lines ", draw_lines_transparent,        1000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,       10'000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,      100'000, "bench_lines_transparent.png" },
-  // { "transparen lines ", draw_lines_transparent,     1'000'000, "bench_lines_transparent.png" },
-  // { "solid rects      ", draw_rectangles_solid,         1000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,        10'000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,       100'000, "bench_rects_solid.png"       },
-  // { "solid rects      ", draw_rectangles_solid,      1'000'000, "bench_rects_solid.png"       },
-  // { "transparen rects ", draw_rectangles_transparent,   1000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent,  10'000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent, 100'000, "bench_rects_transparent.png" },
-  // { "transparen rects ", draw_rectangles_transparent,1'000'000, "bench_rects_transparent.png" },
-  // { "variadic lines   ", draw_lines_variadic,            1000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,           10'000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,          100'000, "bench_lines_variadic.png"    },
-  // { "variadic lines   ", draw_lines_variadic,         1'000'000, "bench_lines_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,       1000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,      10'000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,     100'000, "bench_rects_variadic.png"    },
-  // { "variadic rects   ", draw_rectangles_variadic,    1'000'000, "bench_rects_variadic.png"    },
+    // { "solid lines",        draw_lines_solid,              1000 },
+  // { "solid lines",        draw_lines_solid,             10'000 },
+  // { "solid lines",        draw_lines_solid,            100'000 },
+  // { "solid lines",        draw_lines_solid,           1'000'000 },
+  // { "transparen lines",   draw_lines_transparent,        1000 },
+  // { "transparen lines",   draw_lines_transparent,       10'000 },
+  // { "transparen lines",   draw_lines_transparent,      100'000 },
+  // { "transparen lines",   draw_lines_transparent,     1'000'000 },
+  // { "solid rects",        draw_rectangles_solid,         1000 },
+  // { "solid rects",        draw_rectangles_solid,        10'000 },
+  // { "solid rects",        draw_rectangles_solid,       100'000 },
+  // { "solid rects",        draw_rectangles_solid,      1'000'000 },
+  // { "transparen rects",   draw_rectangles_transparent,   1000 },
+  // { "transparen rects",   draw_rectangles_transparent,  10'000 },
+  // { "transparen rects",   draw_rectangles_transparent, 100'000 },
+  // { "transparen rects",   draw_rectangles_transparent,1'000'000 },
+  // { "variadic lines",     draw_lines_variadic,            1000 },
+  // { "variadic lines",     draw_lines_variadic,           10'000 },
+  // { "variadic lines",     draw_lines_variadic,          100'000 },
+  // { "variadic lines",     draw_lines_variadic,         1'000'000 },
+  // { "variadic rects",     draw_rectangles_variadic,       1000 },
+  // { "variadic rects",     draw_rectangles_variadic,      10'000 },
+  // { "variadic rects",     draw_rectangles_variadic,     100'000 },
+  // { "variadic rects",     draw_rectangles_variadic,    1'000'000 },
 };
 static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0]));
 
@@ -486,7 +494,7 @@ static void run_headless(ezgl::renderer_type renderer)
     write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
 
     // Save PNG once (untimed) for visual verification.
-    c->print_png(tc.output_file, IMG_W, IMG_H);
+    c->print_png(label_to_filename(tc.label).c_str(), IMG_W, IMG_H);
   }
 }
 
