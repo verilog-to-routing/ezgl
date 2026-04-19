@@ -574,7 +574,8 @@ static void run_headless(ezgl::renderer_type renderer)
     g_bench_n    = tc.count;
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    c->draw_offscreen(IMG_W, IMG_H);
+    // draw_offscreen is done inside the print_png method
+    c->print_png(label_to_filename(tc.label).c_str(), IMG_W, IMG_H);
     auto t1 = std::chrono::high_resolution_clock::now();
 
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -583,9 +584,6 @@ static void run_headless(ezgl::renderer_type renderer)
     std::string label(tc.label);
     label.erase(label.find_last_not_of(" \t") + 1);
     write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
-
-    // Save PNG once (untimed) for visual verification.
-    c->print_png(label_to_filename(tc.label).c_str(), IMG_W, IMG_H);
   }
 }
 

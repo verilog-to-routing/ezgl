@@ -106,8 +106,10 @@ Output image size: **1000 × 1000** pixels. Every cell contains exactly one prim
 
 ### R4 — Separated draw and encode timing
 Headless mode times only the draw callback (and deferred flush if applicable).
-PNG encoding is performed after timing via a separate `canvas::draw_offscreen()`
-call for measurement and `canvas::print_png()` for file output only.
+`canvas::draw_offscreen()` is called (timed) for measurement only.
+`canvas::print_png()` is called separately (untimed) for file output only.
+Note: `print_png()` re-runs the draw callback independently; there is no shared
+image cache between `draw_offscreen()` and the `print_*` functions.
 
 ### R5 — Frame timing in UI mode
 The draw callback measures its own wall-clock time and updates the status bar
