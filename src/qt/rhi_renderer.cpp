@@ -1155,35 +1155,33 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
     if (m_skip_tile_writes)
         return;
 
-    const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
-    const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
     const std::uint32_t rgba = current_packed_color();
 
     if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
         const StyleKey style_key = current_style_key(PrimitiveType::DashedLine, w);
-        append_dashed_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_key, rgba);
+        append_dashed_draw_segment_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, rgba);
+        append_dashed_draw_segment_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, rgba);
+        append_dashed_draw_segment_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, rgba);
+        append_dashed_draw_segment_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, rgba);
         return;
     }
 
     if (current_line_width > 1) {
         const float w = float(current_line_width);
         const StyleKey style_key = current_style_key(PrimitiveType::ThickLine, w);
-        append_thick_draw_segment_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_key, rgba);
-        append_thick_draw_segment_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_key, rgba);
-        append_thick_draw_segment_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_key, rgba);
-        append_thick_draw_segment_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_key, rgba);
+        append_thick_draw_segment_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, rgba);
+        append_thick_draw_segment_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, rgba);
+        append_thick_draw_segment_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, rgba);
+        append_thick_draw_segment_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, rgba);
         return;
     }
 
     const StyleKey style_key = current_style_key(PrimitiveType::ThinLine);
-    append_line_to_tiles({p0.x, p0.y}, {p1.x, p0.y}, style_key, rgba);
-    append_line_to_tiles({p1.x, p0.y}, {p1.x, p1.y}, style_key, rgba);
-    append_line_to_tiles({p1.x, p1.y}, {p0.x, p1.y}, style_key, rgba);
-    append_line_to_tiles({p0.x, p1.y}, {p0.x, p0.y}, style_key, rgba);
+    append_line_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, rgba);
+    append_line_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, rgba);
+    append_line_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, rgba);
+    append_line_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, rgba);
 }
 
 void rhi_renderer::draw_rectangle(const point2d& start, double width, double height)
