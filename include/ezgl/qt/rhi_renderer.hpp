@@ -165,7 +165,6 @@ private:
 
     // ---- helpers ------------------------------------------------------------
 
-    std::uint32_t current_packed_color() const;
     StyleKey current_style_key(PrimitiveType primitive_type,
                                float         line_width_px = 0.0f) const;
     TileThinLineBatch& ensure_thin_line_batch(RhiTileBatch& tile,
@@ -259,6 +258,7 @@ private:
     RhiCanvasWidget*         m_rhi_widget;
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
+    std::uint32_t            m_current_rgba = 0;
 
     // Scene tiling metadata and CPU-side tile batches.
     rectangle                m_scene_bounds;

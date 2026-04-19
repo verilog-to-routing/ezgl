@@ -385,12 +385,14 @@ rectangle rhi_renderer::world_to_screen(const rectangle& box)
 void rhi_renderer::set_color(color c)
 {
     irenderer::set_color(c);
+    m_current_rgba = pack_color_rgba(current_color);
     m_overlay_deferred->set_color(c);
 }
 
 void rhi_renderer::set_color(color c, uint_fast8_t alpha)
 {
     irenderer::set_color(c, alpha);
+    m_current_rgba = pack_color_rgba(current_color);
     m_overlay_deferred->set_color(c, alpha);
 }
 
@@ -398,6 +400,7 @@ void rhi_renderer::set_color(uint_fast8_t r, uint_fast8_t g,
                               uint_fast8_t b, uint_fast8_t a)
 {
     irenderer::set_color(r, g, b, a);
+    m_current_rgba = pack_color_rgba(current_color);
     m_overlay_deferred->set_color(r, g, b, a);
 }
 
@@ -472,12 +475,11 @@ void rhi_renderer::fill_poly(const std::vector<point2d>& points)
     assert(points.size() > 3);
 
     const StyleKey style_key = current_style_key(PrimitiveType::FilledPoly);
-    const std::uint32_t rgba = current_packed_color();
 
     // Fast path: convex polygon — O(n) fan triangulation, zero intermediate allocs.
     if (is_convex_polygon(points)) {
         for (std::size_t i = 1; i + 1 < points.size(); ++i)
-            append_fill_triangle_to_tiles(points[0], points[i], points[i + 1], style_key, rgba);
+            append_fill_triangle_to_tiles(points[0], points[i], points[i + 1], style_key, m_current_rgba);
         return;
     }
 
@@ -489,7 +491,7 @@ void rhi_renderer::fill_poly(const std::vector<point2d>& points)
         return;
     }
     for (const Triangle& triangle : triangles) {
-        append_fill_triangle_to_tiles(triangle.a, triangle.b, triangle.c, style_key, rgba);
+        append_fill_triangle_to_tiles(triangle.a, triangle.b, triangle.c, style_key, m_current_rgba);
     }
 }
 
@@ -501,9 +503,7 @@ void rhi_renderer::fill_triangle(const point2d& a, const point2d& b, const point
     }
     if (m_skip_tile_writes)
         return;
-    const StyleKey style_key = current_style_key(PrimitiveType::FilledPoly);
-    const std::uint32_t rgba = current_packed_color();
-    append_fill_triangle_to_tiles(a, b, c, style_key, rgba);
+    append_fill_triangle_to_tiles(a, b, c, current_style_key(PrimitiveType::FilledPoly), m_current_rgba);
 }
 
 void rhi_renderer::draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
@@ -626,10 +626,6 @@ void rhi_renderer::render_cached_overlay()
 
 // ---- helpers ---------------------------------------------------------------
 
-std::uint32_t rhi_renderer::current_packed_color() const
-{
-    return pack_color_rgba(current_color);
-}
 
 StyleKey rhi_renderer::current_style_key(PrimitiveType primitive_type,
                                          float         line_width_px) const
@@ -641,7 +637,7 @@ StyleKey rhi_renderer::current_style_key(PrimitiveType primitive_type,
         ? std::uint8_t(current_line_dash)
         : 0;
     return pack_style_key(primitive_type,
-                          current_packed_color(),
+                          m_current_rgba,
                           packed_width,
                           packed_dash);
 }
@@ -1096,13 +1092,11 @@ void rhi_renderer::draw_line(const point2d& start, const point2d& end)
     if (m_skip_tile_writes)
         return;
 
-    const std::uint32_t rgba = current_packed_color();
-
     if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
         append_dashed_line_to_tiles(start, end,
                                     current_style_key(PrimitiveType::DashedLine, w),
-                                    rgba);
+                                    m_current_rgba);
         return;
     }
 
@@ -1110,11 +1104,11 @@ void rhi_renderer::draw_line(const point2d& start, const point2d& end)
         const float w = float(current_line_width);
         append_thick_line_to_tiles(start, end,
                                    current_style_key(PrimitiveType::ThickLine, w),
-                                   rgba);
+                                   m_current_rgba);
         return;
     }
 
-    append_line_to_tiles(start, end, current_style_key(PrimitiveType::ThinLine), rgba);
+    append_line_to_tiles(start, end, current_style_key(PrimitiveType::ThinLine), m_current_rgba);
 }
 
 // ---- fill_rectangle overrides ----------------------------------------------
@@ -1128,10 +1122,7 @@ void rhi_renderer::fill_rectangle(const point2d& start, const point2d& end)
     if (m_skip_tile_writes)
         return;
 
-    const point2d p0{ std::min(start.x, end.x), std::min(start.y, end.y) };
-    const point2d p1{ std::max(start.x, end.x), std::max(start.y, end.y) };
-    const std::uint32_t rgba = current_packed_color();
-    append_fill_rect_to_tiles(p0, p1, current_style_key(PrimitiveType::FilledRect), rgba);
+    append_fill_rect_to_tiles(start, end, current_style_key(PrimitiveType::FilledRect), m_current_rgba);
 }
 
 void rhi_renderer::fill_rectangle(const point2d& start, double width, double height)
@@ -1155,33 +1146,31 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
     if (m_skip_tile_writes)
         return;
 
-    const std::uint32_t rgba = current_packed_color();
-
     if (current_line_dash != line_dash::none) {
         const float w = float(std::max(1, current_line_width));
         const StyleKey style_key = current_style_key(PrimitiveType::DashedLine, w);
-        append_dashed_draw_segment_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, rgba);
-        append_dashed_draw_segment_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, rgba);
+        append_dashed_draw_segment_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, m_current_rgba);
+        append_dashed_draw_segment_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, m_current_rgba);
+        append_dashed_draw_segment_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, m_current_rgba);
+        append_dashed_draw_segment_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, m_current_rgba);
         return;
     }
 
     if (current_line_width > 1) {
         const float w = float(current_line_width);
         const StyleKey style_key = current_style_key(PrimitiveType::ThickLine, w);
-        append_thick_draw_segment_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, rgba);
-        append_thick_draw_segment_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, rgba);
-        append_thick_draw_segment_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, rgba);
-        append_thick_draw_segment_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, rgba);
+        append_thick_draw_segment_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, m_current_rgba);
+        append_thick_draw_segment_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, m_current_rgba);
+        append_thick_draw_segment_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, m_current_rgba);
+        append_thick_draw_segment_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, m_current_rgba);
         return;
     }
 
     const StyleKey style_key = current_style_key(PrimitiveType::ThinLine);
-    append_line_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, rgba);
-    append_line_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, rgba);
-    append_line_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, rgba);
-    append_line_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, rgba);
+    append_line_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, m_current_rgba);
+    append_line_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, m_current_rgba);
+    append_line_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, m_current_rgba);
+    append_line_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, m_current_rgba);
 }
 
 void rhi_renderer::draw_rectangle(const point2d& start, double width, double height)
