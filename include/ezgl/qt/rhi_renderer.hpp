@@ -111,7 +111,8 @@ public:
     void flush_mvp_only();
 
 private:
-    static constexpr int kTileGridDimension = 16;
+    static constexpr int kTileGridDimension  = 32;
+    static constexpr int kBatchInitialReserve = 1024;
 
     struct TileThinLineBatch {
         StyleKey               style_key = 0;
@@ -149,6 +150,14 @@ private:
     };
 
     struct RhiTileBatch {
+        RhiTileBatch() {
+            thin_line_batches.reserve(kBatchInitialReserve);
+            fill_rect_batches.reserve(kBatchInitialReserve);
+            fill_poly_batches.reserve(kBatchInitialReserve);
+            thick_line_batches.reserve(kBatchInitialReserve);
+            dashed_line_batches.reserve(kBatchInitialReserve);
+        }
+
         rectangle                         world_bounds;
         std::uint16_t                     tile_x = 0;
         std::uint16_t                     tile_y = 0;
