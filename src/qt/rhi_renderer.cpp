@@ -748,10 +748,10 @@ void rhi_renderer::append_fill_rect(RhiTileBatch& tile,
         return;
 
     TileFillRectBatch& batch = ensure_fill_rect_batch(tile, style_key, rgba);
-    batch.instances.push_back(FillRectInstance{
+    batch.instances.emplace_back(
         float(p0.x), float(p0.y),
         float(p1.x), float(p1.y)
-    });
+    );
 }
 
 void rhi_renderer::append_fill_triangle(RhiTileBatch& tile,
@@ -987,11 +987,11 @@ void rhi_renderer::append_dashed_segment(RhiTileBatch& tile,
                                          std::uint32_t rgba)
 {
     TileDashedLineBatch& batch = ensure_dashed_line_batch(tile, style_key, rgba);
-    batch.instances.push_back({
+    batch.instances.emplace_back(
         float(start.x), float(start.y),
         float(end.x),   float(end.y),
         phase_world
-    });
+    );
 }
 
 void rhi_renderer::append_dashed_line_to_tiles(const point2d& start,

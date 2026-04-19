@@ -768,18 +768,18 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                             qFatal("RhiCanvasWidget: planned buffer upload exceeds QRhi int-sized limit");
                         }
 
-                        gpu_buffer.chunks.push_back(GpuChunk{
+                        gpu_buffer.chunks.emplace_back(
                             chunk.world_bounds,
                             quint32(buffer_index),
                             quint32(byte_offset),
                             quint32(count)
-                        });
-                        uploads.push_back(PendingUpload{
+                        );
+                        uploads.emplace_back(
                             quint32(buffer_index),
                             quint32(byte_offset),
                             quint32(byte_size),
                             static_cast<const void*>(data.data() + data_offset)
-                        });
+                        );
                         buffer_counts.back() += count;
                         remaining -= count;
                         data_offset += count;
