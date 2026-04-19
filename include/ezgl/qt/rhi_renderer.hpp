@@ -258,6 +258,11 @@ private:
     void render_cached_overlay();
     void ensure_tile_grid();
     void clear_tile_geometry();
+    void clear_commands();
+    void dispatch_commands_to_tiles(int band);
+    int  band_for_tile_row(int ty) const { return std::min(ty / m_rows_per_band, m_n_bands - 1); }
+    int  band_ty_min(int band) const { return band * m_rows_per_band; }
+    int  band_ty_max(int band) const { return std::min((band + 1) * m_rows_per_band - 1, kTileGridDimension - 1); }
     int clamp_tile_x(double x) const;
     int clamp_tile_y(double y) const;
     int tile_index(int tile_x, int tile_y) const;
@@ -279,6 +284,26 @@ private:
     double                   m_tile_width = 1.0;
     double                   m_tile_height = 1.0;
     std::vector<RhiTileBatch> m_tiles;
+
+    // ---- draw command recording (filled during draw callback) ---------------
+    // Commands are routed at record time into per-band buckets so each
+    // dispatch thread only iterates the commands that touch its tile rows.
+    // rgba is stored in the lower 32 bits of sk (see pack_style_key).
+
+    struct ThinLineCmd   { StyleKey sk; float x0, y0, x1, y1; };
+    struct FillRectCmd   { StyleKey sk; float x0, y0, x1, y1; };
+    struct FillTriCmd    { StyleKey sk; float x0, y0, x1, y1, x2, y2; };
+    struct ThickLineCmd  { StyleKey sk; float x0, y0, x1, y1; };
+    struct DashedLineCmd { StyleKey sk; float x0, y0, x1, y1; };
+
+    int m_n_bands       = 1;
+    int m_rows_per_band = kTileGridDimension;
+
+    std::vector<std::vector<ThinLineCmd>>   m_cmd_thin_lines;
+    std::vector<std::vector<FillRectCmd>>   m_cmd_fill_rects;
+    std::vector<std::vector<FillTriCmd>>    m_cmd_fill_tris;
+    std::vector<std::vector<ThickLineCmd>>  m_cmd_thick_lines;
+    std::vector<std::vector<DashedLineCmd>> m_cmd_dashed_lines;
 
     // QPainter overlay — overlay commands (text, arcs, …) are stored in
     // m_overlay_deferred and replayed into this image.

@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <thread>
 
 namespace {
 
@@ -342,6 +343,14 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
           &m_overlay))
 {
     (void)draw_callback;
+  //    m_n_bands       = 1;
+    m_n_bands       = int(std::max(1u, std::thread::hardware_concurrency()));
+    m_rows_per_band = (kTileGridDimension + m_n_bands - 1) / m_n_bands;
+    m_cmd_thin_lines.resize(m_n_bands);
+    m_cmd_fill_rects.resize(m_n_bands);
+    m_cmd_fill_tris.resize(m_n_bands);
+    m_cmd_thick_lines.resize(m_n_bands);
+    m_cmd_dashed_lines.resize(m_n_bands);
     ensure_tile_grid();
     clear_tile_geometry();
     m_overlay_deferred->clear_overlay_and_batches();
@@ -474,12 +483,20 @@ void rhi_renderer::fill_poly(const std::vector<point2d>& points)
 
     assert(points.size() > 3);
 
-    const StyleKey style_key = current_style_key(PrimitiveType::FilledPoly);
+    const StyleKey sk = current_style_key(PrimitiveType::FilledPoly);
+
+    auto push_tri = [&](const point2d& pa, const point2d& pb, const point2d& pc) {
+        const FillTriCmd cmd{sk,
+            float(pa.x), float(pa.y), float(pb.x), float(pb.y), float(pc.x), float(pc.y)};
+        const int b0 = band_for_tile_row(clamp_tile_y(std::min({pa.y, pb.y, pc.y})));
+        const int b1 = band_for_tile_row(clamp_tile_y(std::max({pa.y, pb.y, pc.y})));
+        for (int b = b0; b <= b1; ++b) m_cmd_fill_tris[b].push_back(cmd);
+    };
 
     // Fast path: convex polygon — O(n) fan triangulation, zero intermediate allocs.
     if (is_convex_polygon(points)) {
         for (std::size_t i = 1; i + 1 < points.size(); ++i)
-            append_fill_triangle_to_tiles(points[0], points[i], points[i + 1], style_key, m_current_rgba);
+            push_tri(points[0], points[i], points[i + 1]);
         return;
     }
 
@@ -490,9 +507,8 @@ void rhi_renderer::fill_poly(const std::vector<point2d>& points)
                  static_cast<unsigned long long>(points.size()));
         return;
     }
-    for (const Triangle& triangle : triangles) {
-        append_fill_triangle_to_tiles(triangle.a, triangle.b, triangle.c, style_key, m_current_rgba);
-    }
+    for (const Triangle& t : triangles)
+        push_tri(t.a, t.b, t.c);
 }
 
 void rhi_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
@@ -503,7 +519,11 @@ void rhi_renderer::fill_triangle(const point2d& a, const point2d& b, const point
     }
     if (m_skip_tile_writes)
         return;
-    append_fill_triangle_to_tiles(a, b, c, current_style_key(PrimitiveType::FilledPoly), m_current_rgba);
+    const FillTriCmd cmd{current_style_key(PrimitiveType::FilledPoly),
+        float(a.x), float(a.y), float(b.x), float(b.y), float(c.x), float(c.y)};
+    const int b0 = band_for_tile_row(clamp_tile_y(std::min({a.y, b.y, c.y})));
+    const int b1 = band_for_tile_row(clamp_tile_y(std::max({a.y, b.y, c.y})));
+    for (int band = b0; band <= b1; ++band) m_cmd_fill_tris[band].push_back(cmd);
 }
 
 void rhi_renderer::draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
@@ -816,6 +836,18 @@ void rhi_renderer::clear_tile_geometry()
         tile.thick_line_batches.clear();
         tile.dashed_line_batches.clear();
     }
+    clear_commands();
+}
+
+void rhi_renderer::clear_commands()
+{
+    for (int b = 0; b < m_n_bands; ++b) {
+        m_cmd_thin_lines[b].clear();
+        m_cmd_fill_rects[b].clear();
+        m_cmd_fill_tris[b].clear();
+        m_cmd_thick_lines[b].clear();
+        m_cmd_dashed_lines[b].clear();
+    }
 }
 
 int rhi_renderer::clamp_tile_x(double x) const
@@ -1074,30 +1106,32 @@ QMatrix4x4 rhi_renderer::compute_mvp() const
 void rhi_renderer::draw_line(const point2d& start, const point2d& end)
 {
     if (current_coordinate_system != WORLD) {
-        // SCREEN mode goes to the cached overlay replay path.
         m_overlay_deferred->draw_line(start, end);
         return;
     }
     if (m_skip_tile_writes)
         return;
 
+    const int b0 = band_for_tile_row(clamp_tile_y(std::min(start.y, end.y)));
+    const int b1 = band_for_tile_row(clamp_tile_y(std::max(start.y, end.y)));
+
     if (current_line_dash != line_dash::none) {
-        const float w = float(std::max(1, current_line_width));
-        append_dashed_line_to_tiles(start, end,
-                                    current_style_key(PrimitiveType::DashedLine, w),
-                                    m_current_rgba);
+        const DashedLineCmd cmd{current_style_key(PrimitiveType::DashedLine, float(std::max(1, current_line_width))),
+            float(start.x), float(start.y), float(end.x), float(end.y)};
+        for (int b = b0; b <= b1; ++b) m_cmd_dashed_lines[b].push_back(cmd);
         return;
     }
 
     if (current_line_width > 1) {
-        const float w = float(current_line_width);
-        append_thick_line_to_tiles(start, end,
-                                   current_style_key(PrimitiveType::ThickLine, w),
-                                   m_current_rgba);
+        const ThickLineCmd cmd{current_style_key(PrimitiveType::ThickLine, float(current_line_width)),
+            float(start.x), float(start.y), float(end.x), float(end.y)};
+        for (int b = b0; b <= b1; ++b) m_cmd_thick_lines[b].push_back(cmd);
         return;
     }
 
-    append_line_to_tiles(start, end, current_style_key(PrimitiveType::ThinLine), m_current_rgba);
+    const ThinLineCmd cmd{current_style_key(PrimitiveType::ThinLine),
+        float(start.x), float(start.y), float(end.x), float(end.y)};
+    for (int b = b0; b <= b1; ++b) m_cmd_thin_lines[b].push_back(cmd);
 }
 
 // ---- fill_rectangle overrides ----------------------------------------------
@@ -1111,7 +1145,11 @@ void rhi_renderer::fill_rectangle(const point2d& start, const point2d& end)
     if (m_skip_tile_writes)
         return;
 
-    append_fill_rect_to_tiles(start, end, current_style_key(PrimitiveType::FilledRect), m_current_rgba);
+    const FillRectCmd cmd{current_style_key(PrimitiveType::FilledRect),
+        float(start.x), float(start.y), float(end.x), float(end.y)};
+    const int b0 = band_for_tile_row(clamp_tile_y(std::min(start.y, end.y)));
+    const int b1 = band_for_tile_row(clamp_tile_y(std::max(start.y, end.y)));
+    for (int b = b0; b <= b1; ++b) m_cmd_fill_rects[b].push_back(cmd);
 }
 
 void rhi_renderer::fill_rectangle(const point2d& start, double width, double height)
@@ -1135,31 +1173,48 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
     if (m_skip_tile_writes)
         return;
 
+    // For a rectangle, horizontal sides share the same y-band; vertical sides share the same x.
+    // Route each side independently so band coverage is tight.
+    const int b_bottom = band_for_tile_row(clamp_tile_y(std::min(start.y, end.y)));
+    const int b_top    = band_for_tile_row(clamp_tile_y(std::max(start.y, end.y)));
+
     if (current_line_dash != line_dash::none) {
-        const float w = float(std::max(1, current_line_width));
-        const StyleKey style_key = current_style_key(PrimitiveType::DashedLine, w);
-        append_dashed_draw_segment_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, m_current_rgba);
-        append_dashed_draw_segment_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, m_current_rgba);
-        append_dashed_draw_segment_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, m_current_rgba);
-        append_dashed_draw_segment_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, m_current_rgba);
+        const StyleKey sk = current_style_key(PrimitiveType::DashedLine, float(std::max(1, current_line_width)));
+        // Horizontal sides (single band each)
+        m_cmd_dashed_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
+        m_cmd_dashed_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
+        // Vertical sides (may span multiple bands)
+        const DashedLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
+        const DashedLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+        for (int b = b_bottom; b <= b_top; ++b) {
+            m_cmd_dashed_lines[b].push_back(right);
+            m_cmd_dashed_lines[b].push_back(left);
+        }
         return;
     }
 
     if (current_line_width > 1) {
-        const float w = float(current_line_width);
-        const StyleKey style_key = current_style_key(PrimitiveType::ThickLine, w);
-        append_thick_draw_segment_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, m_current_rgba);
-        append_thick_draw_segment_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, m_current_rgba);
-        append_thick_draw_segment_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, m_current_rgba);
-        append_thick_draw_segment_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, m_current_rgba);
+        const StyleKey sk = current_style_key(PrimitiveType::ThickLine, float(current_line_width));
+        m_cmd_thick_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
+        m_cmd_thick_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
+        const ThickLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
+        const ThickLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+        for (int b = b_bottom; b <= b_top; ++b) {
+            m_cmd_thick_lines[b].push_back(right);
+            m_cmd_thick_lines[b].push_back(left);
+        }
         return;
     }
 
-    const StyleKey style_key = current_style_key(PrimitiveType::ThinLine);
-    append_line_to_tiles({start.x, start.y}, {end.x,   start.y}, style_key, m_current_rgba);
-    append_line_to_tiles({end.x,   start.y}, {end.x,   end.y  }, style_key, m_current_rgba);
-    append_line_to_tiles({end.x,   end.y  }, {start.x, end.y  }, style_key, m_current_rgba);
-    append_line_to_tiles({start.x, end.y  }, {start.x, start.y}, style_key, m_current_rgba);
+    const StyleKey sk = current_style_key(PrimitiveType::ThinLine);
+    m_cmd_thin_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
+    m_cmd_thin_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
+    const ThinLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
+    const ThinLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+    for (int b = b_bottom; b <= b_top; ++b) {
+        m_cmd_thin_lines[b].push_back(right);
+        m_cmd_thin_lines[b].push_back(left);
+    }
 }
 
 void rhi_renderer::draw_rectangle(const point2d& start, double width, double height)
@@ -1279,11 +1334,132 @@ SceneBuffers rhi_renderer::build_scene_buffers() const
     return scene;
 }
 
+// ---- parallel command dispatch ---------------------------------------------
+
+void rhi_renderer::dispatch_commands_to_tiles(int band)
+{
+    const int ty_min = band_ty_min(band);
+    const int ty_max = band_ty_max(band);
+
+    for (const ThinLineCmd& cmd : m_cmd_thin_lines[band]) {
+        const point2d s{cmd.x0, cmd.y0}, e{cmd.x1, cmd.y1};
+        const rectangle bounds{s, e};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                point2d cs = s, ce = e;
+                RhiTileBatch& tile = tile_at(tx, ty);
+                if (!clip_line_world(tile.world_bounds, cs, ce)) continue;
+                append_thin_line_segment(tile, cs, ce, cmd.sk, rgba);
+            }
+        }
+    }
+
+    for (const FillRectCmd& cmd : m_cmd_fill_rects[band]) {
+        const point2d p0{cmd.x0, cmd.y0}, p1{cmd.x1, cmd.y1};
+        const rectangle bounds{p0, p1};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                RhiTileBatch& tile = tile_at(tx, ty);
+                const double left   = std::max(bounds.left(),   tile.world_bounds.left());
+                const double right  = std::min(bounds.right(),  tile.world_bounds.right());
+                const double bottom = std::max(bounds.bottom(), tile.world_bounds.bottom());
+                const double top    = std::min(bounds.top(),    tile.world_bounds.top());
+                append_fill_rect(tile, {left, bottom}, {right, top}, cmd.sk, rgba);
+            }
+        }
+    }
+
+    for (const FillTriCmd& cmd : m_cmd_fill_tris[band]) {
+        const point2d a{cmd.x0, cmd.y0}, b{cmd.x1, cmd.y1}, c{cmd.x2, cmd.y2};
+        const double x_min = std::min({cmd.x0, cmd.x1, cmd.x2});
+        const double x_max = std::max({cmd.x0, cmd.x1, cmd.x2});
+        const double y_min = std::min({cmd.y0, cmd.y1, cmd.y2});
+        const double y_max = std::max({cmd.y0, cmd.y1, cmd.y2});
+        const rectangle bounds{{x_min, y_min}, {x_max, y_max}};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                RhiTileBatch& tile = tile_at(tx, ty);
+                const SmallPoly clipped = clip_triangle_to_rect(a, b, c, tile.world_bounds);
+                if (clipped.n < 3) continue;
+                const point2d& anchor = clipped.v[0];
+                for (int i = 1; i + 1 < clipped.n; ++i)
+                        append_fill_triangle(tile, anchor, clipped.v[i], clipped.v[i + 1], cmd.sk, rgba);
+            }
+        }
+    }
+
+    for (const ThickLineCmd& cmd : m_cmd_thick_lines[band]) {
+        const point2d s{cmd.x0, cmd.y0}, e{cmd.x1, cmd.y1};
+        const rectangle bounds{s, e};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                point2d cs = s, ce = e;
+                RhiTileBatch& tile = tile_at(tx, ty);
+                if (!clip_line_world(tile.world_bounds, cs, ce)) continue;
+                append_thick_segment(tile, cs, ce, cmd.sk, rgba);
+            }
+        }
+    }
+
+    for (const DashedLineCmd& cmd : m_cmd_dashed_lines[band]) {
+        const point2d s{cmd.x0, cmd.y0}, e{cmd.x1, cmd.y1};
+        const rectangle bounds{s, e};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                point2d cs = s, ce = e;
+                RhiTileBatch& tile = tile_at(tx, ty);
+                if (!clip_line_world(tile.world_bounds, cs, ce)) continue;
+                const double dx = cs.x - double(cmd.x0);
+                const double dy = cs.y - double(cmd.y0);
+                const float phase_world = float(std::sqrt(dx * dx + dy * dy));
+                append_dashed_segment(tile, cs, ce, phase_world, cmd.sk, rgba);
+            }
+        }
+    }
+
+}
+
 // ---- flush -----------------------------------------------------------------
 
 void rhi_renderer::flush()
 {
     render_cached_overlay();
+
+    // Dispatch recorded draw commands to tile batches in parallel.
+    // Each thread processes only its own band — commands were routed at record time.
+    {
+        std::vector<std::thread> workers;
+        workers.reserve(m_n_bands);
+        for (int b = 0; b < m_n_bands; ++b)
+            workers.emplace_back([this, b]() { dispatch_commands_to_tiles(b); });
+        for (auto& w : workers) w.join();
+    }
+    clear_commands();
 
     constexpr double kBytesPerMb = 1024.0 * 1024.0;
     SceneBuffers scene_buffers = build_scene_buffers();
