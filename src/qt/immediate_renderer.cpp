@@ -84,7 +84,7 @@ void immediate_renderer::fill_triangle(const point2d& a, const point2d& b, const
 
 void immediate_renderer::fill_poly(const std::vector<point2d>& points)
 {
-    assert(points.size() > 3);
+    assert(points.size() > 3 && "if points.size() == 3 use fill_triangle method instead, it's much faster");
     paint_poly(points);
 }
 

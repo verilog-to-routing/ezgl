@@ -481,7 +481,7 @@ void rhi_renderer::fill_poly(const std::vector<point2d>& points)
     if (m_skip_tile_writes)
         return;
 
-    assert(points.size() > 3);
+    assert(points.size() > 3 && "if points.size() == 3 use fill_triangle method instead, it's much faster");
 
     const StyleKey sk = current_style_key(PrimitiveType::FilledPoly);
 
