@@ -4,6 +4,7 @@
 #include "ezgl/qt/painter.hpp"
 
 #include <QLineF>
+#include <QPolygonF>
 #include <QRectF>
 #include <QFont>
 #include <cstdint>
@@ -53,6 +54,11 @@ struct FillRectBatch {
 struct DrawRectBatch {
     LineStyleKey        style;
     std::vector<QRectF> rects;
+};
+
+struct FillPolyBatch {
+    FillStyleKey            style;
+    std::vector<QPolygonF>  polys;
 };
 
 struct DeferredPainterState {
@@ -196,6 +202,7 @@ private:
     void add_line(const LineStyleKey &s, QLineF line);
     void add_fill_rect(const FillStyleKey &s, QRectF rect);
     void add_draw_rect(const LineStyleKey &s, QRectF rect);
+    void add_fill_poly(const FillStyleKey &s, QPolygonF poly);
 
     QRectF to_screen_rect(const point2d& start, const point2d& end);
 
@@ -206,11 +213,13 @@ private:
     std::vector<LineBatch>     m_line_batches;
     std::vector<FillRectBatch> m_fill_rect_batches;
     std::vector<DrawRectBatch> m_draw_rect_batches;
+    std::vector<FillPolyBatch> m_fill_poly_batches;
 
     // Fast lookup: style key → index into the vectors above.
     std::unordered_map<uint64_t, size_t> m_line_idx;
     std::unordered_map<uint64_t, size_t> m_fill_rect_idx;
     std::unordered_map<uint64_t, size_t> m_draw_rect_idx;
+    std::unordered_map<uint64_t, size_t> m_fill_poly_idx;
     std::vector<DeferredOverlayCommand>  m_overlay_commands;
     rectangle                            m_overlay_index_scene_bounds;
     double                               m_overlay_index_tile_width = 1.0;

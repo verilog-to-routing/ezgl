@@ -254,6 +254,18 @@ void deferred_renderer::add_draw_rect(const LineStyleKey &s, QRectF rect)
     m_draw_rect_batches[it->second].rects.push_back(rect);
 }
 
+void deferred_renderer::add_fill_poly(const FillStyleKey &s, QPolygonF poly)
+{
+    uint64_t k = s.key() ^ (uint64_t(4) << 60);
+    auto it = m_fill_poly_idx.find(k);
+    if (it == m_fill_poly_idx.end()) {
+        m_fill_poly_idx[k] = m_fill_poly_batches.size();
+        m_fill_poly_batches.push_back({s, {}});
+        it = m_fill_poly_idx.find(k);
+    }
+    m_fill_poly_batches[it->second].polys.push_back(std::move(poly));
+}
+
 // ---- coordinate helper ---------------------------------------------------
 
 QRectF deferred_renderer::to_screen_rect(const point2d& start, const point2d& end)
@@ -458,40 +470,39 @@ void deferred_renderer::draw_rectangle(const rectangle& r)
 
 void deferred_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
 {
-    const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
-    m_overlay_commands.emplace_back(DeferredPolyCommand{capture_painter_state(), {a, b, c}});
-
+    QPolygonF poly(3);
     if (current_coordinate_system == WORLD) {
-        const double x_min = std::min({a.x, b.x, c.x});
-        const double x_max = std::max({a.x, b.x, c.x});
-        const double y_min = std::min({a.y, b.y, c.y});
-        const double y_max = std::max({a.y, b.y, c.y});
-        index_world_overlay_command(command_index, {{x_min, y_min}, {x_max, y_max}});
+        const point2d sa = m_transform(a);
+        const point2d sb = m_transform(b);
+        const point2d sc = m_transform(c);
+        poly[0] = QPointF(sa.x, sa.y);
+        poly[1] = QPointF(sb.x, sb.y);
+        poly[2] = QPointF(sc.x, sc.y);
     } else {
-        m_unindexed_overlay_commands.push_back(command_index);
+        poly[0] = QPointF(a.x, a.y);
+        poly[1] = QPointF(b.x, b.y);
+        poly[2] = QPointF(c.x, c.y);
     }
+    add_fill_poly(current_fill_style(), std::move(poly));
 }
 
 void deferred_renderer::fill_poly(const std::vector<point2d>& points)
 {
     assert(points.size() > 3 && "if points.size() == 3 use fill_triangle method instead, it's much faster");
 
-    const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
-    m_overlay_commands.emplace_back(DeferredPolyCommand{capture_painter_state(), points});
-
-    if (current_coordinate_system == WORLD && !points.empty()) {
-        double x_min = points.front().x, x_max = points.front().x;
-        double y_min = points.front().y, y_max = points.front().y;
-        for (std::size_t i = 1; i < points.size(); ++i) {
-            x_min = std::min(x_min, points[i].x);
-            x_max = std::max(x_max, points[i].x);
-            y_min = std::min(y_min, points[i].y);
-            y_max = std::max(y_max, points[i].y);
+    QPolygonF poly;
+    poly.reserve(int(points.size()));
+    if (current_coordinate_system == WORLD) {
+        for (const auto& p : points) {
+            const point2d sp = m_transform(p);
+            poly.append(QPointF(sp.x, sp.y));
         }
-        index_world_overlay_command(command_index, {{x_min, y_min}, {x_max, y_max}});
     } else {
-        m_unindexed_overlay_commands.push_back(command_index);
+        for (const auto& p : points) {
+            poly.append(QPointF(p.x, p.y));
+        }
     }
+    add_fill_poly(current_fill_style(), std::move(poly));
 }
 
 void deferred_renderer::push_arc_command(const point2d& center, double radius_x,
@@ -620,6 +631,11 @@ void deferred_renderer::replay()
         std::vector<QRectF> rects;
     };
 
+    struct VisiblePolyBatch {
+        FillStyleKey           style;
+        std::vector<QPolygonF> polys;
+    };
+
     auto resolve_text_replay_state =
         [this](const DeferredTextCommand& cmd, DeferredPainterState& state) {
             state = cmd.state;
@@ -736,6 +752,9 @@ void deferred_renderer::replay()
     std::vector<VisibleRectBatch> visible_draw_rect_batches;
     visible_draw_rect_batches.reserve(m_draw_rect_batches.size());
 
+    std::vector<VisiblePolyBatch> visible_fill_poly_batches;
+    visible_fill_poly_batches.reserve(m_fill_poly_batches.size());
+
     std::vector<const DeferredOverlayCommand*> visible_overlay_commands;
     visible_overlay_commands.reserve(m_overlay_commands.size());
 
@@ -793,6 +812,22 @@ void deferred_renderer::replay()
         stats.outlined_rects += visible_rects.size();
 #endif // EZGL_RENDERER_DEBUG
         visible_draw_rect_batches.push_back({{}, batch.style, std::move(visible_rects)});
+    }
+
+    // filled polys
+    for (const auto &batch : m_fill_poly_batches) {
+        std::vector<QPolygonF> visible_polys;
+        visible_polys.reserve(batch.polys.size());
+        for (const QPolygonF& poly : batch.polys) {
+            if (screen_rect_visible(poly.boundingRect()))
+                visible_polys.push_back(poly);
+        }
+        if (visible_polys.empty())
+            continue;
+#ifdef EZGL_RENDERER_DEBUG
+        stats.filled_polys += visible_polys.size();
+#endif // EZGL_RENDERER_DEBUG
+        visible_fill_poly_batches.push_back({batch.style, std::move(visible_polys)});
     }
 
     std::vector<std::uint32_t> candidate_overlay_indices;
@@ -928,6 +963,14 @@ void deferred_renderer::replay()
         m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
     }
 
+    for (const auto& batch : visible_fill_poly_batches) {
+        QColor c = unpack_color(batch.style.color_rgba);
+        m_painter->setPen(Qt::NoPen);
+        m_painter->setBrush(QBrush(c));
+        for (const QPolygonF& poly : batch.polys)
+            m_painter->drawPolygon(poly);
+    }
+
     for (const DeferredOverlayCommand* command : visible_overlay_commands) {
         std::visit([this, &resolve_text_replay_state](const auto& cmd) {
             apply_painter_state(cmd.state);
@@ -986,9 +1029,11 @@ void deferred_renderer::reset()
     m_line_batches.clear();
     m_fill_rect_batches.clear();
     m_draw_rect_batches.clear();
+    m_fill_poly_batches.clear();
     m_line_idx.clear();
     m_fill_rect_idx.clear();
     m_draw_rect_idx.clear();
+    m_fill_poly_idx.clear();
     m_overlay_commands.clear();
     for (auto& bucket : m_indexed_world_overlay_buckets)
         bucket.clear();
