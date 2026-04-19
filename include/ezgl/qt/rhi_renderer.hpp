@@ -117,30 +117,35 @@ private:
         StyleKey               style_key = 0;
         std::uint32_t          rgba = 0;
         std::vector<PosVertex> verts;
+        TileThinLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileFillRectBatch {
-        StyleKey                    style_key = 0;
-        std::uint32_t               rgba = 0;
+        StyleKey                      style_key = 0;
+        std::uint32_t                 rgba = 0;
         std::vector<FillRectInstance> instances;
+        TileFillRectBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileFillPolyBatch {
         StyleKey               style_key = 0;
         std::uint32_t          rgba = 0;
         std::vector<PosVertex> verts;
+        TileFillPolyBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileThickLineBatch {
-        StyleKey                      style_key = 0;
-        std::uint32_t                 rgba = 0;
+        StyleKey                       style_key = 0;
+        std::uint32_t                  rgba = 0;
         std::vector<ThickLineInstance> instances;
+        TileThickLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileDashedLineBatch {
-        StyleKey                       style_key = 0;
-        std::uint32_t                  rgba = 0;
+        StyleKey                        style_key = 0;
+        std::uint32_t                   rgba = 0;
         std::vector<DashedLineInstance> instances;
+        TileDashedLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct RhiTileBatch {

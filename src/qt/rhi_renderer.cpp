@@ -177,7 +177,7 @@ std::vector<Triangle> triangulate_simple_polygon(const std::vector<ezgl::point2d
             if (contains_other_vertex)
                 continue;
 
-            triangles.push_back({polygon[prev], polygon[curr], polygon[next]});
+            triangles.emplace_back(polygon[prev], polygon[curr], polygon[next]);
             remaining.erase(remaining.begin() + std::ptrdiff_t(i));
             ear_found = true;
             break;
@@ -189,11 +189,11 @@ std::vector<Triangle> triangulate_simple_polygon(const std::vector<ezgl::point2d
     }
 
     if (remaining.size() == 3) {
-        triangles.push_back({
+        triangles.emplace_back(
             polygon[remaining[0]],
             polygon[remaining[1]],
             polygon[remaining[2]]
-        });
+        );
     }
 
     if (triangles.size() != polygon.size() - 2)
@@ -659,7 +659,7 @@ rhi_renderer::TileThinLineBatch& rhi_renderer::ensure_thin_line_batch(RhiTileBat
     if (it != tile.thin_line_batches.end())
         return *it;
 
-    tile.thin_line_batches.push_back(TileThinLineBatch{style_key, rgba, {}});
+    tile.thin_line_batches.emplace_back(style_key, rgba);
     return tile.thin_line_batches.back();
 }
 
@@ -675,7 +675,7 @@ rhi_renderer::TileFillRectBatch& rhi_renderer::ensure_fill_rect_batch(RhiTileBat
     if (it != tile.fill_rect_batches.end())
         return *it;
 
-    tile.fill_rect_batches.push_back(TileFillRectBatch{style_key, rgba, {}});
+    tile.fill_rect_batches.emplace_back(style_key, rgba);
     return tile.fill_rect_batches.back();
 }
 
@@ -691,7 +691,7 @@ rhi_renderer::TileFillPolyBatch& rhi_renderer::ensure_fill_poly_batch(RhiTileBat
     if (it != tile.fill_poly_batches.end())
         return *it;
 
-    tile.fill_poly_batches.push_back(TileFillPolyBatch{style_key, rgba, {}});
+    tile.fill_poly_batches.emplace_back(style_key, rgba);
     return tile.fill_poly_batches.back();
 }
 
@@ -707,7 +707,7 @@ rhi_renderer::TileThickLineBatch& rhi_renderer::ensure_thick_line_batch(RhiTileB
     if (it != tile.thick_line_batches.end())
         return *it;
 
-    tile.thick_line_batches.push_back(TileThickLineBatch{style_key, rgba, {}});
+    tile.thick_line_batches.emplace_back(style_key, rgba);
     return tile.thick_line_batches.back();
 }
 
@@ -723,7 +723,7 @@ rhi_renderer::TileDashedLineBatch& rhi_renderer::ensure_dashed_line_batch(RhiTil
     if (it != tile.dashed_line_batches.end())
         return *it;
 
-    tile.dashed_line_batches.push_back(TileDashedLineBatch{style_key, rgba, {}});
+    tile.dashed_line_batches.emplace_back(style_key, rgba);
     return tile.dashed_line_batches.back();
 }
 
@@ -932,19 +932,13 @@ void rhi_renderer::append_thick_segment(RhiTileBatch& tile,
                                         StyleKey      style_key,
                                         std::uint32_t rgba)
 {
-    const double dx = end.x - start.x;
-    const double dy = end.y - start.y;
-    if (std::sqrt(dx * dx + dy * dy) < 1e-10)
-        return; // degenerate (zero-length) segment
-
     // One instance record (16 bytes) per segment.
     // The vertex shader reconstructs all 4 quad corners from this record plus
     // the constant 4-corner quad buffer — no per-vertex duplication of endpoints.
     TileThickLineBatch& batch = ensure_thick_line_batch(tile, style_key, rgba);
-    batch.instances.push_back({
-        float(start.x), float(start.y),
-        float(end.x),   float(end.y)
-    });
+    batch.instances.emplace_back(float(start.x), float(start.y),
+                                 float(end.x),   float(end.y)
+    );
 }
 
 void rhi_renderer::append_thick_line_to_tiles(const point2d& start,
@@ -992,11 +986,6 @@ void rhi_renderer::append_dashed_segment(RhiTileBatch& tile,
                                          StyleKey      style_key,
                                          std::uint32_t rgba)
 {
-    const double dx = end.x - start.x;
-    const double dy = end.y - start.y;
-    if (std::sqrt(dx * dx + dy * dy) < 1e-10)
-        return;
-
     TileDashedLineBatch& batch = ensure_dashed_line_batch(tile, style_key, rgba);
     batch.instances.push_back({
         float(start.x), float(start.y),
@@ -1200,11 +1189,11 @@ SceneBuffers rhi_renderer::build_scene_buffers() const
                 scene_buffer.rgba = batch.rgba;
             }
             const std::size_t offset = scene_buffer.verts.size();
-            scene_buffer.chunks.push_back(Chunk{
+            scene_buffer.chunks.emplace_back(
                 tile.world_bounds,
                 std::uint32_t(offset),
                 std::uint32_t(batch.verts.size())
-            });
+            );
             scene_buffer.verts.insert(scene_buffer.verts.end(),
                                       batch.verts.begin(),
                                       batch.verts.end());
@@ -1219,11 +1208,11 @@ SceneBuffers rhi_renderer::build_scene_buffers() const
                 scene_buffer.rgba = batch.rgba;
             }
             const std::size_t offset = scene_buffer.instances.size();
-            scene_buffer.chunks.push_back(Chunk{
+            scene_buffer.chunks.emplace_back(
                 tile.world_bounds,
                 std::uint32_t(offset),
                 std::uint32_t(batch.instances.size())
-            });
+            );
             scene_buffer.instances.insert(scene_buffer.instances.end(),
                                           batch.instances.begin(),
                                           batch.instances.end());
@@ -1238,11 +1227,11 @@ SceneBuffers rhi_renderer::build_scene_buffers() const
                 scene_buffer.rgba = batch.rgba;
             }
             const std::size_t offset = scene_buffer.verts.size();
-            scene_buffer.chunks.push_back(Chunk{
+            scene_buffer.chunks.emplace_back(
                 tile.world_bounds,
                 std::uint32_t(offset),
                 std::uint32_t(batch.verts.size())
-            });
+            );
             scene_buffer.verts.insert(scene_buffer.verts.end(),
                                       batch.verts.begin(),
                                       batch.verts.end());
@@ -1257,11 +1246,11 @@ SceneBuffers rhi_renderer::build_scene_buffers() const
                 scene_buffer.rgba = batch.rgba;
             }
             const std::size_t offset = scene_buffer.instances.size();
-            scene_buffer.chunks.push_back(Chunk{
+            scene_buffer.chunks.emplace_back(
                 tile.world_bounds,
                 std::uint32_t(offset),
                 std::uint32_t(batch.instances.size())
-            });
+            );
             scene_buffer.instances.insert(scene_buffer.instances.end(),
                                           batch.instances.begin(),
                                           batch.instances.end());
@@ -1276,11 +1265,11 @@ SceneBuffers rhi_renderer::build_scene_buffers() const
                 scene_buffer.rgba = batch.rgba;
             }
             const std::size_t offset = scene_buffer.instances.size();
-            scene_buffer.chunks.push_back(Chunk{
+            scene_buffer.chunks.emplace_back(
                 tile.world_bounds,
                 std::uint32_t(offset),
                 std::uint32_t(batch.instances.size())
-            });
+            );
             scene_buffer.instances.insert(scene_buffer.instances.end(),
                                           batch.instances.begin(),
                                           batch.instances.end());
