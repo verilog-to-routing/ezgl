@@ -587,7 +587,9 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     if (!m_initialized || m_frame_resources.empty())
         return;
 
+#ifdef EZGL_RENDERER_DEBUG
     const scope_timer frame_timer;
+#endif
     const int frame_slot = currentFrameResourceIndex(rhi(), m_frame_resources.size());
 
     // --- Snapshot pending frame under lock -----------------------------------
@@ -689,13 +691,13 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         u->uploadTexture(frame.overlay_tex.get(), overlay);
     }
 
-    double bake_geom_ms = 0.0;
     if (geom_dirty) {
         if (!scene_buffers) {
             qFatal("RhiCanvasWidget: geom_dirty set without cached scene data");
         }
-        const scope_timer bake_timer;
-
+#ifdef EZGL_RENDERER_DEBUG
+        const scope_timer geometry_bake_timer("bake geometry");
+#endif
         struct PendingUpload {
             quint32     buffer_index = 0;
             quint32     byte_offset = 0;
@@ -900,7 +902,6 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
                 m_frame_slot_geom_valid.resize(m_frame_resources.size(), false);
             m_frame_slot_geom_valid[std::size_t(frame_slot)] = true;
         }
-        bake_geom_ms = bake_timer.elapsed_ms();
     }
     // Camera-only frame: geometry pools and style UBO are reused.
 
@@ -1127,7 +1128,6 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     q_debug_stream()
         << std::fixed << std::setprecision(3)
         << "RHI render() CPU time " << frame_ms << " ms"
-        << " (update_geom " << bake_geom_ms << " ms)"
         << " (frame_slot=" << frame_slot
         << ", geom_dirty=" << int(geom_dirty)
         << ", mvp_only=" << int(mvp_only_frame) << ")"
