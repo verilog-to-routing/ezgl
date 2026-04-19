@@ -44,7 +44,7 @@ void immediate_renderer::draw_rectangle(const point2d& start, double width, doub
     paint_rectangle_path(start, end, false);
 }
 
-void immediate_renderer::draw_rectangle(rectangle r)
+void immediate_renderer::draw_rectangle(const rectangle& r)
 {
     point2d bl{r.left(), r.bottom()};
     point2d tr{r.right(), r.top()};
@@ -68,7 +68,7 @@ void immediate_renderer::fill_rectangle(const point2d& start, double width, doub
     paint_rectangle_path(start, end, true);
 }
 
-void immediate_renderer::fill_rectangle(rectangle r)
+void immediate_renderer::fill_rectangle(const rectangle& r)
 {
     point2d bl{r.left(), r.bottom()};
     point2d tr{r.right(), r.top()};

@@ -460,7 +460,7 @@ void rhi_renderer::set_vert_justification(justification j)
 
 // ---- irenderer: overlay draw calls ----------------------------------------
 
-void rhi_renderer::fill_poly(std::vector<point2d> const& points)
+void rhi_renderer::fill_poly(const std::vector<point2d>& points)
 {
     if (current_coordinate_system != WORLD) {
         m_overlay_deferred->fill_poly(points);
@@ -1139,7 +1139,7 @@ void rhi_renderer::fill_rectangle(const point2d& start, double width, double hei
     fill_rectangle(start, {start.x + width, start.y + height});
 }
 
-void rhi_renderer::fill_rectangle(rectangle r)
+void rhi_renderer::fill_rectangle(const rectangle& r)
 {
     fill_rectangle({r.left(), r.bottom()}, {r.right(), r.top()});
 }
@@ -1191,7 +1191,7 @@ void rhi_renderer::draw_rectangle(const point2d& start, double width, double hei
     draw_rectangle(start, {start.x + width, start.y + height});
 }
 
-void rhi_renderer::draw_rectangle(rectangle r)
+void rhi_renderer::draw_rectangle(const rectangle& r)
 {
     draw_rectangle({r.left(), r.bottom()}, {r.right(), r.top()});
 }

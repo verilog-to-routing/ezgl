@@ -432,7 +432,7 @@ void deferred_renderer::fill_rectangle(const point2d& start, double width, doubl
     fill_rectangle(start, {start.x + width, start.y + height});
 }
 
-void deferred_renderer::fill_rectangle(rectangle r)
+void deferred_renderer::fill_rectangle(const rectangle& r)
 {
     fill_rectangle({r.left(), r.bottom()}, {r.right(), r.top()});
 }
@@ -449,7 +449,7 @@ void deferred_renderer::draw_rectangle(const point2d& start, double width, doubl
     draw_rectangle(start, {start.x + width, start.y + height});
 }
 
-void deferred_renderer::draw_rectangle(rectangle r)
+void deferred_renderer::draw_rectangle(const rectangle& r)
 {
     draw_rectangle({r.left(), r.bottom()}, {r.right(), r.top()});
 }
@@ -472,7 +472,7 @@ void deferred_renderer::fill_triangle(const point2d& a, const point2d& b, const 
     }
 }
 
-void deferred_renderer::fill_poly(std::vector<point2d> const& points)
+void deferred_renderer::fill_poly(const std::vector<point2d>& points)
 {
     assert(points.size() > 3 && "if points.size() == 3 use fill_triangle method instead, it's much faster");
 

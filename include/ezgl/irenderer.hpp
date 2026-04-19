@@ -81,11 +81,11 @@ public:
     virtual void draw_line(const point2d& start, const point2d& end) = 0;
     virtual void draw_rectangle(const point2d& start, const point2d& end) = 0;
     virtual void draw_rectangle(const point2d& start, double width, double height) = 0;
-    virtual void draw_rectangle(rectangle r) = 0;
+    virtual void draw_rectangle(const rectangle& r) = 0;
     virtual void fill_rectangle(const point2d& start, const point2d& end) = 0;
     virtual void fill_rectangle(const point2d& start, double width, double height) = 0;
-    virtual void fill_rectangle(rectangle r) = 0;
-    virtual void fill_poly(std::vector<point2d> const& points) = 0;
+    virtual void fill_rectangle(const rectangle& r) = 0;
+    virtual void fill_poly(const std::vector<point2d>& points) = 0;
     virtual void fill_triangle(const point2d& a, const point2d& b, const point2d& c) = 0;
     virtual void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                                    double start_angle, double extent_angle) = 0;
