@@ -104,4 +104,20 @@ renderer* deferred_backend::create_animation_renderer()
     return m_animation_renderer;
 }
 
+QImage deferred_backend::render_to_image(int w, int h)
+{
+    QImage surface(w, h, QImage::Format_ARGB32);
+    Painter painter(&surface);
+    painter.set_source_rgb(m_background_color.red   / 255.0,
+                           m_background_color.green / 255.0,
+                           m_background_color.blue  / 255.0);
+    painter.paint();
+
+    using namespace std::placeholders;
+    deferred_renderer g(&painter, std::bind(&camera::world_to_screen, *m_camera, _1), m_camera, &surface);
+    m_draw_callback(&g);
+    g.flush();
+    return surface;
+}
+
 } // namespace ezgl

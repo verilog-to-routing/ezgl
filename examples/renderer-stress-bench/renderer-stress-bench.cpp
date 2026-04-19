@@ -93,7 +93,7 @@ static constexpr int    CLB_TILE_COUNT = CLB_TILE_COLS * CLB_TILE_ROWS;
 static constexpr double CLB_TILE_GAP_RATIO = 0.3;
 
 // Approximate VPR scene counts (profiled from a mid-size design).
-static constexpr int VPR_N_RATE = 50;
+static constexpr int VPR_N_RATE = 10;
 static constexpr int VPR_N_THIN_LINES   = 71'554'146/VPR_N_RATE;  // thin_verts / 2
 static constexpr int VPR_N_FILL_RECTS   = 115'482/VPR_N_RATE;
 static constexpr int VPR_N_FILL_POLYS   = 34'943'940/VPR_N_RATE;  // routing arrowheads (3-pt triangle)
@@ -497,12 +497,14 @@ struct TestCase {
   int                  count;
 };
 
-static std::string label_to_filename(const char *label)
+static std::string label_to_filename(const char *label, const char *renderer_name = "")
 {
   std::string s(label);
   s.erase(s.find_last_not_of(" \t") + 1);
   for (char &c : s)
     if (c == ' ') c = '_';
+  if (renderer_name && *renderer_name)
+    s += std::string("_") + renderer_name;
   return s + ".png";
 }
 
@@ -568,22 +570,28 @@ static void run_headless(ezgl::renderer_type renderer)
   ezgl::canvas *c = app.get_canvas("headless_canvas");
   c->set_renderer_type(renderer);
 
+  const char *rname = ezgl::renderer_type_name(renderer);
+
   for (int t = 0; t < N_TESTS; ++t) {
     const TestCase &tc = TESTS[t];
     g_headless_t = t;
     g_bench_n    = tc.count;
 
-    auto t0 = std::chrono::high_resolution_clock::now();
-    // draw_offscreen is done inside the print_png method
-    c->print_png(label_to_filename(tc.label).c_str(), IMG_W, IMG_H);
-    auto t1 = std::chrono::high_resolution_clock::now();
+    const std::string fname = label_to_filename(tc.label, rname);
 
-    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    ezgl::scope_timer timer;
+    c->print_png(fname.c_str(), IMG_W, IMG_H);
+    const double ms = timer.elapsed_ms();
+
+    const std::string fname_ms = fname.substr(0, fname.size() - 4) + "_" +
+                                 std::to_string(static_cast<int>(std::round(ms))) + "_ms.png";
+    std::rename(fname.c_str(), fname_ms.c_str());
+
     std::cout << tc.label << "(" << g_bench_n << "): " << ms << " ms\n";
 
     std::string label(tc.label);
     label.erase(label.find_last_not_of(" \t") + 1);
-    write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
+    write_result("headless:" + std::string(rname) + ":" + std::to_string(g_bench_n) + " " + label, ms);
   }
 }
 

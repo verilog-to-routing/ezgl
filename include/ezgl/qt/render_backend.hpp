@@ -10,6 +10,16 @@ using draw_canvas_fn = void (*)(renderer*);
 
 enum class renderer_type { immediate, deferred, rhi };
 
+inline constexpr const char* renderer_type_name(renderer_type t) noexcept
+{
+    switch (t) {
+        case renderer_type::immediate: return "immediate";
+        case renderer_type::deferred:  return "deferred";
+        case renderer_type::rhi:       return "rhi";
+    }
+    return "unknown";
+}
+
 /**
  * Abstract rendering backend owned by canvas.
  *

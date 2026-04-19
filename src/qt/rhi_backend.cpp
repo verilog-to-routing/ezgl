@@ -25,6 +25,9 @@ rhi_backend::rhi_backend(RhiCanvasWidget* widget,
 
 void rhi_backend::redraw()
 {
+    if (!m_widget)
+        return;
+
     using namespace std::placeholders;
 
     if (!m_renderer) {
@@ -109,7 +112,22 @@ renderer* rhi_backend::create_animation_renderer()
 
 QImage rhi_backend::render_to_image(int w, int h)
 {
-    if (!m_renderer || !m_widget)
+    if (!m_widget) {
+        // Headless: spin up a temporary widget and renderer for one-shot render.
+        RhiCanvasWidget widget;
+        widget.resize(w, h);
+        using namespace std::placeholders;
+        rhi_renderer rhi(&widget,
+                         std::bind(&camera::world_to_screen, *m_camera, _1),
+                         m_camera,
+                         m_draw_callback,
+                         m_bg_color);
+        m_draw_callback(&rhi);
+        rhi.flush();
+        return widget.grabFramebuffer();
+    }
+
+    if (!m_renderer)
         return {};
 
     m_renderer->begin_frame();

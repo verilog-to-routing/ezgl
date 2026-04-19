@@ -18,12 +18,10 @@
 
 #include "ezgl/canvas.hpp"
 #include "ezgl/qt/deferred_backend.hpp"
-#include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
 #include "ezgl/qt/immediate_backend.hpp"
 #include "ezgl/qt/rhi_backend.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
-#include "ezgl/qt/rhi_renderer.hpp"
 
 #include <QWidget>
 #include <QPainter>
@@ -35,65 +33,31 @@
 
 #include <cassert>
 #include <cmath>
-#include <functional>
 
 namespace ezgl {
 
 // Renders the canvas into an off-screen QImage of the given dimensions,
-// shared by print_pdf / print_svg / print_png.
+// shared by print_pdf / print_svg / print_png / draw_offscreen.
 QImage canvas::render_to_image(int surface_width, int surface_height)
 {
-  // Prefer the active backend's GPU path (e.g. RHI); fall back to QPainter.
-  if (m_backend) {
-    QImage img = m_backend->render_to_image(surface_width, surface_height);
-    if (!img.isNull())
-      return img;
+  if (!m_backend) {
+    // Headless mode: no widget yet — create a backend based on the requested renderer type.
+    switch (m_renderer_type) {
+    case renderer_type::immediate:
+      m_backend = std::make_unique<immediate_backend>(nullptr, m_draw_callback, &m_camera, m_background_color);
+      break;
+    case renderer_type::rhi:
+      m_backend = std::make_unique<rhi_backend>(nullptr, m_draw_callback, &m_camera, m_background_color);
+      break;
+    default:
+      m_backend = std::make_unique<deferred_backend>(nullptr, m_draw_callback, &m_camera, m_background_color);
+      break;
+    }
   }
 
-  // Headless RHI: no backend yet (run() was never called), but the user
-  // requested the RHI renderer — spin up a temporary hidden widget.
-  if (m_renderer_type == renderer_type::rhi) {
-    RhiCanvasWidget widget;
-    widget.resize(surface_width, surface_height);
-
-    using namespace std::placeholders;
-    camera cam = m_camera;
-    cam.update_widget(surface_width, surface_height);
-
-    QColor bg(m_background_color.red,
-               m_background_color.green,
-               m_background_color.blue,
-               m_background_color.alpha);
-    rhi_renderer rhi(&widget,
-                     std::bind(&camera::world_to_screen, cam, _1),
-                     &cam,
-                     m_draw_callback,
-                     bg);
-    m_draw_callback(&rhi);
-    rhi.flush();
-
-    QImage img = widget.grabFramebuffer();
-    if (!img.isNull())
-      return img;
-    // Fall through to QPainter if the GPU grab failed.
-  }
-
-  QImage surface(surface_width, surface_height, QImage::Format_ARGB32);
-  Painter painter(&surface);
-
-  painter.set_source_rgb(m_background_color.red / 255.0,
-                         m_background_color.green / 255.0,
-                         m_background_color.blue / 255.0);
-  painter.paint();
-
-  using namespace std::placeholders;
-  camera cam = m_camera;
-  cam.update_widget(surface_width, surface_height);
-  deferred_renderer g(&painter, std::bind(&camera::world_to_screen, cam, _1), &cam, &surface);
-  m_draw_callback(&g);
-  g.flush();
-
-  return surface;
+  // Pre-configure the camera for the target dimensions (canvas is a friend of camera).
+  m_camera.update_widget(surface_width, surface_height);
+  return m_backend->render_to_image(surface_width, surface_height);
 }
 
 bool canvas::print_pdf(const char *file_name, int output_width, int output_height)
