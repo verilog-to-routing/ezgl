@@ -27,9 +27,9 @@ public:
 
     void redraw() override;
     void redraw_camera_only() override;
-    void on_pre_resize() override;
     void on_resize(int w, int h) override;
     renderer* create_animation_renderer() override;
+    QImage render_to_image(int w, int h) override;
 
 private:
     void recreate_surface();

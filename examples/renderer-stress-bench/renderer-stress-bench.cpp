@@ -497,18 +497,20 @@ struct TestCase {
   int                  count;
 };
 
-static std::string label_to_filename(const char *label)
+static std::string label_to_filename(const char *label, const char *renderer_name = "")
 {
   std::string s(label);
   s.erase(s.find_last_not_of(" \t") + 1);
   for (char &c : s)
     if (c == ' ') c = '_';
+  if (renderer_name && *renderer_name)
+    s += std::string("_") + renderer_name;
   return s + ".png";
 }
 
 static const TestCase TESTS[] = {
     { "vpr complex scene",  vpr_complex_scene,  VPR_N_FILL_RECTS },
-    { "clb tile grid",      draw_clb_tile_scene,            CLB_TILE_COUNT },
+    //{ "clb tile grid",      draw_clb_tile_scene,            CLB_TILE_COUNT },
     // { "variadic rects",    draw_rectangles_variadic,         1'000 },
     //{ "variadic lines",    draw_lines_variadic,         1'000'000 },
     //{ "solid lines",        draw_lines_solid,               10'000'000 },
@@ -568,27 +570,28 @@ static void run_headless(ezgl::renderer_type renderer)
   ezgl::canvas *c = app.get_canvas("headless_canvas");
   c->set_renderer_type(renderer);
 
+  const char *rname = ezgl::renderer_type_name(renderer);
+
   for (int t = 0; t < N_TESTS; ++t) {
     const TestCase &tc = TESTS[t];
     g_headless_t = t;
     g_bench_n    = tc.count;
 
-    // Warm-up: one throwaway render to prime caches.
-    c->draw_offscreen(IMG_W, IMG_H);
+    const std::string fname = label_to_filename(tc.label, rname);
 
-    auto t0 = std::chrono::high_resolution_clock::now();
-    c->draw_offscreen(IMG_W, IMG_H);
-    auto t1 = std::chrono::high_resolution_clock::now();
+    ezgl::scope_timer timer;
+    c->print_png(fname.c_str(), IMG_W, IMG_H);
+    const double ms = timer.elapsed_ms();
 
-    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    const std::string fname_ms = fname.substr(0, fname.size() - 4) + "_" +
+                                 std::to_string(static_cast<int>(std::round(ms))) + "_ms.png";
+    std::rename(fname.c_str(), fname_ms.c_str());
+
     std::cout << tc.label << "(" << g_bench_n << "): " << ms << " ms\n";
 
     std::string label(tc.label);
     label.erase(label.find_last_not_of(" \t") + 1);
-    write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
-
-    // Save PNG once (untimed) for visual verification.
-    c->print_png(label_to_filename(tc.label).c_str(), IMG_W, IMG_H);
+    write_result("headless:" + std::string(rname) + ":" + std::to_string(g_bench_n) + " " + label, ms);
   }
 }
 
