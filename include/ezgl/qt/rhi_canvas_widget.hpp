@@ -267,9 +267,6 @@ public:
     /** Register a callback invoked on every resize (mirrors DrawingAreaWidget). */
     void setResizeCallback(std::function<void(int,int)> cb);
 
-    /** Pre-resize hook (lets canvas end its painter before the image is swapped). */
-    void setPreResizeCallback(std::function<void()> cb);
-
 protected:
     // QRhiWidget interface
     void initialize(QRhiCommandBuffer* cb) override;
@@ -361,7 +358,6 @@ private:
 
     // Canvas hooks
     std::function<void(int,int)> m_resize_cb;
-    std::function<void()>        m_pre_resize_cb;
 };
 
 } // namespace ezgl

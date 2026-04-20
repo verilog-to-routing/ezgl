@@ -73,14 +73,6 @@ void immediate_backend::redraw_camera_only()
     redraw();
 }
 
-void immediate_backend::on_pre_resize()
-{
-    delete m_renderer;
-    m_renderer = nullptr;
-    delete m_painter;
-    m_painter = nullptr;
-}
-
 void immediate_backend::on_resize(int /*w*/, int /*h*/)
 {
     if (m_painter) {

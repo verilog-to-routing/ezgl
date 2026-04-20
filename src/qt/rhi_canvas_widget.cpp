@@ -470,11 +470,6 @@ void RhiCanvasWidget::setResizeCallback(std::function<void(int,int)> cb)
     m_resize_cb = std::move(cb);
 }
 
-void RhiCanvasWidget::setPreResizeCallback(std::function<void()> cb)
-{
-    m_pre_resize_cb = std::move(cb);
-}
-
 // ---- QRhiWidget overrides --------------------------------------------------
 
 void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
@@ -1206,8 +1201,6 @@ void RhiCanvasWidget::releaseResources()
 
 void RhiCanvasWidget::resizeEvent(QResizeEvent* e)
 {
-    if (m_pre_resize_cb)
-        m_pre_resize_cb();
     QRhiWidget::resizeEvent(e);
     if (width() > 0 && height() > 0 && m_resize_cb)
         m_resize_cb(width(), height());

@@ -70,12 +70,6 @@ void deferred_backend::redraw_camera_only()
     redraw();
 }
 
-void deferred_backend::on_pre_resize()
-{
-    delete m_painter;
-    m_painter = nullptr;
-}
-
 void deferred_backend::on_resize(int /*w*/, int /*h*/)
 {
     if (m_painter) {

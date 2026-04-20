@@ -27,11 +27,6 @@ QImage* DrawingAreaWidget::createSurface() {
   return m_image;
 }
 
-void DrawingAreaWidget::setPreResizeCallback(std::function<void()> cb)
-{
-  m_pre_resize_callback = std::move(cb);
-}
-
 void DrawingAreaWidget::setResizeCallback(std::function<void(int, int)> cb)
 {
   m_resize_callback = std::move(cb);
@@ -40,9 +35,6 @@ void DrawingAreaWidget::setResizeCallback(std::function<void(int, int)> cb)
 void DrawingAreaWidget::resizeEvent(QResizeEvent* event)
 {
   QWidget::resizeEvent(event);
-  // End the active painter before destroying the image it is painting on.
-  if (m_pre_resize_callback)
-    m_pre_resize_callback();
   // Recreate the backing image at the new widget size.
   delete m_image;
   m_image = nullptr;

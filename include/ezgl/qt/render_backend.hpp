@@ -37,7 +37,6 @@ public:
     virtual void begin_deferred_redraw_cycle() {}
     virtual void end_deferred_redraw_cycle() {}
 
-    virtual void on_pre_resize() {}
     virtual void on_resize(int w, int h) = 0;
 
     virtual renderer* create_animation_renderer() = 0;

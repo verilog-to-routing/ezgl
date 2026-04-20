@@ -144,7 +144,6 @@ void canvas::initialize(QWidget *drawing_area)
       m_backend.reset();
     });
 
-    rw->setPreResizeCallback([this]() {});
     rw->setResizeCallback([this](int w, int h) {
       m_camera.update_widget(w, h);
       if (m_backend)
@@ -172,9 +171,6 @@ void canvas::initialize(QWidget *drawing_area)
       m_backend->redraw();
     }
 
-    daw->setPreResizeCallback([this]() {
-      m_backend->on_pre_resize();
-    });
     daw->setResizeCallback([this](int w, int h) {
       m_camera.update_widget(w, h);
       m_backend->on_resize(w, h);
