@@ -33,7 +33,7 @@ void deferred_backend::recreate_surface()
     if (!daw)
         return;
 
-    m_surface = daw->createSurface();
+    m_surface = daw->replaceSurface();
     if (!m_surface)
         return;
 
@@ -70,12 +70,6 @@ void deferred_backend::redraw_camera_only()
     redraw();
 }
 
-void deferred_backend::on_pre_resize()
-{
-    delete m_painter;
-    m_painter = nullptr;
-}
-
 void deferred_backend::on_resize(int /*w*/, int /*h*/)
 {
     if (m_painter) {
@@ -102,6 +96,22 @@ renderer* deferred_backend::create_animation_renderer()
             m_surface);
     }
     return m_animation_renderer;
+}
+
+QImage deferred_backend::render_to_image(int w, int h)
+{
+    QImage surface(w, h, QImage::Format_ARGB32);
+    Painter painter(&surface);
+    painter.set_source_rgb(m_background_color.red   / 255.0,
+                           m_background_color.green / 255.0,
+                           m_background_color.blue  / 255.0);
+    painter.paint();
+
+    using namespace std::placeholders;
+    deferred_renderer g(&painter, std::bind(&camera::world_to_screen, *m_camera, _1), m_camera, &surface);
+    m_draw_callback(&g);
+    g.flush();
+    return surface;
 }
 
 } // namespace ezgl

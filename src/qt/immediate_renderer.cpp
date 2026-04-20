@@ -1,5 +1,6 @@
 #include "ezgl/qt/immediate_renderer.hpp"
 
+#include <cassert>
 #include <cfloat>
 #include <utility>
 
@@ -43,7 +44,7 @@ void immediate_renderer::draw_rectangle(const point2d& start, double width, doub
     paint_rectangle_path(start, end, false);
 }
 
-void immediate_renderer::draw_rectangle(rectangle r)
+void immediate_renderer::draw_rectangle(const rectangle& r)
 {
     point2d bl{r.left(), r.bottom()};
     point2d tr{r.right(), r.top()};
@@ -67,7 +68,7 @@ void immediate_renderer::fill_rectangle(const point2d& start, double width, doub
     paint_rectangle_path(start, end, true);
 }
 
-void immediate_renderer::fill_rectangle(rectangle r)
+void immediate_renderer::fill_rectangle(const rectangle& r)
 {
     point2d bl{r.left(), r.bottom()};
     point2d tr{r.right(), r.top()};
@@ -76,8 +77,14 @@ void immediate_renderer::fill_rectangle(rectangle r)
     paint_rectangle_path(bl, tr, true);
 }
 
+void immediate_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
+{
+    paint_poly({a, b, c});
+}
+
 void immediate_renderer::fill_poly(const std::vector<point2d>& points)
 {
+    assert(points.size() > 3 && "if points.size() == 3 use fill_triangle method instead, it's much faster");
     paint_poly(points);
 }
 

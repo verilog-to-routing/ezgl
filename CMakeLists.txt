@@ -10,38 +10,30 @@ project(
 # we rely on GTK3 for the GUI, so make sure the system has it
 find_package(PkgConfig REQUIRED)
 
-set(USE_QT 1)
-if(USE_QT)
-    # Enable Qt automatic code generation
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTOUIC ON)
-    set(CMAKE_AUTORCC ON)
+#
+# We require c++20 support
+#
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF) #No compiler specific extensions
 
-    find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Xml Svg)
+# Enable Qt automatic code generation
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 
-    if(NOT Qt6_FOUND)
-      message(FATAL_ERROR "EZGL: Failed to find required Qt library (on debian/ubuntu try 'sudo apt-get install qt6-base-dev' to install)")
-    endif()
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Xml Svg)
 
-    # Qt 6.8 contains a bug in the RHI backend where geometry buffers are not
-    # properly invalidated/refreshed after the MVP matrix changes, causing
-    # incorrect rendering artifacts. The bug is not seen in Qt 6.9.3.
-    if(Qt6_VERSION VERSION_LESS "6.9.3")
-        message(FATAL_ERROR "EZGL: Qt 6.9.3 or higher is required (found ${Qt6_VERSION})")
-    endif()
+if(NOT Qt6_FOUND)
+  message(FATAL_ERROR "EZGL: Failed to find required Qt library (on debian/ubuntu try 'sudo apt-get install qt6-base-dev' to install)")
+endif()
 
-else(USE_QT)
-    pkg_check_modules(GTK3 QUIET gtk+-3.0)
-    pkg_check_modules(X11 QUIET x11)
-
-    if(NOT GTK3_FOUND)
-      message(WARNING "EZGL: Failed to find required GTK3 library (on debian/ubuntu try 'sudo apt-get install libgtk-3-dev' to install)")
-    endif()
-
-    # we also rely on glib to compile the GTK resource files
-    # a set of macros has been developed by Makman2 on GitHub to help with this
-    list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gcr-cmake/macros)
-endif(USE_QT)
+# Qt 6.8 contains a bug in the RHI backend where geometry buffers are not
+# properly invalidated/refreshed after the MVP matrix changes, causing
+# incorrect rendering artifacts. The bug is not seen in Qt 6.9.3.
+if(Qt6_VERSION VERSION_LESS "6.9.3")
+    message(FATAL_ERROR "EZGL: Qt 6.9.3 or higher is required (found ${Qt6_VERSION})")
+endif()
 
 #Is ezgl the root cmake project?
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
@@ -100,163 +92,142 @@ target_include_directories(
   PUBLIC include
 )
 
-if(USE_QT)
+target_link_libraries(
+    ${PROJECT_NAME}
+    PUBLIC
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Xml
+    Qt6::Svg)
 
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PUBLIC
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Widgets
-        Qt6::Xml
-        Qt6::Svg)
+# ---- Qt RHI GPU renderer (always enabled, requires Qt >= 6.9.3) ----------
 
-    # ---- Qt RHI GPU renderer (always enabled, requires Qt >= 6.9.3) ----------
+# QRhi / QShader live in Qt6::Gui private headers.
+find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::GuiPrivate)
 
-    # QRhi / QShader live in Qt6::Gui private headers.
-    find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
-    target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::GuiPrivate)
+# Bake GLSL shaders to .qsb as part of the build when qsb is available.
+set(EZGL_QSB_EXECUTABLE "${EZGL_QSB_EXECUTABLE}" CACHE FILEPATH
+    "Path to the Qt Shader Baker executable (qsb)")
+set(EZGL_RHI_SHADER_QRC "${CMAKE_CURRENT_SOURCE_DIR}/shaders/shaders.qrc")
 
-    # Bake GLSL shaders to .qsb as part of the build when qsb is available.
-    set(EZGL_QSB_EXECUTABLE "${EZGL_QSB_EXECUTABLE}" CACHE FILEPATH
-        "Path to the Qt Shader Baker executable (qsb)")
-    set(EZGL_RHI_SHADER_QRC "${CMAKE_CURRENT_SOURCE_DIR}/shaders/shaders.qrc")
+if(NOT EZGL_QSB_EXECUTABLE)
+    get_filename_component(_ezgl_qt_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
+    get_filename_component(_ezgl_qt_sdk_root "${_ezgl_qt_prefix}/.." ABSOLUTE)
+    get_filename_component(_ezgl_qt_root "${_ezgl_qt_sdk_root}/.." ABSOLUTE)
 
-    if(NOT EZGL_QSB_EXECUTABLE)
-        get_filename_component(_ezgl_qt_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
-        get_filename_component(_ezgl_qt_sdk_root "${_ezgl_qt_prefix}/.." ABSOLUTE)
-        get_filename_component(_ezgl_qt_root "${_ezgl_qt_sdk_root}/.." ABSOLUTE)
-
-        set(_ezgl_qsb_hints
-            "${_ezgl_qt_prefix}/bin"
-            "${_ezgl_qt_prefix}/libexec"
-            "${_ezgl_qt_sdk_root}/bin"
-            "${_ezgl_qt_sdk_root}/libexec"
-            "${_ezgl_qt_root}/Tools/QtCreator/lib/Qt/bin"
-            "${_ezgl_qt_root}/Tools/QtCreator/lib/Qt/libexec"
-            "${_ezgl_qt_root}/Tools/QtDesignStudio/lib/Qt/bin"
-            "${_ezgl_qt_root}/Tools/QtDesignStudio/lib/Qt/libexec"
-            "${_ezgl_qt_root}/Tools/QtDesignStudio/qt6_design_studio_reduced_version/bin"
-        )
-        if(DEFINED QT_HOST_PATH AND NOT "${QT_HOST_PATH}" STREQUAL "")
-            list(PREPEND _ezgl_qsb_hints
-                "${QT_HOST_PATH}/bin"
-                "${QT_HOST_PATH}/libexec")
-        endif()
-        if(DEFINED ENV{QT_HOST_PATH} AND NOT "$ENV{QT_HOST_PATH}" STREQUAL "")
-            list(PREPEND _ezgl_qsb_hints
-                "$ENV{QT_HOST_PATH}/bin"
-                "$ENV{QT_HOST_PATH}/libexec")
-        endif()
-
-        find_program(_ezgl_qsb_executable
-            NAMES qsb qsb-qt6
-            HINTS ${_ezgl_qsb_hints}
-            DOC "Path to the Qt Shader Baker executable (qsb)")
-        if(_ezgl_qsb_executable)
-            set(EZGL_QSB_EXECUTABLE "${_ezgl_qsb_executable}" CACHE FILEPATH
-                "Path to the Qt Shader Baker executable (qsb)" FORCE)
-        endif()
+    set(_ezgl_qsb_hints
+        "${_ezgl_qt_prefix}/bin"
+        "${_ezgl_qt_prefix}/libexec"
+        "${_ezgl_qt_sdk_root}/bin"
+        "${_ezgl_qt_sdk_root}/libexec"
+        "${_ezgl_qt_root}/Tools/QtCreator/lib/Qt/bin"
+        "${_ezgl_qt_root}/Tools/QtCreator/lib/Qt/libexec"
+        "${_ezgl_qt_root}/Tools/QtDesignStudio/lib/Qt/bin"
+        "${_ezgl_qt_root}/Tools/QtDesignStudio/lib/Qt/libexec"
+        "${_ezgl_qt_root}/Tools/QtDesignStudio/qt6_design_studio_reduced_version/bin"
+    )
+    if(DEFINED QT_HOST_PATH AND NOT "${QT_HOST_PATH}" STREQUAL "")
+        list(PREPEND _ezgl_qsb_hints
+            "${QT_HOST_PATH}/bin"
+            "${QT_HOST_PATH}/libexec")
+    endif()
+    if(DEFINED ENV{QT_HOST_PATH} AND NOT "$ENV{QT_HOST_PATH}" STREQUAL "")
+        list(PREPEND _ezgl_qsb_hints
+            "$ENV{QT_HOST_PATH}/bin"
+            "$ENV{QT_HOST_PATH}/libexec")
     endif()
 
-    if(EZGL_QSB_EXECUTABLE)
-        set(EZGL_RHI_SHADER_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/ezgl_rhi_shaders")
-        file(MAKE_DIRECTORY "${EZGL_RHI_SHADER_BUILD_DIR}")
-
-        set(EZGL_FILL_RECT_VERT_QSB   "${EZGL_RHI_SHADER_BUILD_DIR}/fill_rect.vert.qsb")
-        set(EZGL_LINE_VERT_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.vert.qsb")
-        set(EZGL_LINE_FRAG_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.frag.qsb")
-        set(EZGL_OVERLAY_VERT_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.vert.qsb")
-        set(EZGL_OVERLAY_FRAG_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.frag.qsb")
-        set(EZGL_THICK_LINE_VERT_QSB  "${EZGL_RHI_SHADER_BUILD_DIR}/thick_line.vert.qsb")
-        set(EZGL_DASHED_LINE_VERT_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.vert.qsb")
-        set(EZGL_DASHED_LINE_FRAG_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.frag.qsb")
-
-        set(EZGL_RHI_SHADER_SOURCES
-            "fill_rect.vert"
-            "line.vert"
-            "line.frag"
-            "overlay.vert"
-            "overlay.frag"
-            "thick_line.vert"
-            "dashed_line.vert"
-            "dashed_line.frag"
-        )
-        set(EZGL_RHI_SHADER_OUTPUTS
-            "${EZGL_FILL_RECT_VERT_QSB}"
-            "${EZGL_LINE_VERT_QSB}"
-            "${EZGL_LINE_FRAG_QSB}"
-            "${EZGL_OVERLAY_VERT_QSB}"
-            "${EZGL_OVERLAY_FRAG_QSB}"
-            "${EZGL_THICK_LINE_VERT_QSB}"
-            "${EZGL_DASHED_LINE_VERT_QSB}"
-            "${EZGL_DASHED_LINE_FRAG_QSB}"
-        )
-
-        list(LENGTH EZGL_RHI_SHADER_SOURCES _ezgl_shader_count)
-        math(EXPR _ezgl_shader_last_index "${_ezgl_shader_count} - 1")
-        foreach(_ezgl_shader_index RANGE ${_ezgl_shader_last_index})
-            list(GET EZGL_RHI_SHADER_SOURCES ${_ezgl_shader_index} _ezgl_shader_src)
-            list(GET EZGL_RHI_SHADER_OUTPUTS ${_ezgl_shader_index} _ezgl_shader_out)
-            add_custom_command(
-                OUTPUT "${_ezgl_shader_out}"
-                COMMAND "${EZGL_QSB_EXECUTABLE}" --qt6 -o "${_ezgl_shader_out}"
-                        "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${_ezgl_shader_src}"
-                DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${_ezgl_shader_src}"
-                COMMENT "Baking Qt shader ${_ezgl_shader_src}"
-                VERBATIM
-            )
-        endforeach()
-
-        add_custom_target(ezgl_rhi_shaders DEPENDS ${EZGL_RHI_SHADER_OUTPUTS})
-        add_dependencies(${PROJECT_NAME} ezgl_rhi_shaders)
-        set_source_files_properties(${EZGL_RHI_SHADER_OUTPUTS} PROPERTIES GENERATED TRUE)
-        target_compile_definitions(${PROJECT_NAME} PRIVATE EZGL_RHI_GENERATED_SHADERS)
-
-        set(EZGL_RHI_SHADER_QRC "${CMAKE_CURRENT_BINARY_DIR}/ezgl_rhi_shaders.qrc")
-        configure_file(
-            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/shaders.qrc.in"
-            "${EZGL_RHI_SHADER_QRC}"
-            @ONLY
-        )
-    else()
-        message(WARNING
-            "ezgl: qsb not found; using checked-in shaders/*.qsb. "
-            "Set EZGL_QSB_EXECUTABLE to enable automatic shader baking.")
+    find_program(_ezgl_qsb_executable
+        NAMES qsb qsb-qt6
+        HINTS ${_ezgl_qsb_hints}
+        DOC "Path to the Qt Shader Baker executable (qsb)")
+    if(_ezgl_qsb_executable)
+        set(EZGL_QSB_EXECUTABLE "${_ezgl_qsb_executable}" CACHE FILEPATH
+            "Path to the Qt Shader Baker executable (qsb)" FORCE)
     endif()
+endif()
 
-    target_sources(${PROJECT_NAME} PRIVATE
-        include/ezgl/qt/rhi_canvas_widget.hpp
-        include/ezgl/qt/rhi_renderer.hpp
-        include/ezgl/qt/rhi_backend.hpp
-        src/qt/rhi_canvas_widget.cpp
-        src/qt/rhi_renderer.cpp
-        src/qt/rhi_backend.cpp
-        ${EZGL_RHI_SHADER_QRC}
+if(EZGL_QSB_EXECUTABLE)
+    set(EZGL_RHI_SHADER_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/ezgl_rhi_shaders")
+    file(MAKE_DIRECTORY "${EZGL_RHI_SHADER_BUILD_DIR}")
+
+    set(EZGL_FILL_RECT_VERT_QSB   "${EZGL_RHI_SHADER_BUILD_DIR}/fill_rect.vert.qsb")
+    set(EZGL_LINE_VERT_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.vert.qsb")
+    set(EZGL_LINE_FRAG_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.frag.qsb")
+    set(EZGL_OVERLAY_VERT_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.vert.qsb")
+    set(EZGL_OVERLAY_FRAG_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.frag.qsb")
+    set(EZGL_THICK_LINE_VERT_QSB  "${EZGL_RHI_SHADER_BUILD_DIR}/thick_line.vert.qsb")
+    set(EZGL_DASHED_LINE_VERT_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.vert.qsb")
+    set(EZGL_DASHED_LINE_FRAG_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.frag.qsb")
+
+    set(EZGL_RHI_SHADER_SOURCES
+        "fill_rect.vert"
+        "line.vert"
+        "line.frag"
+        "overlay.vert"
+        "overlay.frag"
+        "thick_line.vert"
+        "dashed_line.vert"
+        "dashed_line.frag"
+    )
+    set(EZGL_RHI_SHADER_OUTPUTS
+        "${EZGL_FILL_RECT_VERT_QSB}"
+        "${EZGL_LINE_VERT_QSB}"
+        "${EZGL_LINE_FRAG_QSB}"
+        "${EZGL_OVERLAY_VERT_QSB}"
+        "${EZGL_OVERLAY_FRAG_QSB}"
+        "${EZGL_THICK_LINE_VERT_QSB}"
+        "${EZGL_DASHED_LINE_VERT_QSB}"
+        "${EZGL_DASHED_LINE_FRAG_QSB}"
     )
 
-    target_compile_definitions(${PROJECT_NAME} PUBLIC
-        $<$<CONFIG:Debug>:EZGL_RENDERER_DEBUG>
+    list(LENGTH EZGL_RHI_SHADER_SOURCES _ezgl_shader_count)
+    math(EXPR _ezgl_shader_last_index "${_ezgl_shader_count} - 1")
+    foreach(_ezgl_shader_index RANGE ${_ezgl_shader_last_index})
+        list(GET EZGL_RHI_SHADER_SOURCES ${_ezgl_shader_index} _ezgl_shader_src)
+        list(GET EZGL_RHI_SHADER_OUTPUTS ${_ezgl_shader_index} _ezgl_shader_out)
+        add_custom_command(
+            OUTPUT "${_ezgl_shader_out}"
+            COMMAND "${EZGL_QSB_EXECUTABLE}" --qt6 -o "${_ezgl_shader_out}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${_ezgl_shader_src}"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${_ezgl_shader_src}"
+            COMMENT "Baking Qt shader ${_ezgl_shader_src}"
+            VERBATIM
+        )
+    endforeach()
+
+    add_custom_target(ezgl_rhi_shaders DEPENDS ${EZGL_RHI_SHADER_OUTPUTS})
+    add_dependencies(${PROJECT_NAME} ezgl_rhi_shaders)
+    set_source_files_properties(${EZGL_RHI_SHADER_OUTPUTS} PROPERTIES GENERATED TRUE)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE EZGL_RHI_GENERATED_SHADERS)
+
+    set(EZGL_RHI_SHADER_QRC "${CMAKE_CURRENT_BINARY_DIR}/ezgl_rhi_shaders.qrc")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/shaders/shaders.qrc.in"
+        "${EZGL_RHI_SHADER_QRC}"
+        @ONLY
     )
+else()
+    message(WARNING
+        "ezgl: qsb not found; using checked-in shaders/*.qsb. "
+        "Set EZGL_QSB_EXECUTABLE to enable automatic shader baking.")
+endif()
 
-else(USE_QT)
+target_sources(${PROJECT_NAME} PRIVATE
+    include/ezgl/qt/rhi_canvas_widget.hpp
+    include/ezgl/qt/rhi_renderer.hpp
+    include/ezgl/qt/rhi_backend.hpp
+    src/qt/rhi_canvas_widget.cpp
+    src/qt/rhi_renderer.cpp
+    src/qt/rhi_backend.cpp
+    ${EZGL_RHI_SHADER_QRC}
+)
 
-    #Treat GTK/X11 headers as system headers so they
-    #do not generate compilation warnings
-    target_include_directories(
-      ${PROJECT_NAME}
-      SYSTEM
-      PUBLIC ${GTK3_INCLUDE_DIRS}
-      PUBLIC ${X11_INCLUDE_DIRS}
-    )
-
-    target_link_libraries(
-      ${PROJECT_NAME}
-      PUBLIC ${GTK3_LIBRARIES}
-      PUBLIC ${X11_LIBRARIES}
-    )
-
-endif(USE_QT)
+target_compile_definitions(${PROJECT_NAME} PUBLIC
+    $<$<CONFIG:Debug>:EZGL_RENDERER_DEBUG>
+)
 
 # Use target property to enforce C++20 — raw -std= flag gets overridden by Qt6's gnu++17
 set_target_properties(${PROJECT_NAME} PROPERTIES

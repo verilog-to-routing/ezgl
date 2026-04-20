@@ -69,15 +69,16 @@ public:
 
     void fill_rectangle(const point2d& start, const point2d& end) override;
     void fill_rectangle(const point2d& start, double width, double height) override;
-    void fill_rectangle(rectangle r) override;
+    void fill_rectangle(const rectangle& r) override;
 
     void draw_rectangle(const point2d& start, const point2d& end) override;
     void draw_rectangle(const point2d& start, double width, double height) override;
-    void draw_rectangle(rectangle r) override;
+    void draw_rectangle(const rectangle& r) override;
 
     // ---- irenderer: overlay draw calls (forwarded to m_overlay_deferred) ---
 
-    void fill_poly(std::vector<point2d> const& points) override;
+    void fill_poly(const std::vector<point2d>& points) override;
+    void fill_triangle(const point2d& a, const point2d& b, const point2d& c) override;
     void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
     void draw_arc(const point2d& center, double radius,
@@ -110,39 +111,53 @@ public:
     void flush_mvp_only();
 
 private:
-    static constexpr int kTileGridDimension = 16;
+    static constexpr int kTileGridDimension  = 32;
+    static constexpr int kBatchInitialReserve = 1024;
 
     struct TileThinLineBatch {
         StyleKey               style_key = 0;
         std::uint32_t          rgba = 0;
         std::vector<PosVertex> verts;
+        TileThinLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileFillRectBatch {
-        StyleKey                    style_key = 0;
-        std::uint32_t               rgba = 0;
+        StyleKey                      style_key = 0;
+        std::uint32_t                 rgba = 0;
         std::vector<FillRectInstance> instances;
+        TileFillRectBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileFillPolyBatch {
         StyleKey               style_key = 0;
         std::uint32_t          rgba = 0;
         std::vector<PosVertex> verts;
+        TileFillPolyBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileThickLineBatch {
-        StyleKey                      style_key = 0;
-        std::uint32_t                 rgba = 0;
+        StyleKey                       style_key = 0;
+        std::uint32_t                  rgba = 0;
         std::vector<ThickLineInstance> instances;
+        TileThickLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileDashedLineBatch {
-        StyleKey                       style_key = 0;
-        std::uint32_t                  rgba = 0;
+        StyleKey                        style_key = 0;
+        std::uint32_t                   rgba = 0;
         std::vector<DashedLineInstance> instances;
+        TileDashedLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct RhiTileBatch {
+        RhiTileBatch() {
+            thin_line_batches.reserve(kBatchInitialReserve);
+            fill_rect_batches.reserve(kBatchInitialReserve);
+            fill_poly_batches.reserve(kBatchInitialReserve);
+            thick_line_batches.reserve(kBatchInitialReserve);
+            dashed_line_batches.reserve(kBatchInitialReserve);
+        }
+
         rectangle                         world_bounds;
         std::uint16_t                     tile_x = 0;
         std::uint16_t                     tile_y = 0;
@@ -164,7 +179,6 @@ private:
 
     // ---- helpers ------------------------------------------------------------
 
-    std::uint32_t current_packed_color() const;
     StyleKey current_style_key(PrimitiveType primitive_type,
                                float         line_width_px = 0.0f) const;
     TileThinLineBatch& ensure_thin_line_batch(RhiTileBatch& tile,
@@ -244,6 +258,11 @@ private:
     void render_cached_overlay();
     void ensure_tile_grid();
     void clear_tile_geometry();
+    void clear_commands();
+    void dispatch_commands_to_tiles(int band);
+    int  band_for_tile_row(int ty) const { return std::min(ty / m_rows_per_band, m_n_bands - 1); }
+    int  band_ty_min(int band) const { return band * m_rows_per_band; }
+    int  band_ty_max(int band) const { return std::min((band + 1) * m_rows_per_band - 1, kTileGridDimension - 1); }
     int clamp_tile_x(double x) const;
     int clamp_tile_y(double y) const;
     int tile_index(int tile_x, int tile_y) const;
@@ -258,12 +277,33 @@ private:
     RhiCanvasWidget*         m_rhi_widget;
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
+    std::uint32_t            m_current_rgba = 0;
 
     // Scene tiling metadata and CPU-side tile batches.
     rectangle                m_scene_bounds;
     double                   m_tile_width = 1.0;
     double                   m_tile_height = 1.0;
     std::vector<RhiTileBatch> m_tiles;
+
+    // ---- draw command recording (filled during draw callback) ---------------
+    // Commands are routed at record time into per-band buckets so each
+    // dispatch thread only iterates the commands that touch its tile rows.
+    // rgba is stored in the lower 32 bits of sk (see pack_style_key).
+
+    struct ThinLineCmd   { StyleKey sk; float x0, y0, x1, y1; };
+    struct FillRectCmd   { StyleKey sk; float x0, y0, x1, y1; };
+    struct FillTriCmd    { StyleKey sk; float x0, y0, x1, y1, x2, y2; };
+    struct ThickLineCmd  { StyleKey sk; float x0, y0, x1, y1; };
+    struct DashedLineCmd { StyleKey sk; float x0, y0, x1, y1; };
+
+    int m_n_bands       = 1;
+    int m_rows_per_band = kTileGridDimension;
+
+    std::vector<std::vector<ThinLineCmd>>   m_cmd_thin_lines;
+    std::vector<std::vector<FillRectCmd>>   m_cmd_fill_rects;
+    std::vector<std::vector<FillTriCmd>>    m_cmd_fill_tris;
+    std::vector<std::vector<ThickLineCmd>>  m_cmd_thick_lines;
+    std::vector<std::vector<DashedLineCmd>> m_cmd_dashed_lines;
 
     // QPainter overlay — overlay commands (text, arcs, …) are stored in
     // m_overlay_deferred and replayed into this image.

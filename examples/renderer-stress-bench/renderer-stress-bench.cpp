@@ -37,6 +37,7 @@
 #include <sstream>
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
+#include "ezgl/logutils.hpp"
 
 static const char *RESULTS_FILE = "renderer-stress-bench-results.txt";
 
@@ -90,6 +91,13 @@ static constexpr int    CLB_TILE_COLS = 512;
 static constexpr int    CLB_TILE_ROWS = CLB_TILE_COLS;
 static constexpr int    CLB_TILE_COUNT = CLB_TILE_COLS * CLB_TILE_ROWS;
 static constexpr double CLB_TILE_GAP_RATIO = 0.3;
+
+// Approximate VPR scene counts (profiled from a mid-size design).
+static constexpr int VPR_N_RATE = 1;
+static constexpr int VPR_N_THIN_LINES   = 71'554'146/VPR_N_RATE;  // thin_verts / 2
+static constexpr int VPR_N_FILL_RECTS   = 115'482/VPR_N_RATE;
+static constexpr int VPR_N_FILL_POLYS   = 34'943'940/VPR_N_RATE;  // routing arrowheads (3-pt triangle)
+static constexpr int VPR_N_DASHED_LINES = 443'724/VPR_N_RATE;
 
 struct GridLayout {
   int    cols;
@@ -358,8 +366,7 @@ void draw_clb_tile_scene(ezgl::renderer *g)
   const double used_h = CLB_TILE_ROWS * tile_h + (CLB_TILE_ROWS - 1) * gap_y;
   const double origin_x = WORLD.left() + (WORLD.width() - used_w) * 0.5;
   const double origin_y = WORLD.bottom() + (WORLD.height() - used_h) * 0.5;
-  // const int label_font_size =
-  //     std::max(1, static_cast<int>(std::floor(std::min(tile_w, tile_h) * 0.45)));
+
   const int label_font_size = 12;
 
   auto tile_rect = [&](int x_idx, int y_idx) {
@@ -396,6 +403,92 @@ void draw_clb_tile_scene(ezgl::renderer *g)
   }
 }
 
+
+void vpr_complex_scene(ezgl::renderer *g)
+{
+  // ---- CLB tiles: fill + outline (like draw_clb_tile_scene but smaller grid) ----
+  {
+    ezgl::scope_timer t("build CLB tiles " + std::to_string(VPR_N_FILL_RECTS));
+    const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_FILL_RECTS))));
+    const double cell_w = WORLD.width()  / cols;
+    const double cell_h = WORLD.height() / cols;
+    const double pad    = cell_w * 0.05;
+
+    g->set_color(ezgl::color(180, 180, 220));
+    for (int i = 0; i < VPR_N_FILL_RECTS; ++i) {
+      const double x0 = WORLD.left()   + (i % cols) * cell_w + pad;
+      const double y0 = WORLD.bottom() + (i / cols) * cell_h + pad;
+      g->fill_rectangle({x0, y0}, {x0 + cell_w - 2*pad, y0 + cell_h - 2*pad});
+    }
+
+    g->set_color(ezgl::BLACK);
+    g->set_line_width(1);
+    g->set_line_dash(ezgl::line_dash::asymmetric_5_3);
+    for (int i = 0; i < VPR_N_FILL_RECTS; ++i) {
+      const double x0 = WORLD.left()   + (i % cols) * cell_w + pad;
+      const double y0 = WORLD.bottom() + (i / cols) * cell_h + pad;
+      g->draw_rectangle({x0, y0}, {x0 + cell_w - 2*pad, y0 + cell_h - 2*pad});
+    }
+  }
+
+  // ---- Thin routing wires (alternating horizontal/vertical, 4 colours) ----
+  {
+    ezgl::scope_timer t("build Thin routing wires " + std::to_string(VPR_N_THIN_LINES));
+    static const ezgl::color WIRE_COLORS[] = {
+      ezgl::BLUE, ezgl::RED, ezgl::color(0,160,0), ezgl::color(200,100,0)
+    };
+    const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_THIN_LINES))));
+    const double cell_w = WORLD.width()  / cols;
+    const double cell_h = WORLD.height() / cols;
+
+    g->set_line_width(1);
+    g->set_line_dash(ezgl::line_dash::none);
+    for (int i = 0; i < VPR_N_THIN_LINES; ++i) {
+      g->set_color(WIRE_COLORS[i & 3]);
+      const double x0 = WORLD.left()   + (i % cols) * cell_w;
+      const double y0 = WORLD.bottom() + (i / cols) * cell_h;
+      if (i & 1)
+        g->draw_line({x0, y0}, {x0 + cell_w, y0});           // horizontal
+      else
+        g->draw_line({x0, y0}, {x0,           y0 + cell_h}); // vertical
+    }
+  }
+
+  // ---- Routing direction arrowheads (3-point triangle) ----
+  {
+    ezgl::scope_timer t("build Routing direction arrowheads " + std::to_string(VPR_N_FILL_POLYS));
+    const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_FILL_POLYS))));
+    const double cell_w = WORLD.width()  / cols;
+    const double cell_h = WORLD.height() / cols;
+    const double hw = cell_w * 0.45;
+    const double hh = cell_h * 0.45;
+
+    g->set_color(ezgl::color(0, 120, 255, 180));
+    for (int i = 0; i < VPR_N_FILL_POLYS; ++i) {
+      const double cx = WORLD.left()   + ((i % cols) + 0.5) * cell_w;
+      const double cy = WORLD.bottom() + ((i / cols) + 0.5) * cell_h;
+      g->fill_triangle({cx - hw, cy}, {cx + hw, cy - hh}, {cx + hw, cy + hh});
+    }
+  }
+
+  // ---- Critical-path dashed arcs ----
+  {
+    ezgl::scope_timer t("build Critical-path dashed arcs " + std::to_string(VPR_N_DASHED_LINES));
+    const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_DASHED_LINES))));
+    const double cell_w = WORLD.width()  / cols;
+    const double cell_h = WORLD.height() / cols;
+
+    g->set_color(ezgl::color(220, 40, 40));
+    g->set_line_width(2);
+    g->set_line_dash(ezgl::line_dash::asymmetric_5_3);
+    for (int i = 0; i < VPR_N_DASHED_LINES; ++i) {
+      const double x0 = WORLD.left()   + (i % cols) * cell_w;
+      const double y0 = WORLD.bottom() + (i / cols) * cell_h;
+      g->draw_line({x0, y0}, {x0 + cell_w, y0 + cell_h});
+    }
+  }
+}
+
 // ---- test case table -------------------------------------------------------
 
 struct TestCase {
@@ -404,19 +497,22 @@ struct TestCase {
   int                  count;
 };
 
-static std::string label_to_filename(const char *label)
+static std::string label_to_filename(const char *label, const char *renderer_name = "")
 {
   std::string s(label);
   s.erase(s.find_last_not_of(" \t") + 1);
   for (char &c : s)
     if (c == ' ') c = '_';
+  if (renderer_name && *renderer_name)
+    s += std::string("_") + renderer_name;
   return s + ".png";
 }
 
 static const TestCase TESTS[] = {
+    { "vpr complex scene",  vpr_complex_scene,  VPR_N_FILL_RECTS },
     //{ "clb tile grid",      draw_clb_tile_scene,            CLB_TILE_COUNT },
     // { "variadic rects",    draw_rectangles_variadic,         1'000 },
-    { "variadic lines",    draw_lines_variadic,         1'000'000 },
+    //{ "variadic lines",    draw_lines_variadic,         1'000'000 },
     //{ "solid lines",        draw_lines_solid,               10'000'000 },
     // { "solid rects",        draw_rectangles_solid,          1'0 },
     // { "solid rects",        fill_rectangles_solid,          1'0 },
@@ -474,27 +570,28 @@ static void run_headless(ezgl::renderer_type renderer)
   ezgl::canvas *c = app.get_canvas("headless_canvas");
   c->set_renderer_type(renderer);
 
+  const char *rname = ezgl::renderer_type_name(renderer);
+
   for (int t = 0; t < N_TESTS; ++t) {
     const TestCase &tc = TESTS[t];
     g_headless_t = t;
     g_bench_n    = tc.count;
 
-    // Warm-up: one throwaway render to prime caches.
-    c->draw_offscreen(IMG_W, IMG_H);
+    const std::string fname = label_to_filename(tc.label, rname);
 
-    auto t0 = std::chrono::high_resolution_clock::now();
-    c->draw_offscreen(IMG_W, IMG_H);
-    auto t1 = std::chrono::high_resolution_clock::now();
+    ezgl::scope_timer timer;
+    c->print_png(fname.c_str(), IMG_W, IMG_H);
+    const double ms = timer.elapsed_ms();
 
-    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    const std::string fname_ms = fname.substr(0, fname.size() - 4) + "_" +
+                                 std::to_string(static_cast<int>(std::round(ms))) + "_ms.png";
+    std::rename(fname.c_str(), fname_ms.c_str());
+
     std::cout << tc.label << "(" << g_bench_n << "): " << ms << " ms\n";
 
     std::string label(tc.label);
     label.erase(label.find_last_not_of(" \t") + 1);
-    write_result("headless:" + std::to_string(g_bench_n) + " " + label, ms);
-
-    // Save PNG once (untimed) for visual verification.
-    c->print_png(label_to_filename(tc.label).c_str(), IMG_W, IMG_H);
+    write_result("headless:" + std::string(rname) + ":" + std::to_string(g_bench_n) + " " + label, ms);
   }
 }
 
