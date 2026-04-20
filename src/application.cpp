@@ -159,10 +159,11 @@ application::application(application::settings s, int& argc, char** argv)
 
 application::~application()
 {
-  // Disconnect all signal/slot connections on this object first.
-  // This prevents lastWindowClosed (and any other signal) from firing
-  // callbacks into a half-destroyed application while we clean up below.
-  QObject::disconnect(this, nullptr, nullptr, nullptr);
+  // Block signal delivery so lastWindowClosed (and any other signal) cannot
+  // fire callbacks into a half-destroyed application while we clean up below.
+  // blockSignals is preferred over wildcard disconnect: it avoids the Qt
+  // warning about disconnecting the internal destroyed() signal.
+  blockSignals(true);
 
   // Explicitly destroy canvases while the window still exists so that
   // active Painter objects are ended before DrawingAreaWidget is deleted.
