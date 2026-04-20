@@ -93,7 +93,7 @@ static constexpr int    CLB_TILE_COUNT = CLB_TILE_COLS * CLB_TILE_ROWS;
 static constexpr double CLB_TILE_GAP_RATIO = 0.3;
 
 // Approximate VPR scene counts (profiled from a mid-size design).
-static constexpr int VPR_N_RATE = 10;
+static constexpr int VPR_N_RATE = 1;
 static constexpr int VPR_N_THIN_LINES   = 71'554'146/VPR_N_RATE;  // thin_verts / 2
 static constexpr int VPR_N_FILL_RECTS   = 115'482/VPR_N_RATE;
 static constexpr int VPR_N_FILL_POLYS   = 34'943'940/VPR_N_RATE;  // routing arrowheads (3-pt triangle)
