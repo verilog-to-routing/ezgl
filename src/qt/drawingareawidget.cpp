@@ -9,28 +9,21 @@ DrawingAreaWidget::DrawingAreaWidget(QWidget* parent): QWidget(parent)
   setMouseTracking(true); // for move events even without mouse button pressed
 }
 
-DrawingAreaWidget::~DrawingAreaWidget()
-{
-  delete m_image;
-  m_image = nullptr;
-}
-
 QImage* DrawingAreaWidget::createSurface() {
-  if (!m_image) {
+  if (m_image.isNull()) {
     const double dpr = devicePixelRatioF();
     const int w = std::max(1, int(width()  * dpr));
     const int h = std::max(1, int(height() * dpr));
-    m_image = new QImage(w, h, QImage::Format_ARGB32_Premultiplied);
-    m_image->setDevicePixelRatio(dpr);
-    m_image->fill(Qt::transparent);
+    m_image = QImage(w, h, QImage::Format_ARGB32_Premultiplied);
+    m_image.setDevicePixelRatio(dpr);
+    m_image.fill(Qt::transparent);
   }
-  return m_image;
+  return &m_image;
 }
 
 QImage* DrawingAreaWidget::replaceSurface()
 {
-  delete m_image;
-  m_image = nullptr;
+  m_image = QImage{};
   return createSurface();
 }
 
@@ -50,11 +43,11 @@ void DrawingAreaWidget::showEvent(QShowEvent* event)
 
 void DrawingAreaWidget::paintEvent(QPaintEvent* event)
 {
-  {
+  if (m_image.isNull())
+    return;
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
-  painter.drawImage(rect(), *m_image, m_image->rect());
-  }
+  painter.drawImage(rect(), m_image, m_image.rect());
 }
 
 }

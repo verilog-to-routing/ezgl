@@ -9,7 +9,6 @@ class DrawingAreaWidget final : public QWidget {
   Q_OBJECT
 public:
   explicit DrawingAreaWidget(QWidget* parent = nullptr);
-  virtual ~DrawingAreaWidget();
   QImage* createSurface();
   QImage* replaceSurface();
 
@@ -22,7 +21,7 @@ protected:
   void showEvent(QShowEvent* event) override final;
 
 private:
-  QImage* m_image{nullptr};
+  QImage m_image;
 };
 
 }
