@@ -144,7 +144,7 @@ void canvas::initialize(QWidget *drawing_area)
       m_backend.reset();
     });
 
-    rw->setResizeCallback([this](int w, int h) {
+    QObject::connect(rw, &RhiCanvasWidget::resized, [this](int w, int h) {
       m_camera.update_widget(w, h);
       if (m_backend)
         m_backend->on_resize(w, h);
@@ -171,7 +171,7 @@ void canvas::initialize(QWidget *drawing_area)
       m_backend->redraw();
     }
 
-    daw->setResizeCallback([this](int w, int h) {
+    QObject::connect(daw, &DrawingAreaWidget::resized, [this](int w, int h) {
       m_camera.update_widget(w, h);
       m_backend->on_resize(w, h);
     });

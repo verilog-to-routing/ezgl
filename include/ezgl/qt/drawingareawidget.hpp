@@ -11,10 +11,10 @@ public:
   explicit DrawingAreaWidget(QWidget* parent = nullptr);
   virtual ~DrawingAreaWidget();
   QImage* createSurface();
+  QImage* replaceSurface();
 
-  // Register a callback invoked on every resize (including the initial show).
-  // The canvas uses this to recreate its surface/context and update the camera.
-  void setResizeCallback(std::function<void(int, int)> cb);
+signals:
+  void resized(int w, int h);
 
 protected:
   void paintEvent(QPaintEvent* event) override final;
@@ -23,7 +23,6 @@ protected:
 
 private:
   QImage* m_image{nullptr};
-  std::function<void(int, int)> m_resize_callback;
 };
 
 }

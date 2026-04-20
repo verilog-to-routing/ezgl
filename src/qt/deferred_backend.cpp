@@ -33,7 +33,7 @@ void deferred_backend::recreate_surface()
     if (!daw)
         return;
 
-    m_surface = daw->createSurface();
+    m_surface = daw->replaceSurface();
     if (!m_surface)
         return;
 
