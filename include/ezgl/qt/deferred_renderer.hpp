@@ -1,9 +1,10 @@
 #pragma once
 
-#include "ezgl/graphics.hpp"
+#include "ezgl/irenderer.hpp"
 #include "ezgl/qt/painter.hpp"
 
 #include <QLineF>
+#include <QPolygonF>
 #include <QRectF>
 #include <QFont>
 #include <cstdint>
@@ -53,6 +54,11 @@ struct FillRectBatch {
 struct DrawRectBatch {
     LineStyleKey        style;
     std::vector<QRectF> rects;
+};
+
+struct FillPolyBatch {
+    FillStyleKey            style;
+    std::vector<QPolygonF>  polys;
 };
 
 struct DeferredPainterState {
@@ -107,8 +113,8 @@ using DeferredOverlayCommand =
 
 // ---- deferred_renderer ---------------------------------------------------
 
-class deferred_renderer : public renderer {
-  const double MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX = 5.0;
+class deferred_renderer : public irenderer {
+    const double MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX = 5.0;
 public:
     deferred_renderer(Painter *painter,
                       transform_fn transform,
@@ -117,39 +123,53 @@ public:
 
     ~deferred_renderer() override = default;
 
-    // Hot-path overrides — collect into batches instead of drawing immediately.
-    void draw_line(point2d start, point2d end) override;
+    // ---- irenderer: hot-path draw calls (batched) --------------------------
 
-    void fill_rectangle(point2d start, point2d end) override;
-    void fill_rectangle(point2d start, double width, double height) override;
-    void fill_rectangle(rectangle r) override;
+    void draw_line(const point2d& start, const point2d& end) override;
 
-    void draw_rectangle(point2d start, point2d end) override;
-    void draw_rectangle(point2d start, double width, double height) override;
-    void draw_rectangle(rectangle r) override;
+    void fill_rectangle(const point2d& start, const point2d& end) override;
+    void fill_rectangle(const point2d& start, double width, double height) override;
+    void fill_rectangle(const rectangle& r) override;
 
-    // Flush all batches to the underlying QPainter, then reset.
+    void draw_rectangle(const point2d& start, const point2d& end) override;
+    void draw_rectangle(const point2d& start, double width, double height) override;
+    void draw_rectangle(const rectangle& r) override;
+
+    // ---- irenderer: overlay draw calls (deferred to command queue) ---------
+
+    void fill_poly(const std::vector<point2d>& points) override;
+    void fill_triangle(const point2d& a, const point2d& b, const point2d& c) override;
+    void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
+                           double start_angle, double extent_angle) override;
+    void draw_arc(const point2d& center, double radius,
+                  double start_angle, double extent_angle) override;
+    void fill_elliptic_arc(const point2d& center, double radius_x, double radius_y,
+                           double start_angle, double extent_angle) override;
+    void fill_arc(const point2d& center, double radius,
+                  double start_angle, double extent_angle) override;
+    void draw_text(const point2d& point, std::string const& text) override;
+    void draw_text(const point2d& point, std::string const& text,
+                   double bound_x, double bound_y) override;
+    void draw_surface(surface* p_surface, const point2d& anchor_point,
+                      double scale_factor = 1) override;
+
+    // ---- Flush all batches to the underlying QPainter, then reset ----------
     void flush();
+
+    // ---- Methods used by rhi_renderer --------------------------------------
+
+    // Replay stored overlay commands without resetting (for camera-only update).
+    void replay_overlay();
+
+    // Discard all stored commands and batches (called at begin of new frame).
+    void clear_overlay_and_batches();
+
+    // Redirect the internal painter to a new surface (called after resize).
+    void set_painter_surface(Painter* painter, QImage* surface);
 
 protected:
     void replay();
     void clear_deferred_primitives();
-    bool is_replaying_deferred_commands() const { return m_replaying_commands; }
-
-    bool defer_fill_poly(const std::vector<point2d>& points) override;
-    bool defer_arc(point2d center,
-                   double radius_x,
-                   double radius_y,
-                   double start_angle,
-                   double extent_angle,
-                   bool fill) override;
-    bool defer_text(point2d point,
-                    const std::string& text,
-                    double bound_x,
-                    double bound_y) override;
-    bool defer_surface(surface *p_surface,
-                       point2d point,
-                       double scale_factor) override;
 
 private:
     void ensure_overlay_index_grid();
@@ -165,15 +185,15 @@ private:
     bool screen_rect_visible(const QRectF& rect, double padding = 0.0) const;
     bool screen_line_visible(const QLineF& line, double line_width) const;
     bool screen_poly_visible(const std::vector<point2d>& points) const;
-    bool screen_arc_visible(point2d center,
+    bool screen_arc_visible(const point2d& center,
                             double radius_x,
                             double radius_y) const;
-    bool screen_text_visible(point2d point,
+    bool screen_text_visible(const point2d& point,
                              const std::string& text,
                              double bound_x,
                              double bound_y) const;
     bool screen_surface_visible(surface *p_surface,
-                                point2d point,
+                                const point2d& point,
                                 double scale_factor) const;
 
     LineStyleKey current_line_style() const;
@@ -182,18 +202,24 @@ private:
     void add_line(const LineStyleKey &s, QLineF line);
     void add_fill_rect(const FillStyleKey &s, QRectF rect);
     void add_draw_rect(const LineStyleKey &s, QRectF rect);
+    void add_fill_poly(const FillStyleKey &s, QPolygonF poly);
 
-    QRectF to_screen_rect(point2d start, point2d end);
+    QRectF to_screen_rect(const point2d& start, const point2d& end);
+
+    void push_arc_command(const point2d& center, double radius_x, double radius_y,
+                          double start_angle, double extent_angle, bool fill);
 
     // Batch vectors — maintain submission order for painter's algorithm.
     std::vector<LineBatch>     m_line_batches;
     std::vector<FillRectBatch> m_fill_rect_batches;
     std::vector<DrawRectBatch> m_draw_rect_batches;
+    std::vector<FillPolyBatch> m_fill_poly_batches;
 
     // Fast lookup: style key → index into the vectors above.
     std::unordered_map<uint64_t, size_t> m_line_idx;
     std::unordered_map<uint64_t, size_t> m_fill_rect_idx;
     std::unordered_map<uint64_t, size_t> m_draw_rect_idx;
+    std::unordered_map<uint64_t, size_t> m_fill_poly_idx;
     std::vector<DeferredOverlayCommand>  m_overlay_commands;
     rectangle                            m_overlay_index_scene_bounds;
     double                               m_overlay_index_tile_width = 1.0;
@@ -202,9 +228,6 @@ private:
     std::vector<std::uint32_t>           m_unindexed_overlay_commands;
     std::vector<std::uint32_t>           m_overlay_query_marks;
     std::uint32_t                        m_overlay_query_generation = 1;
-    bool                                 m_replaying_commands = false;
 };
 
 } // namespace ezgl
-
-

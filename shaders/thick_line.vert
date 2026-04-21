@@ -8,13 +8,17 @@ layout(location = 0) in vec2  inCorner;    // (t, side)
 // ---- Per-instance (one record per thick-line segment) -----------------------
 layout(location = 1) in vec2  inStart;     // world-space start point
 layout(location = 2) in vec2  inEnd;       // world-space end point
-layout(location = 3) in float inWidthPx;   // full line width in screen pixels
 
 // Binding 0: MVP (64 B) + viewport vec2 (8 B) = 72 B used, buffer is 80 B.
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
     vec2 viewport;
 } ubo;
+
+layout(std140, binding = 1) uniform style_buf {
+    vec4 color;
+    vec4 line; // x: width_px, y: dash_px, z: gap_px, w: unused
+} style;
 
 void main()
 {
@@ -48,7 +52,8 @@ void main()
         screen_perp /= sp_len;          // unit vector in screen-pixel space
 
     // Offset by half-width pixels → NDC:  ndc = screen * 2 / viewport
-    vec2 ndc_offset = side * screen_perp * (inWidthPx / ubo.viewport);
+    float width_px = max(style.line.x, 1.0);
+    vec2 ndc_offset = side * screen_perp * (width_px / ubo.viewport);
 
     vec4 clip = ubo.mvp * vec4(pos, 0.0, 1.0);
     clip.xy += ndc_offset;

@@ -22,8 +22,10 @@
  * This example shows you how to create an application using the EZGL library.
  */
 
-#include <iostream>
 #include <chrono>
+#include <cfloat>
+#include <iostream>
+#include <string>
 #include <thread>
 #include <vector>
 #include "ezgl/application.hpp"
@@ -98,6 +100,22 @@ static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
  */
 int main(int argc, char **argv)
 {
+  ezgl::renderer_type renderer = ezgl::renderer_type::rhi;
+
+  for (int i = 1; i < argc; ++i) {
+    std::string arg(argv[i]);
+    if (arg == "--renderer" && i + 1 < argc) {
+      std::string val(argv[++i]);
+      if      (val == "immediate") renderer = ezgl::renderer_type::immediate;
+      else if (val == "deferred")  renderer = ezgl::renderer_type::deferred;
+      else if (val == "rhi")       renderer = ezgl::renderer_type::rhi;
+      else {
+        std::cerr << "Unknown renderer '" << val << "'. Use: immediate | deferred | rhi\n";
+        return 1;
+      }
+    }
+  }
+
   ezgl::application::settings settings;
 
   // Path to the "main.ui" file that contains an XML description of the UI.
@@ -111,11 +129,12 @@ int main(int argc, char **argv)
 
   // Create our EZGL application.
   ezgl::application application(settings, argc, argv);
-  // Set some parameters for the main sub-window (MainCanvas), where 
-  // visualization graphics are draw. Set the callback function that will be 
-  // called when the main window needs redrawing, and define the (world) 
+  // Set some parameters for the main sub-window (MainCanvas), where
+  // visualization graphics are draw. Set the callback function that will be
+  // called when the main window needs redrawing, and define the (world)
   // coordinate system we want to draw in.
-  application.add_canvas("MainCanvas", draw_main_canvas, initial_world);
+  ezgl::canvas *c = application.add_canvas("MainCanvas", draw_main_canvas, initial_world);
+  c->set_renderer_type(renderer);
 
   // Run the application until the user quits.
   // This hands over all control to the GTK runtime---after this point
@@ -369,7 +388,7 @@ void draw_poly_example(ezgl::renderer *g)
   g->set_color(ezgl::RED);
 
   // Draw a triangle
-  g->fill_poly({{500, 400}, {440, 480}, {560, 480}});
+  g->fill_triangle({500, 400}, {440, 480}, {560, 480});
 
   // Draw a 4-point polygon
   g->fill_poly({{700, 400}, {650, 480}, {750, 480}, {800, 400}});
@@ -400,7 +419,7 @@ void draw_poly_example(ezgl::renderer *g)
   g->fill_poly({{465, 380}, {400, 450}, {765, 450}, {850, 380}});
 
   g->set_color(100, 100, 255, 255/3);
-  g->fill_poly({{550, 420}, {475, 500}, {875, 500}});
+  g->fill_triangle({550, 420}, {475, 500}, {875, 500});
 
   g->set_color(ezgl::BLACK);
   g->set_text_rotation(90);
@@ -704,4 +723,3 @@ void act_on_key_press(ezgl::application *application, QKeyEvent */*event*/, cons
 
   std::cout << key_name <<" key is pressed" << std::endl;
 }
-

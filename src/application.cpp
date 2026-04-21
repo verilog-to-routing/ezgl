@@ -23,9 +23,7 @@
 #include "ezgl/qt/qtgladeloader.hpp"
 #include "ezgl/logutils.hpp"
 #include <ezgl/qt/drawingareawidget.hpp>
-#ifdef EZGL_RHI
 #include <ezgl/qt/rhi_canvas_widget.hpp>
-#endif
 
 #include <QObject>
 #include <QApplication>
@@ -113,10 +111,8 @@ void application::init()
     c_pair.second->initialize(drawing_area);
   }
 
-#ifdef EZGL_RHI
   for (auto &c_pair : m_canvases)
     c_pair.second->begin_deferred_redraw_cycle();
-#endif
 
   // The main parent window needs to be explicitly added to our GTK application.
   QWidget *window = find_widget(m_window_id.c_str());
@@ -135,10 +131,8 @@ void application::init()
   if(initial_setup_callback != nullptr)
     initial_setup_callback(this, true);
 
-#ifdef EZGL_RHI
   for (auto &c_pair : m_canvases)
     c_pair.second->end_deferred_redraw_cycle();
-#endif
 
   q_info("application::init successful.");
 }
@@ -165,10 +159,11 @@ application::application(application::settings s, int& argc, char** argv)
 
 application::~application()
 {
-  // Disconnect all signal/slot connections on this object first.
-  // This prevents lastWindowClosed (and any other signal) from firing
-  // callbacks into a half-destroyed application while we clean up below.
-  QObject::disconnect(this, nullptr, nullptr, nullptr);
+  // Block signal delivery so lastWindowClosed (and any other signal) cannot
+  // fire callbacks into a half-destroyed application while we clean up below.
+  // blockSignals is preferred over wildcard disconnect: it avoids the Qt
+  // warning about disconnecting the internal destroyed() signal.
+  blockSignals(true);
 
   // Explicitly destroy canvases while the window still exists so that
   // active Painter objects are ended before DrawingAreaWidget is deleted.
@@ -186,10 +181,8 @@ application::~application()
 bool application::notify(QObject* obj, QEvent* event)
 {
     QWidget* w = qobject_cast<ezgl::DrawingAreaWidget*>(obj);
-#ifdef EZGL_RHI
     if (!w)
         w = qobject_cast<ezgl::RhiCanvasWidget*>(obj);
-#endif
     if (!w) {
         return QApplication::notify(obj, event);
     }
@@ -340,6 +333,9 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     // called from main(), all .qrc static initializers have completed.
     if (!m_window) {
       QtGladeLoader uiLoader;
+      auto it = m_canvases.find(m_canvas_id);
+      if (it != m_canvases.end())
+        uiLoader.setRendererType(it->second->get_renderer_type());
       m_window = uiLoader.loadFile(QString::fromStdString(m_main_ui));
     }
     init();
@@ -348,17 +344,13 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     return exec();
   } else {
     // Subsequent stage: reuse the existing window.
-#ifdef EZGL_RHI
     for (auto &c_pair : m_canvases)
       c_pair.second->begin_deferred_redraw_cycle();
-#endif
     m_window->show();
     if (initial_setup_callback != nullptr)
       initial_setup_callback(this, false);
-#ifdef EZGL_RHI
     for (auto &c_pair : m_canvases)
       c_pair.second->end_deferred_redraw_cycle();
-#endif
     q_info("The event loop is now resuming.");
     return exec();
   }

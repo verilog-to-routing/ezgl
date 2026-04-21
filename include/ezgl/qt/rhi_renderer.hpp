@@ -1,13 +1,13 @@
 #pragma once
 
-#ifdef EZGL_RHI
-
+#include "ezgl/irenderer.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 
 #include <QMatrix4x4>
 #include <QImage>
 #include <cstddef>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -21,10 +21,11 @@ namespace ezgl {
  * batches into scene-wide style buffers with chunk bounds for GPU-side upload.
  *
  * Overlay primitives (text, arcs, surfaces, SCREEN-space lines, …) are cached
- * through deferred_renderer so they can be replayed into m_overlay when the
- * camera changes without re-running the application draw callback.
+ * through a owned deferred_renderer (m_overlay_deferred) so they can be
+ * replayed into m_overlay when the camera changes without re-running the
+ * application draw callback.
  */
-class rhi_renderer : public deferred_renderer {
+class rhi_renderer : public irenderer {
 public:
     using draw_callback_fn = void (*)(renderer*);
 
@@ -36,22 +37,66 @@ public:
 
     ~rhi_renderer() = default;
 
+    // ---- irenderer: coordinate system / viewport ---------------------------
+
+    void set_coordinate_system(t_coordinate_system cs) override;
+    void set_visible_world(rectangle new_world) override;
+    rectangle get_visible_world() override;
+    rectangle get_visible_screen() const override;
+    rectangle world_to_screen(const rectangle& box) override;
+
+    // ---- irenderer: state setters ------------------------------------------
+
+    void set_color(color c) override;
+    void set_color(color c, uint_fast8_t alpha) override;
+    void set_color(uint_fast8_t r, uint_fast8_t g, uint_fast8_t b,
+                   uint_fast8_t a = 255) override;
+    void set_line_cap(line_cap cap) override;
+    void set_line_dash(line_dash dash) override;
+    void set_line_width(int width) override;
+    void set_font_size(double size) override;
+    void format_font(std::string const& family, font_slant slant,
+                     font_weight weight) override;
+    void format_font(std::string const& family, font_slant slant,
+                     font_weight weight, double new_size) override;
+    void set_text_rotation(double degrees) override;
+    void set_horiz_justification(justification j) override;
+    void set_vert_justification(justification j) override;
+
+    // ---- irenderer: hot-path GPU draw calls --------------------------------
+
+    void draw_line(const point2d& start, const point2d& end) override;
+
+    void fill_rectangle(const point2d& start, const point2d& end) override;
+    void fill_rectangle(const point2d& start, double width, double height) override;
+    void fill_rectangle(const rectangle& r) override;
+
+    void draw_rectangle(const point2d& start, const point2d& end) override;
+    void draw_rectangle(const point2d& start, double width, double height) override;
+    void draw_rectangle(const rectangle& r) override;
+
+    // ---- irenderer: overlay draw calls (forwarded to m_overlay_deferred) ---
+
+    void fill_poly(const std::vector<point2d>& points) override;
+    void fill_triangle(const point2d& a, const point2d& b, const point2d& c) override;
+    void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
+                           double start_angle, double extent_angle) override;
+    void draw_arc(const point2d& center, double radius,
+                  double start_angle, double extent_angle) override;
+    void fill_elliptic_arc(const point2d& center, double radius_x, double radius_y,
+                           double start_angle, double extent_angle) override;
+    void fill_arc(const point2d& center, double radius,
+                  double start_angle, double extent_angle) override;
+    void draw_text(const point2d& point, std::string const& text) override;
+    void draw_text(const point2d& point, std::string const& text,
+                   double bound_x, double bound_y) override;
+    void draw_surface(surface* p_surface, const point2d& anchor_point,
+                      double scale_factor = 1) override;
+
     // ---- Frame lifecycle ---------------------------------------------------
 
     /** Reset per-frame state (vertex buffers, overlay) ready for a new draw. */
     void begin_frame();
-
-    // ---- Hot-path overrides -------------------------------------------------
-
-    void draw_line(point2d start, point2d end) override;
-
-    void fill_rectangle(point2d start, point2d end) override;
-    void fill_rectangle(point2d start, double width, double height) override;
-    void fill_rectangle(rectangle r) override;
-
-    void draw_rectangle(point2d start, point2d end) override;
-    void draw_rectangle(point2d start, double width, double height) override;
-    void draw_rectangle(rectangle r) override;
 
     /**
      * Transfer all collected geometry to RhiCanvasWidget and schedule repaint.
@@ -65,43 +110,54 @@ public:
      */
     void flush_mvp_only();
 
-protected:
-    bool defer_fill_poly(const std::vector<point2d>& points) override;
-
 private:
-    static constexpr int kTileGridDimension = 256;
+    static constexpr int kTileGridDimension  = 32;
+    static constexpr int kBatchInitialReserve = 1024;
 
     struct TileThinLineBatch {
         StyleKey               style_key = 0;
         std::uint32_t          rgba = 0;
         std::vector<PosVertex> verts;
+        TileThinLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileFillRectBatch {
-        StyleKey                    style_key = 0;
-        std::uint32_t               rgba = 0;
+        StyleKey                      style_key = 0;
+        std::uint32_t                 rgba = 0;
         std::vector<FillRectInstance> instances;
+        TileFillRectBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileFillPolyBatch {
         StyleKey               style_key = 0;
         std::uint32_t          rgba = 0;
         std::vector<PosVertex> verts;
+        TileFillPolyBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileThickLineBatch {
-        StyleKey                      style_key = 0;
-        std::uint32_t                 rgba = 0;
+        StyleKey                       style_key = 0;
+        std::uint32_t                  rgba = 0;
         std::vector<ThickLineInstance> instances;
+        TileThickLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct TileDashedLineBatch {
-        StyleKey                       style_key = 0;
-        std::uint32_t                  rgba = 0;
+        StyleKey                        style_key = 0;
+        std::uint32_t                   rgba = 0;
         std::vector<DashedLineInstance> instances;
+        TileDashedLineBatch(StyleKey sk, std::uint32_t c) : style_key(sk), rgba(c) {}
     };
 
     struct RhiTileBatch {
+        RhiTileBatch() {
+            thin_line_batches.reserve(kBatchInitialReserve);
+            fill_rect_batches.reserve(kBatchInitialReserve);
+            fill_poly_batches.reserve(kBatchInitialReserve);
+            thick_line_batches.reserve(kBatchInitialReserve);
+            dashed_line_batches.reserve(kBatchInitialReserve);
+        }
+
         rectangle                         world_bounds;
         std::uint16_t                     tile_x = 0;
         std::uint16_t                     tile_y = 0;
@@ -123,12 +179,8 @@ private:
 
     // ---- helpers ------------------------------------------------------------
 
-    PosVertex make_vertex(point2d world_pt) const;
-    std::uint32_t current_packed_color() const;
     StyleKey current_style_key(PrimitiveType primitive_type,
-                               float         line_width_px = 0.0f,
-                               float         dash_px = 0.0f,
-                               float         gap_px = 0.0f) const;
+                               float         line_width_px = 0.0f) const;
     TileThinLineBatch& ensure_thin_line_batch(RhiTileBatch& tile,
                                               StyleKey     style_key,
                                               std::uint32_t rgba);
@@ -145,86 +197,72 @@ private:
                                                   StyleKey     style_key,
                                                   std::uint32_t rgba);
     void append_thin_line_segment(RhiTileBatch& tile,
-                                  point2d       start,
-                                  point2d       end,
+                                  const point2d& start,
+                                  const point2d& end,
                                   StyleKey      style_key,
                                   std::uint32_t rgba);
     void append_fill_rect(RhiTileBatch& tile,
-                          point2d       p0,
-                          point2d       p1,
+                          const point2d& p0,
+                          const point2d& p1,
                           StyleKey      style_key,
                           std::uint32_t rgba);
     void append_fill_triangle(RhiTileBatch& tile,
-                              point2d       a,
-                              point2d       b,
-                              point2d       c,
+                              const point2d& a,
+                              const point2d& b,
+                              const point2d& c,
                               StyleKey      style_key,
                               std::uint32_t rgba);
-    void append_line_to_tiles(point2d start,
-                              point2d end,
+    void append_line_to_tiles(const point2d& start,
+                              const point2d& end,
                               StyleKey style_key,
                               std::uint32_t rgba);
-    void append_fill_rect_to_tiles(point2d p0,
-                                   point2d p1,
+    void append_fill_rect_to_tiles(const point2d& p0,
+                                   const point2d& p1,
                                    StyleKey style_key,
                                    std::uint32_t rgba);
-    void append_fill_triangle_to_tiles(point2d    a,
-                                       point2d    b,
-                                       point2d    c,
+    void append_fill_triangle_to_tiles(const point2d& a,
+                                       const point2d& b,
+                                       const point2d& c,
                                        StyleKey   style_key,
                                        std::uint32_t rgba);
 
-    // Thick line helpers (line_width > 0).
-    // Appends one ThickLineInstance per clipped segment (instanced rendering).
     void append_thick_segment(RhiTileBatch& tile,
-                              point2d       start,
-                              point2d       end,
-                              float         width_px,
+                              const point2d& start,
+                              const point2d& end,
                               StyleKey      style_key,
                               std::uint32_t rgba);
-    void append_thick_line_to_tiles(point2d    start,
-                                    point2d    end,
-                                    float      width_px,
+    void append_thick_line_to_tiles(const point2d& start,
+                                    const point2d& end,
                                     StyleKey   style_key,
                                     std::uint32_t rgba);
-    void append_thick_draw_segment_to_tiles(point2d    start,
-                                            point2d    end,
-                                            float      width_px,
+    void append_thick_draw_segment_to_tiles(const point2d& start,
+                                            const point2d& end,
                                             StyleKey   style_key,
                                             std::uint32_t rgba);
 
-    // Dashed line helpers.
-    // Appends one DashedLineInstance per clipped segment.
     void append_dashed_segment(RhiTileBatch& tile,
-                               point2d       start,
-                               point2d       end,
-                               float         width_px,
-                               float         dash_px,
-                               float         gap_px,
+                               const point2d& start,
+                               const point2d& end,
                                float         phase_world,
                                StyleKey      style_key,
                                std::uint32_t rgba);
-    void append_dashed_line_to_tiles(point2d    start,
-                                     point2d    end,
-                                     float      width_px,
-                                     float      dash_px,
-                                     float      gap_px,
+    void append_dashed_line_to_tiles(const point2d& start,
+                                     const point2d& end,
                                      StyleKey   style_key,
                                      std::uint32_t rgba);
-    void append_dashed_draw_segment_to_tiles(point2d    start,
-                                             point2d    end,
-                                             float      width_px,
-                                             float      dash_px,
-                                             float      gap_px,
+    void append_dashed_draw_segment_to_tiles(const point2d& start,
+                                             const point2d& end,
                                              StyleKey   style_key,
                                              std::uint32_t rgba);
-    void set_dash_pattern(float width_px,
-                          float& dash_px,
-                          float& gap_px) const;
     void begin_overlay_frame();
     void render_cached_overlay();
     void ensure_tile_grid();
     void clear_tile_geometry();
+    void clear_commands();
+    void dispatch_commands_to_tiles(int band);
+    int  band_for_tile_row(int ty) const { return std::min(ty / m_rows_per_band, m_n_bands - 1); }
+    int  band_ty_min(int band) const { return band * m_rows_per_band; }
+    int  band_ty_max(int band) const { return std::min((band + 1) * m_rows_per_band - 1, kTileGridDimension - 1); }
     int clamp_tile_x(double x) const;
     int clamp_tile_y(double y) const;
     int tile_index(int tile_x, int tile_y) const;
@@ -239,6 +277,7 @@ private:
     RhiCanvasWidget*         m_rhi_widget;
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
+    std::uint32_t            m_current_rgba = 0;
 
     // Scene tiling metadata and CPU-side tile batches.
     rectangle                m_scene_bounds;
@@ -246,11 +285,34 @@ private:
     double                   m_tile_height = 1.0;
     std::vector<RhiTileBatch> m_tiles;
 
-    // QPainter overlay — base-class draw calls (text, arcs, …) write here.
+    // ---- draw command recording (filled during draw callback) ---------------
+    // Commands are routed at record time into per-band buckets so each
+    // dispatch thread only iterates the commands that touch its tile rows.
+    // rgba is stored in the lower 32 bits of sk (see pack_style_key).
+
+    struct ThinLineCmd   { StyleKey sk; float x0, y0, x1, y1; };
+    struct FillRectCmd   { StyleKey sk; float x0, y0, x1, y1; };
+    struct FillTriCmd    { StyleKey sk; float x0, y0, x1, y1, x2, y2; };
+    struct ThickLineCmd  { StyleKey sk; float x0, y0, x1, y1; };
+    struct DashedLineCmd { StyleKey sk; float x0, y0, x1, y1; };
+
+    int m_n_bands       = 1;
+    int m_rows_per_band = kTileGridDimension;
+
+    std::vector<std::vector<ThinLineCmd>>   m_cmd_thin_lines;
+    std::vector<std::vector<FillRectCmd>>   m_cmd_fill_rects;
+    std::vector<std::vector<FillTriCmd>>    m_cmd_fill_tris;
+    std::vector<std::vector<ThickLineCmd>>  m_cmd_thick_lines;
+    std::vector<std::vector<DashedLineCmd>> m_cmd_dashed_lines;
+
+    // QPainter overlay — overlay commands (text, arcs, …) are stored in
+    // m_overlay_deferred and replayed into this image.
     QImage   m_overlay;
     Painter  m_overlay_painter;   // must be declared AFTER m_overlay
+
+    // Overlay command storage and replay — independent deferred renderer
+    // painted into m_overlay_painter / m_overlay.
+    std::unique_ptr<deferred_renderer> m_overlay_deferred;
 };
 
 } // namespace ezgl
-
-#endif // EZGL_RHI
