@@ -16,8 +16,8 @@ inline constexpr const char* renderer_type_name(renderer_type t) noexcept
         case renderer_type::immediate: return "immediate";
         case renderer_type::deferred:  return "deferred";
         case renderer_type::rhi:       return "rhi";
+        default:                       return "immediate";
     }
-    return "unknown";
 }
 
 /**
