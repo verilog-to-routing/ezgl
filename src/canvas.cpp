@@ -72,6 +72,21 @@ std::unique_ptr<ezgl::render_backend> make_backend(
 
 } // anonymous namespace
 
+namespace {
+
+static std::pair<int,int> resolve_output_size(int req_w, int req_h,
+                                               QWidget* drawing_area)
+{
+    if (req_w > 0 && req_h > 0)
+        return {req_w, req_h};
+    if (drawing_area && drawing_area->width() > 0 && drawing_area->height() > 0)
+        return {drawing_area->width(), drawing_area->height()};
+    q_warning("canvas: no output size and no drawing area; defaulting to 1024x768.");
+    return {1024, 768};
+}
+
+} // anonymous namespace
+
 namespace ezgl {
 
 // Renders the canvas into an off-screen QImage of the given dimensions,
@@ -88,8 +103,7 @@ QImage canvas::render_to_image(int surface_width, int surface_height)
 
 bool canvas::print_pdf(const char *file_name, int output_width, int output_height)
 {
-  const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
-  const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
+  const auto [w, h] = resolve_output_size(output_width, output_height, m_drawing_area);
 
   const QImage surface = render_to_image(w, h);
 
@@ -109,8 +123,7 @@ bool canvas::print_pdf(const char *file_name, int output_width, int output_heigh
 
 bool canvas::print_svg(const char *file_name, int output_width, int output_height)
 {
-  const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
-  const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
+  const auto [w, h] = resolve_output_size(output_width, output_height, m_drawing_area);
 
   const QImage surface = render_to_image(w, h);
 
@@ -130,8 +143,7 @@ bool canvas::print_svg(const char *file_name, int output_width, int output_heigh
 
 bool canvas::print_png(const char *file_name, int output_width, int output_height)
 {
-  const int w = (output_width == 0 && output_height == 0) ? m_drawing_area->width()  : output_width;
-  const int h = (output_width == 0 && output_height == 0) ? m_drawing_area->height() : output_height;
+  const auto [w, h] = resolve_output_size(output_width, output_height, m_drawing_area);
 
   const QImage surface = render_to_image(w, h);
   return surface.save(file_name, "PNG");
