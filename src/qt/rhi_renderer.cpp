@@ -1528,6 +1528,31 @@ void rhi_renderer::flush()
     m_rhi_widget->update();
 }
 
+// ---- flush_capture ---------------------------------------------------------
+
+rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
+{
+    render_cached_overlay();
+
+    {
+        std::vector<std::thread> workers;
+        workers.reserve(m_n_bands);
+        for (int b = 0; b < m_n_bands; ++b)
+            workers.emplace_back([this, b]() { dispatch_commands_to_tiles(b); });
+        for (auto& w : workers) w.join();
+    }
+    clear_commands();
+
+    if (m_overlay_painter.isActive())
+        m_overlay_painter.end();
+
+    return {build_scene_buffers(),
+            compute_mvp(),
+            irenderer::get_visible_world(),
+            m_overlay,
+            bg};
+}
+
 // ---- flush_mvp_only --------------------------------------------------------
 
 void rhi_renderer::flush_mvp_only()

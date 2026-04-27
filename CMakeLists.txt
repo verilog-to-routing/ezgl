@@ -216,9 +216,12 @@ else()
 endif()
 
 target_sources(${PROJECT_NAME} PRIVATE
+    include/ezgl/qt/rhi_types.hpp
+    include/ezgl/qt/rhi_scene_renderer.hpp
     include/ezgl/qt/rhi_canvas_widget.hpp
     include/ezgl/qt/rhi_renderer.hpp
     include/ezgl/qt/rhi_backend.hpp
+    src/qt/rhi_scene_renderer.cpp
     src/qt/rhi_canvas_widget.cpp
     src/qt/rhi_renderer.cpp
     src/qt/rhi_backend.cpp

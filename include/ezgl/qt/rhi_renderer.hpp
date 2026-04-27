@@ -2,6 +2,7 @@
 
 #include "ezgl/irenderer.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
+#include "ezgl/qt/rhi_types.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
 
 #include <QMatrix4x4>
@@ -28,6 +29,17 @@ namespace ezgl {
 class rhi_renderer : public irenderer {
 public:
     using draw_callback_fn = void (*)(renderer*);
+
+    /// Data captured from a single headless frame — returned by flush_capture()
+    /// so the caller can render it via RhiCanvasWidget::render_offscreen() without
+    /// needing a live QRhiWidget or QRhiWidget::grab().
+    struct HeadlessFrameData {
+        SceneBuffers scene;
+        QMatrix4x4   mvp;
+        rectangle    visible_world;
+        QImage       overlay;
+        QColor       bg;
+    };
 
     rhi_renderer(RhiCanvasWidget* widget,
                  transform_fn     transform,
@@ -103,6 +115,14 @@ public:
      * Also ends the overlay painter so the QImage is fully flushed.
      */
     void flush();
+
+    /**
+     * Headless variant of flush(): dispatches commands to tiles, builds
+     * SceneBuffers and captures the overlay image, then returns all frame data
+     * as a value without pushing anything to the widget. Used by
+     * rhi_backend::render_to_image() to feed RhiCanvasWidget::render_offscreen().
+     */
+    HeadlessFrameData flush_capture(const QColor& bg);
 
     /**
      * Rebuild the cached overlay for the current camera and update the MVP

@@ -1,6 +1,7 @@
 #include "ezgl/qt/rhi_backend.hpp"
 #include "ezgl/qt/rhi_renderer.hpp"
 #include "ezgl/logutils.hpp"
+#include "ezgl/camera.hpp"
 
 #include <functional>
 #include <QImage>
@@ -113,18 +114,27 @@ renderer* rhi_backend::create_animation_renderer()
 QImage rhi_backend::render_to_image(int w, int h)
 {
     if (!m_widget) {
-        // Headless: spin up a temporary widget and renderer for one-shot render.
-        RhiCanvasWidget widget;
-        widget.resize(w, h);
+        // Headless path: collect geometry via rhi_renderer (no display widget),
+        // then render to a QRhiTexture using a standalone QRhi created from
+        // QOffscreenSurface + OpenGL. This avoids QRhiWidget::grab() which
+        // requires the platform backing-store RHI and fails on offscreen QPA.
+        RhiCanvasWidget fake_widget; // provides width()/height() to rhi_renderer
+        fake_widget.resize(w, h);
         using namespace std::placeholders;
-        rhi_renderer rhi(&widget,
-                         std::bind(&camera::world_to_screen, *m_camera, _1),
-                         m_camera,
-                         m_draw_callback,
-                         m_bg_color);
-        m_draw_callback(&rhi);
-        rhi.flush();
-        return widget.grabFramebuffer();
+        rhi_renderer renderer(&fake_widget,
+                              std::bind(&camera::world_to_screen, *m_camera, _1),
+                              m_camera,
+                              m_draw_callback,
+                              m_bg_color);
+        renderer.begin_frame();
+        m_draw_callback(&renderer);
+        auto frame = renderer.flush_capture(m_bg_color);
+        return RhiCanvasWidget::render_offscreen(w, h,
+                                                 std::move(frame.scene),
+                                                 frame.mvp,
+                                                 frame.visible_world,
+                                                 frame.overlay,
+                                                 frame.bg);
     }
 
     if (!m_renderer)
