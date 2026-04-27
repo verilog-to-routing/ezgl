@@ -41,7 +41,15 @@ public:
         QColor       bg;
     };
 
+    /// Display path: widget provides dimensions and receives frame data.
     rhi_renderer(RhiCanvasWidget* widget,
+                 transform_fn     transform,
+                 camera*          cam,
+                 draw_callback_fn draw_callback,
+                 QColor           bg_color);
+
+    /// Headless path: explicit size, no widget — avoids creating any QRhiWidget.
+    rhi_renderer(QSize            size,
                  transform_fn     transform,
                  camera*          cam,
                  draw_callback_fn draw_callback,
@@ -294,7 +302,8 @@ private:
 
     // ---- state --------------------------------------------------------------
 
-    RhiCanvasWidget*         m_rhi_widget;
+    RhiCanvasWidget*         m_rhi_widget; ///< null in headless mode
+    QSize                    m_size;       ///< used when m_rhi_widget == nullptr
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
     std::uint32_t            m_current_rgba = 0;

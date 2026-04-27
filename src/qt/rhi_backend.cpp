@@ -114,14 +114,12 @@ renderer* rhi_backend::create_animation_renderer()
 QImage rhi_backend::render_to_image(int w, int h)
 {
     if (!m_widget) {
-        // Headless path: collect geometry via rhi_renderer (no display widget),
-        // then render to a QRhiTexture using a standalone QRhi created from
-        // QOffscreenSurface + OpenGL. This avoids QRhiWidget::grab() which
-        // requires the platform backing-store RHI and fails on offscreen QPA.
-        RhiCanvasWidget fake_widget; // provides width()/height() to rhi_renderer
-        fake_widget.resize(w, h);
+        // Headless path: use QSize constructor so no QRhiWidget is created.
+        // Creating a QRhiWidget (even without showing it) can trigger Qt's
+        // RHI initialisation warnings on offscreen QPA. rhi_renderer uses
+        // the explicit size for overlay dimensions and MVP computation.
         using namespace std::placeholders;
-        rhi_renderer renderer(&fake_widget,
+        rhi_renderer renderer(QSize(w, h),
                               std::bind(&camera::world_to_screen, *m_camera, _1),
                               m_camera,
                               m_draw_callback,

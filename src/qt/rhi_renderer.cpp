@@ -321,20 +321,21 @@ namespace ezgl {
 
 // ---- construction ----------------------------------------------------------
 
+static QSize clamp_size(QSize s)
+{
+    return {std::max(1, s.width()), std::max(1, s.height())};
+}
+
 rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
                              transform_fn     transform,
                              camera*          cam,
                              draw_callback_fn draw_callback,
                              QColor           bg_color)
-    : irenderer(nullptr,    // painter is wired up below via update_painter()
-                   transform,  // copy — m_overlay_deferred also needs it
-                   cam,
-                   nullptr)    // surface not used in RHI path
+    : irenderer(nullptr, transform, cam, nullptr)
     , m_rhi_widget(widget)
+    , m_size(clamp_size({widget->width(), widget->height()}))
     , m_bg_color(bg_color)
-    , m_overlay(std::max(1, widget->width()),
-                std::max(1, widget->height()),
-                QImage::Format_ARGB32_Premultiplied)
+    , m_overlay(m_size, QImage::Format_ARGB32_Premultiplied)
     , m_overlay_painter(&m_overlay)
     , m_overlay_deferred(std::make_unique<deferred_renderer>(
           &m_overlay_painter,
@@ -344,6 +345,40 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
 {
     (void)draw_callback;
   //    m_n_bands       = 1;
+    m_n_bands       = int(std::max(1u, std::thread::hardware_concurrency()));
+    m_rows_per_band = (kTileGridDimension + m_n_bands - 1) / m_n_bands;
+    m_cmd_thin_lines.resize(m_n_bands);
+    m_cmd_fill_rects.resize(m_n_bands);
+    m_cmd_fill_tris.resize(m_n_bands);
+    m_cmd_thick_lines.resize(m_n_bands);
+    m_cmd_dashed_lines.resize(m_n_bands);
+    ensure_tile_grid();
+    clear_tile_geometry();
+    m_overlay_deferred->clear_overlay_and_batches();
+    m_overlay.fill(Qt::transparent);
+    update_painter(&m_overlay_painter, &m_overlay);
+    m_overlay_painter.setAntialias(false);
+    m_overlay_painter.setSmoothPixmap(false);
+}
+
+rhi_renderer::rhi_renderer(QSize            size,
+                             transform_fn     transform,
+                             camera*          cam,
+                             draw_callback_fn draw_callback,
+                             QColor           bg_color)
+    : irenderer(nullptr, transform, cam, nullptr)
+    , m_rhi_widget(nullptr)
+    , m_size(clamp_size(size))
+    , m_bg_color(bg_color)
+    , m_overlay(m_size, QImage::Format_ARGB32_Premultiplied)
+    , m_overlay_painter(&m_overlay)
+    , m_overlay_deferred(std::make_unique<deferred_renderer>(
+          &m_overlay_painter,
+          std::move(transform),
+          cam,
+          &m_overlay))
+{
+    (void)draw_callback;
     m_n_bands       = int(std::max(1u, std::thread::hardware_concurrency()));
     m_rows_per_band = (kTileGridDimension + m_n_bands - 1) / m_n_bands;
     m_cmd_thin_lines.resize(m_n_bands);
@@ -582,11 +617,12 @@ void rhi_renderer::begin_frame()
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
 
-    // Resize overlay if the widget changed since last frame.
-    const int w = std::max(1, m_rhi_widget->width());
-    const int h = std::max(1, m_rhi_widget->height());
-    if (m_overlay.width() != w || m_overlay.height() != h)
-        m_overlay = QImage(w, h, QImage::Format_ARGB32_Premultiplied);
+    // Refresh size from widget (it may have been resized since construction).
+    if (m_rhi_widget)
+        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
+
+    if (m_overlay.size() != m_size)
+        m_overlay = QImage(m_size, QImage::Format_ARGB32_Premultiplied);
 
     m_overlay.fill(Qt::transparent);
 
@@ -619,10 +655,8 @@ void rhi_renderer::begin_overlay_frame()
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
 
-    const int w = std::max(1, m_rhi_widget->width());
-    const int h = std::max(1, m_rhi_widget->height());
-    if (m_overlay.width() != w || m_overlay.height() != h)
-        m_overlay = QImage(w, h, QImage::Format_ARGB32_Premultiplied);
+    if (m_overlay.size() != m_size)
+        m_overlay = QImage(m_size, QImage::Format_ARGB32_Premultiplied);
 
     m_overlay.fill(Qt::transparent);
 
@@ -1083,8 +1117,8 @@ void rhi_renderer::append_dashed_draw_segment_to_tiles(const point2d& start,
 //   m(1,1) = 2*sy/fh,   m(1,3) = 1 - 2*ty/fh
 QMatrix4x4 rhi_renderer::compute_mvp() const
 {
-    const float fw = float(std::max(1, m_rhi_widget->width()));
-    const float fh = float(std::max(1, m_rhi_widget->height()));
+    const float fw = float(m_size.width());
+    const float fh = float(m_size.height());
 
     const rectangle world  = m_camera->get_world();
     const rectangle screen = m_camera->get_screen();
