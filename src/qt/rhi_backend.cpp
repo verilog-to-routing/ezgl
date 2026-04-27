@@ -114,10 +114,8 @@ renderer* rhi_backend::create_animation_renderer()
 QImage rhi_backend::render_to_image(int w, int h)
 {
     if (!m_widget) {
-        // Headless path: use QSize constructor so no QRhiWidget is created.
-        // Creating a QRhiWidget (even without showing it) can trigger Qt's
-        // RHI initialisation warnings on offscreen QPA. rhi_renderer uses
-        // the explicit size for overlay dimensions and MVP computation.
+        // Headless path — canvas.cpp already probed RHI before creating this
+        // backend, so we can go straight to GPU rendering.
         using namespace std::placeholders;
         rhi_renderer renderer(QSize(w, h),
                               std::bind(&camera::world_to_screen, *m_camera, _1),

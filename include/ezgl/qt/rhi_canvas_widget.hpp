@@ -77,4 +77,12 @@ private:
     bool                                 m_mvp_dirty   = false;
 };
 
+/**
+ * Returns true if a GPU-accelerated QRhi backend can be created on this
+ * machine (Metal on macOS, D3D11 on Windows, OpenGL on Linux/other). The
+ * result is cached after the first call so the probe is only performed once
+ * per process. Returns false on headless CI without a GPU or GPU drivers.
+ */
+bool probe_rhi();
+
 } // namespace ezgl

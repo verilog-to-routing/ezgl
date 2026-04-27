@@ -3,6 +3,11 @@
 
 #include <rhi/qrhi.h>
 #include <QOffscreenSurface>
+#if defined(Q_OS_WIN)
+#  include <rhi/qrhid3d11.h>
+#elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
+#  include <rhi/qrhimetal.h>
+#endif
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QMutexLocker>
@@ -139,6 +144,48 @@ void RhiCanvasWidget::showEvent(QShowEvent* e)
         emit resized(width(), height());
 }
 
+// ---- Headless QRhi creation ------------------------------------------------
+
+// Try the platform-native backend first (Metal on macOS, D3D11 on Windows),
+// then fall back to OpenGL on Linux or as a secondary option on other platforms.
+// gl_surface is an output parameter: when the OpenGL path is taken it must
+// outlive the returned QRhi because OpenGL contexts are bound to their surface.
+static std::unique_ptr<QRhi> create_headless_rhi(QOffscreenSurface& gl_surface)
+{
+#if defined(Q_OS_WIN)
+    {
+        QRhiD3D11InitParams params;
+        if (auto rhi = std::unique_ptr<QRhi>(QRhi::create(QRhi::D3D11, &params)))
+            return rhi;
+    }
+#elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
+    {
+        QRhiMetalInitParams params;
+        if (auto rhi = std::unique_ptr<QRhi>(QRhi::create(QRhi::Metal, &params)))
+            return rhi;
+    }
+#endif
+    // Cross-platform OpenGL fallback (primary on Linux, secondary on Win/Mac).
+    gl_surface.setFormat(QSurfaceFormat::defaultFormat());
+    gl_surface.create();
+    if (!gl_surface.isValid())
+        return nullptr;
+    QRhiGles2InitParams gl_params;
+    gl_params.fallbackSurface = &gl_surface;
+    return std::unique_ptr<QRhi>(QRhi::create(QRhi::OpenGLES2, &gl_params));
+}
+
+// ---- probe_rhi -------------------------------------------------------------
+
+bool probe_rhi()
+{
+    static const bool available = []() {
+        QOffscreenSurface surface; // lifetime covers QRhi creation only
+        return create_headless_rhi(surface) != nullptr;
+    }();
+    return available;
+}
+
 // ---- render_offscreen ------------------------------------------------------
 
 QImage RhiCanvasWidget::render_offscreen(int               w,
@@ -149,21 +196,13 @@ QImage RhiCanvasWidget::render_offscreen(int               w,
                                          const QImage&     overlay,
                                          QColor            bg)
 {
-    // Create a standalone QRhi (OpenGL + QOffscreenSurface) — no QRhiWidget,
-    // no platform backing-store RHI required. Works on QT_QPA_PLATFORM=offscreen.
-    QOffscreenSurface surface;
-    surface.setFormat(QSurfaceFormat::defaultFormat());
-    surface.create();
-    if (!surface.isValid()) {
-        qWarning("render_offscreen: QOffscreenSurface creation failed");
-        return {};
-    }
-
-    QRhiGles2InitParams gl;
-    gl.fallbackSurface = &surface;
-    std::unique_ptr<QRhi> rhi(QRhi::create(QRhi::OpenGLES2, &gl));
+    // Create a standalone QRhi using the best available backend for this
+    // platform (Metal on macOS, D3D11 on Windows, OpenGL elsewhere).
+    // No QRhiWidget is involved so this works on QT_QPA_PLATFORM=offscreen.
+    QOffscreenSurface gl_surface; // only used if OpenGL is the chosen backend
+    std::unique_ptr<QRhi> rhi = create_headless_rhi(gl_surface);
     if (!rhi) {
-        qWarning("render_offscreen: QRhi::create(OpenGLES2) failed — no OpenGL");
+        qWarning("render_offscreen: no usable QRhi backend available");
         return {};
     }
 

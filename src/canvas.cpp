@@ -34,26 +34,52 @@
 #include <cassert>
 #include <cmath>
 
+namespace {
+
+// Create the appropriate rendering backend for a given renderer type and
+// (optional) display widget.
+//
+// Probe logic lives here — called once per backend creation, cached by
+// probe_rhi(). Passing widget == nullptr produces a headless backend.
+// For a RhiCanvasWidget the cast inside rhi_backend selects the display path;
+// for a DrawingAreaWidget (or nullptr) the non-RHI path is used.
+//
+// If the requested type is rhi but no GPU is available, falls back to
+// immediate (QPainter) transparently.
+std::unique_ptr<ezgl::render_backend> make_backend(
+    ezgl::renderer_type  type,
+    QWidget*             widget,   // RhiCanvasWidget*, DrawingAreaWidget*, or nullptr
+    ezgl::draw_canvas_fn callback,
+    ezgl::camera*        cam,
+    ezgl::color          bg)
+{
+    ezgl::renderer_type effective = type;
+    if (effective == ezgl::renderer_type::rhi && !ezgl::probe_rhi()) {
+        ezgl::q_warning("canvas: no GPU backend available, falling back to immediate renderer.");
+        effective = ezgl::renderer_type::immediate;
+    }
+
+    if (effective == ezgl::renderer_type::rhi) {
+        // qobject_cast returns nullptr for non-RhiCanvasWidget widgets and for
+        // nullptr itself — rhi_backend interprets nullptr as headless mode.
+        return std::make_unique<ezgl::rhi_backend>(
+            qobject_cast<ezgl::RhiCanvasWidget*>(widget), callback, cam, bg);
+    }
+    if (effective == ezgl::renderer_type::immediate)
+        return std::make_unique<ezgl::immediate_backend>(widget, callback, cam, bg);
+    return std::make_unique<ezgl::deferred_backend>(widget, callback, cam, bg);
+}
+
+} // anonymous namespace
+
 namespace ezgl {
 
 // Renders the canvas into an off-screen QImage of the given dimensions,
 // shared by print_pdf / print_svg / print_png / draw_offscreen.
 QImage canvas::render_to_image(int surface_width, int surface_height)
 {
-  if (!m_backend) {
-    // Headless mode: no widget yet — create a backend based on the requested renderer type.
-    switch (m_renderer_type) {
-    case renderer_type::immediate:
-      m_backend = std::make_unique<immediate_backend>(nullptr, m_draw_callback, &m_camera, m_background_color);
-      break;
-    case renderer_type::rhi:
-      m_backend = std::make_unique<rhi_backend>(nullptr, m_draw_callback, &m_camera, m_background_color);
-      break;
-    default:
-      m_backend = std::make_unique<deferred_backend>(nullptr, m_draw_callback, &m_camera, m_background_color);
-      break;
-    }
-  }
+  if (!m_backend)
+    m_backend = make_backend(m_renderer_type, nullptr, m_draw_callback, &m_camera, m_background_color);
 
   // Pre-configure the camera for the target dimensions (canvas is a friend of camera).
   m_camera.update_widget(surface_width, surface_height);
@@ -132,49 +158,31 @@ void canvas::initialize(QWidget *drawing_area)
   return_if_fail("initialize drawing_area", drawing_area != nullptr);
 
   m_drawing_area = drawing_area;
+  m_backend = make_backend(m_renderer_type, drawing_area, m_draw_callback, &m_camera, m_background_color);
 
+  // Wire up widget-specific signals after backend creation.
   if (RhiCanvasWidget* rw = qobject_cast<RhiCanvasWidget*>(drawing_area)) {
-    if (m_renderer_type != renderer_type::rhi)
-      q_warning("canvas::initialize: rhi widget but renderer_type is not rhi — using rhi anyway.");
-
-    m_backend = std::make_unique<rhi_backend>(rw, m_draw_callback, &m_camera, m_background_color);
-
-    QObject::connect(rw, &QRhiWidget::renderFailed, [this]() {
-      q_warning("RHI render failed — disabling renderer.");
-      m_backend.reset();
-    });
-
+    if (dynamic_cast<rhi_backend*>(m_backend.get())) {
+      QObject::connect(rw, &QRhiWidget::renderFailed, [this]() {
+        q_warning("RHI render failed — disabling renderer.");
+        m_backend.reset();
+      });
+    }
     QObject::connect(rw, &RhiCanvasWidget::resized, [this](int w, int h) {
       m_camera.update_widget(w, h);
-      if (m_backend)
-        m_backend->on_resize(w, h);
+      if (m_backend) m_backend->on_resize(w, h);
     });
-
     if (rw->width() > 0 && rw->height() > 0)
       m_camera.update_widget(rw->width(), rw->height());
-
-    q_info("canvas::initialize using RHI path.");
-    return;
-  }
-
-  if (DrawingAreaWidget* daw = qobject_cast<DrawingAreaWidget*>(drawing_area)) {
-    if (m_renderer_type == renderer_type::rhi)
-      q_warning("canvas::initialize: DrawingAreaWidget but renderer_type is rhi — using deferred.");
-
-    if (m_renderer_type == renderer_type::immediate)
-      m_backend = std::make_unique<immediate_backend>(daw, m_draw_callback, &m_camera, m_background_color);
-    else
-      m_backend = std::make_unique<deferred_backend>(daw, m_draw_callback, &m_camera, m_background_color);
-
-    if (width() > 0 && height() > 0) {
-      m_camera.update_widget(width(), height());
-      m_backend->redraw();
-    }
-
+  } else if (DrawingAreaWidget* daw = qobject_cast<DrawingAreaWidget*>(drawing_area)) {
     QObject::connect(daw, &DrawingAreaWidget::resized, [this](int w, int h) {
       m_camera.update_widget(w, h);
       m_backend->on_resize(w, h);
     });
+    if (width() > 0 && height() > 0) {
+      m_camera.update_widget(width(), height());
+      m_backend->redraw();
+    }
   }
 
   q_info("canvas::initialize successful.");
