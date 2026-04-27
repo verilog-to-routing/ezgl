@@ -70,10 +70,6 @@ std::unique_ptr<ezgl::render_backend> make_backend(
     return std::make_unique<ezgl::deferred_backend>(widget, callback, cam, bg);
 }
 
-} // anonymous namespace
-
-namespace {
-
 static std::pair<int,int> resolve_output_size(int req_w, int req_h,
                                                QWidget* drawing_area)
 {
@@ -81,7 +77,7 @@ static std::pair<int,int> resolve_output_size(int req_w, int req_h,
         return {req_w, req_h};
     if (drawing_area && drawing_area->width() > 0 && drawing_area->height() > 0)
         return {drawing_area->width(), drawing_area->height()};
-    q_warning("canvas: no output size and no drawing area; defaulting to 1024x768.");
+    ezgl::q_warning("canvas: no output size and no drawing area; defaulting to 1024x768.");
     return {1024, 768};
 }
 
