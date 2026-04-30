@@ -188,9 +188,20 @@ if(EZGL_QSB_EXECUTABLE)
     foreach(_ezgl_shader_index RANGE ${_ezgl_shader_last_index})
         list(GET EZGL_RHI_SHADER_SOURCES ${_ezgl_shader_index} _ezgl_shader_src)
         list(GET EZGL_RHI_SHADER_OUTPUTS ${_ezgl_shader_index} _ezgl_shader_out)
+        # --qt6 alone bakes GLSL 100es/120/150 + HLSL 50 + MSL 12. We add
+        # GLSL 330 explicitly so QRhi can pick a variant that supports the
+        # `layout(location = N)` qualifier on vertex inputs — without it the
+        # GLSL 150 variant strips the qualifiers and QRhi has to resolve
+        # attributes by name, which silently aliases the two `vec2 inMin/
+        # inMax` inputs of fill_rect (and the equivalent inputs in the thick
+        # / dashed line vertex shaders), producing stray-quad artefacts in
+        # the headless RHI readback.
         add_custom_command(
             OUTPUT "${_ezgl_shader_out}"
-            COMMAND "${EZGL_QSB_EXECUTABLE}" --qt6 -o "${_ezgl_shader_out}"
+            COMMAND "${EZGL_QSB_EXECUTABLE}"
+                    --glsl "100 es,120,150,330"
+                    --hlsl 50 --msl 12
+                    -o "${_ezgl_shader_out}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${_ezgl_shader_src}"
             DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${_ezgl_shader_src}"
             COMMENT "Baking Qt shader ${_ezgl_shader_src}"

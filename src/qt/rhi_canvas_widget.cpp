@@ -3,6 +3,7 @@
 
 #include <rhi/qrhi.h>
 #include <QOffscreenSurface>
+#include <QSurfaceFormat>
 #if defined(Q_OS_WIN)
 #  include <rhi/qrhid3d11.h>
 #elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
@@ -146,10 +147,14 @@ void RhiCanvasWidget::showEvent(QShowEvent* e)
 
 // ---- Headless QRhi creation ------------------------------------------------
 
-// Try the platform-native backend first (Metal on macOS, D3D11 on Windows),
-// then fall back to OpenGL on Linux or as a secondary option on other platforms.
-// gl_surface is an output parameter: when the OpenGL path is taken it must
-// outlive the returned QRhi because OpenGL contexts are bound to their surface.
+// Pick the best available QRhi backend for offscreen rendering. We try the
+// platform-native API first (D3D11 on Windows, Metal on macOS/iOS), and fall
+// back to OpenGL everywhere else. Each candidate is attempted independently so
+// a failure in one (driver missing, headless QPA without GPU, etc.) advances
+// to the next instead of returning nullptr.
+//
+// gl_surface is an output parameter: if the OpenGL path is taken it must
+// outlive the returned QRhi (the GL context is bound to that surface).
 static std::unique_ptr<QRhi> create_headless_rhi(QOffscreenSurface& gl_surface)
 {
 #if defined(Q_OS_WIN)
@@ -157,21 +162,45 @@ static std::unique_ptr<QRhi> create_headless_rhi(QOffscreenSurface& gl_surface)
         QRhiD3D11InitParams params;
         if (auto rhi = std::unique_ptr<QRhi>(QRhi::create(QRhi::D3D11, &params)))
             return rhi;
+        q_warning("create_headless_rhi: D3D11 unavailable, trying OpenGL.");
     }
 #elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
     {
         QRhiMetalInitParams params;
         if (auto rhi = std::unique_ptr<QRhi>(QRhi::create(QRhi::Metal, &params)))
             return rhi;
+        q_warning("create_headless_rhi: Metal unavailable, trying OpenGL.");
     }
 #endif
-    // Cross-platform OpenGL fallback (primary on Linux, secondary on Win/Mac).
-    gl_surface.setFormat(QSurfaceFormat::defaultFormat());
+
+    // OpenGL path. Request a GL 4.1 core profile (max version supported on
+    // macOS, and widely available everywhere else) so QRhi compiles the
+    // GLSL 410 shader variant: that one carries native UBO bindings and
+    // explicit `layout(location = N)` vertex-attribute qualifiers. On the
+    // GL 3.2 / GLSL 150 path the locations are stripped and QRhi has to
+    // resolve attributes by name, which silently aliases the two `vec2`
+    // inputs of fill_rect (inMin/inMax) and produces large stray quads in
+    // the readback — visible as "brush-stroke" artefacts spanning each row.
+    // If a higher-version default has already been installed by the host
+    // application we keep it.
+    QSurfaceFormat fmt = QSurfaceFormat::defaultFormat();
+    if (fmt.renderableType() != QSurfaceFormat::OpenGL
+        || fmt.majorVersion() < 4
+        || (fmt.majorVersion() == 4 && fmt.minorVersion() < 1)) {
+        fmt.setRenderableType(QSurfaceFormat::OpenGL);
+        fmt.setProfile(QSurfaceFormat::CoreProfile);
+        fmt.setMajorVersion(4);
+        fmt.setMinorVersion(1);
+    }
+    gl_surface.setFormat(fmt);
     gl_surface.create();
-    if (!gl_surface.isValid())
+    if (!gl_surface.isValid()) {
+        q_warning("create_headless_rhi: offscreen GL surface creation failed.");
         return nullptr;
+    }
     QRhiGles2InitParams gl_params;
     gl_params.fallbackSurface = &gl_surface;
+    gl_params.format          = fmt;
     return std::unique_ptr<QRhi>(QRhi::create(QRhi::OpenGLES2, &gl_params));
 }
 
