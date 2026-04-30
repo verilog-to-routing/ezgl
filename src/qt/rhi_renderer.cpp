@@ -1591,6 +1591,14 @@ rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
 
 void rhi_renderer::flush_mvp_only()
 {
+    // Pick up the widget's current size before computing the MVP. The
+    // resize-only path skips begin_frame(), so without this refresh the
+    // camera reports the new screen rectangle while m_size still holds the
+    // pre-resize framebuffer dimensions — compute_mvp() divides by the old
+    // fw/fh and the next paint comes out skewed until a full redraw runs.
+    if (m_rhi_widget)
+        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
+
     render_cached_overlay();
     m_rhi_widget->set_mvp_and_overlay(compute_mvp(), irenderer::get_visible_world(), m_overlay);
     m_rhi_widget->update();

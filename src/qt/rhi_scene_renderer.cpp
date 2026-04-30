@@ -730,7 +730,6 @@ void RhiSceneRenderer::release()
     }
     m_frame_resources.clear();
     m_frame_slot_geom_valid.clear();
-    m_cached_scene.reset();
     m_initialized = false;
     m_rhi = nullptr;
 }
