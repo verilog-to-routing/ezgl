@@ -242,6 +242,11 @@ QImage RhiCanvasWidget::render_offscreen(int               w,
 
     QImage result(reinterpret_cast<const uchar*>(readback.data.constData()),
                   w, h, QImage::Format_RGBA8888);
+    // OpenGL-style backends report Y-up framebuffer coordinates, so the raw
+    // readback rows are bottom-to-top relative to QImage's top-down layout.
+    // Mirror vertically in that case; D3D/Metal/Vulkan are already top-down.
+    if (rhi->isYUpInFramebuffer())
+        return result.flipped(Qt::Vertical);
     return result.copy();
 }
 
