@@ -575,6 +575,9 @@ void QtGladeLoader::applyCommonProperties(QWidget* w, const QDomElement& objEl)
 
   const bool canFocus = propertyBool(objEl, "can-focus", true);
   w->setFocusPolicy(canFocus ? Qt::StrongFocus : Qt::NoFocus);
+
+  const bool sensitive = propertyBool(objEl, "sensitive", true);
+  w->setEnabled(sensitive);
 }
 
 QString QtGladeLoader::getId(const QDomElement& objEl)   { return objEl.attribute("id"); }
