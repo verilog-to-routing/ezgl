@@ -36,7 +36,6 @@ do {                                         \
         << #expr << "' failed at "           \
         << __FILE__ << ":" << __LINE__       \
         << std::endl;                        \
-        std::exit(1);                        \
         return;                              \
   }                                          \
 } while (0)
