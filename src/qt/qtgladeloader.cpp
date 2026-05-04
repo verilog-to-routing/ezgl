@@ -78,7 +78,6 @@ QMainWindow* QtGladeLoader::loadFile(const QString& uiGladePath)
   QFile f(uiGladePath);
   if (!f.open(QIODevice::ReadOnly)) {
     qCritical() << "cannot open ui glade file" << uiGladePath;
-    std::exit(1);
     return nullptr;
   }
 
