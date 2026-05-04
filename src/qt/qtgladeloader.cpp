@@ -328,6 +328,20 @@ QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl, QWidget* parent)
     QDomElement packEl = findPacking(childEl);
     const bool expand = propertyBool(packEl, "expand", false);
     layout->addWidget(childW, expand ? 1 : 0);
+
+    // Honour <packing><property name="position">N</property></packing>.
+    // GTK applies each child's position as gtk_box_reorder_child(widget, N)
+    // after appending — moving the just-added widget to absolute slot N
+    // and shifting whoever was there. Without this loop, duplicate or
+    // out-of-document-order positions in the XML produce a Qt layout that
+    // doesn't match the GTK rendering. Default of -1 means "no position
+    // specified" → leave widget appended at the end.
+    const int pos = packingInt(packEl, "position", -1);
+    const int currentIdx = layout->count() - 1;
+    if (pos >= 0 && pos < currentIdx) {
+        QLayoutItem* item = layout->takeAt(currentIdx);
+        layout->insertItem(pos, item);
+    }
   }
 
   return container;
