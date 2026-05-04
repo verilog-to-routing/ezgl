@@ -144,7 +144,7 @@ void application::init()
     m_pending_message.clear();
   }
 
-  q_info("application::init successful.");
+  q_debug("application::init successful.");
 }
 
 application::application(application::settings s, int& argc, char** argv)
@@ -256,7 +256,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
     // std::map's emplace does not insert the value when the key is already present.
     q_warning("Duplicate key (%s) ignored in application::add_canvas.", canvas_id.c_str());
   } else {
-    q_info("The %s canvas has been added to the application.", canvas_id.c_str());
+    q_debug("The %s canvas has been added to the application.", canvas_id.c_str());
   }
 
   return it.first->second.get();
@@ -351,7 +351,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     }
     init();
     first_run = false;
-    q_info("The event loop is now starting.");
+    q_debug("The event loop is now starting.");
     return exec();
   } else {
     // Subsequent stage: reuse the existing window.

@@ -193,7 +193,7 @@ void canvas::initialize(QWidget *drawing_area)
     }
   }
 
-  q_info("canvas::initialize successful.");
+  q_debug("canvas::initialize successful.");
 }
 
 int canvas::width() const
