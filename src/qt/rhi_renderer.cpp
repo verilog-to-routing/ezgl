@@ -635,10 +635,18 @@ void rhi_renderer::begin_frame()
 
     // Match the deferred path semantics: each redraw starts from the renderer
     // defaults rather than inheriting state from the previous frame.
-    current_coordinate_system = WORLD;
-    rotation_angle = 0.0;
-    horiz_justification = justification::center;
-    vert_justification = justification::center;
+    //
+    // Use the virtual setters here, NOT direct member writes: the rhi_renderer
+    // overrides propagate state to m_overlay_deferred. A direct write would
+    // leave m_overlay_deferred holding whatever state apply_painter_state()
+    // last applied during replay — typically the SCREEN coord of the final
+    // legend text command — and the next frame's WORLD-coord text (e.g. CLB
+    // labels in draw_place) would be silently captured as SCREEN, producing
+    // text at fixed screen positions that does not follow camera moves.
+    set_coordinate_system(WORLD);
+    set_text_rotation(0);
+    set_horiz_justification(justification::center);
+    set_vert_justification(justification::center);
     current_color = {0, 0, 0, 255};
     current_line_width = 0;
     current_line_cap = line_cap::butt;
