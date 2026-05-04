@@ -134,6 +134,16 @@ void application::init()
   for (auto &c_pair : m_canvases)
     c_pair.second->end_deferred_redraw_cycle();
 
+  // Flush any status-bar message pushed before the StatusBar widget existed.
+  // See update_message() for the deferral logic.
+  if (!m_pending_message.isEmpty()) {
+    if (auto* status_bar = qobject_cast<QStatusBar*>(
+            find_widget("StatusBar", /*skip_notfound_report=*/true))) {
+      status_bar->showMessage(m_pending_message);
+    }
+    m_pending_message.clear();
+  }
+
   q_info("application::init successful.");
 }
 
@@ -414,8 +424,12 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
 
 void application::update_message(std::string const &message)
 {
-  // Get the StatusBar Widget
-  QStatusBar* status_bar = qobject_cast<QStatusBar*>(find_widget("StatusBar"));
+  // Get the StatusBar Widget. Suppress the find_widget not-found log: it is
+  // expected for update_message() to be called before run() has loaded the
+  // UI (e.g. from VPR's early placement callbacks). In that case we buffer
+  // the message and flush it once the StatusBar exists (see init()).
+  QStatusBar* status_bar =
+      qobject_cast<QStatusBar*>(find_widget("StatusBar", /*skip_notfound_report=*/true));
 
   if (status_bar) {
     // Remove all previous messages from the message stack
@@ -424,7 +438,10 @@ void application::update_message(std::string const &message)
     // Push user message to the message stack
     status_bar->showMessage(QString::fromStdString(message));
   } else {
-    qCritical() << "object with name `StatusBar` wasn't found";
+    // StatusBar widget does not yet exist. Keep only the latest message —
+    // update_message has clear-then-show semantics, so older buffered
+    // entries would be invisibly overwritten anyway.
+    m_pending_message = QString::fromStdString(message);
   }
 }
 

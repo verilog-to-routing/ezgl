@@ -28,6 +28,7 @@
 #include "ezgl/qt/switchbutton.hpp"
 
 #include <QApplication>
+#include <QString>
 
 #include <map>
 #include <memory>
@@ -580,6 +581,12 @@ private:
 
   // A flag that indicates if the run() was called before or not to allow multiple reruns
   bool first_run;
+
+  // Holds the most recent status-bar message pushed before the StatusBar
+  // widget existed (i.e. before run() loaded main.ui). Flushed in init()
+  // once the widget tree is available. Only the latest message is kept,
+  // mirroring update_message's "clear-then-show" semantics.
+  QString m_pending_message;
 
 private:
   void init();
