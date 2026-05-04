@@ -65,7 +65,7 @@ void immediate_backend::redraw()
     m_draw_callback(m_renderer);
 
     m_drawing_area->update();
-    q_info("The canvas will be redrawn (immediate path).");
+    q_debug("The canvas will be redrawn (immediate path).");
 }
 
 void immediate_backend::redraw_camera_only()

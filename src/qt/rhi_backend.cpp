@@ -49,7 +49,7 @@ void rhi_backend::redraw()
     m_pending_redraw      = false;
     m_pending_camera_only = false;
     m_has_drawn_frame     = true;
-    q_info("The canvas will be redrawn (RHI path).");
+    q_debug("The canvas will be redrawn (RHI path).");
 }
 
 void rhi_backend::redraw_camera_only()
@@ -59,7 +59,7 @@ void rhi_backend::redraw_camera_only()
         m_pending_redraw      = false;
         m_pending_camera_only = false;
         m_has_drawn_frame     = true;
-        q_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
+        q_debug("The canvas overlay+MVP will be updated (camera-only RHI path).");
         return;
     }
     redraw();

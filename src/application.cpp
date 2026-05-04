@@ -361,7 +361,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
       initial_setup_callback(this, false);
     for (auto &c_pair : m_canvases)
       c_pair.second->end_deferred_redraw_cycle();
-    q_info("The event loop is now resuming.");
+    q_debug("The event loop is now resuming.");
     return exec();
   }
 }
