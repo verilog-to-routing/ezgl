@@ -153,6 +153,7 @@ application::application(application::settings s, int& argc, char** argv)
     , m_window_id(s.window_identifier)
     , m_canvas_id(s.canvas_identifier)
     , m_application_id(s.application_identifier)
+    , m_register_callbacks(s.setup_callbacks)
 {
   // we moved this to run method
 
