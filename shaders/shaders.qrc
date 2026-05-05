@@ -8,5 +8,6 @@
         <file>thick_line.vert.qsb</file>
         <file>dashed_line.vert.qsb</file>
         <file>dashed_line.frag.qsb</file>
+        <file>arrow.vert.qsb</file>
     </qresource>
 </RCC>

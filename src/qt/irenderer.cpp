@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cfloat>
 #include <cmath>
+#include <limits>
 #include <numbers>
 #include <utility>
 #include <QFile>
@@ -200,6 +201,36 @@ void irenderer::set_coordinate_system(t_coordinate_system cs)
 void irenderer::set_text_screen_offset(point2d offset_px)
 {
     text_screen_offset_px = offset_px;
+}
+
+void irenderer::fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                             const point2d& dir_world,
+                                             float          arrow_size_px)
+{
+    // Default impl: expand to a world-coord triangle using the current
+    // world scale, then fill_triangle. Suitable for the immediate backend
+    // — visible size on the next frame is roughly arrow_size_px, but the
+    // size will drift on zoom because the triangle is baked in world
+    // units. Deferred / RHI override this to keep the on-screen size
+    // invariant under any camera change.
+    const point2d ws = m_camera->get_world_scale_factor();
+    const double  sx = std::max(ws.x, std::numeric_limits<double>::epsilon());
+    const double  sy = std::max(ws.y, std::numeric_limits<double>::epsilon());
+
+    const double dlen = std::hypot(dir_world.x, dir_world.y);
+    const point2d dir_unit = (dlen > 1e-9)
+        ? point2d{dir_world.x / dlen, dir_world.y / dlen}
+        : point2d{1.0, 0.0};
+    const point2d perp_unit{-dir_unit.y, dir_unit.x};
+    const double r = arrow_size_px * 0.5;
+
+    const point2d tip{anchor_world.x + dir_unit.x * r * sx,
+                      anchor_world.y + dir_unit.y * r * sy};
+    const point2d left{anchor_world.x + (-dir_unit.x + perp_unit.x) * r * sx,
+                       anchor_world.y + (-dir_unit.y + perp_unit.y) * r * sy};
+    const point2d right{anchor_world.x + (-dir_unit.x - perp_unit.x) * r * sx,
+                        anchor_world.y + (-dir_unit.y - perp_unit.y) * r * sy};
+    fill_triangle(tip, left, right);
 }
 
 void irenderer::set_visible_world(rectangle new_world)

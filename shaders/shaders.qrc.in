@@ -8,5 +8,6 @@
         <file alias="thick_line.vert.qsb">@EZGL_THICK_LINE_VERT_QSB@</file>
         <file alias="dashed_line.vert.qsb">@EZGL_DASHED_LINE_VERT_QSB@</file>
         <file alias="dashed_line.frag.qsb">@EZGL_DASHED_LINE_FRAG_QSB@</file>
+        <file alias="arrow.vert.qsb">@EZGL_ARROW_VERT_QSB@</file>
     </qresource>
 </RCC>

@@ -99,6 +99,28 @@ public:
     virtual void fill_rectangle(const rectangle& r) = 0;
     virtual void fill_poly(const std::vector<point2d>& points) = 0;
     virtual void fill_triangle(const point2d& a, const point2d& b, const point2d& c) = 0;
+
+    /**
+     * Fill an arrow-head triangle anchored to a world position but rendered
+     * at a constant SCREEN size at every zoom level.
+     *
+     * @param anchor_world  World position of the arrow's anchor point.
+     * @param dir_world     Direction the arrow points, in world coords. Any
+     *                      nonzero length — the implementation normalises
+     *                      before computing the arrow geometry.
+     * @param arrow_size_px Arrow tip-to-tip size in screen pixels.
+     *
+     * The default implementation expands the arrow into world-coord vertices
+     * using the camera's current world-scale and calls fill_triangle — the
+     * right behaviour for the immediate backend (no zoom-time updates).
+     * Deferred and RHI override this to keep the on-screen size invariant
+     * under camera-only redraws and at any zoom level. RHI uploads one
+     * GPU instance per call and synthesises the triangle in a vertex
+     * shader; deferred captures per-vertex pixel offsets and replays them.
+     */
+    virtual void fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                              const point2d& dir_world,
+                                              float          arrow_size_px);
     virtual void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                                    double start_angle, double extent_angle) = 0;
     virtual void draw_arc(const point2d& center, double radius,

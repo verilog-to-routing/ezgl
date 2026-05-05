@@ -161,6 +161,7 @@ if(EZGL_QSB_EXECUTABLE)
     set(EZGL_THICK_LINE_VERT_QSB  "${EZGL_RHI_SHADER_BUILD_DIR}/thick_line.vert.qsb")
     set(EZGL_DASHED_LINE_VERT_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.vert.qsb")
     set(EZGL_DASHED_LINE_FRAG_QSB "${EZGL_RHI_SHADER_BUILD_DIR}/dashed_line.frag.qsb")
+    set(EZGL_ARROW_VERT_QSB       "${EZGL_RHI_SHADER_BUILD_DIR}/arrow.vert.qsb")
 
     set(EZGL_RHI_SHADER_SOURCES
         "fill_rect.vert"
@@ -171,6 +172,7 @@ if(EZGL_QSB_EXECUTABLE)
         "thick_line.vert"
         "dashed_line.vert"
         "dashed_line.frag"
+        "arrow.vert"
     )
     set(EZGL_RHI_SHADER_OUTPUTS
         "${EZGL_FILL_RECT_VERT_QSB}"
@@ -181,6 +183,7 @@ if(EZGL_QSB_EXECUTABLE)
         "${EZGL_THICK_LINE_VERT_QSB}"
         "${EZGL_DASHED_LINE_VERT_QSB}"
         "${EZGL_DASHED_LINE_FRAG_QSB}"
+        "${EZGL_ARROW_VERT_QSB}"
     )
 
     list(LENGTH EZGL_RHI_SHADER_SOURCES _ezgl_shader_count)

@@ -552,6 +552,26 @@ void rhi_renderer::fill_poly(const std::vector<point2d>& points)
         push_tri(t.a, t.b, t.c);
 }
 
+void rhi_renderer::fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                                const point2d& dir_world,
+                                                float          arrow_size_px)
+{
+    // Push one GPU instance and let the arrow vertex shader synthesise the
+    // 3-vertex triangle at constant pixel size in screen space. The size
+    // is encoded in the style key's line-width slot (reused for arrows).
+    if (m_skip_tile_writes)
+        return;
+    const std::uint16_t size_packed =
+        std::uint16_t(std::clamp(int(std::lround(arrow_size_px)), 0, 65535));
+    const StyleKey sk = pack_style_key(PrimitiveType::Arrow,
+                                       m_current_rgba,
+                                       size_packed,
+                                       0 /* line_dash unused */);
+    m_cmd_arrows.push_back({sk,
+                            float(anchor_world.x), float(anchor_world.y),
+                            float(dir_world.x),    float(dir_world.y)});
+}
+
 void rhi_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
 {
     if (current_coordinate_system != WORLD) {
@@ -896,6 +916,11 @@ void rhi_renderer::clear_commands()
         m_cmd_thick_lines[b].clear();
         m_cmd_dashed_lines[b].clear();
     }
+    // Note: m_cmd_arrows is NOT cleared here. The line/rect/etc. queues are
+    // safe to clear because dispatch_commands_to_tiles has already moved
+    // their contents into per-tile batches. Arrows are not tile-binned, so
+    // build_scene_buffers reads m_cmd_arrows directly and is responsible
+    // for clearing it. Clearing here would drop them before they're used.
 }
 
 int rhi_renderer::clamp_tile_x(double x) const
@@ -1390,6 +1415,28 @@ SceneBuffers rhi_renderer::build_scene_buffers() const
         }
     }
 
+    // Arrow instances are not tile-binned (see m_cmd_arrows comment in
+    // rhi_renderer.hpp). Group them by style key and emit a single chunk
+    // per group covering the entire scene world bounds — the rhi_scene_
+    // renderer's per-chunk visibility test then keeps every chunk visible
+    // because the bounds always intersect any visible_world rectangle.
+    for (const ArrowCmd& cmd : m_cmd_arrows) {
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        ArrowStyleBuffer& sb = scene.arrows[cmd.sk];
+        if (sb.instances.empty()) {
+            sb.style_key = cmd.sk;
+            sb.rgba      = rgba;
+        }
+        sb.instances.push_back({cmd.ax, cmd.ay, cmd.dx, cmd.dy});
+    }
+    for (auto& [sk, sb] : scene.arrows) {
+        if (sb.instances.empty())
+            continue;
+        sb.chunks.emplace_back(m_scene_bounds,
+                               std::uint32_t(0),
+                               std::uint32_t(sb.instances.size()));
+    }
+
     return scene;
 }
 
@@ -1522,6 +1569,7 @@ void rhi_renderer::flush()
 
     constexpr double kBytesPerMb = 1024.0 * 1024.0;
     SceneBuffers scene_buffers = build_scene_buffers();
+    m_cmd_arrows.clear();  // see clear_commands(): arrows live until after build
 
 #ifdef EZGL_RENDERER_DEBUG
     double line_verts_mb          = 0.0;
@@ -1605,11 +1653,13 @@ rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
 
-    return {build_scene_buffers(),
-            compute_mvp(),
-            irenderer::get_visible_world(),
-            m_overlay,
-            bg};
+    HeadlessFrameData out{build_scene_buffers(),
+                          compute_mvp(),
+                          irenderer::get_visible_world(),
+                          m_overlay,
+                          bg};
+    m_cmd_arrows.clear();  // see clear_commands(): arrows live until after build
+    return out;
 }
 
 // ---- flush_mvp_only --------------------------------------------------------
