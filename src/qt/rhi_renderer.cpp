@@ -1215,19 +1215,30 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
     if (m_skip_tile_writes)
         return;
 
-    // For a rectangle, horizontal sides share the same y-band; vertical sides share the same x.
-    // Route each side independently so band coverage is tight.
-    const int b_bottom = band_for_tile_row(clamp_tile_y(std::min(start.y, end.y)));
-    const int b_top    = band_for_tile_row(clamp_tile_y(std::max(start.y, end.y)));
+    // Normalize corners so x_lo <= x_hi and y_lo <= y_hi. Without this the
+    // horizontal-side commands below would land in the wrong band when the
+    // caller passes points in (top-left, bottom-right) order: the band for a
+    // horizontal line at y=start.y must equal band(start.y), but b_bottom is
+    // computed from min(start.y, end.y). With the points swapped, b_bottom
+    // corresponds to end.y and the line at start.y is culled by tile-band
+    // visibility — only the vertical sides survive, producing the
+    // "two-vertical-dashes" zoom-select preview.
+    const float x_lo = float(std::min(start.x, end.x));
+    const float x_hi = float(std::max(start.x, end.x));
+    const float y_lo = float(std::min(start.y, end.y));
+    const float y_hi = float(std::max(start.y, end.y));
+
+    const int b_bottom = band_for_tile_row(clamp_tile_y(y_lo));
+    const int b_top    = band_for_tile_row(clamp_tile_y(y_hi));
 
     if (current_line_dash != line_dash::none) {
         const StyleKey sk = current_style_key(PrimitiveType::DashedLine, float(std::max(1, current_line_width)));
         // Horizontal sides (single band each)
-        m_cmd_dashed_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
-        m_cmd_dashed_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
+        m_cmd_dashed_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+        m_cmd_dashed_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
         // Vertical sides (may span multiple bands)
-        const DashedLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
-        const DashedLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+        const DashedLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+        const DashedLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
         for (int b = b_bottom; b <= b_top; ++b) {
             m_cmd_dashed_lines[b].push_back(right);
             m_cmd_dashed_lines[b].push_back(left);
@@ -1237,10 +1248,10 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
 
     if (current_line_width > 1) {
         const StyleKey sk = current_style_key(PrimitiveType::ThickLine, float(current_line_width));
-        m_cmd_thick_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
-        m_cmd_thick_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
-        const ThickLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
-        const ThickLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+        m_cmd_thick_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+        m_cmd_thick_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
+        const ThickLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+        const ThickLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
         for (int b = b_bottom; b <= b_top; ++b) {
             m_cmd_thick_lines[b].push_back(right);
             m_cmd_thick_lines[b].push_back(left);
@@ -1249,10 +1260,10 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
     }
 
     const StyleKey sk = current_style_key(PrimitiveType::ThinLine);
-    m_cmd_thin_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
-    m_cmd_thin_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
-    const ThinLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
-    const ThinLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+    m_cmd_thin_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+    m_cmd_thin_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
+    const ThinLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+    const ThinLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
     for (int b = b_bottom; b <= b_top; ++b) {
         m_cmd_thin_lines[b].push_back(right);
         m_cmd_thin_lines[b].push_back(left);
