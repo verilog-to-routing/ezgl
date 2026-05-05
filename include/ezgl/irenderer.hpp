@@ -78,6 +78,18 @@ public:
     virtual void set_horiz_justification(justification horiz_just);
     virtual void set_vert_justification(justification vert_just);
 
+    /**
+     * Set a one-shot screen-pixel offset to be applied to the next
+     * draw_text call. The offset is added AFTER the world→screen
+     * transform, so its visible distance is constant in screen pixels at
+     * every zoom level — useful for placing labels just off a line drawn
+     * in WORLD coords (e.g. critical-path delay annotations) without the
+     * label drifting on zoom under the camera-only redraw path.
+     *
+     * The offset auto-resets to (0,0) once consumed by the next draw_text.
+     */
+    virtual void set_text_screen_offset(point2d offset_px);
+
     virtual void draw_line(const point2d& start, const point2d& end) = 0;
     virtual void draw_rectangle(const point2d& start, const point2d& end) = 0;
     virtual void draw_rectangle(const point2d& start, double width, double height) = 0;
@@ -119,6 +131,7 @@ protected:
     justification       horiz_justification = justification::center;
     justification       vert_justification  = justification::center;
     QFont               current_font;
+    point2d             text_screen_offset_px = {0.0, 0.0};
 
     void update_painter(Painter* painter, QImage* surface);
 

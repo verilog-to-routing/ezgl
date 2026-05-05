@@ -82,6 +82,7 @@ public:
     void set_text_rotation(double degrees) override;
     void set_horiz_justification(justification j) override;
     void set_vert_justification(justification j) override;
+    void set_text_screen_offset(point2d offset_px) override;
 
     // ---- irenderer: hot-path GPU draw calls --------------------------------
 

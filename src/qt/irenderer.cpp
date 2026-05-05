@@ -197,6 +197,11 @@ void irenderer::set_coordinate_system(t_coordinate_system cs)
     current_coordinate_system = cs;
 }
 
+void irenderer::set_text_screen_offset(point2d offset_px)
+{
+    text_screen_offset_px = offset_px;
+}
+
 void irenderer::set_visible_world(rectangle new_world)
 {
     point2d n_center = new_world.center();
@@ -369,6 +374,12 @@ void irenderer::paint_text(const point2d& point, const std::string& text,
     };
 
     point2d draw_center = (current_coordinate_system == WORLD) ? m_transform(point) : point;
+    // Apply (and consume) any one-shot screen-pixel offset. This stays in
+    // pixel units regardless of zoom — the caller uses it when they want a
+    // label "just off" a world-coord line at a constant visual distance.
+    draw_center.x += text_screen_offset_px.x;
+    draw_center.y += text_screen_offset_px.y;
+    text_screen_offset_px = {0.0, 0.0};
 
     QString qtext = QString::fromStdString(text);
     QFontMetricsF fm(m_painter->font());

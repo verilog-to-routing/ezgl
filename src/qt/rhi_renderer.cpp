@@ -505,6 +505,12 @@ void rhi_renderer::set_vert_justification(justification j)
     m_overlay_deferred->set_vert_justification(j);
 }
 
+void rhi_renderer::set_text_screen_offset(point2d offset_px)
+{
+    irenderer::set_text_screen_offset(offset_px);
+    m_overlay_deferred->set_text_screen_offset(offset_px);
+}
+
 // ---- irenderer: overlay draw calls ----------------------------------------
 
 void rhi_renderer::fill_poly(const std::vector<point2d>& points)

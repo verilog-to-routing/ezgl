@@ -572,8 +572,12 @@ void deferred_renderer::draw_text(const point2d& point, std::string const& text,
         bound_x,
         bound_y,
         current_coordinate_system == WORLD,
-        std::max(recorded_world_scale.x, std::numeric_limits<double>::epsilon())
+        std::max(recorded_world_scale.x, std::numeric_limits<double>::epsilon()),
+        text_screen_offset_px
     });
+    // Auto-reset so the offset only applies to this draw_text. Mirrors
+    // what irenderer::paint_text does in the immediate path.
+    text_screen_offset_px = {0.0, 0.0};
     if (current_coordinate_system == WORLD) {
         text_extents_t text_extents{0, 0, 0, 0, 0, 0};
         m_painter->text_extents(text.c_str(), &text_extents);
@@ -988,6 +992,9 @@ void deferred_renderer::replay()
                 if (!resolve_text_replay_state(cmd, state))
                     return;
                 apply_painter_state(state);
+                // Restore the per-command screen offset; paint_text consumes
+                // it (and resets to 0) so it doesn't leak into the next cmd.
+                text_screen_offset_px = cmd.screen_offset_px;
                 paint_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
                 paint_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
