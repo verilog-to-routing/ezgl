@@ -82,6 +82,7 @@ public:
     void set_text_rotation(double degrees) override;
     void set_horiz_justification(justification j) override;
     void set_vert_justification(justification j) override;
+    void set_text_screen_offset(point2d offset_px) override;
 
     // ---- irenderer: hot-path GPU draw calls --------------------------------
 
@@ -99,6 +100,9 @@ public:
 
     void fill_poly(const std::vector<point2d>& points) override;
     void fill_triangle(const point2d& a, const point2d& b, const point2d& c) override;
+    void fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                      const point2d& dir_world,
+                                      float          arrow_size_px) override;
     void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
     void draw_arc(const point2d& center, double radius,
@@ -324,6 +328,7 @@ private:
     struct FillTriCmd    { StyleKey sk; float x0, y0, x1, y1, x2, y2; };
     struct ThickLineCmd  { StyleKey sk; float x0, y0, x1, y1; };
     struct DashedLineCmd { StyleKey sk; float x0, y0, x1, y1; };
+    struct ArrowCmd      { StyleKey sk; float ax, ay, dx, dy; };
 
     int m_n_bands       = 1;
     int m_rows_per_band = kTileGridDimension;
@@ -333,6 +338,12 @@ private:
     std::vector<std::vector<FillTriCmd>>    m_cmd_fill_tris;
     std::vector<std::vector<ThickLineCmd>>  m_cmd_thick_lines;
     std::vector<std::vector<DashedLineCmd>> m_cmd_dashed_lines;
+
+    // Arrows are not tile-binned: their on-screen extent is small (a few
+    // pixels) and screen-space culling would require knowing the camera
+    // at record time, which differs between record and replay under the
+    // camera-only redraw path. The GPU draws every recorded instance.
+    std::vector<ArrowCmd>                   m_cmd_arrows;
 
     // QPainter overlay — overlay commands (text, arcs, …) are stored in
     // m_overlay_deferred and replayed into this image.

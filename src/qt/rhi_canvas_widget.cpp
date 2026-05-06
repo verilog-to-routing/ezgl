@@ -87,7 +87,7 @@ void RhiCanvasWidget::initialize(QRhiCommandBuffer* /*cb*/)
     if (!m_scene_renderer)
         m_scene_renderer = std::make_unique<RhiSceneRenderer>();
     m_scene_renderer->initialize(rhi(), renderTarget()->renderPassDescriptor());
-    q_info("RhiCanvasWidget: scene renderer initialized (%d frame slot(s)).",
+    q_debug("RhiCanvasWidget: scene renderer initialized (%d frame slot(s)).",
            m_scene_renderer->frame_count());
 }
 

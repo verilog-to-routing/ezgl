@@ -555,6 +555,41 @@ void deferred_renderer::fill_arc(const point2d& center, double radius,
     push_arc_command(center, radius, radius, start_angle, extent_angle, true);
 }
 
+void deferred_renderer::fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                                     const point2d& dir_world,
+                                                     float          arrow_size_px)
+{
+    // Compute the three corner offsets in PIXEL space against the current
+    // line direction; record the world anchor and the offsets. At replay
+    // time the anchor is reprojected through the (possibly different)
+    // current camera, but the pixel offsets stay constant — the triangle's
+    // screen size never grows on zoom-in, even under the camera-only
+    // redraw path.
+    const double dlen = std::hypot(dir_world.x, dir_world.y);
+    const point2d dir_unit = (dlen > 1e-9)
+        ? point2d{dir_world.x / dlen, dir_world.y / dlen}
+        : point2d{1.0, 0.0};
+    const point2d perp_unit{-dir_unit.y, dir_unit.x};
+    const float r = arrow_size_px * 0.5f;
+
+    const point2d off_tip {  dir_unit.x * r,                    dir_unit.y * r };
+    const point2d off_left{ -dir_unit.x * r + perp_unit.x * r, -dir_unit.y * r + perp_unit.y * r };
+    const point2d off_right{-dir_unit.x * r - perp_unit.x * r, -dir_unit.y * r - perp_unit.y * r };
+
+    const std::uint32_t command_index = std::uint32_t(m_overlay_commands.size());
+    m_overlay_commands.emplace_back(DeferredArrowTriangleCommand{
+        capture_painter_state(),
+        anchor_world,
+        off_tip,
+        off_left,
+        off_right
+    });
+    // Mark as unindexed: we don't have a tight world-bbox to feed the
+    // spatial index (the on-screen extent depends on the current camera),
+    // so always replay.
+    m_unindexed_overlay_commands.push_back(command_index);
+}
+
 void deferred_renderer::draw_text(const point2d& point, std::string const& text)
 {
     draw_text(point, text, DBL_MAX, DBL_MAX);
@@ -572,8 +607,12 @@ void deferred_renderer::draw_text(const point2d& point, std::string const& text,
         bound_x,
         bound_y,
         current_coordinate_system == WORLD,
-        std::max(recorded_world_scale.x, std::numeric_limits<double>::epsilon())
+        std::max(recorded_world_scale.x, std::numeric_limits<double>::epsilon()),
+        text_screen_offset_px
     });
+    // Auto-reset so the offset only applies to this draw_text. Mirrors
+    // what irenderer::paint_text does in the immediate path.
+    text_screen_offset_px = {0.0, 0.0};
     if (current_coordinate_system == WORLD) {
         text_extents_t text_extents{0, 0, 0, 0, 0, 0};
         m_painter->text_extents(text.c_str(), &text_extents);
@@ -930,6 +969,12 @@ void deferred_renderer::replay()
                 ++stats.surfaces;
 #endif // EZGL_RENDERER_DEBUG
                 return true;
+            } else if constexpr (std::is_same_v<T, DeferredArrowTriangleCommand>) {
+                apply_painter_state(cmd.state);
+                // Always visible — the on-screen extent is small (a few
+                // pixels) and computing a tight world-bbox would require
+                // the current camera scale; skip the cull.
+                return true;
             }
             return false;
         }, command);
@@ -988,9 +1033,31 @@ void deferred_renderer::replay()
                 if (!resolve_text_replay_state(cmd, state))
                     return;
                 apply_painter_state(state);
+                // Restore the per-command screen offset; paint_text consumes
+                // it (and resets to 0) so it doesn't leak into the next cmd.
+                text_screen_offset_px = cmd.screen_offset_px;
                 paint_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
                 paint_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
+            } else if constexpr (std::is_same_v<T, DeferredArrowTriangleCommand>) {
+                // Project anchor with the CURRENT camera, then add the
+                // recorded pixel offsets. Net effect: the triangle's
+                // anchor moves with the world, but its size on screen is
+                // exactly the same pixel extent at every zoom level.
+                const point2d anchor_screen = m_transform(cmd.anchor_world);
+                const QPointF pa(anchor_screen.x + cmd.offset_a_px.x,
+                                 anchor_screen.y + cmd.offset_a_px.y);
+                const QPointF pb(anchor_screen.x + cmd.offset_b_px.x,
+                                 anchor_screen.y + cmd.offset_b_px.y);
+                const QPointF pc(anchor_screen.x + cmd.offset_c_px.x,
+                                 anchor_screen.y + cmd.offset_c_px.y);
+                QPolygonF poly;
+                poly << pa << pb << pc;
+                const color& dc = cmd.state.draw_color;
+                m_painter->setPen(Qt::NoPen);
+                m_painter->setBrush(QBrush(QColor(int(dc.red), int(dc.green),
+                                                  int(dc.blue), int(dc.alpha))));
+                m_painter->drawPolygon(poly);
             }
         }, *command);
     }

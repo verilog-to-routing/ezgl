@@ -40,6 +40,16 @@ struct FillRectInstance {
 };
 static_assert(sizeof(FillRectInstance) == 16, "FillRectInstance must be 16 bytes");
 
+// One arrow head per instance: world anchor + world direction. Fixed-pixel
+// expansion to a 3-vertex triangle happens in the vertex shader so the on-
+// screen size never grows on zoom-in. Direction can be any nonzero length —
+// the shader normalises before computing the screen-space basis.
+struct ArrowInstance {
+    float ax, ay;
+    float dx, dy;
+};
+static_assert(sizeof(ArrowInstance) == 16, "ArrowInstance must be 16 bytes");
+
 // ---- Style key encoding ----------------------------------------------------
 
 using StyleKey = std::uint64_t;
@@ -50,6 +60,7 @@ enum class PrimitiveType : std::uint8_t {
     FilledPoly,
     ThickLine,
     DashedLine,
+    Arrow,            // GPU-instanced arrow head; line_width field reused as arrow_size_px
 };
 
 inline constexpr StyleKey pack_style_key(PrimitiveType primitive_type,
@@ -117,23 +128,30 @@ struct DashedLineStyleBuffer : StyleBufferCommon {
     void clear()        noexcept { chunks.clear(); instances.clear(); }
 };
 
+struct ArrowStyleBuffer : StyleBufferCommon {
+    std::vector<ArrowInstance> instances;
+    bool empty()  const noexcept { return instances.empty(); }
+    void clear()        noexcept { chunks.clear(); instances.clear(); }
+};
+
 struct SceneBuffers {
     std::unordered_map<StyleKey, ThinLineStyleBuffer>   thin_lines;
     std::unordered_map<StyleKey, FillRectStyleBuffer>   fill_rects;
     std::unordered_map<StyleKey, FillPolyStyleBuffer>   fill_polys;
     std::unordered_map<StyleKey, ThickLineStyleBuffer>  thick_lines;
     std::unordered_map<StyleKey, DashedLineStyleBuffer> dashed_lines;
+    std::unordered_map<StyleKey, ArrowStyleBuffer>      arrows;
 
     bool empty() const noexcept
     {
         return thin_lines.empty() && fill_rects.empty() && fill_polys.empty()
-            && thick_lines.empty() && dashed_lines.empty();
+            && thick_lines.empty() && dashed_lines.empty() && arrows.empty();
     }
 
     void clear() noexcept
     {
         thin_lines.clear(); fill_rects.clear(); fill_polys.clear();
-        thick_lines.clear(); dashed_lines.clear();
+        thick_lines.clear(); dashed_lines.clear(); arrows.clear();
     }
 };
 

@@ -505,6 +505,12 @@ void rhi_renderer::set_vert_justification(justification j)
     m_overlay_deferred->set_vert_justification(j);
 }
 
+void rhi_renderer::set_text_screen_offset(point2d offset_px)
+{
+    irenderer::set_text_screen_offset(offset_px);
+    m_overlay_deferred->set_text_screen_offset(offset_px);
+}
+
 // ---- irenderer: overlay draw calls ----------------------------------------
 
 void rhi_renderer::fill_poly(const std::vector<point2d>& points)
@@ -544,6 +550,26 @@ void rhi_renderer::fill_poly(const std::vector<point2d>& points)
     }
     for (const Triangle& t : triangles)
         push_tri(t.a, t.b, t.c);
+}
+
+void rhi_renderer::fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                                const point2d& dir_world,
+                                                float          arrow_size_px)
+{
+    // Push one GPU instance and let the arrow vertex shader synthesise the
+    // 3-vertex triangle at constant pixel size in screen space. The size
+    // is encoded in the style key's line-width slot (reused for arrows).
+    if (m_skip_tile_writes)
+        return;
+    const std::uint16_t size_packed =
+        std::uint16_t(std::clamp(int(std::lround(arrow_size_px)), 0, 65535));
+    const StyleKey sk = pack_style_key(PrimitiveType::Arrow,
+                                       m_current_rgba,
+                                       size_packed,
+                                       0 /* line_dash unused */);
+    m_cmd_arrows.push_back({sk,
+                            float(anchor_world.x), float(anchor_world.y),
+                            float(dir_world.x),    float(dir_world.y)});
 }
 
 void rhi_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
@@ -635,10 +661,18 @@ void rhi_renderer::begin_frame()
 
     // Match the deferred path semantics: each redraw starts from the renderer
     // defaults rather than inheriting state from the previous frame.
-    current_coordinate_system = WORLD;
-    rotation_angle = 0.0;
-    horiz_justification = justification::center;
-    vert_justification = justification::center;
+    //
+    // Use the virtual setters here, NOT direct member writes: the rhi_renderer
+    // overrides propagate state to m_overlay_deferred. A direct write would
+    // leave m_overlay_deferred holding whatever state apply_painter_state()
+    // last applied during replay — typically the SCREEN coord of the final
+    // legend text command — and the next frame's WORLD-coord text (e.g. CLB
+    // labels in draw_place) would be silently captured as SCREEN, producing
+    // text at fixed screen positions that does not follow camera moves.
+    set_coordinate_system(WORLD);
+    set_text_rotation(0);
+    set_horiz_justification(justification::center);
+    set_vert_justification(justification::center);
     current_color = {0, 0, 0, 255};
     current_line_width = 0;
     current_line_cap = line_cap::butt;
@@ -882,6 +916,11 @@ void rhi_renderer::clear_commands()
         m_cmd_thick_lines[b].clear();
         m_cmd_dashed_lines[b].clear();
     }
+    // Note: m_cmd_arrows is NOT cleared here. The line/rect/etc. queues are
+    // safe to clear because dispatch_commands_to_tiles has already moved
+    // their contents into per-tile batches. Arrows are not tile-binned, so
+    // build_scene_buffers reads m_cmd_arrows directly and is responsible
+    // for clearing it. Clearing here would drop them before they're used.
 }
 
 int rhi_renderer::clamp_tile_x(double x) const
@@ -1207,19 +1246,30 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
     if (m_skip_tile_writes)
         return;
 
-    // For a rectangle, horizontal sides share the same y-band; vertical sides share the same x.
-    // Route each side independently so band coverage is tight.
-    const int b_bottom = band_for_tile_row(clamp_tile_y(std::min(start.y, end.y)));
-    const int b_top    = band_for_tile_row(clamp_tile_y(std::max(start.y, end.y)));
+    // Normalize corners so x_lo <= x_hi and y_lo <= y_hi. Without this the
+    // horizontal-side commands below would land in the wrong band when the
+    // caller passes points in (top-left, bottom-right) order: the band for a
+    // horizontal line at y=start.y must equal band(start.y), but b_bottom is
+    // computed from min(start.y, end.y). With the points swapped, b_bottom
+    // corresponds to end.y and the line at start.y is culled by tile-band
+    // visibility — only the vertical sides survive, producing the
+    // "two-vertical-dashes" zoom-select preview.
+    const float x_lo = float(std::min(start.x, end.x));
+    const float x_hi = float(std::max(start.x, end.x));
+    const float y_lo = float(std::min(start.y, end.y));
+    const float y_hi = float(std::max(start.y, end.y));
+
+    const int b_bottom = band_for_tile_row(clamp_tile_y(y_lo));
+    const int b_top    = band_for_tile_row(clamp_tile_y(y_hi));
 
     if (current_line_dash != line_dash::none) {
         const StyleKey sk = current_style_key(PrimitiveType::DashedLine, float(std::max(1, current_line_width)));
         // Horizontal sides (single band each)
-        m_cmd_dashed_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
-        m_cmd_dashed_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
+        m_cmd_dashed_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+        m_cmd_dashed_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
         // Vertical sides (may span multiple bands)
-        const DashedLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
-        const DashedLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+        const DashedLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+        const DashedLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
         for (int b = b_bottom; b <= b_top; ++b) {
             m_cmd_dashed_lines[b].push_back(right);
             m_cmd_dashed_lines[b].push_back(left);
@@ -1229,10 +1279,10 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
 
     if (current_line_width > 1) {
         const StyleKey sk = current_style_key(PrimitiveType::ThickLine, float(current_line_width));
-        m_cmd_thick_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
-        m_cmd_thick_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
-        const ThickLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
-        const ThickLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+        m_cmd_thick_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+        m_cmd_thick_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
+        const ThickLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+        const ThickLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
         for (int b = b_bottom; b <= b_top; ++b) {
             m_cmd_thick_lines[b].push_back(right);
             m_cmd_thick_lines[b].push_back(left);
@@ -1241,10 +1291,10 @@ void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
     }
 
     const StyleKey sk = current_style_key(PrimitiveType::ThinLine);
-    m_cmd_thin_lines[b_bottom].push_back({sk, float(start.x), float(start.y), float(end.x), float(start.y)});
-    m_cmd_thin_lines[b_top   ].push_back({sk, float(end.x),   float(end.y),   float(start.x), float(end.y)});
-    const ThinLineCmd left {sk, float(start.x), float(start.y), float(start.x), float(end.y)};
-    const ThinLineCmd right{sk, float(end.x),   float(start.y), float(end.x),   float(end.y)};
+    m_cmd_thin_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+    m_cmd_thin_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
+    const ThinLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+    const ThinLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
     for (int b = b_bottom; b <= b_top; ++b) {
         m_cmd_thin_lines[b].push_back(right);
         m_cmd_thin_lines[b].push_back(left);
@@ -1363,6 +1413,28 @@ SceneBuffers rhi_renderer::build_scene_buffers() const
                                           batch.instances.begin(),
                                           batch.instances.end());
         }
+    }
+
+    // Arrow instances are not tile-binned (see m_cmd_arrows comment in
+    // rhi_renderer.hpp). Group them by style key and emit a single chunk
+    // per group covering the entire scene world bounds — the rhi_scene_
+    // renderer's per-chunk visibility test then keeps every chunk visible
+    // because the bounds always intersect any visible_world rectangle.
+    for (const ArrowCmd& cmd : m_cmd_arrows) {
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        ArrowStyleBuffer& sb = scene.arrows[cmd.sk];
+        if (sb.instances.empty()) {
+            sb.style_key = cmd.sk;
+            sb.rgba      = rgba;
+        }
+        sb.instances.push_back({cmd.ax, cmd.ay, cmd.dx, cmd.dy});
+    }
+    for (auto& [sk, sb] : scene.arrows) {
+        if (sb.instances.empty())
+            continue;
+        sb.chunks.emplace_back(m_scene_bounds,
+                               std::uint32_t(0),
+                               std::uint32_t(sb.instances.size()));
     }
 
     return scene;
@@ -1497,6 +1569,7 @@ void rhi_renderer::flush()
 
     constexpr double kBytesPerMb = 1024.0 * 1024.0;
     SceneBuffers scene_buffers = build_scene_buffers();
+    m_cmd_arrows.clear();  // see clear_commands(): arrows live until after build
 
 #ifdef EZGL_RENDERER_DEBUG
     double line_verts_mb          = 0.0;
@@ -1580,11 +1653,13 @@ rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
 
-    return {build_scene_buffers(),
-            compute_mvp(),
-            irenderer::get_visible_world(),
-            m_overlay,
-            bg};
+    HeadlessFrameData out{build_scene_buffers(),
+                          compute_mvp(),
+                          irenderer::get_visible_world(),
+                          m_overlay,
+                          bg};
+    m_cmd_arrows.clear();  // see clear_commands(): arrows live until after build
+    return out;
 }
 
 // ---- flush_mvp_only --------------------------------------------------------

@@ -116,11 +116,12 @@ private:
         std::vector<GpuStyleBuffer> fill_polys;
         std::vector<GpuStyleBuffer> thick_lines;
         std::vector<GpuStyleBuffer> dashed_lines;
+        std::vector<GpuStyleBuffer> arrows;
 
         void clear()
         {
             thin_lines.clear(); fill_rects.clear(); fill_polys.clear();
-            thick_lines.clear(); dashed_lines.clear();
+            thick_lines.clear(); dashed_lines.clear(); arrows.clear();
         }
     };
 
@@ -132,6 +133,7 @@ private:
         std::vector<std::unique_ptr<QRhiBuffer>>    fill_poly_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    thick_line_instance_vbufs;
         std::vector<std::unique_ptr<QRhiBuffer>>    dashed_line_instance_vbufs;
+        std::vector<std::unique_ptr<QRhiBuffer>>    arrow_instance_vbufs;
         std::unique_ptr<QRhiTexture>                overlay_tex;
         std::unique_ptr<QRhiShaderResourceBindings> overlay_srb;
         std::unique_ptr<QRhiShaderResourceBindings> srb;
@@ -149,6 +151,7 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline>  m_fill_poly_pso;
     std::unique_ptr<QRhiGraphicsPipeline>  m_thick_line_pso;
     std::unique_ptr<QRhiGraphicsPipeline>  m_dashed_line_pso;
+    std::unique_ptr<QRhiGraphicsPipeline>  m_arrow_pso;
     std::unique_ptr<QRhiGraphicsPipeline>  m_overlay_pso;
 
     // Shared buffers (constant geometry, shared across all frame slots)

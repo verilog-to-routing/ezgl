@@ -62,7 +62,7 @@ void deferred_backend::redraw()
     g.flush();
 
     m_drawing_area->update();
-    q_info("The canvas will be redrawn.");
+    q_debug("The canvas will be redrawn (deferred path).");
 }
 
 void deferred_backend::redraw_camera_only()

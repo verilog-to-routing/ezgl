@@ -49,7 +49,7 @@ void rhi_backend::redraw()
     m_pending_redraw      = false;
     m_pending_camera_only = false;
     m_has_drawn_frame     = true;
-    q_info("The canvas will be redrawn (RHI path).");
+    q_debug("The canvas will be redrawn (RHI path).");
 }
 
 void rhi_backend::redraw_camera_only()
@@ -59,7 +59,7 @@ void rhi_backend::redraw_camera_only()
         m_pending_redraw      = false;
         m_pending_camera_only = false;
         m_has_drawn_frame     = true;
-        q_info("The canvas overlay+MVP will be updated (camera-only RHI path).");
+        q_debug("The canvas overlay+MVP will be updated (camera-only RHI path).");
         return;
     }
     redraw();
@@ -113,43 +113,31 @@ renderer* rhi_backend::create_animation_renderer()
 
 QImage rhi_backend::render_to_image(int w, int h)
 {
-    if (!m_widget) {
-        // Headless path — canvas.cpp already probed RHI before creating this
-        // backend, so we can go straight to GPU rendering.
-        using namespace std::placeholders;
-        rhi_renderer renderer(QSize(w, h),
-                              std::bind(&camera::world_to_screen, *m_camera, _1),
-                              m_camera,
-                              m_draw_callback,
-                              m_bg_color);
-        renderer.begin_frame();
-        m_draw_callback(&renderer);
-        auto frame = renderer.flush_capture(m_bg_color);
-        return RhiCanvasWidget::render_offscreen(w, h,
-                                                 std::move(frame.scene),
-                                                 frame.mvp,
-                                                 frame.visible_world,
-                                                 frame.overlay,
-                                                 frame.bg);
-    }
-
-    if (!m_renderer)
-        return {};
-
-    m_renderer->begin_frame();
-    m_draw_callback(m_renderer.get());
-    m_renderer->flush();
-
-    QImage frame = m_widget->grabFramebuffer();
-    if (frame.isNull())
-        return {};
-
-    const int target_w = (w > 0) ? w : frame.width();
-    const int target_h = (h > 0) ? h : frame.height();
-    if (target_w != frame.width() || target_h != frame.height())
-        return frame.scaled(target_w, target_h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-
-    return frame;
+    // Always render off-screen at exactly (w, h) — never grab the live
+    // widget's framebuffer. Grabbing-and-scaling forces an IgnoreAspectRatio
+    // resample from the on-screen widget aspect to the requested output
+    // aspect, which distorts tile shapes whenever the widget aspect doesn't
+    // match the requested aspect. It also forces the live renderer to paint
+    // with the save-time camera state (canvas.cpp pre-mutates the camera
+    // for the target dimensions), causing a visible jump on screen.
+    //
+    // The off-screen path uses an independent QRhi + render target, so the
+    // live widget and live renderer are not touched at all.
+    using namespace std::placeholders;
+    rhi_renderer renderer(QSize(w, h),
+                          std::bind(&camera::world_to_screen, *m_camera, _1),
+                          m_camera,
+                          m_draw_callback,
+                          m_bg_color);
+    renderer.begin_frame();
+    m_draw_callback(&renderer);
+    auto frame = renderer.flush_capture(m_bg_color);
+    return RhiCanvasWidget::render_offscreen(w, h,
+                                             std::move(frame.scene),
+                                             frame.mvp,
+                                             frame.visible_world,
+                                             frame.overlay,
+                                             frame.bg);
 }
 
 } // namespace ezgl

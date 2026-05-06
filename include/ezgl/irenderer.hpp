@@ -78,6 +78,18 @@ public:
     virtual void set_horiz_justification(justification horiz_just);
     virtual void set_vert_justification(justification vert_just);
 
+    /**
+     * Set a one-shot screen-pixel offset to be applied to the next
+     * draw_text call. The offset is added AFTER the world→screen
+     * transform, so its visible distance is constant in screen pixels at
+     * every zoom level — useful for placing labels just off a line drawn
+     * in WORLD coords (e.g. critical-path delay annotations) without the
+     * label drifting on zoom under the camera-only redraw path.
+     *
+     * The offset auto-resets to (0,0) once consumed by the next draw_text.
+     */
+    virtual void set_text_screen_offset(point2d offset_px);
+
     virtual void draw_line(const point2d& start, const point2d& end) = 0;
     virtual void draw_rectangle(const point2d& start, const point2d& end) = 0;
     virtual void draw_rectangle(const point2d& start, double width, double height) = 0;
@@ -87,6 +99,28 @@ public:
     virtual void fill_rectangle(const rectangle& r) = 0;
     virtual void fill_poly(const std::vector<point2d>& points) = 0;
     virtual void fill_triangle(const point2d& a, const point2d& b, const point2d& c) = 0;
+
+    /**
+     * Fill an arrow-head triangle anchored to a world position but rendered
+     * at a constant SCREEN size at every zoom level.
+     *
+     * @param anchor_world  World position of the arrow's anchor point.
+     * @param dir_world     Direction the arrow points, in world coords. Any
+     *                      nonzero length — the implementation normalises
+     *                      before computing the arrow geometry.
+     * @param arrow_size_px Arrow tip-to-tip size in screen pixels.
+     *
+     * The default implementation expands the arrow into world-coord vertices
+     * using the camera's current world-scale and calls fill_triangle — the
+     * right behaviour for the immediate backend (no zoom-time updates).
+     * Deferred and RHI override this to keep the on-screen size invariant
+     * under camera-only redraws and at any zoom level. RHI uploads one
+     * GPU instance per call and synthesises the triangle in a vertex
+     * shader; deferred captures per-vertex pixel offsets and replays them.
+     */
+    virtual void fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                              const point2d& dir_world,
+                                              float          arrow_size_px);
     virtual void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                                    double start_angle, double extent_angle) = 0;
     virtual void draw_arc(const point2d& center, double radius,
@@ -119,6 +153,7 @@ protected:
     justification       horiz_justification = justification::center;
     justification       vert_justification  = justification::center;
     QFont               current_font;
+    point2d             text_screen_offset_px = {0.0, 0.0};
 
     void update_painter(Painter* painter, QImage* surface);
 

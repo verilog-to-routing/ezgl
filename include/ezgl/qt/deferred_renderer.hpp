@@ -96,6 +96,7 @@ struct DeferredTextCommand {
     double               bound_y = 0.0;
     bool                 scale_font_with_camera = false;
     double               recorded_world_scale = 1.0;
+    point2d              screen_offset_px = {0.0, 0.0};
 };
 
 struct DeferredSurfaceCommand {
@@ -105,11 +106,30 @@ struct DeferredSurfaceCommand {
     double               scale_factor = 1.0;
 };
 
+/**
+ * A small filled triangle (e.g., an arrow head) that follows a world
+ * position but stays at a constant SCREEN size at every zoom level.
+ *
+ * anchor_world is the centroid of the triangle in WORLD coords; it
+ * pans/zooms with the camera. The three corner offsets are stored in
+ * SCREEN PIXELS measured at record time and applied at replay time as
+ * pixel-space offsets from anchor_world's projected screen position —
+ * so the triangle's pixel size stays fixed regardless of zoom.
+ */
+struct DeferredArrowTriangleCommand {
+    DeferredPainterState state;
+    point2d              anchor_world;
+    point2d              offset_a_px;
+    point2d              offset_b_px;
+    point2d              offset_c_px;
+};
+
 using DeferredOverlayCommand =
     std::variant<DeferredPolyCommand,
                  DeferredArcCommand,
                  DeferredTextCommand,
-                 DeferredSurfaceCommand>;
+                 DeferredSurfaceCommand,
+                 DeferredArrowTriangleCommand>;
 
 // ---- deferred_renderer ---------------------------------------------------
 
@@ -139,6 +159,9 @@ public:
 
     void fill_poly(const std::vector<point2d>& points) override;
     void fill_triangle(const point2d& a, const point2d& b, const point2d& c) override;
+    void fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                      const point2d& dir_world,
+                                      float          arrow_size_px) override;
     void draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
                            double start_angle, double extent_angle) override;
     void draw_arc(const point2d& center, double radius,

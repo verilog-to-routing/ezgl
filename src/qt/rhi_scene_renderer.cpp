@@ -24,6 +24,7 @@ constexpr std::size_t kInitialFillRectBufferBytes       = 512 * 1024;
 constexpr std::size_t kInitialFillPolyBufferBytes       = 512 * 1024;
 constexpr std::size_t kInitialThickInstanceBufferBytes  = 512 * 1024;
 constexpr std::size_t kInitialDashedInstanceBufferBytes = 512 * 1024;
+constexpr std::size_t kInitialArrowInstanceBufferBytes  = 512 * 1024;
 constexpr std::size_t kInitialStyleUniformBufferBytes   = 16 * 1024;
 
 constexpr std::size_t kMaxPosVerticesPerBuffer =
@@ -34,6 +35,8 @@ constexpr std::size_t kMaxThickInstancesPerBuffer =
     kMaxQrhiBufferBytes / sizeof(ezgl::ThickLineInstance);
 constexpr std::size_t kMaxDashedInstancesPerBuffer =
     kMaxQrhiBufferBytes / sizeof(ezgl::DashedLineInstance);
+constexpr std::size_t kMaxArrowInstancesPerBuffer =
+    kMaxQrhiBufferBytes / sizeof(ezgl::ArrowInstance);
 
 // MVP UBO layout (std140, binding 0):
 //   offset  0 : mat4  mvp      (64 bytes)
@@ -224,6 +227,48 @@ void buildThickLinePipeline(QRhi*                                  rhi,
     pso->create();
 }
 
+// Pipeline for GPU-instanced arrow heads. Each instance is a 4-float
+// vec4 {anchor, dir} read at attribute location 0/1; the vertex shader
+// runs 3 times per instance and uses gl_VertexIndex (no per-vertex
+// buffer needed). Fragment stage reuses the line.frag solid-colour shader.
+void buildArrowPipeline(QRhi*                                  rhi,
+                        std::unique_ptr<QRhiGraphicsPipeline>& pso,
+                        const QShader&                         arrow_vs,
+                        const QShader&                         fs,
+                        QRhiShaderResourceBindings*            srb,
+                        QRhiRenderPassDescriptor*              rpDesc)
+{
+    QRhiVertexInputLayout layout;
+    layout.setBindings({
+        QRhiVertexInputBinding(sizeof(ezgl::ArrowInstance),
+                               QRhiVertexInputBinding::PerInstance)
+    });
+    layout.setAttributes({
+        QRhiVertexInputAttribute(0, 0, QRhiVertexInputAttribute::Float2,
+                                 offsetof(ezgl::ArrowInstance, ax)),
+        QRhiVertexInputAttribute(0, 1, QRhiVertexInputAttribute::Float2,
+                                 offsetof(ezgl::ArrowInstance, dx))
+    });
+
+    QRhiGraphicsPipeline::TargetBlend blend;
+    blend.enable   = true;
+    blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+    blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    blend.srcAlpha = QRhiGraphicsPipeline::One;
+    blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+
+    pso.reset(rhi->newGraphicsPipeline());
+    pso->setTopology(QRhiGraphicsPipeline::Triangles);
+    pso->setVertexInputLayout(layout);
+    pso->setShaderStages({{ QRhiShaderStage::Vertex, arrow_vs }, { QRhiShaderStage::Fragment, fs }});
+    pso->setShaderResourceBindings(srb);
+    pso->setRenderPassDescriptor(rpDesc);
+    pso->setTargetBlends({ blend });
+    pso->setDepthTest(false);
+    pso->setDepthWrite(false);
+    pso->create();
+}
+
 void buildDashedLinePipeline(QRhi*                                  rhi,
                              std::unique_ptr<QRhiGraphicsPipeline>& pso,
                              const QShader&                         dashed_vs,
@@ -332,6 +377,7 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
     QShader fill_rect_vs = loadShader(":/ezgl/fill_rect.vert.qsb");
     QShader thick_vs     = loadShader(":/ezgl/thick_line.vert.qsb");
     QShader dashed_vs    = loadShader(":/ezgl/dashed_line.vert.qsb");
+    QShader arrow_vs     = loadShader(":/ezgl/arrow.vert.qsb");
     QShader dashed_fs    = loadShader(":/ezgl/dashed_line.frag.qsb");
     QShader overlay_vs   = loadShader(":/ezgl/overlay.vert.qsb");
     QShader overlay_fs   = loadShader(":/ezgl/overlay.frag.qsb");
@@ -362,6 +408,7 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
         fr.fill_poly_vbufs.clear();
         fr.thick_line_instance_vbufs.clear();
         fr.dashed_line_instance_vbufs.clear();
+        fr.arrow_instance_vbufs.clear();
         fr.gpu_scene.clear();
     }
 
@@ -411,6 +458,8 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
                            thick_vs, line_fs, geom_srb, rp_desc);
     buildDashedLinePipeline(rhi, m_dashed_line_pso,
                             dashed_vs, dashed_fs, geom_srb, rp_desc);
+    buildArrowPipeline(rhi, m_arrow_pso,
+                       arrow_vs, line_fs, geom_srb, rp_desc);
     buildOverlayPipeline(rhi, m_overlay_pso,
                          overlay_vs, overlay_fs, over_srb, rp_desc);
 
@@ -512,7 +561,7 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
         const std::size_t total_style_count =
             scene_buffers->thin_lines.size() + scene_buffers->fill_rects.size()
             + scene_buffers->fill_polys.size() + scene_buffers->thick_lines.size()
-            + scene_buffers->dashed_lines.size();
+            + scene_buffers->dashed_lines.size() + scene_buffers->arrows.size();
 
         std::vector<std::uint8_t> style_uniform_bytes(total_style_count * style_stride, 0);
         std::size_t next_style_index = 0;
@@ -525,9 +574,9 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
         };
 
         std::vector<std::size_t> thin_counts, fill_rect_counts, fill_poly_counts,
-                                  thick_counts, dashed_counts;
+                                  thick_counts, dashed_counts, arrow_counts;
         std::vector<PendingUpload> thin_uploads, fill_rect_uploads, fill_poly_uploads,
-                                    thick_uploads, dashed_uploads;
+                                    thick_uploads, dashed_uploads, arrow_uploads;
         fr.gpu_scene.clear();
 
         auto planStyleBuffers = [&](const auto& scene_map,
@@ -595,6 +644,10 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
                          dashed_uploads, dashed_counts, sizeof(DashedLineInstance),
                          kMaxDashedInstancesPerBuffer,
                          [](const DashedLineStyleBuffer& b) -> const auto& { return b.instances; });
+        planStyleBuffers(scene_buffers->arrows,       fr.gpu_scene.arrows,
+                         arrow_uploads, arrow_counts, sizeof(ArrowInstance),
+                         kMaxArrowInstancesPerBuffer,
+                         [](const ArrowStyleBuffer& b) -> const auto& { return b.instances; });
 
         // Ensure / grow style UBO
         const std::size_t style_ubuf_bytes =
@@ -629,6 +682,7 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
         ensurePool(fr.fill_poly_vbufs,          fill_poly_counts, sizeof(PosVertex),        kInitialFillPolyBufferBytes);
         ensurePool(fr.thick_line_instance_vbufs,thick_counts,     sizeof(ThickLineInstance),kInitialThickInstanceBufferBytes);
         ensurePool(fr.dashed_line_instance_vbufs,dashed_counts,   sizeof(DashedLineInstance),kInitialDashedInstanceBufferBytes);
+        ensurePool(fr.arrow_instance_vbufs,    arrow_counts,     sizeof(ArrowInstance),    kInitialArrowInstanceBufferBytes);
 
         auto uploadPool = [&](std::vector<std::unique_ptr<QRhiBuffer>>& pool,
                                const std::vector<PendingUpload>&         uploads_list) {
@@ -641,6 +695,7 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
         uploadPool(fr.fill_poly_vbufs,          fill_poly_uploads);
         uploadPool(fr.thick_line_instance_vbufs,thick_uploads);
         uploadPool(fr.dashed_line_instance_vbufs,dashed_uploads);
+        uploadPool(fr.arrow_instance_vbufs,    arrow_uploads);
 
         if (std::size_t(frame_slot) < m_frame_slot_geom_valid.size())
             m_frame_slot_geom_valid[std::size_t(frame_slot)] = true;
@@ -692,6 +747,29 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
     drawStyled(m_dashed_line_pso.get(),fr.gpu_scene.dashed_lines,fr.dashed_line_instance_vbufs, false, true);
     drawStyled(m_thick_line_pso.get(), fr.gpu_scene.thick_lines, fr.thick_line_instance_vbufs,  false, true);
 
+    // Arrow heads — single per-instance vertex binding, 3 vertices per
+    // instance (Triangles topology). The vertex shader picks the corner via
+    // gl_VertexIndex and synthesises the arrow at a constant SCREEN-pixel
+    // size from style.line.x = arrow_size_px.
+    if (!fr.gpu_scene.arrows.empty()) {
+        cb->setGraphicsPipeline(m_arrow_pso.get());
+        for (const GpuStyleBuffer& style : fr.gpu_scene.arrows) {
+            const QRhiCommandBuffer::DynamicOffset dyn{1, style.style_offset};
+            bool style_bound = false;
+            for (const GpuChunk& chunk : style.chunks) {
+                if (!style_bound) {
+                    cb->setShaderResources(fr.srb.get(), 1, &dyn);
+                    style_bound = true;
+                }
+                const QRhiCommandBuffer::VertexInput vi{
+                    fr.arrow_instance_vbufs[chunk.buffer_index].get(),
+                    chunk.byte_offset};
+                cb->setVertexInput(0, 1, &vi);
+                cb->draw(3, chunk.count);
+            }
+        }
+    }
+
     if (has_overlay && fr.overlay_tex) {
         cb->setGraphicsPipeline(m_overlay_pso.get());
         cb->setShaderResources(fr.overlay_srb.get());
@@ -706,6 +784,7 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
 void RhiSceneRenderer::release()
 {
     m_overlay_pso.reset();
+    m_arrow_pso.reset();
     m_dashed_line_pso.reset();
     m_thick_line_pso.reset();
     m_fill_poly_pso.reset();
@@ -719,6 +798,7 @@ void RhiSceneRenderer::release()
         fr.overlay_srb.reset();
         fr.overlay_tex.reset();
         fr.srb.reset();
+        fr.arrow_instance_vbufs.clear();
         fr.dashed_line_instance_vbufs.clear();
         fr.thick_line_instance_vbufs.clear();
         fr.fill_poly_vbufs.clear();

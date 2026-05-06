@@ -134,7 +134,17 @@ void application::init()
   for (auto &c_pair : m_canvases)
     c_pair.second->end_deferred_redraw_cycle();
 
-  q_info("application::init successful.");
+  // Flush any status-bar message pushed before the StatusBar widget existed.
+  // See update_message() for the deferral logic.
+  if (!m_pending_message.isEmpty()) {
+    if (auto* status_bar = qobject_cast<QStatusBar*>(
+            find_widget("StatusBar", /*skip_notfound_report=*/true))) {
+      status_bar->showMessage(m_pending_message);
+    }
+    m_pending_message.clear();
+  }
+
+  q_debug("application::init successful.");
 }
 
 application::application(application::settings s, int& argc, char** argv)
@@ -143,6 +153,7 @@ application::application(application::settings s, int& argc, char** argv)
     , m_window_id(s.window_identifier)
     , m_canvas_id(s.canvas_identifier)
     , m_application_id(s.application_identifier)
+    , m_register_callbacks(s.setup_callbacks)
 {
   // we moved this to run method
 
@@ -245,7 +256,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
     // std::map's emplace does not insert the value when the key is already present.
     q_warning("Duplicate key (%s) ignored in application::add_canvas.", canvas_id.c_str());
   } else {
-    q_info("The %s canvas has been added to the application.", canvas_id.c_str());
+    q_debug("The %s canvas has been added to the application.", canvas_id.c_str());
   }
 
   return it.first->second.get();
@@ -340,7 +351,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     }
     init();
     first_run = false;
-    q_info("The event loop is now starting.");
+    q_debug("The event loop is now starting.");
     return exec();
   } else {
     // Subsequent stage: reuse the existing window.
@@ -351,7 +362,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
       initial_setup_callback(this, false);
     for (auto &c_pair : m_canvases)
       c_pair.second->end_deferred_redraw_cycle();
-    q_info("The event loop is now resuming.");
+    q_debug("The event loop is now resuming.");
     return exec();
   }
 }
@@ -414,8 +425,12 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
 
 void application::update_message(std::string const &message)
 {
-  // Get the StatusBar Widget
-  QStatusBar* status_bar = qobject_cast<QStatusBar*>(find_widget("StatusBar"));
+  // Get the StatusBar Widget. Suppress the find_widget not-found log: it is
+  // expected for update_message() to be called before run() has loaded the
+  // UI (e.g. from VPR's early placement callbacks). In that case we buffer
+  // the message and flush it once the StatusBar exists (see init()).
+  QStatusBar* status_bar =
+      qobject_cast<QStatusBar*>(find_widget("StatusBar", /*skip_notfound_report=*/true));
 
   if (status_bar) {
     // Remove all previous messages from the message stack
@@ -424,7 +439,10 @@ void application::update_message(std::string const &message)
     // Push user message to the message stack
     status_bar->showMessage(QString::fromStdString(message));
   } else {
-    qCritical() << "object with name `StatusBar` wasn't found";
+    // StatusBar widget does not yet exist. Keep only the latest message —
+    // update_message has clear-then-show semantics, so older buffered
+    // entries would be invisibly overwritten anyway.
+    m_pending_message = QString::fromStdString(message);
   }
 }
 

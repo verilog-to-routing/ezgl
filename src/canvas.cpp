@@ -92,9 +92,16 @@ QImage canvas::render_to_image(int surface_width, int surface_height)
   if (!m_backend)
     m_backend = make_backend(m_renderer_type, nullptr, m_draw_callback, &m_camera, m_background_color);
 
-  // Pre-configure the camera for the target dimensions (canvas is a friend of camera).
+  // Retarget the camera for the (w, h) framebuffer so compute_mvp produces
+  // the right world→NDC matrix; restore afterward so the next live paint
+  // doesn't render with the saved-image dimensions.
+  const rectangle saved_widget = m_camera.get_widget();
+
   m_camera.update_widget(surface_width, surface_height);
-  return m_backend->render_to_image(surface_width, surface_height);
+  QImage out = m_backend->render_to_image(surface_width, surface_height);
+
+  m_camera.update_widget(int(saved_widget.width()), int(saved_widget.height()));
+  return out;
 }
 
 bool canvas::print_pdf(const char *file_name, int output_width, int output_height)
@@ -193,7 +200,7 @@ void canvas::initialize(QWidget *drawing_area)
     }
   }
 
-  q_info("canvas::initialize successful.");
+  q_debug("canvas::initialize successful.");
 }
 
 int canvas::width() const

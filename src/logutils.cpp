@@ -1,9 +1,18 @@
 #include <ezgl/logutils.hpp>
 
+#include <cstring>
+
 namespace ezgl {
 
 void log_message_v(const char* level, const char* file, int line, const char* fmt, va_list ap)
 {
+#ifdef NDEBUG
+    // DEBUG messages are diagnostic noise in release; suppress them.
+    // Other levels (INFO/WARNING/ERROR/CRITICAL) always pass through.
+    if (level && std::strcmp(level, "DEBUG") == 0)
+        return;
+#endif
+
     std::time_t t = std::time(nullptr);
     std::tm tm{};
 #if defined(_WIN32)
