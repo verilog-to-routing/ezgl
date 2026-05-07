@@ -4,10 +4,16 @@
 #include <rhi/qrhi.h>
 #include <QOffscreenSurface>
 #include <QSurfaceFormat>
-#if defined(Q_OS_WIN)
-#  include <rhi/qrhid3d11.h>
-#elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
-#  include <rhi/qrhimetal.h>
+// Qt 6.7+ consolidates platform-specific RHI init params into qrhi_platform.h.
+// Older Qt versions exposed rhi/qrhid3d11.h and rhi/qrhimetal.h separately.
+#if __has_include(<rhi/qrhi_platform.h>)
+#  include <rhi/qrhi_platform.h>
+#else
+#  if defined(Q_OS_WIN)
+#    include <rhi/qrhid3d11.h>
+#  elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
+#    include <rhi/qrhimetal.h>
+#  endif
 #endif
 #include <QResizeEvent>
 #include <QShowEvent>
