@@ -94,6 +94,10 @@ bool press_mouse(QWidget*, QMouseEvent* event, void* data)
 
       std::string main_canvas_id = application->get_main_canvas_id();
       ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+      if (canvas == nullptr) {
+        event->accept();
+        return true;
+      }
 
       ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
       application->mouse_press_callback(application, event, world.x, world.y);
@@ -121,6 +125,11 @@ bool release_mouse(QWidget*, QMouseEvent* event, void* data)
 
         std::string main_canvas_id = application->get_main_canvas_id();
         ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+        if (canvas == nullptr) {
+          g_mouse_pan.has_panned = false;
+          event->accept();
+          return true;
+        }
 
         ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
         application->mouse_press_callback(application, event, world.x, world.y);
@@ -155,6 +164,10 @@ bool move_mouse(QWidget*, QMouseEvent* event, void* data)
 
       std::string main_canvas_id = application->get_main_canvas_id();
       auto canvas = application->get_canvas(main_canvas_id);
+      if (canvas == nullptr) {
+        event->accept();
+        return true;
+      }
 
       point2d curr_trans = canvas->get_camera().widget_to_world({pos.x(), pos.y()});
       point2d prev_trans = canvas->get_camera().widget_to_world({g_mouse_pan.prev_x, g_mouse_pan.prev_y});
@@ -175,6 +188,10 @@ bool move_mouse(QWidget*, QMouseEvent* event, void* data)
 
       std::string main_canvas_id = application->get_main_canvas_id();
       ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+      if (canvas == nullptr) {
+        event->accept();
+        return true;
+      }
 
       ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
       application->mouse_move_callback(application, event, world.x, world.y);
