@@ -740,8 +740,10 @@ void application::refresh_drawing()
   // get the main canvas
   canvas *cnv = get_canvas(m_canvas_id);
 
-  // force redrawing
-  cnv->redraw();
+  if (cnv) {
+    // force redrawing
+    cnv->redraw();
+  }
 }
 
 void application::flush_drawing()
