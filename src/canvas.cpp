@@ -205,11 +205,17 @@ void canvas::initialize(QWidget *drawing_area)
 
 int canvas::width() const
 {
+  // Headless mode (e.g. --disp off + save_graphics): the widget tree is
+  // never constructed so m_drawing_area is null. Fall back to the camera's
+  // widget rect, which render_to_image() updates to the output framebuffer
+  // size before invoking the draw callback.
+  if (m_drawing_area == nullptr) return (int)m_camera.get_widget().width();
   return m_drawing_area->width();
 }
 
 int canvas::height() const
 {
+  if (m_drawing_area == nullptr) return (int)m_camera.get_widget().height();
   return m_drawing_area->height();
 }
 
