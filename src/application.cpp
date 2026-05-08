@@ -372,6 +372,14 @@ void application::quit()
   exit(0);
 }
 
+void application::schedule_initial_callback(std::function<void()> callback)
+{
+  // Posts the callback to this QApplication's event queue. It fires once
+  // exec() begins pumping, even if the platform plugin (e.g. offscreen)
+  // never delivers input events.
+  QMetaObject::invokeMethod(this, std::move(callback), Qt::QueuedConnection);
+}
+
 void application::register_default_events_callbacks(ezgl::application *application)
 {
   // Get a pointer to the main window GUI object by using its name.

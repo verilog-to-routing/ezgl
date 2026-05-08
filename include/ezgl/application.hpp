@@ -30,6 +30,7 @@
 #include <QApplication>
 #include <QString>
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -554,6 +555,16 @@ public:
    * Quit the application
    */
   void quit();
+
+  /**
+   * Schedule a callback to run as soon as the Qt event loop starts pumping.
+   *
+   * Posts the callback via Qt::QueuedConnection so it fires after exec()
+   * begins, regardless of whether platform input events arrive. Used to drive
+   * scripted --graphics_commands under --disp on + QT_QPA_PLATFORM=offscreen,
+   * where no user input is delivered to wake the loop.
+   */
+  void schedule_initial_callback(std::function<void()> callback);
 
 protected:
   bool notify(QObject* receiver, QEvent* event) override;
