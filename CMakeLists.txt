@@ -59,6 +59,7 @@ add_library(
   include/ezgl/point.hpp
   include/ezgl/rectangle.hpp
   include/ezgl/logutils.hpp
+  include/ezgl/main_window.hpp
   include/ezgl/qt/qtutils.hpp
   include/ezgl/qt/qtgladeloader.hpp
   include/ezgl/qt/switchbutton.hpp
@@ -71,6 +72,7 @@ add_library(
   include/ezgl/qt/immediate_backend.hpp
   src/logutils.cpp
   src/application.cpp
+  src/main_window.cpp
   src/camera.cpp
   src/canvas.cpp
   src/control.cpp
