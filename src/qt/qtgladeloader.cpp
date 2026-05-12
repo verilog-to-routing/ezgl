@@ -107,7 +107,24 @@ QMainWindow* QtGladeLoader::loadFile(const QString& uiGladePath)
   {
     if (getClass(obj) == "GtkWindow") {
       QWidget* w = buildObjectElement(obj);
-      return qobject_cast<QMainWindow*>(w);
+      QMainWindow* win = qobject_cast<QMainWindow*>(w);
+
+      // Reparent orphan GtkPopover-converted Qt::Popup frames to the window
+      // so they share its lifetime. Pass 1 builds them with parent=nullptr
+      // (so MenuButton handlers can look them up before the window exists);
+      // without this they survive ~QMainWindow and leak across
+      // QApplication::allWidgets() into later find_widget() lookups.
+      // setParent(win, flags) preserves Qt::Popup so outside-click dismiss works.
+      if (win) {
+        for (QWidget* wgt : m_widgets) {
+          if (wgt && wgt != win && wgt->parent() == nullptr
+              && wgt->windowType() == Qt::Popup) {
+            wgt->setParent(win, wgt->windowFlags());
+          }
+        }
+      }
+
+      return win;
     }
   }
 
