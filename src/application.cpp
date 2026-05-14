@@ -20,7 +20,7 @@
 #include "ezgl/application.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 
-#include "ezgl/qt/qtgladeloader.hpp"
+#include "ezgl/main_window.hpp"
 #include "ezgl/logutils.hpp"
 #include <ezgl/qt/drawingareawidget.hpp>
 #include <ezgl/qt/rhi_canvas_widget.hpp>
@@ -39,6 +39,7 @@
 #include <QVBoxLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QMainWindow>
 #include <QStatusBar>
 
 namespace ezgl {
@@ -343,11 +344,14 @@ int application::run(setup_callback_fn initial_setup_user_callback,
     // at that point (static initialization order fiasco).  By the time run() is
     // called from main(), all .qrc static initializers have completed.
     if (!m_window) {
-      QtGladeLoader uiLoader;
+      std::optional<renderer_type> rt;
       auto it = m_canvases.find(m_canvas_id);
       if (it != m_canvases.end())
-        uiLoader.setRendererType(it->second->get_renderer_type());
-      m_window = uiLoader.loadFile(QString::fromStdString(m_main_ui));
+        rt = it->second->get_renderer_type();
+      MainWindow mw(QString::fromStdString(m_main_ui), rt);
+      // Take ownership of the loaded window; application::~application
+      // deletes m_window during shutdown.
+      m_window = mw.release();
     }
     init();
     first_run = false;
