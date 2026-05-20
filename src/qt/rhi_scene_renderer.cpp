@@ -649,12 +649,34 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
                          kMaxArrowInstancesPerBuffer,
                          [](const ArrowStyleBuffer& b) -> const auto& { return b.instances; });
 
-        // Ensure / grow style UBO
+        // Ensure / grow style UBO. If the buffer is reallocated, the
+        // fr.srb that was built once in initialize() still references the
+        // old (deleted-pending) QRhiBuffer pointer. D3D11/Metal/Vulkan
+        // cache the SRB's resource references at create() time, so the
+        // shader ends up reading stale data — symptom: blank scene with
+        // only the screen-space overlay visible. OpenGL re-resolves the
+        // SRB each draw and accidentally hides the bug on Linux. Rebuild
+        // the SRB whenever style_ubuf is recreated so the new buffer
+        // pointer is picked up. mvp_ubuf is never reallocated, so the
+        // other binding is stable.
         const std::size_t style_ubuf_bytes =
             std::max(style_stride, style_uniform_bytes.empty() ? 0 : style_uniform_bytes.size());
-        ensureDynamicBuf(m_rhi, fr.style_ubuf, QRhiBuffer::UniformBuffer,
-                         style_ubuf_bytes,
-                         std::max<std::size_t>(kInitialStyleUniformBufferBytes, style_stride));
+        const bool style_ubuf_recreated = ensureDynamicBuf(
+            m_rhi, fr.style_ubuf, QRhiBuffer::UniformBuffer,
+            style_ubuf_bytes,
+            std::max<std::size_t>(kInitialStyleUniformBufferBytes, style_stride));
+        if (style_ubuf_recreated) {
+            fr.srb->setBindings({
+                QRhiShaderResourceBinding::uniformBuffer(
+                    0, QRhiShaderResourceBinding::VertexStage, fr.mvp_ubuf.get()),
+                QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
+                    1,
+                    QRhiShaderResourceBinding::VertexStage |
+                    QRhiShaderResourceBinding::FragmentStage,
+                    fr.style_ubuf.get(), sizeof(StyleUniform))
+            });
+            fr.srb->create();
+        }
         if (!style_uniform_bytes.empty())
             u->updateDynamicBuffer(fr.style_ubuf.get(), 0,
                                    int(style_uniform_bytes.size()),
