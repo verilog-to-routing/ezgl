@@ -326,6 +326,17 @@ static QSize clamp_size(QSize s)
     return {std::max(1, s.width()), std::max(1, s.height())};
 }
 
+// Physical pixel size for an overlay QImage that pairs with a logical-size
+// `logical` framebuffer at device pixel ratio `dpr`. With this size + a
+// matching QImage::setDevicePixelRatio(dpr), QPainter accepts logical
+// coordinates as before but rasterizes glyphs at the framebuffer's physical
+// resolution, and the GPU blit to the framebuffer becomes 1:1 (no upscale).
+static QSize physical_overlay_size(QSize logical, qreal dpr)
+{
+    return {std::max(1, int(std::lround(logical.width()  * dpr))),
+            std::max(1, int(std::lround(logical.height() * dpr)))};
+}
+
 rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
                              transform_fn     transform,
                              camera*          cam,
@@ -334,8 +345,10 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
     : irenderer(nullptr, transform, cam, nullptr)
     , m_rhi_widget(widget)
     , m_size(clamp_size({widget->width(), widget->height()}))
+    , m_overlay_dpr(widget->devicePixelRatioF())
     , m_bg_color(bg_color)
-    , m_overlay(m_size, QImage::Format_ARGB32_Premultiplied)
+    , m_overlay(physical_overlay_size(m_size, m_overlay_dpr),
+                QImage::Format_ARGB32_Premultiplied)
     , m_overlay_painter(&m_overlay)
     , m_overlay_deferred(std::make_unique<deferred_renderer>(
           &m_overlay_painter,
@@ -344,6 +357,12 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
           &m_overlay))
 {
     (void)draw_callback;
+    // QImage::setDevicePixelRatio must be set BEFORE Painter begin() so the
+    // QPainter sees logical coordinates while rasterizing at physical
+    // resolution. We constructed m_overlay_painter on m_overlay in the
+    // initializer list, but the QImage carries DPR=1 by default; calling
+    // setDevicePixelRatio now is fine because no draws have happened yet.
+    m_overlay.setDevicePixelRatio(m_overlay_dpr);
   //    m_n_bands       = 1;
     m_n_bands       = int(std::max(1u, std::thread::hardware_concurrency()));
     m_rows_per_band = (kTileGridDimension + m_n_bands - 1) / m_n_bands;
@@ -369,6 +388,7 @@ rhi_renderer::rhi_renderer(QSize            size,
     : irenderer(nullptr, transform, cam, nullptr)
     , m_rhi_widget(nullptr)
     , m_size(clamp_size(size))
+    , m_overlay_dpr(1.0) // headless: caller passes raw pixel size, no DPR scaling
     , m_bg_color(bg_color)
     , m_overlay(m_size, QImage::Format_ARGB32_Premultiplied)
     , m_overlay_painter(&m_overlay)
@@ -643,12 +663,20 @@ void rhi_renderer::begin_frame()
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
 
-    // Refresh size from widget (it may have been resized since construction).
-    if (m_rhi_widget)
+    // Refresh size + DPR from widget (it may have been resized since construction,
+    // and DPR may have changed too if the window crossed monitors with different
+    // display scaling).
+    if (m_rhi_widget) {
         m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
+        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
+    }
 
-    if (m_overlay.size() != m_size)
-        m_overlay = QImage(m_size, QImage::Format_ARGB32_Premultiplied);
+    const QSize wanted_overlay_px = physical_overlay_size(m_size, m_overlay_dpr);
+    if (m_overlay.size() != wanted_overlay_px
+        || m_overlay.devicePixelRatio() != m_overlay_dpr) {
+        m_overlay = QImage(wanted_overlay_px, QImage::Format_ARGB32_Premultiplied);
+        m_overlay.setDevicePixelRatio(m_overlay_dpr);
+    }
 
     m_overlay.fill(Qt::transparent);
 
@@ -689,8 +717,12 @@ void rhi_renderer::begin_overlay_frame()
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
 
-    if (m_overlay.size() != m_size)
-        m_overlay = QImage(m_size, QImage::Format_ARGB32_Premultiplied);
+    const QSize wanted_overlay_px = physical_overlay_size(m_size, m_overlay_dpr);
+    if (m_overlay.size() != wanted_overlay_px
+        || m_overlay.devicePixelRatio() != m_overlay_dpr) {
+        m_overlay = QImage(wanted_overlay_px, QImage::Format_ARGB32_Premultiplied);
+        m_overlay.setDevicePixelRatio(m_overlay_dpr);
+    }
 
     m_overlay.fill(Qt::transparent);
 
@@ -1671,8 +1703,10 @@ void rhi_renderer::flush_mvp_only()
     // camera reports the new screen rectangle while m_size still holds the
     // pre-resize framebuffer dimensions — compute_mvp() divides by the old
     // fw/fh and the next paint comes out skewed until a full redraw runs.
-    if (m_rhi_widget)
+    if (m_rhi_widget) {
         m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
+        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
+    }
 
     render_cached_overlay();
     m_rhi_widget->set_mvp_and_overlay(compute_mvp(), irenderer::get_visible_world(), m_overlay);

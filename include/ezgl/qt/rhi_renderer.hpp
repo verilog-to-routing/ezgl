@@ -307,7 +307,8 @@ private:
     // ---- state --------------------------------------------------------------
 
     RhiCanvasWidget*         m_rhi_widget; ///< null in headless mode
-    QSize                    m_size;       ///< used when m_rhi_widget == nullptr
+    QSize                    m_size;       ///< logical (device-independent) framebuffer size
+    qreal                    m_overlay_dpr = 1.0; ///< overlay QImage device pixel ratio (matches widget DPR; 1.0 headless)
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
     std::uint32_t            m_current_rgba = 0;

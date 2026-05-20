@@ -387,8 +387,13 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
     m_frame_resources.resize(std::size_t(n_slots));
     m_frame_slot_geom_valid.assign(std::size_t(n_slots), false);
 
+    // Linear, not Nearest: the overlay QImage is the same size as the
+    // framebuffer in the common case, but HiDPI / DPR != 1 / fractional
+    // scaling all introduce non-integer scaling at blit time. Nearest
+    // there produces blocky text edges; Linear preserves the QPainter's
+    // antialiased glyphs cleanly.
     m_overlay_sampler.reset(rhi->newSampler(
-        QRhiSampler::Nearest, QRhiSampler::Nearest, QRhiSampler::None,
+        QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
         QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
     m_overlay_sampler->create();
 
