@@ -67,8 +67,8 @@ StyleUniform makeStyleUniform(ezgl::StyleKey style_key, std::uint32_t rgba)
     if (width_px <= 0.0f) width_px = 1.0f;
     float dash_px = 0.0f, gap_px = 0.0f;
     if (ezgl::style_key_line_dash(style_key) != 0) {
-        dash_px = 5.0f * width_px;
-        gap_px  = 3.0f * width_px;
+        dash_px = 5.0f;
+        gap_px  = 3.0f;
     }
     return StyleUniform{{
         float((rgba >>  0) & 0xFF) * kScale,
