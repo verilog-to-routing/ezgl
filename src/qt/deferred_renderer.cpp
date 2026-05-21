@@ -987,24 +987,10 @@ void deferred_renderer::replay()
     print_visible_stats(stats);
 #endif // EZGL_RENDERER_DEBUG
 
-    for (const auto& batch : visible_line_batches) {
-        QPen pen = make_pen(batch.style);
-        m_painter->setPen(pen);
-        m_painter->setBrush(Qt::NoBrush);
-        m_painter->drawLines(batch.lines.data(), int(batch.lines.size()));
-    }
-
     for (const auto& batch : visible_fill_rect_batches) {
         QColor c = unpack_color(batch.fill_style.color_rgba);
         m_painter->setPen(Qt::NoPen);
         m_painter->setBrush(QBrush(c));
-        m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
-    }
-
-    for (const auto& batch : visible_draw_rect_batches) {
-        QPen pen = make_pen(batch.line_style);
-        m_painter->setPen(pen);
-        m_painter->setBrush(Qt::NoBrush);
         m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
     }
 
@@ -1014,6 +1000,20 @@ void deferred_renderer::replay()
         m_painter->setBrush(QBrush(c));
         for (const QPolygonF& poly : batch.polys)
             m_painter->drawPolygon(poly);
+    }
+
+    for (const auto& batch : visible_draw_rect_batches) {
+        QPen pen = make_pen(batch.line_style);
+        m_painter->setPen(pen);
+        m_painter->setBrush(Qt::NoBrush);
+        m_painter->drawRects(batch.rects.data(), int(batch.rects.size()));
+    }
+
+    for (const auto& batch : visible_line_batches) {
+        QPen pen = make_pen(batch.style);
+        m_painter->setPen(pen);
+        m_painter->setBrush(Qt::NoBrush);
+        m_painter->drawLines(batch.lines.data(), int(batch.lines.size()));
     }
 
     for (const DeferredOverlayCommand* command : visible_overlay_commands) {
