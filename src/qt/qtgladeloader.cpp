@@ -1,4 +1,5 @@
 #include "ezgl/qt/qtgladeloader.hpp"
+#include "ezgl/qt/qtutils.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 #include "ezgl/qt/drawingareawidget.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
@@ -233,7 +234,7 @@ QWidget* QtGladeLoader::buildGtkGrid(const QDomElement& objEl, QWidget* parent)
   m_widgets.insert(container->objectName(), container);
 
   QGridLayout* layout = new QGridLayout(container);
-  layout->setContentsMargins(0,0,0,0);
+  ezgl::applyLayoutDefaults(layout);
 
   applyCommonProperties(container, objEl);
 
@@ -329,8 +330,7 @@ QWidget* QtGladeLoader::buildGtkBox(const QDomElement& objEl, QWidget* parent)
   } else {
     layout = new QHBoxLayout(container);
   }
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(2);
+  ezgl::applyLayoutDefaults(layout);
 
   for (QDomElement childEl = objEl.firstChildElement("child");
        !childEl.isNull();

@@ -5,10 +5,14 @@
 #include <QObject>
 
 class QWidget;
+class QLayout;
 class QBoxLayout;
 class QGridLayout;
 
 namespace ezgl {
+
+// Set default layout content margins and item spacing.
+void applyLayoutDefaults(QLayout* layout);
 
 QWidget* grid_new();
 

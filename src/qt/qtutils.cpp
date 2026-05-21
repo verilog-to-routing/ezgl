@@ -9,6 +9,15 @@
 
 namespace ezgl {
 
+void applyLayoutDefaults(QLayout* layout)
+{
+  static int g_layout_margin  = 0;
+  static int g_layout_spacing = 0;
+  layout->setContentsMargins(g_layout_margin, g_layout_margin,
+                             g_layout_margin, g_layout_margin);
+  layout->setSpacing(g_layout_spacing);
+}
+
 QWidget* grid_new()
 {
   QWidget* w = new QWidget;
