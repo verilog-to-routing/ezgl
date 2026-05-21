@@ -326,25 +326,6 @@ bool deferred_renderer::screen_line_visible(const QLineF& line, double line_widt
     return false;
 }
 
-bool deferred_renderer::screen_poly_visible(const std::vector<point2d>& points) const
-{
-    if (points.empty())
-        return false;
-
-    double x_min = points.front().x;
-    double x_max = points.front().x;
-    double y_min = points.front().y;
-    double y_max = points.front().y;
-    for (std::size_t i = 1; i < points.size(); ++i) {
-        x_min = std::min(x_min, points[i].x);
-        x_max = std::max(x_max, points[i].x);
-        y_min = std::min(y_min, points[i].y);
-        y_max = std::max(y_max, points[i].y);
-    }
-
-    return screen_rect_visible(QRectF(x_min, y_min, x_max - x_min, y_max - y_min));
-}
-
 bool deferred_renderer::screen_arc_visible(const point2d& center,
                                            double radius_x,
                                            double radius_y) const
@@ -700,22 +681,6 @@ void deferred_renderer::replay()
             return true;
         };
 
-    auto world_poly_visible = [this](const std::vector<point2d>& points) {
-        if (points.empty())
-            return false;
-
-        double x_min = points.front().x, x_max = points.front().x;
-        double y_min = points.front().y, y_max = points.front().y;
-        for (std::size_t i = 1; i < points.size(); ++i) {
-            x_min = std::min(x_min, points[i].x);
-            x_max = std::max(x_max, points[i].x);
-            y_min = std::min(y_min, points[i].y);
-            y_max = std::max(y_max, points[i].y);
-        }
-
-        return !rectangle_off_screen({{x_min, y_min}, {x_max, y_max}});
-    };
-
     auto world_arc_visible = [this](const point2d& center, double radius_x, double radius_y) {
         return !rectangle_off_screen(
             {{center.x - radius_x, center.y - radius_y},
@@ -916,18 +881,7 @@ void deferred_renderer::replay()
             m_overlay_commands[std::size_t(command_index)];
         const bool visible = std::visit([&](const auto& cmd) -> bool {
             using T = std::decay_t<decltype(cmd)>;
-            if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
-                if (cmd.state.coordinate_system == SCREEN) {
-                    if (!screen_poly_visible(cmd.points))
-                        return false;
-                } else if (!world_poly_visible(cmd.points)) {
-                    return false;
-                }
-#ifdef EZGL_RENDERER_DEBUG
-                ++stats.filled_polys;
-#endif // EZGL_RENDERER_DEBUG
-                return true;
-            } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
+            if constexpr (std::is_same_v<T, DeferredArcCommand>) {
                 if (cmd.state.coordinate_system == SCREEN) {
                     if (!screen_arc_visible(cmd.center, cmd.radius_x, cmd.radius_y))
                         return false;
@@ -1020,10 +974,7 @@ void deferred_renderer::replay()
         std::visit([this, &resolve_text_replay_state](const auto& cmd) {
             apply_painter_state(cmd.state);
             using T = std::decay_t<decltype(cmd)>;
-            if constexpr (std::is_same_v<T, DeferredPolyCommand>) {
-                // Paint directly to avoid re-entering the overlay queue.
-                paint_poly(cmd.points);
-            } else if constexpr (std::is_same_v<T, DeferredArcCommand>) {
+            if constexpr (std::is_same_v<T, DeferredArcCommand>) {
                 const double stretch = cmd.radius_x > 0.0
                     ? cmd.radius_y / cmd.radius_x : 1.0;
                 paint_arc_path(cmd.center, cmd.radius_x, cmd.start_angle,

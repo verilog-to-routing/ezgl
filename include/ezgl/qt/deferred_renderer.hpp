@@ -73,11 +73,6 @@ struct DeferredPainterState {
     QFont               font;
 };
 
-struct DeferredPolyCommand {
-    DeferredPainterState   state;
-    std::vector<point2d>   points;
-};
-
 struct DeferredArcCommand {
     DeferredPainterState state;
     point2d              center;
@@ -125,8 +120,7 @@ struct DeferredArrowTriangleCommand {
 };
 
 using DeferredOverlayCommand =
-    std::variant<DeferredPolyCommand,
-                 DeferredArcCommand,
+    std::variant<DeferredArcCommand,
                  DeferredTextCommand,
                  DeferredSurfaceCommand,
                  DeferredArrowTriangleCommand>;
@@ -207,7 +201,6 @@ private:
     QRectF screen_viewport_rect() const;
     bool screen_rect_visible(const QRectF& rect, double padding = 0.0) const;
     bool screen_line_visible(const QLineF& line, double line_width) const;
-    bool screen_poly_visible(const std::vector<point2d>& points) const;
     bool screen_arc_visible(const point2d& center,
                             double radius_x,
                             double radius_y) const;
