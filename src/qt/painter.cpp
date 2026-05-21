@@ -5,7 +5,7 @@
 namespace ezgl {
 
 // Pen
-Pen::Pen(): QPen(Qt::SolidLine) {}
+Pen::Pen(): QPen(Qt::SolidLine) { setCapStyle(Qt::FlatCap); }
 
 void Pen::setWidth(double width) {
   QPen::setWidthF(width);
