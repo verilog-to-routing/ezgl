@@ -58,7 +58,7 @@ enum t_coordinate_system {
   /**
    * Default coordinate system; specified by the user as any desired range. Graphics drawn in world coordinates
    * will be transformed to screen pixels by ezgl. Panning and zooming change the transformation from 
-   * world to screen coordinates, so they automatically work for any graphics drawn in wrld coordinates.
+   * world to screen coordinates, so they automatically work for any graphics drawn in world coordinates.
    */
   WORLD,
   /**
