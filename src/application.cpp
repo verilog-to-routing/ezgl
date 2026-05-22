@@ -145,8 +145,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
     g_warning("Canvas %s's draw callback is NULL.", canvas_id.c_str());
   }
 
-  // Can't use make_unique with protected constructor without fancy code that will confuse students, so we use new
-  // instead.
+  // Can't use make_unique with a protected constructor without overly complex workarounds, so we use new instead.
   std::unique_ptr<canvas> canvas_ptr(new canvas(canvas_id, draw_callback, coordinate_system, background_color));
   auto it = m_canvases.emplace(canvas_id, std::move(canvas_ptr));
 
@@ -475,7 +474,7 @@ void application::change_combo_box_text_options(const char* name, std::vector<st
       if(gtk_widget_get_name(widget) == name_to_find){
         auto combo_box = GTK_COMBO_BOX_TEXT(widget);
         gtk_combo_box_text_remove_all(combo_box);
-        std::cout << "REMOVED ALL" << std::endl;
+
         for(auto it : new_options){
           gtk_combo_box_text_append_text(combo_box, it.c_str());
         }
