@@ -212,6 +212,15 @@ public:
     /// Rebuild the overlay layer (text/arcs have screen-relative layout)
     /// for the current camera and push a new MVP without re-running the
     /// application draw callback or rebuilding any GPU scene buffers.
+    ///
+    /// What gets re-uploaded on this path: just @c mvp_ubuf (80 B) plus
+    /// the overlay QImage as a texture (because text/arc bounds depend
+    /// on the camera). Scene VBOs are untouched in VRAM. The cheapness
+    /// of camera-only pan/zoom relies on @ref RhiSceneRenderer::render()
+    /// re-evaluating @ref ezgl::Chunk visibility against the new
+    /// @c visible_world on every frame (not only on @c geom_dirty), so
+    /// the freshly-pannned viewport's draw call set is recomputed
+    /// without rebuilding any geometry.
     void flush_mvp_only();
 
 private:
