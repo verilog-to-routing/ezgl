@@ -148,17 +148,19 @@ inline constexpr std::uint8_t style_key_line_dash(StyleKey key) noexcept
 
 // ---- Scene buffer types (CPU-side geometry before GPU upload) --------------
 
-/// One tile's contribution to a style buffer. Lets the GPU draw loop skip
-/// any tile whose @c world_bounds doesn't intersect the visible viewport
-/// without walking individual primitives — coarse but cheap. Non-visible
-/// chunks: the bytes stay in VRAM (the style's VBO is uploaded whole) but
-/// no @c cmdDraw is emitted and the vertex shader never runs on them.
-/// The alternative (per-frame partial vertex upload) was rejected because
-/// VRAM is cheap, but PCIe re-upload is expensive.
+/// A contiguous sub-range of a style buffer's vertex/instance array that
+/// belongs to one tile cell. Carries the tile's world bounds so the GPU
+/// draw loop can skip non-visible chunks without touching the vertex
+/// data — coarse but cheap (one AABB test per chunk).
+///
+/// Non-visible chunks: the bytes stay in VRAM (the style's VBO is
+/// uploaded whole) but no @c cmdDraw is emitted and the vertex shader
+/// never runs on them. The alternative (per-frame partial vertex upload)
+/// was rejected because VRAM is cheap, but PCIe re-upload is expensive.
 struct Chunk {
-    rectangle     world_bounds;
-    std::uint32_t offset = 0;
-    std::uint32_t count  = 0;
+    rectangle     world_bounds;   ///< Tile cell bounds — tested against the visible world rect.
+    std::uint32_t offset = 0;     ///< First vertex/instance index in the flat style-buffer array.
+    std::uint32_t count  = 0;     ///< Number of vertices/instances belonging to this tile cell.
 };
 
 struct StyleBufferCommon {
