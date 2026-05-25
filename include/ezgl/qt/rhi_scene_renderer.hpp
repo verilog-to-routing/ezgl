@@ -97,6 +97,15 @@ public:
     /**
      * Upload geometry / uniforms for @p frame_slot and record draw commands.
      *
+     * @par State-change rate
+     * The render loop is structured for the minimum possible GPU state
+     * change rate: each pipeline (PSO) is bound **once per frame** (for
+     * its primitive type's entire batch list); the per-style SRB
+     * (carrying the @c style_ubuf color slot) is bound **once per
+     * style key**; @c cmdDraw is issued **only for chunks whose
+     * world_bounds intersects @p visible_world**. Non-visible chunks
+     * cost a CPU AABB test and nothing more.
+     *
      * @param cb            Command buffer in recording state.
      * @param rt            Render target to draw into.
      * @param pixel_size    Render target size in device pixels (for the viewport).

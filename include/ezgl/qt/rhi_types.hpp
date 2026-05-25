@@ -19,6 +19,20 @@
  * lines render as a single per-primitive-type pipeline pass with no
  * per-color state churn.
  *
+ * @par Why per-style UBO and not per-vertex color
+ * Two alternatives were considered and rejected:
+ *  - per-vertex @c uint8 RGBA: costs 4 B per vertex (large for 10⁸-scale
+ *    line streams) and forces the same color to be written N times per
+ *    style batch.
+ *  - global palette UBO + per-vertex @c inStyleNorm index: forces a 4-byte
+ *    float attribute per vertex, uploads a 4 KB palette every frame even
+ *    when 2 colors are used, and adds an indirect read in the fragment
+ *    shader.
+ * Per-style UBO ({@c vec4 color}, 16 B per unique style) eliminates all of
+ * the above: zero per-vertex/instance color bytes, no palette upload, and
+ * the fragment shader collapses to @c fragColor=style.color (direct
+ * register read, no indirect).
+ *
  * @see ezgl::rhi_renderer for the recording side (tile binning + style
  *      bucket assignment).
  * @see ezgl::RhiSceneRenderer for the GPU upload side.
@@ -66,8 +80,12 @@ struct DashedLineInstance {
 };
 static_assert(sizeof(DashedLineInstance) == 20, "DashedLineInstance must be 20 bytes");
 
-/// One axis-aligned filled rectangle. The vertex shader (TriangleStrip,
-/// 4-vertex instance) builds the quad from @c (x0,y0)-(x1,y1).
+/// One axis-aligned filled rectangle, 16 B. The vertex shader
+/// (TriangleStrip, 4-vertex instance) reconstructs each corner from
+/// @c gl_VertexIndex against @c (x0,y0)-(x1,y1). The alternative
+/// (6 expanded @ref PosVertex per rect = 48 B, triangle-list CPU
+/// expansion) was 3× the bandwidth — significant because filled rects
+/// dominate FPGA scenes (block fills, channel fills, congestion cells).
 struct FillRectInstance {
     float x0, y0;
     float x1, y1;
@@ -132,7 +150,11 @@ inline constexpr std::uint8_t style_key_line_dash(StyleKey key) noexcept
 
 /// One tile's contribution to a style buffer. Lets the GPU draw loop skip
 /// any tile whose @c world_bounds doesn't intersect the visible viewport
-/// without walking individual primitives — coarse but cheap.
+/// without walking individual primitives — coarse but cheap. Non-visible
+/// chunks: the bytes stay in VRAM (the style's VBO is uploaded whole) but
+/// no @c cmdDraw is emitted and the vertex shader never runs on them.
+/// The alternative (per-frame partial vertex upload) was rejected because
+/// VRAM is cheap, but PCIe re-upload is expensive.
 struct Chunk {
     rectangle     world_bounds;
     std::uint32_t offset = 0;

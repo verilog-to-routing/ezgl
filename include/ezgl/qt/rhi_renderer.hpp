@@ -26,6 +26,14 @@ namespace ezgl {
  * scene is handed to @ref RhiCanvasWidget which forwards it to the render
  * thread.
  *
+ * @par How chunks are built (no post-sort)
+ * Each primitive is clipped to the tile grid; for each tile (tx,ty) the
+ * primitive touches, the first append into that style's buffer opens a
+ * new @ref ezgl::Chunk with @c offset = current vertex count, and each
+ * subsequent append increments @c count. By the time the user's draw
+ * callback returns, the style buffers are already in chunked form — no
+ * sort or re-pack pass is needed at @ref flush() time.
+ *
  * @par GPU vs CPU primitives
  * The following primitives are GPU-rendered through one of the six geometry
  * pipelines in @ref RhiSceneRenderer: @c draw_line, @c fill_rectangle,
