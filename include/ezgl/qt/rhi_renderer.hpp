@@ -26,13 +26,19 @@ namespace ezgl {
  * scene is handed to @ref RhiCanvasWidget which forwards it to the render
  * thread.
  *
- * @par How chunks are built (no post-sort)
- * Each primitive is clipped to the tile grid; for each tile (tx,ty) the
- * primitive touches, the first append into that style's buffer opens a
- * new @ref ezgl::Chunk with @c offset = current vertex count, and each
- * subsequent append increments @c count. By the time the user's draw
- * callback returns, the style buffers are already in chunked form — no
- * sort or re-pack pass is needed at @ref flush() time.
+ * @par How chunks are built (two-stage: record then assemble)
+ * During the user's draw callback (record stage), each primitive is
+ * clipped to the tile grid and appended into per-tile batches
+ * (@c RhiTileBatch in @c m_tiles), grouped by @ref ezgl::StyleKey
+ * within each tile via linear lookup over the tile's style-batch list.
+ * At @ref flush() time, @c build_scene_buffers walks tiles in
+ * tile-grid order and copies the per-tile batches into scene-wide
+ * @ref ezgl::SceneBuffers, emitting **one @ref ezgl::Chunk per (tile,
+ * style) pair** with @c (offset, count) recording that pair's slice
+ * inside the scene-wide flat array. The repack is deterministic
+ * (driven by tile traversal order) so no sort pass is needed, but the
+ * data is copied — record-time batches are intermediate, not the final
+ * GPU-bound buffers.
  *
  * @par GPU vs CPU primitives
  * The following primitives are GPU-rendered through one of the six geometry
