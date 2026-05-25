@@ -10,6 +10,21 @@ It is also used by the VPR program.
 
 The library currently depends on GTK 3 and cairo.
 
+=== Build-tool dependency: qsb (Qt Shader Baker)
+
+The RHI renderer's shaders are baked from GLSL to `.qsb` at build time —
+the `.qsb` files are NOT committed. `qsb` is a hard build requirement; if
+missing, CMake errors out with install instructions.
+
+Install via https://github.com/miurahr/aqtinstall[aqt] (the same Python
+installer used to provision Qt itself):
+
+  pip install aqtinstall
+  aqt install-qt linux desktop 6.9.3 linux_gcc_64 -m qtshadertools
+
+This drops `qsb` next to the rest of your Qt 6.9.3 install. CMake's
+`Qt6_DIR`-derived `HINTS` then auto-detect it; no extra config needed.
+
 == Compilation
 
 This project uses CMake for compiling and works with CMake version 3.0.2 (the version available on the UG machines).
