@@ -11,8 +11,8 @@ class QMainWindow;
 namespace ezgl {
 
 /**
- * RAII wrapper that loads the VPR main UI from a Qt resource (or
- * filesystem) path and owns the resulting QMainWindow.
+ * RAII wrapper that loads the application's main UI from a Qt resource
+ * (or filesystem) path and owns the resulting QMainWindow.
  *
  * Today this class delegates to ezgl::QtGladeLoader internally, which
  * parses the legacy Glade XML format. The intended replacement —

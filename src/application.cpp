@@ -397,8 +397,8 @@ void application::register_default_events_callbacks(ezgl::application *applicati
 
 void application::register_default_buttons_callbacks(ezgl::application *application)
 {
-  // Helper: only connect if the button exists in this UI (VPR's main.ui omits
-  // several navigation buttons that the basic-application example has).
+  // Helper: only connect if the button exists in this UI (some applications
+  // omit several navigation buttons that the basic-application example has).
   auto connect_if_present = [&](const char* name, auto slot, bool skip_notfound_report = false) {
     QPushButton* btn = application->find_push_button(name, skip_notfound_report);
     if (btn) {
@@ -421,7 +421,7 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   // Qt quits the event loop automatically when the last window closes
   // (quitOnLastWindowClosed=true by default), which is equivalent to GTK's
   // "destroy" → press_proceed path.  We just need to ensure press_proceed is
-  // also called so VPR's internal state advances to the next stage.
+  // also called so the application's internal state advances to the next stage.
   QWidget* window = application->find_widget(application->get_main_window_id().c_str());
   if (window) {
     // Prevent Qt from deleting the window on close so it can be reused
@@ -439,8 +439,9 @@ void application::update_message(std::string const &message)
 {
   // Get the StatusBar Widget. Suppress the find_widget not-found log: it is
   // expected for update_message() to be called before run() has loaded the
-  // UI (e.g. from VPR's early placement callbacks). In that case we buffer
-  // the message and flush it once the StatusBar exists (see init()).
+  // UI (e.g. from early application callbacks fired during startup). In
+  // that case we buffer the message and flush it once the StatusBar
+  // exists (see init()).
   QStatusBar* status_bar =
       qobject_cast<QStatusBar*>(find_widget("StatusBar", /*skip_notfound_report=*/true));
 

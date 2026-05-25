@@ -24,11 +24,10 @@ void log_message_v(const char* level, const char* file, int line, const char* fm
     char time_buf[32];
     std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
 
-    // Flush stdout first so that any partially-written VPR output line is
-    // committed before this message lands on stderr. Without this flush,
-    // both streams race when the test runner merges them into one file
-    // (e.g. vpr.out), which corrupts VPR output lines mid-character and
-    // breaks the regression-test QoR parser.
+    // Flush stdout first so that any partially-written application output
+    // line is committed before this message lands on stderr. Without this
+    // flush, both streams race when a test runner merges them into one
+    // file, which corrupts application output lines mid-character.
     std::fflush(stdout);
     std::fprintf(stderr, "%s %s: %s:%d: ", time_buf, level, file, line);
     std::vfprintf(stderr, fmt, ap);

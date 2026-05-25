@@ -234,7 +234,7 @@ void buildThickLinePipeline(QRhi*                                  rhi,
 // Pipeline for GPU-instanced arrow heads. Each instance is a 4-float
 // vec4 {anchor, dir} read at attribute location 0/1; the vertex shader
 // runs 3 times per instance and uses gl_VertexIndex (no per-vertex
-// buffer needed). Fragment stage reuses the line.frag solid-colour shader.
+// buffer needed). Fragment stage reuses the base.frag solid-colour shader.
 void buildArrowPipeline(QRhi*                                  rhi,
                         std::unique_ptr<QRhiGraphicsPipeline>& pso,
                         const QShader&                         arrow_vs,
@@ -379,8 +379,11 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
 
     m_rhi = rhi;
 
-    QShader line_vs      = loadShader(":/ezgl/line.vert.qsb");
-    QShader line_fs      = loadShader(":/ezgl/line.frag.qsb");
+    // base.vert / base.frag are the minimal generic shaders reused by
+    // every pipeline whose vertex stream is PosVertex and whose fragment
+    // output is the per-style flat color from the style UBO.
+    QShader base_vs      = loadShader(":/ezgl/base.vert.qsb");
+    QShader base_fs      = loadShader(":/ezgl/base.frag.qsb");
     QShader fill_rect_vs = loadShader(":/ezgl/fill_rect.vert.qsb");
     QShader thick_vs     = loadShader(":/ezgl/thick_line.vert.qsb");
     QShader dashed_vs    = loadShader(":/ezgl/dashed_line.vert.qsb");
@@ -461,17 +464,17 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
     auto* geom_srb    = m_frame_resources.front().srb.get();
     auto* over_srb    = m_frame_resources.front().overlay_srb.get();
     buildPipeline(rhi, m_line_pso, QRhiGraphicsPipeline::Lines,
-                  line_vs, line_fs, geom_srb, rp_desc);
+                  base_vs, base_fs, geom_srb, rp_desc);
     buildFillRectPipeline(rhi, m_fill_rect_pso,
-                          fill_rect_vs, line_fs, geom_srb, rp_desc);
+                          fill_rect_vs, base_fs, geom_srb, rp_desc);
     buildPipeline(rhi, m_fill_poly_pso, QRhiGraphicsPipeline::Triangles,
-                  line_vs, line_fs, geom_srb, rp_desc);
+                  base_vs, base_fs, geom_srb, rp_desc);
     buildThickLinePipeline(rhi, m_thick_line_pso,
-                           thick_vs, line_fs, geom_srb, rp_desc);
+                           thick_vs, base_fs, geom_srb, rp_desc);
     buildDashedLinePipeline(rhi, m_dashed_line_pso,
                             dashed_vs, dashed_fs, geom_srb, rp_desc);
     buildArrowPipeline(rhi, m_arrow_pso,
-                       arrow_vs, line_fs, geom_srb, rp_desc);
+                       arrow_vs, base_fs, geom_srb, rp_desc);
     buildOverlayPipeline(rhi, m_overlay_pso,
                          overlay_vs, overlay_fs, over_srb, rp_desc);
 

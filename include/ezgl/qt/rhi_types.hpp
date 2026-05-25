@@ -6,27 +6,59 @@
 #include <unordered_map>
 #include <vector>
 
+/**
+ * @file rhi_types.hpp
+ *
+ * @brief CPU-side data structures used by the rhi backend before GPU upload.
+ *
+ * The rhi backend never stores color per-vertex. Every primitive is grouped
+ * by @ref ezgl::StyleKey (a packed 64-bit key combining primitive type,
+ * RGBA, line width, and dash style); all geometry sharing one style is
+ * uploaded into a single contiguous vertex/instance buffer and drawn with
+ * one bind of the style UBO. This lets thousands of different-colored
+ * lines render as a single per-primitive-type pipeline pass with no
+ * per-color state churn.
+ *
+ * @see ezgl::rhi_renderer for the recording side (tile binning + style
+ *      bucket assignment).
+ * @see ezgl::RhiSceneRenderer for the GPU upload side.
+ */
+
 namespace ezgl {
 
 // ---- Vertex / instance layouts ---------------------------------------------
 
+/// World-space 2D position. Used as a per-vertex attribute for thin lines
+/// and filled polygons. Color comes from the style UBO, not from the vertex.
 struct PosVertex {
     float x, y;
 };
 static_assert(sizeof(PosVertex) == 8, "PosVertex must be 8 bytes");
 
+/// One of the 4 quad corners shared by every thick-line / dashed-line
+/// instance. @c t selects the line endpoint (0.0 = start, 1.0 = end) and
+/// @c side selects which edge of the expanded quad (-1.0 = left, +1.0 =
+/// right). The vertex shader uses these plus the instance's endpoints to
+/// build a screen-space-thickness quad on the GPU.
 struct QuadCorner {
     float t;
     float side;
 };
 static_assert(sizeof(QuadCorner) == 8, "QuadCorner must be 8 bytes");
 
+/// One thick-line segment. The pixel width comes from the style UBO; the
+/// vertex shader expands this into a 4-vertex quad in screen space (see
+/// @c shaders/thick_line.vert) so width is invariant under zoom.
 struct ThickLineInstance {
     float x0, y0;
     float x1, y1;
 };
 static_assert(sizeof(ThickLineInstance) == 16, "ThickLineInstance must be 16 bytes");
 
+/// One dashed-line segment. @c phase_world carries the cumulative
+/// world-space offset of this segment's start along the parent polyline so
+/// the dash pattern stays continuous across the segment boundaries of one
+/// logical polyline even when each segment is its own instance.
 struct DashedLineInstance {
     float x0, y0;
     float x1, y1;
@@ -34,16 +66,18 @@ struct DashedLineInstance {
 };
 static_assert(sizeof(DashedLineInstance) == 20, "DashedLineInstance must be 20 bytes");
 
+/// One axis-aligned filled rectangle. The vertex shader (TriangleStrip,
+/// 4-vertex instance) builds the quad from @c (x0,y0)-(x1,y1).
 struct FillRectInstance {
     float x0, y0;
     float x1, y1;
 };
 static_assert(sizeof(FillRectInstance) == 16, "FillRectInstance must be 16 bytes");
 
-// One arrow head per instance: world anchor + world direction. Fixed-pixel
-// expansion to a 3-vertex triangle happens in the vertex shader so the on-
-// screen size never grows on zoom-in. Direction can be any nonzero length —
-// the shader normalises before computing the screen-space basis.
+/// One arrow head per instance: world anchor + world direction. Fixed-pixel
+/// expansion to a 3-vertex triangle happens in the vertex shader so the
+/// on-screen size never grows on zoom-in. Direction can be any nonzero
+/// length — the shader normalises before computing the screen-space basis.
 struct ArrowInstance {
     float ax, ay;
     float dx, dy;
@@ -52,6 +86,15 @@ static_assert(sizeof(ArrowInstance) == 16, "ArrowInstance must be 16 bytes");
 
 // ---- Style key encoding ----------------------------------------------------
 
+/// Packed 64-bit key identifying a unique render-state combination. Layout:
+/// @code
+///   bits  0–31 : rgba (uint32, packed in client byte order)
+///   bits 32–47 : line_width_px (uint16, in pixels; 0 for fill primitives)
+///   bits 48–55 : line_dash (uint8; 0 for solid)
+///   bits 56–63 : PrimitiveType (uint8)
+/// @endcode
+/// Two primitives with the same key share one batch in @ref SceneBuffers
+/// and one GPU draw call per chunk.
 using StyleKey = std::uint64_t;
 
 enum class PrimitiveType : std::uint8_t {
@@ -60,9 +103,10 @@ enum class PrimitiveType : std::uint8_t {
     FilledPoly,
     ThickLine,
     DashedLine,
-    Arrow,            // GPU-instanced arrow head; line_width field reused as arrow_size_px
+    Arrow,            ///< GPU-instanced arrow head; line_width field reused as arrow_size_px.
 };
 
+/// Pack a render-state tuple into a @ref StyleKey. See StyleKey for layout.
 inline constexpr StyleKey pack_style_key(PrimitiveType primitive_type,
                                          std::uint32_t rgba,
                                          std::uint16_t line_width_px,
@@ -86,6 +130,9 @@ inline constexpr std::uint8_t style_key_line_dash(StyleKey key) noexcept
 
 // ---- Scene buffer types (CPU-side geometry before GPU upload) --------------
 
+/// One tile's contribution to a style buffer. Lets the GPU draw loop skip
+/// any tile whose @c world_bounds doesn't intersect the visible viewport
+/// without walking individual primitives — coarse but cheap.
 struct Chunk {
     rectangle     world_bounds;
     std::uint32_t offset = 0;
@@ -134,6 +181,12 @@ struct ArrowStyleBuffer : StyleBufferCommon {
     void clear()        noexcept { chunks.clear(); instances.clear(); }
 };
 
+/// One frame's worth of CPU-side geometry, grouped by primitive type and
+/// keyed within each type by @ref StyleKey. Built by @ref rhi_renderer
+/// at @c flush() time from the per-tile batches, uploaded to GPU buffers
+/// by @ref RhiSceneRenderer::render(). Passed between threads by
+/// @c shared_ptr<const SceneBuffers> so the render thread can keep
+/// rendering an old scene while the main thread builds the next one.
 struct SceneBuffers {
     std::unordered_map<StyleKey, ThinLineStyleBuffer>   thin_lines;
     std::unordered_map<StyleKey, FillRectStyleBuffer>   fill_rects;

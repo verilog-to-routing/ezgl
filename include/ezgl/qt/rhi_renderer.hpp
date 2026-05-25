@@ -15,16 +15,52 @@
 namespace ezgl {
 
 /**
- * GPU-backed renderer with scene tiling.
+ * @brief GPU-backed @ref irenderer implementation. The recording side of
+ * the rhi backend.
  *
- * Hot-path primitives are clipped into a fixed 256 x 256 grid over the scene
- * bounds while being grouped by style. flush() repacks the occupied tile
- * batches into scene-wide style buffers with chunk bounds for GPU-side upload.
+ * Receives the application's draw callbacks (one method per primitive),
+ * bins each primitive into a fixed 32x32 grid (@ref kTileGridDimension) of
+ * per-style batches over the scene bounds, then on @ref flush() repacks the
+ * occupied tile batches into scene-wide @ref ezgl::SceneBuffers with a
+ * per-tile @ref ezgl::Chunk for GPU-side viewport culling. The rebuilt
+ * scene is handed to @ref RhiCanvasWidget which forwards it to the render
+ * thread.
  *
- * Overlay primitives (text, arcs, surfaces, SCREEN-space lines, …) are cached
- * through a owned deferred_renderer (m_overlay_deferred) so they can be
- * replayed into m_overlay when the camera changes without re-running the
- * application draw callback.
+ * @par GPU vs CPU primitives
+ * The following primitives are GPU-rendered through one of the six geometry
+ * pipelines in @ref RhiSceneRenderer: @c draw_line, @c fill_rectangle,
+ * @c draw_rectangle (decomposed into 4 thin/thick lines or one fill_rect
+ * instance depending on style), plus @c fill_triangle / @c fill_poly via
+ * the fill_poly pipeline and the GPU arrow pipeline for
+ * @c fill_arrow_pointer_triangle. All other primitives — @c draw_text,
+ * @c draw_arc / @c fill_arc (and their elliptic variants), @c draw_surface,
+ * SCREEN-coordinate-system overrides — forward to an owned
+ * @ref deferred_renderer (@ref m_overlay_deferred) painting into the
+ * @ref m_overlay QImage. That QImage is uploaded as a GPU texture and
+ * composited on top of the GPU layers by the overlay pipeline.
+ *
+ * @par Parallel record
+ * Per-primitive-type command vectors are sharded across N bands of tile
+ * rows where @c N = @c std::thread::hardware_concurrency(). Each band's
+ * dispatch only touches the tiles in its row range so tile-state updates
+ * are contention-free. See @c m_n_bands, @c m_rows_per_band.
+ *
+ * @par Camera-only redraws
+ * On pan/zoom with no scene change, @ref flush_mvp_only() re-runs the
+ * overlay callbacks (text/arc bounds depend on screen-space layout) but
+ * leaves the GPU scene buffers untouched. The widget receives just a new
+ * MVP + overlay image. The big win versus the deferred backend is here.
+ *
+ * @par Headless mode
+ * The second constructor takes a @c QSize instead of a widget, and
+ * @ref flush_capture() returns the assembled frame data as a
+ * @ref HeadlessFrameData by value (no widget, no GPU dependency at this
+ * level). @ref rhi_backend::render_to_image() uses this with
+ * @ref RhiCanvasWidget::render_offscreen() to back @c save_graphics().
+ *
+ * @see RhiCanvasWidget for the Qt-side widget + thread inbox.
+ * @see RhiSceneRenderer for the GPU pipeline + frame-slot resources.
+ * @see rhi_backend for the lifecycle wrapper.
  */
 class rhi_renderer : public irenderer {
 public:
@@ -41,14 +77,24 @@ public:
         QColor       bg;
     };
 
-    /// Display path: widget provides dimensions and receives frame data.
+    /**
+     * Display constructor: bound to a live @ref RhiCanvasWidget. The
+     * widget's current size and devicePixelRatio define the overlay
+     * QImage resolution. @ref flush() pushes frame data into the widget's
+     * thread-safe inbox.
+     */
     rhi_renderer(RhiCanvasWidget* widget,
                  transform_fn     transform,
                  camera*          cam,
                  draw_callback_fn draw_callback,
                  QColor           bg_color);
 
-    /// Headless path: explicit size, no widget — avoids creating any QRhiWidget.
+    /**
+     * Headless constructor: no widget, explicit pixel size, no device
+     * pixel ratio scaling. Pairs with @ref flush_capture() and
+     * @ref RhiCanvasWidget::render_offscreen() to render scenes outside
+     * the Qt widget lifecycle (e.g. @c save_graphics under headless QPA).
+     */
     rhi_renderer(QSize            size,
                  transform_fn     transform,
                  camera*          cam,
@@ -118,28 +164,40 @@ public:
                       double scale_factor = 1) override;
 
     // ---- Frame lifecycle ---------------------------------------------------
+    //
+    // Typical full-redraw cycle:
+    //   begin_frame();
+    //   <user draw callback emits primitives via the irenderer methods above>
+    //   flush();                         // → widget
+    //
+    // Camera-only redraw (pan/zoom, no scene change):
+    //   flush_mvp_only();                // overlay rebuilt; GPU scene untouched
+    //
+    // Headless save_graphics:
+    //   begin_frame();
+    //   <draw callback>
+    //   auto data = flush_capture(bg);   // returns by value, no widget
+    //   QImage png = RhiCanvasWidget::render_offscreen(w, h, ...data...);
 
-    /** Reset per-frame state (vertex buffers, overlay) ready for a new draw. */
+    /// Reset per-frame state (tile batches, command vectors, overlay)
+    /// ready for a fresh recording pass.
     void begin_frame();
 
-    /**
-     * Transfer all collected geometry to RhiCanvasWidget and schedule repaint.
-     * Also ends the overlay painter so the QImage is fully flushed.
-     */
+    /// Repack tile batches into @ref SceneBuffers, push frame data into
+    /// the bound @ref RhiCanvasWidget, and schedule a repaint. Also ends
+    /// the overlay painter so the QImage is fully flushed to bytes.
     void flush();
 
-    /**
-     * Headless variant of flush(): dispatches commands to tiles, builds
-     * SceneBuffers and captures the overlay image, then returns all frame data
-     * as a value without pushing anything to the widget. Used by
-     * rhi_backend::render_to_image() to feed RhiCanvasWidget::render_offscreen().
-     */
+    /// Headless variant of @ref flush(): dispatches commands to tiles,
+    /// builds @ref SceneBuffers, captures the overlay image, and returns
+    /// the assembled frame data without touching any widget. Used by
+    /// @c rhi_backend::render_to_image() to feed
+    /// @ref RhiCanvasWidget::render_offscreen().
     HeadlessFrameData flush_capture(const QColor& bg);
 
-    /**
-     * Rebuild the cached overlay for the current camera and update the MVP
-     * without re-running the application draw callback.
-     */
+    /// Rebuild the overlay layer (text/arcs have screen-relative layout)
+    /// for the current camera and push a new MVP without re-running the
+    /// application draw callback or rebuilding any GPU scene buffers.
     void flush_mvp_only();
 
 private:

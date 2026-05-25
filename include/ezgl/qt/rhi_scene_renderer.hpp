@@ -24,17 +24,60 @@ QT_FORWARD_DECLARE_CLASS(QRhi)
 namespace ezgl {
 
 /**
- * GPU pipeline state and per-frame resources for the RHI rendering backend.
+ * @brief GPU pipeline state and per-frame resources for the rhi backend.
  *
- * Owns all QRhi objects (PSOs, SRBs, uniform / vertex buffers, overlay
- * sampler) and the per-frame-slot geometry cache. Works with any QRhi
- * instance — the display path hands it the QRhiWidget's internal QRhi,
- * the headless path hands it a standalone QRhi built on QOffscreenSurface.
+ * Owns all @c QRhi objects: 7 graphics pipelines, shader resource
+ * bindings, uniform/vertex buffers, overlay texture+sampler, and the
+ * per-frame-slot geometry cache. Works with any @c QRhi instance — the
+ * display path hands it the @c QRhiWidget's internal @c QRhi, the
+ * headless path hands it a standalone @c QRhi built on
+ * @c QOffscreenSurface.
  *
- * Lifecycle:
- *   initialize(rhi, rp_desc)   — call once when QRhi and render-pass are ready
- *   render(cb, rt, ...)        — call every frame
- *   release()                  — call before the QRhi is destroyed
+ * @par Pipelines (render order in render())
+ * | # | Pipeline           | Topology / instancing                          | Shader pair                          |
+ * | - | ------------------ | ---------------------------------------------- | ------------------------------------ |
+ * | 1 | m_fill_rect_pso    | TriangleStrip, instanced                       | fill_rect.vert + base.frag           |
+ * | 2 | m_fill_poly_pso    | Triangles                                      | base.vert + base.frag                |
+ * | 3 | m_line_pso         | Lines                                          | base.vert + base.frag                |
+ * | 4 | m_dashed_line_pso  | TriangleStrip, instanced quad (corner buf)     | dashed_line.vert + dashed_line.frag  |
+ * | 5 | m_thick_line_pso   | TriangleStrip, instanced quad (corner buf)     | thick_line.vert + base.frag          |
+ * | 6 | m_arrow_pso        | Triangles, 3 verts/instance via gl_VertexIndex | arrow.vert + base.frag               |
+ * | 7 | m_overlay_pso      | TriangleStrip, one full-screen quad            | overlay.vert + overlay.frag (sampler)|
+ *
+ * @c base.vert is the minimal pass-through vertex shader
+ * (@c vec2 inPosition → @c mvp * pos) shared by every pipeline whose
+ * vertex stream is @ref PosVertex. @c base.frag writes the per-style
+ * flat colour (@c fragColor = style.color) and is shared by every
+ * pipeline whose only fragment output is that colour. The other
+ * shaders are pipeline-specific.
+ *
+ * Render order is painter's-algorithm: fills first, then lines, then
+ * arrows, then the QPainter overlay (text/arcs) composited on top.
+ * Depth test/write disabled (2D). All pipelines use straight alpha blend
+ * (SrcAlpha / OneMinusSrcAlpha) and call
+ * @c setSampleCount(EZGL_RHI_SAMPLE_COUNT) so they match the render
+ * target's MSAA configuration.
+ *
+ * @par UBO bindings (same layout across all shaders for SRB compatibility)
+ * - binding 0 — @c mat4 mvp + @c vec2 viewport (per-frame, shared by all draws)
+ * - binding 1 — @c vec4 color + @c vec4 line (per-style, dynamic-offset)
+ *
+ * Style UBO is one big buffer with one slot per unique @ref StyleKey,
+ * written once per frame. Each draw binds the SRB with a
+ * @c DynamicOffset pointing at its style's slot.
+ *
+ * @par Per-frame-slot resources
+ * QRhi pipelines frames-in-flight (2–3 GPU frames overlap). Each slot
+ * gets its own @ref FrameResources with separate buffers, SRBs, and
+ * overlay texture. @c m_frame_slot_geom_valid tracks which slots already
+ * hold the current geometry revision; lazy re-upload via
+ * @c m_cached_scene keeps stale slots in sync without re-uploading
+ * every frame.
+ *
+ * @par Lifecycle
+ * - @ref initialize(rhi, rp_desc)   — call once when QRhi and render-pass are ready
+ * - @ref render(cb, rt, ...)        — call every frame
+ * - @ref release()                  — call before the QRhi is destroyed
  */
 class RhiSceneRenderer {
 public:

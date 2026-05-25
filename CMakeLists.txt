@@ -146,8 +146,8 @@ set(EZGL_RHI_SHADER_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/ezgl_rhi_shaders")
 file(MAKE_DIRECTORY "${EZGL_RHI_SHADER_BUILD_DIR}")
 
 set(EZGL_FILL_RECT_VERT_QSB   "${EZGL_RHI_SHADER_BUILD_DIR}/fill_rect.vert.qsb")
-set(EZGL_LINE_VERT_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.vert.qsb")
-set(EZGL_LINE_FRAG_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/line.frag.qsb")
+set(EZGL_BASE_VERT_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/base.vert.qsb")
+set(EZGL_BASE_FRAG_QSB        "${EZGL_RHI_SHADER_BUILD_DIR}/base.frag.qsb")
 set(EZGL_OVERLAY_VERT_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.vert.qsb")
 set(EZGL_OVERLAY_FRAG_QSB     "${EZGL_RHI_SHADER_BUILD_DIR}/overlay.frag.qsb")
 set(EZGL_THICK_LINE_VERT_QSB  "${EZGL_RHI_SHADER_BUILD_DIR}/thick_line.vert.qsb")
@@ -157,8 +157,8 @@ set(EZGL_ARROW_VERT_QSB       "${EZGL_RHI_SHADER_BUILD_DIR}/arrow.vert.qsb")
 
 set(EZGL_RHI_SHADER_SOURCES
     "fill_rect.vert"
-    "line.vert"
-    "line.frag"
+    "base.vert"
+    "base.frag"
     "overlay.vert"
     "overlay.frag"
     "thick_line.vert"
@@ -168,8 +168,8 @@ set(EZGL_RHI_SHADER_SOURCES
 )
 set(EZGL_RHI_SHADER_OUTPUTS
     "${EZGL_FILL_RECT_VERT_QSB}"
-    "${EZGL_LINE_VERT_QSB}"
-    "${EZGL_LINE_FRAG_QSB}"
+    "${EZGL_BASE_VERT_QSB}"
+    "${EZGL_BASE_FRAG_QSB}"
     "${EZGL_OVERLAY_VERT_QSB}"
     "${EZGL_OVERLAY_FRAG_QSB}"
     "${EZGL_THICK_LINE_VERT_QSB}"
