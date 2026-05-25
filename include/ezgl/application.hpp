@@ -98,8 +98,10 @@ using dialog_callback_fn = void (*)(QDialog* self, int response_id, application*
 /**
  * The core application.
  *
- * The GUI of an application is created from an XML file. Widgets created in the XML file can be retrieved from an
- * application object, but only after the object has been initialized by GTK via application::run.
+ * The GUI of an application is created from a Glade-format .ui XML file (loaded via ezgl::QtGladeLoader, which
+ * materialises the described widgets as Qt widgets). Widgets created in the .ui file can be retrieved from an
+ * application object via find_widget(), but only after application::run() has loaded the .ui file (UI loading is
+ * deferred from the constructor to run() so that Qt resources from .qrc are registered).
  * application is a singleton class: only create one.
  */
 class application : public QApplication {
@@ -109,7 +111,8 @@ public:
    * Configuration settings for the application.
    *
    * The GUI will be built from the XML description given by main_ui_resource.
-   * The XML file must contain a GtkWindow with the name in window_identifier.
+   * The .ui file must contain a top-level window widget with the name in
+   * window_identifier.
    */
   struct settings {
     /**
@@ -128,20 +131,16 @@ public:
     std::string canvas_identifier;
 
     /**
-     * A user-defined name of the GTK application
-     *
-     * Application identifiers should follow the following format:
-     * https://developer.gnome.org/gio/stable/GApplication.html#g-application-id-is-valid
-     * Use g_application_id_is_valid () to check its validity
+     * A user-defined name of the application. Used to make each
+     * application instance distinguishable to the desktop environment.
      */
     std::string application_identifier;
 
     /**
      * Specify the function that will connect GUI objects to user-defined callbacks.
      *
-     * GUI objects (i.e., a QObject) can be retrieved from this application object. These objects can then be connected
-     * to specific events using g_signal_connect. A list of signals that can be used to make these connections can be
-     * found <a href = "https://docs.gtk.org/gtk3/class.Widget.html#signals">here</a>.
+     * GUI objects (QObject instances) can be retrieved from this application object. These objects can then be
+     * connected to specific Qt signals via QObject::connect.
      *
      * If not provided, application::register_default_buttons_callbacks function will be used, which assumes that the
      * UI has QPushButton widgets named "ZoomFitButton", "ZoomInButton", "ZoomOutButton", "UpButton", "DownButton",
@@ -190,7 +189,7 @@ public:
    *
    * If the canvas has already been added, it will not be overwritten and a warning will be displayed.
    *
-   * @param canvas_id The id of the GtkDrawingArea in the ui XML file.
+   * @param canvas_id The id of the DrawingAreaWidget (or RhiCanvasWidget under the rhi backend) in the .ui XML file.
    * @param draw_callback The function to call that draws to this canvas.
    * @param coordinate_system The initial coordinate system of this canvas. 
    *            coordinate_system.first gives the (x,y) world coordinates of the lower left corner, 
@@ -205,9 +204,9 @@ public:
       color background_color = WHITE);
 
   /**
-   * @note The following functions create UI Elements and add them to the Gtk Grid "InnerGrid".
+   * @note The following functions create UI Elements and add them to the grid "InnerGrid".
    * The example main.ui file already includes a grid called "InnerGrid", as well as the Zoom and pan buttons.
-   * As long a GtkGrid called "InnerGrid" exists, the functions will work and add the UI elements to that grid. 
+   * As long as a grid called "InnerGrid" exists, the functions will work and add the UI elements to that grid.
    */
 
   /**
@@ -220,7 +219,7 @@ public:
    * @param height the number of rows that the button will span
    * @param button_func callback function for the button
    *
-   * The function assumes that the UI has a GtkGrid named "InnerGrid"
+   * The function assumes that the UI has a grid named "InnerGrid"
    */
   void create_button(const char *button_text,
       int left,
@@ -239,7 +238,7 @@ public:
    *         If there is already a button there, it and the following buttons shift down 1 row.
    * @param button_func callback function for the button
    *          fn prototype: void fn_name(QPushButton* self, ezgl::application* app);
-   * The function assumes that the UI has a GtkGrid named "InnerGrid"
+   * The function assumes that the UI has a grid named "InnerGrid"
    */
   void create_button(const char *button_text, int insert_row, button_callback_fn button_func);
 
@@ -249,7 +248,7 @@ public:
    * @param the text of the button to delete
    * @return whether the button was found and deleted
    *
-   * The function assumes that the UI has a GtkGrid named "InnerGrid"
+   * The function assumes that the UI has a grid named "InnerGrid"
    */
   bool destroy_button(const char *button_text_to_destroy);
 
@@ -260,7 +259,7 @@ public:
    * @param button_text the old text of the button
    * @param new_button_text the new button text
    *
-   * The function assumes that the UI has a GtkGrid named "InnerGrid"
+   * The function assumes that the UI has a grid named "InnerGrid"
    */
   void change_button_text(const char *button_text, const char *new_button_text);
 
@@ -296,14 +295,14 @@ public:
   );
 
   /**
-   * @brief Creates a GTK combo box object in Inner Grid
-   * A combo box is a dropdown menu with different options. 
-   * EZGL provides functions to modify the options in your combo box, and 
-   * you can connect a callback function to the signal sent when the 
-   * selected option is changed
-   * 
-   * GTK Combo Box convenience function. Creates a combo box at the row id 
-   * given by insert_row. Assumes default height of 1 and width of 3
+   * @brief Creates a combo box (QComboBox) in Inner Grid
+   * A combo box is a dropdown menu with different options.
+   * EZGL provides functions to modify the options in your combo box, and
+   * you can connect a callback function to the signal sent when the
+   * selected option is changed.
+   *
+   * Creates a combo box at the row id given by insert_row. Assumes
+   * default height of 1 and width of 3.
    * 
    * @param id_string A id string used to track combo box. Can be any UNIQUE string, not a label/not visible
    *              used to identify widget to destroy/modify it.
@@ -362,13 +361,14 @@ public:
   /**
    * @brief Creates a simple dialog window with "OK" and "CANCEL" buttons. 
    *
-   * This function creates a dialog window with three buttons that send the following response_ids:
-   * OK - GTK_RESPONSE_ACCEPT
-   * CANCEL - GTK_RESPONSE_REJECT
-   * X - GTK_RESPONSE_DELETE_EVENT
+   * This function creates a dialog window with three buttons that send the following response_ids
+   * (the values are Qt's QDialog::DialogCode plus QDialog::Rejected for the close (X) button):
+   * OK - QDialog::Accepted
+   * CANCEL - QDialog::Rejected
+   * X - QDialog::Rejected
    * It is dynamically created and shown through this function. Hitting any option in the dialog will
    * run the attached cbk fn. Follow the given fn prototype and use the response_id to act accordingly.
-   * you must call gtk_widget_destroy(ptr to dialog window) in your cbk function.
+   * The dialog deletes itself on close (Qt::WA_DeleteOnClose); no manual destroy is required.
    *
    * @param cbk_fn Dialog callback function. Function prototype:
    *              void dialog_cbk(QDialog* self, int response_id, application* app);
@@ -393,7 +393,7 @@ public:
    * 
    * Creates a popup window that will hold focus until user hits done button. You can pass
    * a callback function, which is called when user hits DONE. This dialog window only has one button.
-   * Make sure to call gtk_widget_destroy(ptr to popup) to close the popup in the cbk fn
+   * The popup deletes itself on close (Qt::WA_DeleteOnClose); no manual destroy is required.
    * 
    * @param cbk_fn Popup Callback Function
    * @param title Popup Message Title
@@ -404,7 +404,7 @@ public:
   /**
    * @brief Destroys widget.
    * 
-   * @param widget_name The ID given in Glade/Name set in creation function
+   * @param widget_name The ID assigned in the .ui file / name set in the creation function
    * @return true if widget found and destroyed, false if not found
    */
   bool destroy_widget(const char* widget_name);
@@ -412,11 +412,11 @@ public:
   /**
    * @brief Searches inner grid for widget with given name
    * 
-   * This function will search the inner grid (sidebar) for the widget with the given name/id. 
+   * This function will search the inner grid (sidebar) for the widget with the given name/id.
    * It will return a Widget ptr to it. This function is powerful; it will search through, in this order:
-   * String IDs created in Glade for widgets
+   * String IDs assigned to widgets in the .ui file
    * Names set using ezgl::application method functions that make widgets (i.e create_combo_box)
-   * Button labels set using application::create_button 
+   * Button labels set using application::create_button
    * 
    * @param widget_name string to be searched for
    * @return QWidget* Pointer to QWidget. Can be cast to appropriate type
@@ -428,7 +428,7 @@ public:
    *
    * @param message The message that will be displayed on the status bar
    *
-   * The function assumes that the UI has a GtkStatusbar named "StatusBar"
+   * The function assumes that the UI has a QStatusBar named "StatusBar"
    */
   void update_message(std::string const &message);
 
@@ -438,7 +438,7 @@ public:
    * This changes the current visible world (as set_visible_world would) and also changes 
    * the saved initial coordinate_system so that Zoom Fit shows the proper area.
    *
-   * @param canvas_id The id of the GtkDrawingArea in the XML file, e.g. "MainCanvas"
+   * @param canvas_id The id of the DrawingAreaWidget (or RhiCanvasWidget under the rhi backend) in the .ui XML file, e.g. "MainCanvas"
    * @param coordinate_system The new coordinate system of this canvas.
    */
   void change_canvas_world_coordinates(std::string const &canvas_id, rectangle coordinate_system);
@@ -472,8 +472,8 @@ public:
    * resource given in the constructor. Once the GUI has been created, the function initial_setup_user_callback will be
    * called; you can use that callback to create additional widgets and/or connect additional signals.
    *
-   * After initialization, control of the program will be given to GTK. You will only regain control for the signals
-   * that you have registered callbacks for.
+   * After initialization, control of the program will be given to the Qt event loop. You will only regain control
+   * for the signals that you have registered callbacks for.
    *
    * @param initial_setup_user_callback A user-defined function that is called before application activation
    * @param mouse_press_user_callback The user-defined callback function for mouse press
@@ -573,13 +573,13 @@ private:
   // The package path to the XML file that describes the UI.
   std::string m_main_ui;
 
-  // The ID of the main window to add to our GTK application.
+  // The ID of the main window in the .ui XML file.
   std::string m_window_id;
 
   // The ID of the main canvas. This canvas is where ezgl renderer calls (e.g. draw_line) display
   std::string m_canvas_id;
 
-  // The ID of the GTK application
+  // The application identifier (used to make each application instance distinguishable).
   std::string m_application_id;
 
   QWidget* m_window{nullptr};

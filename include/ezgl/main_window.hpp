@@ -14,12 +14,8 @@ namespace ezgl {
  * RAII wrapper that loads the application's main UI from a Qt resource
  * (or filesystem) path and owns the resulting QMainWindow.
  *
- * Today this class delegates to ezgl::QtGladeLoader internally, which
- * parses the legacy Glade XML format. The intended replacement —
- * loading a Qt Designer .ui file directly via QUiLoader — will be a
- * change to the implementation of this class only; the public surface
- * stays the same so callers (production and tests) do not need to
- * re-migrate.
+ * Internally delegates to ezgl::QtGladeLoader, which parses Glade-format
+ * .ui XML and materialises the described widgets as Qt widgets.
  *
  * Ownership: the loaded QMainWindow is destroyed when this MainWindow
  * goes out of scope. Callers that need to hand the window off to an
@@ -34,9 +30,10 @@ public:
   /// Load from the default Qt-resource path (":/ezgl/main.ui").
   MainWindow();
 
-  /// Load from an explicit path. If `renderer` is set, every
-  /// GtkDrawingArea in the UI is materialised with that backend;
-  /// otherwise the loader's own default is used.
+  /// Load from an explicit path. If `renderer_kind` is set, every
+  /// DrawingAreaWidget in the UI is materialised with the matching
+  /// backend type (DrawingAreaWidget for immediate / deferred,
+  /// RhiCanvasWidget for rhi); otherwise the loader's own default is used.
   explicit MainWindow(const QString& uiPath,
                       std::optional<renderer_type> renderer_kind = std::nullopt);
 

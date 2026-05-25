@@ -7,9 +7,6 @@ project(
   LANGUAGES CXX
 )
 
-# we rely on GTK3 for the GUI, so make sure the system has it
-find_package(PkgConfig REQUIRED)
-
 #
 # We require c++20 support
 #

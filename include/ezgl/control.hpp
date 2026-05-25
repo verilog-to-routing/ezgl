@@ -40,12 +40,12 @@ void zoom_in(canvas *cnv, double zoom_factor);
 void zoom_out(canvas *cnv, double zoom_factor);
 
 /**
- * Zoom in on a specific point in the GTK widget.
+ * Zoom in on a specific point in the DrawingAreaWidget / RhiCanvasWidget.
  */
 void zoom_in(canvas *cnv, point2d zoom_point, double zoom_factor);
 
 /**
- * Zoom out from a specific point in GTK widget.
+ * Zoom out from a specific point in the DrawingAreaWidget / RhiCanvasWidget.
  */
 void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor);
 

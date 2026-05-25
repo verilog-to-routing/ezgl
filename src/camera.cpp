@@ -76,7 +76,8 @@ point2d camera::widget_to_world(point2d widget_coordinates) const
 
   world_coordinates.x += m_world.left();
 
-  // GTK and cairo use a flipped y-axis.
+  // Qt widget coordinates have Y growing downwards (origin top-left);
+  // world coordinates have Y growing upwards — flip Y here.
   world_coordinates.y = (world_coordinates.y - m_world.top()) * -1.0;
 
   return world_coordinates;
@@ -86,7 +87,6 @@ point2d camera::widget_to_world(point2d widget_coordinates) const
  * Some X11 implementations overflow with sufficiently large pixel
  * coordinates and start drawing strangely. We will clip all pixels
  * to lie in the range below.
- * TODO: We can also switch to cairo for large pixel coordinates
  */
 #define MAXPIXEL 10000.0
 #define MINPIXEL -10000.0
@@ -96,7 +96,8 @@ point2d camera::world_to_screen(point2d world_coordinates) const
   point2d const world_origin{m_world.left(), m_world.bottom()};
   point2d widget_coordinates = (world_coordinates - world_origin) * m_world_to_widget;
 
-  // GTK and cairo use a flipped y-axis.
+  // Qt widget coordinates have Y growing downwards (origin top-left);
+  // world coordinates have Y growing upwards — flip Y here.
   widget_coordinates.y = (widget_coordinates.y - m_widget.top()) * -1.0;
 
   point2d screen_coordinates = widget_coordinates * m_widget_to_screen;

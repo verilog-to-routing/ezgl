@@ -1,10 +1,9 @@
 /*
- * Qt port of raw-gtk.cpp.
+ * Minimal raw-Qt example.
  *
  * Loads main.ui via QtGladeLoader, shows the resulting QMainWindow, and runs
  * the Qt event loop. An event filter on the window logs key presses and mouse
- * button events to stdout — analogous to the press_key / click_mouse callbacks
- * in the original GTK example.
+ * button events to stdout.
  */
 
 #include <iostream>

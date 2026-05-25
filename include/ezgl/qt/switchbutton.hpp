@@ -5,7 +5,8 @@
 #include <QPropertyAnimation>
 
 /**
- * @brief A toggle switch widget that visually and behaviourally matches GtkSwitch.
+ * @brief A toggle switch widget — pill-shaped track with a sliding thumb,
+ * mirroring the look of modern desktop toggle switches.
  *
  * Renders a rounded pill-shaped track whose colour interpolates from gray (OFF)
  * to blue (ON) together with a sliding white thumb.  Smooth animation is driven

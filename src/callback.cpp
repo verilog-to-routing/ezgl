@@ -62,12 +62,12 @@ bool press_key(QWidget*, QKeyEvent* event, void* data)
     application->key_press_callback(application, event, keyName.toStdString().c_str());
   }
 
-  // Returning FALSE to indicate this event should be propagated on to other
-  // gtk widgets. This is important since we're grabbing keyboard events
-  // for the whole main window. It can have unexpected effects though, such
-  // as Enter/Space being treated as press any highlighted button.
-  // return TRUE (event consumed) if you want to avoid that, and don't have
-  // any widgets that need keyboard events.
+  // Return false (not handled) so the event propagates to other Qt
+  // widgets. This is important since we grab keyboard events for the
+  // whole main window. It can have unexpected effects though, such as
+  // Enter/Space being treated as a press on any focused button. Return
+  // true (event consumed) if you want to avoid that and don't have any
+  // widgets that need keyboard events.
   return false;
 }
 
@@ -226,8 +226,7 @@ bool scroll_mouse(QWidget*, QWheelEvent* event, void* data)
     }
     // ignore horizontal: angle.x()
   } else if (!pixel.isNull()) {
-    // Smooth scrolling (trackpad). GTK would call this GDK_SCROLL_SMOOTH.
-    // Decide direction by pixel.y()
+    // Smooth scrolling (trackpad) — decide direction by pixel.y().
     if (pixel.y() > 0) {
       ezgl::zoom_in(canvas, scroll_point, zoomFactor);
     } else if (pixel.y() < 0) {

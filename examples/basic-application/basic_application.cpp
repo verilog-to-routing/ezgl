@@ -119,12 +119,14 @@ int main(int argc, char **argv)
   ezgl::application::settings settings;
 
   // Path to the "main.ui" file that contains an XML description of the UI.
-  // Edit this file with glade if you want to change the UI layout
+  // Edit this file with Qt Designer if you want to change the UI layout.
   settings.main_ui_resource = ":/main.ui";
-  // Note: the "main.ui" file has a GtkWindow called "MainWindow".
+  // Note: the "main.ui" file has a top-level window called "MainWindow".
   settings.window_identifier = "MainWindow";
 
-  // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas".
+  // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas"
+  // (materialised at runtime as DrawingAreaWidget or RhiCanvasWidget,
+  // depending on the chosen renderer backend).
   settings.canvas_identifier = "MainCanvas";
 
   // Create our EZGL application.
@@ -137,7 +139,7 @@ int main(int argc, char **argv)
   c->set_renderer_type(renderer);
 
   // Run the application until the user quits.
-  // This hands over all control to the GTK runtime---after this point
+  // This hands over all control to the Qt event loop---after this point
   // you will only regain control based on callbacks you have setup.
   // Three callbacks can be provided to handle mouse button presses,
   // mouse movement and keyboard button presses in the graphics area,

@@ -115,7 +115,7 @@ void application::init()
   for (auto &c_pair : m_canvases)
     c_pair.second->begin_deferred_redraw_cycle();
 
-  // The main parent window needs to be explicitly added to our GTK application.
+  // Resolve the main parent window by id.
   QWidget *window = find_widget(m_window_id.c_str());
   window->show();
 
@@ -417,11 +417,10 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   connect_if_present("ProceedButton", [application](){ press_proceed(nullptr, application); });
 
   // Connect the window's close (X button) to press_proceed so that closing
-  // the window exits the event loop, matching the GTK "destroy" signal behaviour.
-  // Qt quits the event loop automatically when the last window closes
-  // (quitOnLastWindowClosed=true by default), which is equivalent to GTK's
-  // "destroy" → press_proceed path.  We just need to ensure press_proceed is
-  // also called so the application's internal state advances to the next stage.
+  // the window exits the event loop. Qt quits the event loop automatically
+  // when the last window closes (quitOnLastWindowClosed=true by default);
+  // we just need to ensure press_proceed runs so the application's internal
+  // state advances to the next stage.
   QWidget* window = application->find_widget(application->get_main_window_id().c_str());
   if (window) {
     // Prevent Qt from deleting the window on close so it can be reused

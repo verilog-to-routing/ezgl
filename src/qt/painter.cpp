@@ -38,8 +38,8 @@ void Pen::applyNormalizedDashPattern() {
   if (m_width > 1.0f) {
     QList<double> normalizedDashPattern;
     for (double p: m_dashPatternOrig) {
-      // pattern[] is in "cairo units" (pixels/user space),
-      // Qt expects "pen-width units", so normalize:
+      // m_dashPatternOrig is in pixel units (user-space); Qt expects
+      // pen-width-relative units, so normalise by the pen width.
       normalizedDashPattern.append(p/double(m_width));
     }
     QPen::setDashPattern(normalizedDashPattern);
@@ -126,7 +126,7 @@ void Painter::text_extents(const char* utf8, text_extents_t* extents)
   QString text = QString::fromUtf8(utf8);
   QFontMetricsF fm(m_font);
 
-  // QRectF is given in logical coords, origin at baseline (like Cairo)
+  // QRectF is given in logical coords, origin at baseline.
   QRectF br = fm.boundingRect(text);
 
   extents->x_bearing = br.x();
@@ -150,7 +150,7 @@ void Painter::font_extents(font_extents_t* extents)
   // rough equivalent: the maximum advance of any glyph in the font
   extents->max_x_advance = fm.maxWidth();
 
-  // Cairo's max_y_advance is for vertical layouts. For Latin text it's 0.
+  // max_y_advance is for vertical layouts. For Latin text it's 0.
   extents->max_y_advance = 0.0;
 }
 // text
@@ -236,7 +236,7 @@ void Painter::set_dash(const double* pattern, int count, double offset)
 
 void Painter::set_font_size(int size)
 {
-  // Cairo treats font size as pixels; use setPixelSize to match that behaviour.
+  // Treat font size as pixels (use setPixelSize, not setPointSize).
   m_font.setPixelSize(std::max(1, size));
   QPainter::setFont(m_font);
 }

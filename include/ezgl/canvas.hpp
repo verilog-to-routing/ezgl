@@ -38,8 +38,8 @@ namespace ezgl {
 /**
  * Responsible for creating, destroying, and maintaining the rendering context of a QWidget.
  *
- * Underneath, the class relies on a GtkDrawingArea as its GUI widget along with cairo to provide the rendering context.
- * The class connects to the relevant GTK signals, namely configure and draw events, to remain responsive.
+ * The backing widget is selected at runtime via @ref render_backend (one of immediate / deferred / rhi); the canvas
+ * connects to the widget's resize and paint events to remain responsive.
  *
  * Each canvas is double-buffered. A draw callback (see: ezgl::draw_canvas_fn) is invoked each time the canvas needs to
  * be redrawn. This may be caused by the user (e.g., resizing the screen), but can also be forced by the programmer.
@@ -161,8 +161,10 @@ protected:
   /**
    * Lazy initialization of the canvas class.
    *
-   * This function is required because GTK will not send activate/startup signals to an ezgl::application until control
-   * of the program has been reliquished. The GUI is not built until ezgl::application receives an activate signal.
+   * This function is required because the GUI is not built until ezgl::application::run() loads the .ui file (UI
+   * loading is deferred from the constructor to run() so Qt resources are registered). Canvas construction happens
+   * before that via add_canvas(), so the backing widget is bound here at run time, before exec() starts the event
+   * loop.
    */
   void initialize(QWidget *drawing_area);
 
