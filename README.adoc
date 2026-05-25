@@ -2,9 +2,9 @@
 
 image:https://codedocs.xyz/mariobadr/ezgl.svg[link="https://codedocs.xyz/mariobadr/ezgl"]
 
-EZGL is a library for use in ece297 as a simple way to create a GUI application.
-The library provides a thin wrapper around GTK and drawing functionality.
-It is also used by the VPR program.
+EZGL is a C++ graphics library that provides a thin wrapper around GTK and Cairo,
+making it easy to create GUI applications with 2D drawing support.
+It is used by the https://github.com/verilog-to-routing/vtr-verilog-to-routing[VTR project] and as a teaching tool in ECE297.
 
 == Dependencies
 
@@ -27,7 +27,7 @@ This drops `qsb` next to the rest of your Qt 6.9.3 install. CMake's
 
 == Compilation
 
-This project uses CMake for compiling and works with CMake version 3.0.2 (the version available on the UG machines).
+This project uses CMake for compiling and requires CMake version 3.10 or higher.
 CMake can configure the project for different build systems and IDEs (type `cmake --help` for a list of generators available for your platform).
 We recommend you create a build directory before invoking CMake to configure the project (`cmake -B`).
 For example, we can perform the configuration step from the project root directory:

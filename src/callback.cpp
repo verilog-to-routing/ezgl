@@ -150,15 +150,6 @@ bool move_mouse(QWidget*, QMouseEvent* event, void* data)
 
     // Check if the mouse button is pressed to support dragging
     if(g_mouse_pan.panning_mouse_button_pressed) {
-      // Code below drops a panning event if we served anothe one
-      // less than 100 ms. I believe it was intended to avoid having panning
-      // fall behind and queue up many events if redraws were slow. However,
-      // it is not necessary on the UG machines (debian) in person, or over
-      // VNC or on a VM and it has the bad effect of limiting refresh to 10 Hz.
-      // Commenting it out for now and will delete if there
-      // are no reported issues. - VB
-      // if(event->timestamp() - g_mouse_pan.last_panning_event_time < 100)
-      // return true;
 
       g_mouse_pan.last_panning_event_time = event->timestamp();
 

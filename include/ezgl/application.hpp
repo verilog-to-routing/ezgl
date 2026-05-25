@@ -50,7 +50,9 @@ class QCheckBox;
  */
 namespace ezgl {
 
-// A flag to specify whether the GUI is built from an XML file or an XML resource
+// Controls whether the GUI layout is loaded from a loose XML file on disk (true) or from a
+// compiled-in GResource (false). Defined externally by course infrastructure (ECE297) which
+// needs to swap in custom UI files at runtime; all other consumers use the compiled resource.
 #ifndef ECE297
 const bool build_ui_from_file = false;
 #else
@@ -157,7 +159,7 @@ public:
     {
       // Uniquify the application_identifier by appending a time stamp,
       // so that each instance of the same program has a different application ID.
-      // This allows multiple instances of the program to run independelty.
+      // This allows multiple instances of the program to run independently.
       application_identifier += ".t" + std::to_string(std::time(nullptr));
     }
 
@@ -171,7 +173,7 @@ public:
     {
       // Uniquify the application_identifier by appending a time stamp,
       // so that each instance of the same program has a different application ID.
-      // This allows multiple instance of the program to run independelty.
+      // This allows multiple instance of the program to run independently.
       application_identifier += ".t" + std::to_string(std::time(nullptr));
     }
   };
