@@ -1,4 +1,5 @@
 #include "ezgl/qt/rhi_scene_renderer.hpp"
+#include "ezgl/qt/render_backend.hpp"
 #include "ezgl/logutils.hpp"
 
 #include <algorithm>
@@ -145,6 +146,7 @@ void buildPipeline(QRhi*                                   rhi,
     pso->setTargetBlends({ blend });
     pso->setDepthTest(false);
     pso->setDepthWrite(false);
+    pso->setSampleCount(ezgl::EZGL_RHI_SAMPLE_COUNT);
     pso->create();
 }
 
@@ -183,6 +185,7 @@ void buildFillRectPipeline(QRhi*                                  rhi,
     pso->setTargetBlends({ blend });
     pso->setDepthTest(false);
     pso->setDepthWrite(false);
+    pso->setSampleCount(ezgl::EZGL_RHI_SAMPLE_COUNT);
     pso->create();
 }
 
@@ -224,6 +227,7 @@ void buildThickLinePipeline(QRhi*                                  rhi,
     pso->setTargetBlends({ blend });
     pso->setDepthTest(false);
     pso->setDepthWrite(false);
+    pso->setSampleCount(ezgl::EZGL_RHI_SAMPLE_COUNT);
     pso->create();
 }
 
@@ -266,6 +270,7 @@ void buildArrowPipeline(QRhi*                                  rhi,
     pso->setTargetBlends({ blend });
     pso->setDepthTest(false);
     pso->setDepthWrite(false);
+    pso->setSampleCount(ezgl::EZGL_RHI_SAMPLE_COUNT);
     pso->create();
 }
 
@@ -309,6 +314,7 @@ void buildDashedLinePipeline(QRhi*                                  rhi,
     pso->setTargetBlends({ blend });
     pso->setDepthTest(false);
     pso->setDepthWrite(false);
+    pso->setSampleCount(ezgl::EZGL_RHI_SAMPLE_COUNT);
     pso->create();
 }
 
@@ -344,6 +350,7 @@ void buildOverlayPipeline(QRhi*                                  rhi,
     pso->setTargetBlends({ blend });
     pso->setDepthTest(false);
     pso->setDepthWrite(false);
+    pso->setSampleCount(ezgl::EZGL_RHI_SAMPLE_COUNT);
     pso->create();
 }
 

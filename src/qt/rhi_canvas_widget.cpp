@@ -1,4 +1,5 @@
 #include "ezgl/qt/rhi_canvas_widget.hpp"
+#include "ezgl/qt/render_backend.hpp"
 #include "ezgl/logutils.hpp"
 
 #include <rhi/qrhi.h>
@@ -39,6 +40,10 @@ RhiCanvasWidget::RhiCanvasWidget(QWidget* parent)
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
     setMirrorVertically(false);
+    // MSAA: Qt allocates an MSAA color buffer + a single-sample resolve
+    // buffer behind the swapchain. Every pipeline must call
+    // setSampleCount(EZGL_RHI_SAMPLE_COUNT) to match — see rhi_scene_renderer.
+    setSampleCount(EZGL_RHI_SAMPLE_COUNT);
 }
 
 RhiCanvasWidget::~RhiCanvasWidget() = default;
@@ -239,14 +244,27 @@ QImage RhiCanvasWidget::render_offscreen(int               w,
         return {};
     }
 
-    // RGBA8 texture render target
+    // MSAA color target + single-sample resolve texture. The pipelines (built
+    // with sampleCount=EZGL_RHI_SAMPLE_COUNT) render into color_tex; the GPU
+    // resolves to resolve_tex at render-pass end. Readback then pulls pixels
+    // from the single-sample resolve target (MSAA textures can't be read
+    // back directly).
     std::unique_ptr<QRhiTexture> color_tex(
-        rhi->newTexture(QRhiTexture::RGBA8, QSize(w, h), 1,
-                        QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
+        rhi->newTexture(QRhiTexture::RGBA8, QSize(w, h), EZGL_RHI_SAMPLE_COUNT,
+                        QRhiTexture::RenderTarget));
     if (!color_tex->create()) return {};
 
-    std::unique_ptr<QRhiTextureRenderTarget> rt(
-        rhi->newTextureRenderTarget(QRhiTextureRenderTargetDescription(color_tex.get())));
+    std::unique_ptr<QRhiTexture> resolve_tex(
+        rhi->newTexture(QRhiTexture::RGBA8, QSize(w, h), 1,
+                        QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
+    if (!resolve_tex->create()) return {};
+
+    QRhiColorAttachment color_att(color_tex.get());
+    color_att.setResolveTexture(resolve_tex.get());
+    QRhiTextureRenderTargetDescription rt_desc;
+    rt_desc.setColorAttachments({color_att});
+
+    std::unique_ptr<QRhiTextureRenderTarget> rt(rhi->newTextureRenderTarget(rt_desc));
     std::unique_ptr<QRhiRenderPassDescriptor> rp(rt->newCompatibleRenderPassDescriptor());
     rt->setRenderPassDescriptor(rp.get());
     if (!rt->create()) return {};
@@ -263,10 +281,10 @@ QImage RhiCanvasWidget::render_offscreen(int               w,
                     /*frame_slot=*/0, /*geom_dirty=*/true,
                     scene_ptr, mvp, visible_world, overlay, bg);
 
-    // Pixel readback
+    // Pixel readback — from the resolved (single-sample) texture, not the MSAA one.
     QRhiReadbackResult readback;
     QRhiResourceUpdateBatch* rb = rhi->nextResourceUpdateBatch();
-    rb->readBackTexture({color_tex.get()}, &readback);
+    rb->readBackTexture({resolve_tex.get()}, &readback);
     cb->resourceUpdate(rb);
 
     rhi->endOffscreenFrame();

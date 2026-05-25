@@ -10,6 +10,12 @@ using draw_canvas_fn = void (*)(renderer*);
 
 enum class renderer_type { immediate, deferred, rhi };
 
+// MSAA sample count for the rhi backend (both on-screen QRhiWidget and the
+// offscreen render_to_image path use it; every QRhiGraphicsPipeline must
+// match). 4x is the standard "free on modern GPUs" tier — good enough for
+// thin diagonal lines without burning fillrate.
+inline constexpr int EZGL_RHI_SAMPLE_COUNT = 4;
+
 inline constexpr const char* renderer_type_name(renderer_type t) noexcept
 {
     switch (t) {
