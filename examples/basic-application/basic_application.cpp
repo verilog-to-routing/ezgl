@@ -84,7 +84,7 @@ void dialog_cbk(QDialog* self, int response_id, ezgl::application* app);
  */
 void act_on_mouse_press(ezgl::application *application, QMouseEvent *event, double x, double y);
 void act_on_mouse_move(ezgl::application *application, QMouseEvent *event, double x, double y);
-void act_on_key_press(ezgl::application *application, QKeyEvent *event, const char *key_name);
+void act_on_key_press(ezgl::application *application, QKeyEvent *event, const std::string &key_name);
 
 static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
 
@@ -719,7 +719,7 @@ void act_on_mouse_move(ezgl::application */*application*/, QMouseEvent */*event*
  * The name of the key pressed is returned (0-9, a-z, A-Z, Up, Down, Left, Right, Shift_R, Control_L, space, Tab, ...)
  * A pointer to the application and the entire GDK event are also returned
  */
-void act_on_key_press(ezgl::application *application, QKeyEvent */*event*/, const char* key_name)
+void act_on_key_press(ezgl::application *application, QKeyEvent */*event*/, const std::string &key_name)
 {
   application->update_message("Key Pressed");
 

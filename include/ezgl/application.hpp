@@ -85,7 +85,7 @@ using mouse_callback_fn = void (*)(application *app, QMouseEvent *event, double 
 /**
  * The signature of a user-defined callback function for keyboard events
  */
-using key_callback_fn = void (*)(application *app, QKeyEvent *event, const char *key_name);
+using key_callback_fn = void (*)(application *app, QKeyEvent *event, const std::string &key_name);
 
 /**
  * The signature of a user-defined callback function for the combo-box "changed" signal

@@ -59,7 +59,7 @@ bool press_key(QWidget*, QKeyEvent* event, void* data)
   // Call the user-defined key press callback if defined
   if(application->key_press_callback != nullptr) {
     QString keyName = QKeySequence(event->key()).toString();
-    application->key_press_callback(application, event, keyName.toStdString().c_str());
+    application->key_press_callback(application, event, keyName.toStdString());
   }
 
   // Return false (not handled) so the event propagates to other Qt
