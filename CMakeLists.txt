@@ -124,6 +124,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::GuiPrivate)
 # qtshadertools` lands `qsb` at `<prefix>/bin/qsb`.
 get_filename_component(_ezgl_qt_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
 
+# NO_DEFAULT_PATH: pin qsb to the same Qt as the rest of the build. The .qsb
+# format is versioned and tracks Qt; a stray older qsb on PATH can silently
+# emit shaders this Qt's RHI rejects at load time.
 find_program(EZGL_QSB_EXECUTABLE
     NAMES qsb
     HINTS "${_ezgl_qt_prefix}/bin"
