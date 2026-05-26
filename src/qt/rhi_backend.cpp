@@ -108,7 +108,28 @@ void rhi_backend::on_resize(int w, int h)
 
 renderer* rhi_backend::create_animation_renderer()
 {
-    return nullptr;
+    // The rhi_renderer is the live scene renderer and implements the full
+    // irenderer interface. Draw calls route to one of two places:
+    //   - world-space lines/rectangles/fills  → GPU tile batches (VBOs)
+    //   - text, arcs, polys, screen-space primitives → m_overlay_deferred
+    //     → overlay QImage composited above the GPU scene as a texture
+    // Unlike the immediate/deferred backends — which paint synchronously
+    // into a live QImage — animation draws here are recorded and only
+    // become visible on the next flush() (i.e. the next refresh_drawing()).
+    //
+    // Lazily construct m_renderer (matching the redraw() path) so callers
+    // never receive nullptr — same defensive pattern as
+    // deferred_backend::create_animation_renderer().
+    if (!m_renderer) {
+        using namespace std::placeholders;
+        m_renderer = std::make_unique<rhi_renderer>(
+            m_widget,
+            std::bind(&camera::world_to_screen, m_camera, _1),
+            m_camera,
+            m_draw_callback,
+            m_bg_color);
+    }
+    return m_renderer.get();
 }
 
 QImage rhi_backend::render_to_image(int w, int h)
