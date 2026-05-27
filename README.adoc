@@ -10,20 +10,12 @@ It is used by the https://github.com/verilog-to-routing/vtr-verilog-to-routing[V
 
 The library currently depends on GTK 3 and cairo.
 
-=== Build-tool dependency: qsb (Qt Shader Baker)
+=== Build-tool dependency: Qt 6.9.3 + qtshadertools (provides `qsb`)
 
-The RHI renderer's shaders are baked from GLSL to `.qsb` at build time —
-the `.qsb` files are NOT committed. `qsb` is a hard build requirement; if
-missing, CMake errors out with install instructions.
+The RHI renderer's shaders are baked from GLSL to `.qsb` at build time.
 
-Install via https://github.com/miurahr/aqtinstall[aqt] (the same Python
-installer used to provision Qt itself):
-
-  pip install aqtinstall
-  aqt install-qt linux desktop 6.9.3 linux_gcc_64 -m qtshadertools
-
-This drops `qsb` next to the rest of your Qt 6.9.3 install. CMake's
-`Qt6_DIR`-derived `HINTS` then auto-detect it; no extra config needed.
+  pip install aqtinstall==3.3.0
+  aqt install-qt linux desktop 6.9.3 linux_gcc_64 -m qtshadertools --outputdir $HOME/qt6
 
 == Compilation
 
@@ -32,8 +24,8 @@ CMake can configure the project for different build systems and IDEs (type `cmak
 We recommend you create a build directory before invoking CMake to configure the project (`cmake -B`).
 For example, we can perform the configuration step from the project root directory:
 
-  cmake -H. -Bcmake-build-release -DCMAKE_BUILD_TYPE=Release
-  cmake -H. -Bcmake-build-debug -DCMAKE_BUILD_TYPE=Debug
+  cmake -H. -Bcmake-build-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$HOME/qt6/6.9.3/gcc_64
+  cmake -H. -Bcmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=$HOME/qt6/6.9.3/gcc_64
 
 After the configuration step, you can ask CMake to build the project.
 
@@ -46,7 +38,7 @@ Build options can be found in `options.cmake`.
 Simply specify the build option during the configuration step in CMake.
 Using the already generated `cmake-build-release` directory from the previous section, we can:
 
-  cmake -H. -Bcmake-build-release -DEZGL_BUILD_EXAMPLES=ON
+  cmake -H. -Bcmake-build-release -DEZGL_BUILD_EXAMPLES=ON -DCMAKE_PREFIX_PATH=$HOME/qt6/6.9.3/gcc_64
 
 Your IDE or Makefile should now include additional targets when you turn these options on.
 For example, enabling `EZGL_BUILD_EXAMPLES` should provide access to the `basic-application` target, which you can build:
