@@ -17,6 +17,11 @@
  */
 
 #include "ezgl/callback.hpp"
+#include "ezgl/qt/switchbutton.hpp"
+#include "ezgl/qt/qtutils.hpp"
+
+#include <QMouseEvent>
+#include <QWheelEvent>
 
 namespace ezgl {
 
@@ -47,36 +52,37 @@ struct mouse_pan {
   bool has_panned = false; 
 } g_mouse_pan;
 
-gboolean press_key(GtkWidget *, GdkEventKey *event, gpointer data)
+bool press_key(QWidget*, QKeyEvent* event, void* data)
 {
-  auto application = static_cast<ezgl::application *>(data);
+  auto application = static_cast<ezgl::application*>(data);
 
   // Call the user-defined key press callback if defined
   if(application->key_press_callback != nullptr) {
-    // see: https://developer.gnome.org/gdk3/stable/gdk3-Keyboard-Handling.html
-    application->key_press_callback(application, event, gdk_keyval_name(event->keyval));
+    QString keyName = QKeySequence(event->key()).toString();
+    application->key_press_callback(application, event, keyName.toStdString());
   }
 
-  // Returning FALSE to indicate this event should be propagated on to other
-  // gtk widgets. This is important since we're grabbing keyboard events
-  // for the whole main window. It can have unexpected effects though, such
-  // as Enter/Space being treated as press any highlighted button.
-  // return TRUE (event consumed) if you want to avoid that, and don't have
-  // any widgets that need keyboard events.
-  return FALSE;
+  // Return false (not handled) so the event propagates to other Qt
+  // widgets. This is important since we grab keyboard events for the
+  // whole main window. It can have unexpected effects though, such as
+  // Enter/Space being treated as a press on any focused button. Return
+  // true (event consumed) if you want to avoid that and don't have any
+  // widgets that need keyboard events.
+  return false;
 }
 
-gboolean press_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
+bool press_mouse(QWidget*, QMouseEvent* event, void* data)
 {
   auto application = static_cast<ezgl::application *>(data);
+  const QPointF pos = event->position();
 
-  if(event->type == GDK_BUTTON_PRESS) {
+  if(event->type() == QEvent::MouseButtonPress) {
 
-    // Check for mouse press to support dragging. 
-    if(event->button == PANNING_MOUSE_BUTTON) {
+    // Check for mouse press to support dragging.
+    if(event->button() == PANNING_MOUSE_BUTTON) {
       g_mouse_pan.panning_mouse_button_pressed = true;
-      g_mouse_pan.prev_x = event->x;
-      g_mouse_pan.prev_y = event->y;
+      g_mouse_pan.prev_x = pos.x();
+      g_mouse_pan.prev_y = pos.y();
       g_mouse_pan.has_panned = false;  /* Haven't shifted the view yet */
     }
     // Call the user-defined mouse press callback if defined
@@ -84,36 +90,46 @@ gboolean press_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
     // the PANNING_MOUSE_BUTTON button. If the user pressed the PANNING_MOUSE_BUTTON button,
     // the callback will be called at mouse release only if no panning occurs
     else if(application->mouse_press_callback != nullptr) {
-      ezgl::point2d const widget_coordinates(event->x, event->y);
+      ezgl::point2d const widget_coordinates(pos.x(), pos.y());
 
       std::string main_canvas_id = application->get_main_canvas_id();
       ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+      if (canvas == nullptr) {
+        event->accept();
+        return true;
+      }
 
       ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
       application->mouse_press_callback(application, event, world.x, world.y);
     }
   }
-
-  return TRUE; // consume the event
+  event->accept();
+  return true; // consume the event
 }
 
-gboolean release_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
+bool release_mouse(QWidget*, QMouseEvent* event, void* data)
 {
-  auto application = static_cast<ezgl::application *>(data);
+  auto application = static_cast<ezgl::application*>(data);
+  const QPointF pos = event->position();
 
-  if(event->type == GDK_BUTTON_RELEASE) {
+  if(event->type() == QEvent::MouseButtonRelease) {
     // Check for mouse release to support dragging
-    if(event->button == PANNING_MOUSE_BUTTON) {
+    if(event->button() == PANNING_MOUSE_BUTTON) {
       g_mouse_pan.panning_mouse_button_pressed = false;
 
-      // Call the user-defined mouse press callback for the PANNING_MOUSE_BUTTON button only if no panning occurs. 
-      // This lets the user use one mouse button for both click-and-drag 
+      // Call the user-defined mouse press callback for the PANNING_MOUSE_BUTTON button only if no panning occurs.
+      // This lets the user use one mouse button for both click-and-drag
       // panning and simple clicking.
       if (!g_mouse_pan.has_panned && application->mouse_press_callback != nullptr) {
-        ezgl::point2d const widget_coordinates(event->x, event->y);
+        ezgl::point2d const widget_coordinates(pos.x(), pos.y());
 
         std::string main_canvas_id = application->get_main_canvas_id();
         ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+        if (canvas == nullptr) {
+          g_mouse_pan.has_panned = false;
+          event->accept();
+          return true;
+        }
 
         ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
         application->mouse_press_callback(application, event, world.x, world.y);
@@ -121,34 +137,37 @@ gboolean release_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
       g_mouse_pan.has_panned = false;  /* Done pan; reset for next time */
     }
   }
-
-  return TRUE; // consume the event
+  event->accept();
+  return true; // consume the event
 }
 
-gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
+bool move_mouse(QWidget*, QMouseEvent* event, void* data)
 {
   auto application = static_cast<ezgl::application *>(data);
+  const QPointF pos = event->position();
 
-  if(event->type == GDK_MOTION_NOTIFY) {
+  if(event->type() == QEvent::MouseMove) {
 
     // Check if the mouse button is pressed to support dragging
     if(g_mouse_pan.panning_mouse_button_pressed) {
 
-      g_mouse_pan.last_panning_event_time = gtk_get_current_event_time();
-
-      GdkEventMotion *motion_event = (GdkEventMotion *)event;
+      g_mouse_pan.last_panning_event_time = event->timestamp();
 
       std::string main_canvas_id = application->get_main_canvas_id();
       auto canvas = application->get_canvas(main_canvas_id);
+      if (canvas == nullptr) {
+        event->accept();
+        return true;
+      }
 
-      point2d curr_trans = canvas->get_camera().widget_to_world({motion_event->x, motion_event->y});
+      point2d curr_trans = canvas->get_camera().widget_to_world({pos.x(), pos.y()});
       point2d prev_trans = canvas->get_camera().widget_to_world({g_mouse_pan.prev_x, g_mouse_pan.prev_y});
 
       double dx = curr_trans.x - prev_trans.x;
       double dy = curr_trans.y - prev_trans.y;
 
-      g_mouse_pan.prev_x = motion_event->x;
-      g_mouse_pan.prev_y = motion_event->y;
+      g_mouse_pan.prev_x = pos.x();
+      g_mouse_pan.prev_y = pos.y();
 
       // Flip the delta x to avoid inverted dragging
       translate(canvas, -dx, -dy);
@@ -156,46 +175,60 @@ gboolean move_mouse(GtkWidget *, GdkEventButton *event, gpointer data)
     }
     // Else call the user-defined mouse move callback if defined
     else if(application->mouse_move_callback != nullptr) {
-      ezgl::point2d const widget_coordinates(event->x, event->y);
+      ezgl::point2d const widget_coordinates(pos.x(), pos.y());
 
       std::string main_canvas_id = application->get_main_canvas_id();
       ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+      if (canvas == nullptr) {
+        event->accept();
+        return true;
+      }
 
       ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
       application->mouse_move_callback(application, event, world.x, world.y);
     }
   }
-
-  return TRUE; // consume the event
+  event->accept();
+  return true; // consume the event
 }
 
-gboolean scroll_mouse(GtkWidget *, GdkEvent *event, gpointer data)
+bool scroll_mouse(QWidget*, QWheelEvent* event, void* data)
 {
+  auto application = static_cast<ezgl::application*>(data);
 
-  if(event->type == GDK_SCROLL) {
-    auto application = static_cast<ezgl::application *>(data);
+  std::string main_canvas_id = application->get_main_canvas_id();
+  auto canvas = application->get_canvas(main_canvas_id);
 
-    std::string main_canvas_id = application->get_main_canvas_id();
-    auto canvas = application->get_canvas(main_canvas_id);
+  const QPointF pos = event->position();
 
-    GdkEventScroll *scroll_event = (GdkEventScroll *)event;
+  ezgl::point2d scroll_point(pos.x(), pos.y());
 
-    ezgl::point2d scroll_point(scroll_event->x, scroll_event->y);
+  const QPoint angle = event->angleDelta();
+  const QPoint pixel = event->pixelDelta();
 
-    if(scroll_event->direction == GDK_SCROLL_UP) {
-      // Zoom in at the scroll point
-      ezgl::zoom_in(canvas, scroll_point, 5.0 / 3.0);
-    } else if(scroll_event->direction == GDK_SCROLL_DOWN) {
-      // Zoom out at the scroll point
-      ezgl::zoom_out(canvas, scroll_point, 5.0 / 3.0);
-    } else if(scroll_event->direction == GDK_SCROLL_SMOOTH) {
-      // Doesn't seem to be happening
-    } // NOTE: We ignore scroll GDK_SCROLL_LEFT and GDK_SCROLL_RIGHT
+  constexpr double zoomFactor = 5.0 / 3.0;
+
+  if (!angle.isNull()) {
+    // Standard wheel mouse: sign of angle.y()
+    if (angle.y() > 0) {
+      ezgl::zoom_in(canvas, scroll_point, zoomFactor);
+    } else if (angle.y() < 0) {
+      ezgl::zoom_out(canvas, scroll_point, zoomFactor);
+    }
+    // ignore horizontal: angle.x()
+  } else if (!pixel.isNull()) {
+    // Smooth scrolling (trackpad) — decide direction by pixel.y().
+    if (pixel.y() > 0) {
+      ezgl::zoom_in(canvas, scroll_point, zoomFactor);
+    } else if (pixel.y() < 0) {
+      ezgl::zoom_out(canvas, scroll_point, zoomFactor);
+    }
   }
-  return TRUE;
+  event->accept();
+  return true;
 }
 
-gboolean press_zoom_fit(GtkWidget *, gpointer data)
+bool press_zoom_fit(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -205,10 +238,10 @@ gboolean press_zoom_fit(GtkWidget *, gpointer data)
 
   ezgl::zoom_fit(canvas, canvas->get_camera().get_initial_world());
 
-  return TRUE;
+  return true;
 }
 
-gboolean press_zoom_in(GtkWidget *, gpointer data)
+bool press_zoom_in(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -218,10 +251,10 @@ gboolean press_zoom_in(GtkWidget *, gpointer data)
 
   ezgl::zoom_in(canvas, 5.0 / 3.0);
 
-  return TRUE;
+  return true;
 }
 
-gboolean press_zoom_out(GtkWidget *, gpointer data)
+bool press_zoom_out(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -231,10 +264,10 @@ gboolean press_zoom_out(GtkWidget *, gpointer data)
 
   ezgl::zoom_out(canvas, 5.0 / 3.0);
 
-  return TRUE;
+  return true;
 }
 
-gboolean press_up(GtkWidget *, gpointer data)
+bool press_up(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -244,10 +277,10 @@ gboolean press_up(GtkWidget *, gpointer data)
 
   ezgl::translate_up(canvas, 5.0);
 
-  return TRUE;
+  return true;
 }
 
-gboolean press_down(GtkWidget *, gpointer data)
+bool press_down(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -257,10 +290,10 @@ gboolean press_down(GtkWidget *, gpointer data)
 
   ezgl::translate_down(canvas, 5.0);
 
-  return TRUE;
+  return true;
 }
 
-gboolean press_left(GtkWidget *, gpointer data)
+bool press_left(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -270,10 +303,10 @@ gboolean press_left(GtkWidget *, gpointer data)
 
   ezgl::translate_left(canvas, 5.0);
 
-  return TRUE;
+  return true;
 }
 
-gboolean press_right(GtkWidget *, gpointer data)
+bool press_right(QWidget *, void* data)
 {
 
   auto application = static_cast<ezgl::application *>(data);
@@ -283,14 +316,14 @@ gboolean press_right(GtkWidget *, gpointer data)
 
   ezgl::translate_right(canvas, 5.0);
 
-  return TRUE;
+  return true;
 }
 
-gboolean press_proceed(GtkWidget *, gpointer data)
+bool press_proceed(QWidget *, void* data)
 {
   auto ezgl_app = static_cast<ezgl::application *>(data);
   ezgl_app->quit();
 
-  return TRUE;
+  return true;
 }
 }

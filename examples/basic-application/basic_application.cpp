@@ -22,12 +22,19 @@
  * This example shows you how to create an application using the EZGL library.
  */
 
-#include <iostream>
 #include <chrono>
+#include <cfloat>
+#include <iostream>
+#include <string>
 #include <thread>
 #include <vector>
 #include "ezgl/application.hpp"
 #include "ezgl/graphics.hpp"
+
+#include <QMouseEvent>
+#include <QKeyEvent>
+#include <QComboBox>
+#include <QDialog>
 
 //FUNCTION DECLARATIONS
 
@@ -62,22 +69,22 @@ void draw_png_example(ezgl::renderer *g);
  * 
  * These are example callback functions for the UI elements
  */
-void animate_button_cbk(GtkWidget *widget, ezgl::application *application);
-void test_button_cbk(GtkWidget *widget, ezgl::application *application);
-void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app);
-void delete_combo_box_cbk(GtkWidget* widget, ezgl::application *application);
-void create_dialog_button_cbk(GtkWidget *widget, ezgl::application *application);
-void create_mssg_button_cbk(GtkWidget* widget, ezgl::application *application);
-void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app);
+void animate_button_cbk(QWidget *widget, ezgl::application *application);
+void test_button_cbk(QWidget *widget, ezgl::application *application);
+void combo_box_cbk(QComboBox* self, ezgl::application* app);
+void delete_combo_box_cbk(QWidget* widget, ezgl::application *application);
+void create_dialog_button_cbk(QWidget *widget, ezgl::application *application);
+void create_mssg_button_cbk(QWidget* widget, ezgl::application *application);
+void dialog_cbk(QDialog* self, int response_id, ezgl::application* app);
 
 /**
  * EVENT CALLBACK FUNCTIONS
  * 
  * These functions run whenever their corresponding event (key press, mouse move, or mouse click) occurs.
  */
-void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y);
-void act_on_mouse_move(ezgl::application *application, GdkEventButton *event, double x, double y);
-void act_on_key_press(ezgl::application *application, GdkEventKey *event, char *key_name);
+void act_on_mouse_press(ezgl::application *application, QMouseEvent *event, double x, double y);
+void act_on_mouse_move(ezgl::application *application, QMouseEvent *event, double x, double y);
+void act_on_key_press(ezgl::application *application, QKeyEvent *event, const std::string &key_name);
 
 static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
 
@@ -91,31 +98,48 @@ static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
  *
  * @return the exit status of the application run.
  */
-int main(int /*argc*/, char **/*argv*/)
+int main(int argc, char **argv)
 {
+  ezgl::renderer_type renderer = ezgl::renderer_type::rhi;
+
+  for (int i = 1; i < argc; ++i) {
+    std::string arg(argv[i]);
+    if (arg == "--renderer" && i + 1 < argc) {
+      std::string val(argv[++i]);
+      if      (val == "immediate") renderer = ezgl::renderer_type::immediate;
+      else if (val == "deferred")  renderer = ezgl::renderer_type::deferred;
+      else if (val == "rhi")       renderer = ezgl::renderer_type::rhi;
+      else {
+        std::cerr << "Unknown renderer '" << val << "'. Use: immediate | deferred | rhi\n";
+        return 1;
+      }
+    }
+  }
+
   ezgl::application::settings settings;
 
   // Path to the "main.ui" file that contains an XML description of the UI.
-  // Edit this file with glade if you want to change the UI layout
-  settings.main_ui_resource = "main.ui";
-
-  // Note: the "main.ui" file has a GtkWindow called "MainWindow".
+  // Edit this file with Qt Designer if you want to change the UI layout.
+  settings.main_ui_resource = ":/main.ui";
+  // Note: the "main.ui" file has a top-level window called "MainWindow".
   settings.window_identifier = "MainWindow";
 
-  // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas".
+  // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas"
+  // (materialised at runtime as DrawingAreaWidget or RhiCanvasWidget,
+  // depending on the chosen renderer backend).
   settings.canvas_identifier = "MainCanvas";
 
   // Create our EZGL application.
-  ezgl::application application(settings);
-
-  // Set some parameters for the main sub-window (MainCanvas), where 
-  // visualization graphics are draw. Set the callback function that will be 
-  // called when the main window needs redrawing, and define the (world) 
+  ezgl::application application(settings, argc, argv);
+  // Set some parameters for the main sub-window (MainCanvas), where
+  // visualization graphics are draw. Set the callback function that will be
+  // called when the main window needs redrawing, and define the (world)
   // coordinate system we want to draw in.
-  application.add_canvas("MainCanvas", draw_main_canvas, initial_world);
+  ezgl::canvas *c = application.add_canvas("MainCanvas", draw_main_canvas, initial_world);
+  c->set_renderer_type(renderer);
 
   // Run the application until the user quits.
-  // This hands over all control to the GTK runtime---after this point
+  // This hands over all control to the Qt event loop---after this point
   // you will only regain control based on callbacks you have setup.
   // Three callbacks can be provided to handle mouse button presses,
   // mouse movement and keyboard button presses in the graphics area,
@@ -184,7 +208,7 @@ void initial_setup(ezgl::application *application, bool /*new_window*/)
 
   //Creating example combo box with options Yes, No, Maybe, connected to combo_box_cbk
   application->create_combo_box_text(
-    "TestComboBox", 
+    "TestComboBox",
     row++,
     combo_box_cbk,
     {"YES", "NO", "MAYBE"}
@@ -366,7 +390,7 @@ void draw_poly_example(ezgl::renderer *g)
   g->set_color(ezgl::RED);
 
   // Draw a triangle
-  g->fill_poly({{500, 400}, {440, 480}, {560, 480}});
+  g->fill_triangle({500, 400}, {440, 480}, {560, 480});
 
   // Draw a 4-point polygon
   g->fill_poly({{700, 400}, {650, 480}, {750, 480}, {800, 400}});
@@ -397,7 +421,7 @@ void draw_poly_example(ezgl::renderer *g)
   g->fill_poly({{465, 380}, {400, 450}, {765, 450}, {850, 380}});
 
   g->set_color(100, 100, 255, 255/3);
-  g->fill_poly({{550, 420}, {475, 500}, {875, 500}});
+  g->fill_triangle({550, 420}, {475, 500}, {875, 500});
 
   g->set_color(ezgl::BLACK);
   g->set_text_rotation(90);
@@ -528,6 +552,7 @@ void draw_png_example(ezgl::renderer *g)
   ezgl::surface *png_surface = ezgl::renderer::load_png("small_image.png");
   g->draw_surface(png_surface, {50, 200});
   ezgl::renderer::free_surface(png_surface);
+
   g->set_font_size(10);
   g->set_color(ezgl::BLACK);
   g->draw_text ({50, 225}, "draw_surface", 200, DBL_MAX);
@@ -536,7 +561,7 @@ void draw_png_example(ezgl::renderer *g)
 /**
  * A callback function to the Animate button. Creates an Animation in the main wundow
  */
-void animate_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
+void animate_button_cbk(QWidget */*widget*/, ezgl::application *application)
 {
   // Get a renderer that can be used to draw on top of the main canvas
   ezgl::renderer *g = application->get_renderer();
@@ -566,7 +591,7 @@ void animate_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
 /**
  * A callback function to test the Test button. Changes application message when button is pressed
  */
-void test_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
+void test_button_cbk(QWidget */*widget*/, ezgl::application *application)
 {
   // Update the status bar message
   application->update_message("Test Button Pressed");
@@ -579,21 +604,20 @@ void test_button_cbk(GtkWidget */*widget*/, ezgl::application *application)
  * Callback function for the example combo box. Sets message to currently active option.
  * Function trigerred when currently selected option changes. 
  */
-void combo_box_cbk(GtkComboBoxText* self, ezgl::application* app){
+void combo_box_cbk(QComboBox* self, ezgl::application* app){
   //Getting text content of combo box. This call makes a copy that we must free
-  auto text = gtk_combo_box_text_get_active_text(self);
-  if(!text){  //Returning if the combo box is currently empty (Always check to avoid errors)
+  auto text = self->currentText();
+  if(text.isEmpty()){  //Returning if the combo box is currently empty (Always check to avoid errors)
     return;
   } else {  //Updating message to reflect new combo box value.
-    app->update_message(text);
-    g_free (text);      // gtk made a copy that we own; need to free.
+    app->update_message(text.toStdString());
   }
 }
 
 /**
  * Callback function for the delete combo box button. Deletes combo box.
  */
-void delete_combo_box_cbk(GtkWidget* widget, ezgl::application* app){
+void delete_combo_box_cbk(QWidget* widget, ezgl::application* app){
   //Destroying widget. If function fails (could not find widget), changing message to reflect failure. 
   if(app->destroy_widget("TestComboBox")){
     app->update_message("Successfully deleted");
@@ -605,14 +629,14 @@ void delete_combo_box_cbk(GtkWidget* widget, ezgl::application* app){
 /**
  * Callback function for the create dialog button. Creates a dialog window and connects it to the dialog_cbk function
  */
-void create_dialog_button_cbk(GtkWidget* /*widget*/, ezgl::application *application){
+void create_dialog_button_cbk(QWidget* /*widget*/, ezgl::application *application){
   application->create_dialog_window(dialog_cbk, "Title", "THIS IS SOME TEXT. HELLO!");
 }
 
 /**
  * Callback function for the create message button. Creates a popup message
  */
-void create_mssg_button_cbk(GtkWidget* /*widget*/, ezgl::application* app){
+void create_mssg_button_cbk(QWidget* /*widget*/, ezgl::application* app){
   app->create_popup_message("My Message", "Hello, hit Done to Proceed");
 }
 
@@ -620,24 +644,21 @@ void create_mssg_button_cbk(GtkWidget* /*widget*/, ezgl::application* app){
  * Callback function for dialog window created by "Create Dialog Window" button. 
  * Updates application message to reflect user answer to dialog window. 
  */
-void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
+void dialog_cbk(QDialog* self, int response_id, ezgl::application* app){
   //Response_id is an integer/enumeration, so we can use a switch to read its value and act accordingly
   switch(response_id){
-    case GTK_RESPONSE_ACCEPT:
+    case QDialog::Accepted:
       app->update_message("USER ACCEPTED");
       break;
-    case GTK_RESPONSE_REJECT:
+    case QDialog::Rejected:
       app->update_message("USER REJECTED");
-      break;
-    case GTK_RESPONSE_DELETE_EVENT:
-      app->update_message("USER CLOSED WINDOW");
       break;
     default:
       app->update_message("YOU SHOULD NOT SEE THIS");
   }
 
   //We always have to destroy the dialog window in the callback function or it will never close
-  gtk_widget_destroy(GTK_WIDGET(self));
+  self->deleteLater();
 }
 
 /**
@@ -645,27 +666,40 @@ void dialog_cbk(GtkDialog* self, gint response_id, ezgl::application* app){
  * The current mouse position in the main canvas' world coordinate system is returned
  * A pointer to the application and the entire GDK event are also returned
  */
-void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, double x, double y)
+void act_on_mouse_press(ezgl::application *application, QMouseEvent *event, double x, double y)
 {
   application->update_message("Mouse Clicked");
 
   std::cout << "User clicked the ";
 
-  if (event->button == 1)
+  switch (event->button()) {
+  case Qt::LeftButton:
     std::cout << "left ";
-  else if (event->button == 2)
+    break;
+  case Qt::MiddleButton:
     std::cout << "middle ";
-  else if (event->button == 3)
+    break;
+  case Qt::RightButton:
     std::cout << "right ";
+    break;
+  default:
+    std::cout << "unhandled ";
+    break;
+  }
 
   std::cout << "mouse button at coordinates (" << x << "," << y << ") ";
 
-  if ((event->state & GDK_CONTROL_MASK) && (event->state & GDK_SHIFT_MASK))
+  Qt::KeyboardModifiers keyMods = event->modifiers();
+
+  if ((keyMods & Qt::ControlModifier) && (keyMods & Qt::ShiftModifier)) {
     std::cout << "with control and shift pressed ";
-  else if (event->state & GDK_CONTROL_MASK)
+  }
+  else if (keyMods & Qt::ControlModifier) {
     std::cout << "with control pressed ";
-  else if (event->state & GDK_SHIFT_MASK)
+  }
+  else if (keyMods & Qt::ShiftModifier) {
     std::cout << "with shift pressed ";
+  }
 
   std::cout << std::endl;
 }
@@ -675,7 +709,7 @@ void act_on_mouse_press(ezgl::application *application, GdkEventButton *event, d
  * The current mouse position in the main canvas' world coordinate system is returned
  * A pointer to the application and the entire GDK event are also returned
  */
-void act_on_mouse_move(ezgl::application */*application*/, GdkEventButton */*event*/, double x, double y)
+void act_on_mouse_move(ezgl::application */*application*/, QMouseEvent */*event*/, double x, double y)
 {
   std::cout << "Mouse move at coordinates (" << x << "," << y << ") "<< std::endl;
 }
@@ -685,7 +719,7 @@ void act_on_mouse_move(ezgl::application */*application*/, GdkEventButton */*eve
  * The name of the key pressed is returned (0-9, a-z, A-Z, Up, Down, Left, Right, Shift_R, Control_L, space, Tab, ...)
  * A pointer to the application and the entire GDK event are also returned
  */
-void act_on_key_press(ezgl::application *application, GdkEventKey */*event*/, char *key_name)
+void act_on_key_press(ezgl::application *application, QKeyEvent */*event*/, const std::string &key_name)
 {
   application->update_message("Key Pressed");
 

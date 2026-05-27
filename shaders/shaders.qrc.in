@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/ezgl">
+        <file alias="fill_rect.vert.qsb">@EZGL_FILL_RECT_VERT_QSB@</file>
+        <file alias="base.vert.qsb">@EZGL_BASE_VERT_QSB@</file>
+        <file alias="base.frag.qsb">@EZGL_BASE_FRAG_QSB@</file>
+        <file alias="overlay.vert.qsb">@EZGL_OVERLAY_VERT_QSB@</file>
+        <file alias="overlay.frag.qsb">@EZGL_OVERLAY_FRAG_QSB@</file>
+        <file alias="thick_line.vert.qsb">@EZGL_THICK_LINE_VERT_QSB@</file>
+        <file alias="dashed_line.vert.qsb">@EZGL_DASHED_LINE_VERT_QSB@</file>
+        <file alias="dashed_line.frag.qsb">@EZGL_DASHED_LINE_FRAG_QSB@</file>
+        <file alias="arrow.vert.qsb">@EZGL_ARROW_VERT_QSB@</file>
+    </qresource>
+</RCC>

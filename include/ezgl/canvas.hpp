@@ -23,30 +23,23 @@
 #include "ezgl/rectangle.hpp"
 #include "ezgl/graphics.hpp"
 #include "ezgl/color.hpp"
+#include "ezgl/qt/qtutils.hpp"
+#include "ezgl/qt/render_backend.hpp"
 
-#include <cairo.h>
-#include <cairo-pdf.h>
-#include <cairo-svg.h>
-#include <gtk/gtk.h>
-
+#include <chrono>
+#include <functional>
+#include <memory>
 #include <string>
 
 namespace ezgl {
 
 /**** Functions in this class are for ezgl internal use; application code doesn't need to call them ****/
 
-class renderer;
-
 /**
- * The signature of a function that draws to an ezgl::canvas.
- */
-using draw_canvas_fn = void (*)(renderer*);
-
-/**
- * Responsible for creating, destroying, and maintaining the rendering context of a GtkWidget.
+ * Responsible for creating, destroying, and maintaining the rendering context of a QWidget.
  *
- * Underneath, the class relies on a GtkDrawingArea as its GUI widget along with cairo to provide the rendering context.
- * The class connects to the relevant GTK signals, namely configure and draw events, to remain responsive.
+ * The backing widget is selected at runtime via @ref render_backend (one of immediate / deferred / rhi); the canvas
+ * connects to the widget's resize and paint events to remain responsive.
  *
  * Each canvas is double-buffered. A draw callback (see: ezgl::draw_canvas_fn) is invoked each time the canvas needs to
  * be redrawn. This may be caused by the user (e.g., resizing the screen), but can also be forced by the programmer.
@@ -56,7 +49,7 @@ public:
   /**
    * Destructor.
    */
-  ~canvas();
+  ~canvas() = default;
 
   /**
    * Get the name (identifier) of the canvas.
@@ -79,9 +72,18 @@ public:
   /**
    * Force the canvas to redraw itself.
    *
-   * This will invoke the ezgl::draw_canvas_fn callback and queue a redraw of the GtkWidget.
+   * This will invoke the ezgl::draw_canvas_fn callback and queue a redraw of the QWidget.
    */
   void redraw();
+
+  /**
+   * Redraw using only a camera (MVP) update — no geometry re-upload.
+   *
+   * On the RHI path this reuses the existing vertex buffers, rebuilds the
+   * cached overlay for the new camera, and avoids re-running the draw callback.
+   * Falls back to a full redraw on non-RHI paths or before the first frame.
+   */
+  void redraw_camera_only();
 
   /**
    * Get an immutable reference to this canvas' camera.
@@ -100,23 +102,53 @@ public:
   }
 
   /**
+   * Set the rendering backend type. Must be called before application::run().
+   */
+  void set_renderer_type(renderer_type t)
+  {
+    m_renderer_type = t;
+  }
+
+  renderer_type get_renderer_type() const
+  {
+    return m_renderer_type;
+  }
+
+  /**
+   * Register a callback invoked after each canvas::redraw() completes.
+   * Receives the total CPU time of the redraw in milliseconds — for RHI this
+   * includes both command recording and flush(); for QPainter backends it
+   * covers the full draw callback execution.
+   */
+  void set_frame_timing_callback(std::function<void(double /*ms*/)> fn)
+  {
+    m_frame_timing_fn = std::move(fn);
+  }
+
+  /**
    * Create an animation renderer that can be used to draw on top of the current canvas
    */
   renderer *create_animation_renderer();
-  
+
   /**
-   * print_pdf, print_svg, and print_png generate a PDF, SVG, or PNG output file showing 
-   * all the graphical content of the current canvas. 
-   * 
+   * print_pdf, print_svg, and print_png generate a PDF, SVG, or PNG output file showing
+   * all the graphical content of the current canvas.
+   *
    * @param file_name   name of the output file
    * @return            returns true if the function has successfully generated the output file, otherwise
-   *                    failed due to errors such as out of memory occurs. 
+   *                    failed due to errors such as out of memory occurs.
    */
   bool print_pdf(const char *file_name, int width = 0, int height = 0);
   bool print_svg(const char *file_name, int width = 0, int height = 0);
   bool print_png(const char *file_name, int width = 0, int height = 0);
-  
-  
+
+  /**
+   * Run the draw callback on an offscreen surface of the given size without
+   * saving any file. Use this to measure pure render time, separate from
+   * PNG/PDF encoding overhead.
+   */
+  void draw_offscreen(int width, int height);
+
 protected:
   // Only the ezgl::application can create and initialize a canvas object.
   friend class application;
@@ -129,10 +161,12 @@ protected:
   /**
    * Lazy initialization of the canvas class.
    *
-   * This function is required because GTK will not send activate/startup signals to an ezgl::application until control
-   * of the program has been reliquished. The GUI is not built until ezgl::application receives an activate signal.
+   * This function is required because the GUI is not built until ezgl::application::run() loads the .ui file (UI
+   * loading is deferred from the constructor to run() so Qt resources are registered). Canvas construction happens
+   * before that via add_canvas(), so the backing widget is bound here at run time, before exec() starts the event
+   * loop.
    */
-  void initialize(GtkWidget *drawing_area);
+  void initialize(QWidget *drawing_area);
 
 private:
   // Name of the canvas in XML.
@@ -147,24 +181,23 @@ private:
   // The background color of the drawing area
   color m_background_color;
 
-  // A non-owning pointer to the drawing area inside a GTK window.
-  GtkWidget *m_drawing_area = nullptr;
+  // A non-owning pointer to the drawing area inside a window.
+  QWidget *m_drawing_area = nullptr;
 
-  // The off-screen surface that can be drawn to.
-  cairo_surface_t *m_surface = nullptr;
+  // Requested backend type — set before run(), used by initialize() to pick the backend.
+  renderer_type m_renderer_type = renderer_type::rhi;
 
-  // The off-screen cairo context that can be drawn to
-  cairo_t *m_context = nullptr;
+  // Optional post-redraw timing callback.
+  std::function<void(double)> m_frame_timing_fn;
 
-  // The animation renderer
-  renderer *m_animation_renderer = nullptr;
+  // Active rendering backend — selected at initialize() time based on widget type.
+  std::unique_ptr<render_backend> m_backend;
 
-private:
-  // Called each time our drawing area widget has changed (e.g., in size).
-  static gboolean configure_event(GtkWidget *widget, GdkEventConfigure *event, gpointer data);
+  // Renders the canvas into an off-screen QImage; shared by print_pdf/print_svg/print_png.
+  QImage render_to_image(int surface_width, int surface_height);
 
-  // Called each time we need to draw to our drawing area widget.
-  static gboolean draw_surface(GtkWidget *widget, cairo_t *context, gpointer data);
+  void begin_deferred_redraw_cycle();
+  void end_deferred_redraw_cycle();
 };
 }
 

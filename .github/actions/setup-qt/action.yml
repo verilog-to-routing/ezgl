@@ -1,0 +1,45 @@
+name: Setup Qt
+description: >-
+  Provision the Qt SDK (version from $QT_VERSION, installed to $QT_ROOT) plus
+  the system libraries Qt links against, and cache the SDK between runs.
+  Mirrors how the VTR parent repo's install_apt_packages.sh provisions Qt via
+  aqtinstall, so local and CI builds resolve the same Qt6.
+runs:
+  using: composite
+  steps:
+    - name: Install Qt6 system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libxkbcommon-dev \
+          libgl-dev \
+          libegl-dev \
+          libopengl0 \
+          libegl-mesa0 \
+          libgl1-mesa-dri
+
+    # Qt linux_gcc_64 binaries are userspace and portable across Ubuntu
+    # versions, so keying on runner.os (not the specific matrix runner)
+    # maximizes cache reuse between the 22.04 and 24.04 legs.
+    - name: Cache Qt SDK
+      id: cache-qt
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.QT_ROOT }}
+        key: qt-${{ env.QT_VERSION }}-${{ runner.os }}-linux_gcc_64-qtshadertools
+
+    # qtshadertools provides `qsb`, required by CMakeLists.txt because
+    # committed .qsb files were dropped in e375683. aqt runs from an
+    # isolated venv to avoid PEP 668 on Ubuntu 24.04.
+    - name: Install Qt via aqtinstall
+      if: steps.cache-qt.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        sudo install -d -o "$USER" "${QT_ROOT}"
+        python3 -m venv /tmp/aqt-venv
+        /tmp/aqt-venv/bin/pip install --upgrade pip
+        /tmp/aqt-venv/bin/pip install aqtinstall
+        /tmp/aqt-venv/bin/aqt install-qt linux desktop ${QT_VERSION} \
+          linux_gcc_64 -m qtshadertools \
+          --outputdir ${QT_ROOT}

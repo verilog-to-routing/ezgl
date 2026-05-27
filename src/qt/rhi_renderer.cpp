@@ -1,0 +1,1716 @@
+#include "ezgl/qt/rhi_renderer.hpp"
+#include "ezgl/camera.hpp"
+#include "ezgl/logutils.hpp"
+#include <functional>
+
+#include <QtGlobal>
+
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <thread>
+
+namespace {
+
+constexpr double kPolygonEpsilon = 1e-12;
+
+std::uint32_t pack_color_rgba(const ezgl::color& c)
+{
+    return std::uint32_t(c.red)
+         | (std::uint32_t(c.green) << 8)
+         | (std::uint32_t(c.blue)  << 16)
+         | (std::uint32_t(c.alpha) << 24);
+}
+
+struct Triangle {
+    ezgl::point2d a;
+    ezgl::point2d b;
+    ezgl::point2d c;
+};
+
+double signed_twice_area(const std::vector<ezgl::point2d>& polygon)
+{
+    double area = 0.0;
+    for (std::size_t i = 0; i < polygon.size(); ++i) {
+        const ezgl::point2d& p = polygon[i];
+        const ezgl::point2d& q = polygon[(i + 1) % polygon.size()];
+        area += p.x * q.y - q.x * p.y;
+    }
+    return area;
+}
+
+double cross(const ezgl::point2d& a,
+             const ezgl::point2d& b,
+             const ezgl::point2d& c)
+{
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+bool point_in_triangle(const ezgl::point2d& p,
+                       const ezgl::point2d& a,
+                       const ezgl::point2d& b,
+                       const ezgl::point2d& c)
+{
+    const double c0 = cross(a, b, p);
+    const double c1 = cross(b, c, p);
+    const double c2 = cross(c, a, p);
+    const bool non_negative =
+        c0 >= -kPolygonEpsilon && c1 >= -kPolygonEpsilon && c2 >= -kPolygonEpsilon;
+    const bool non_positive =
+        c0 <= kPolygonEpsilon && c1 <= kPolygonEpsilon && c2 <= kPolygonEpsilon;
+    return non_negative || non_positive;
+}
+
+std::vector<ezgl::point2d> normalized_polygon_points(const std::vector<ezgl::point2d>& input)
+{
+    std::vector<ezgl::point2d> polygon;
+    polygon.reserve(input.size());
+    for (const ezgl::point2d& point : input) {
+        if (!polygon.empty() && polygon.back() == point)
+            continue;
+        polygon.push_back(point);
+    }
+
+    if (polygon.size() > 1 && polygon.front() == polygon.back())
+        polygon.pop_back();
+
+    return polygon;
+}
+
+// ---- stack-allocated polygon helpers (hot-path, zero heap alloc) -----------
+
+// Max vertices after Sutherland-Hodgman clipping of a triangle against a rect:
+// 3 original + 4 clip planes × 1 new vertex each = 7. Use 8 for safety.
+static constexpr int kMaxClipVerts = 8;
+
+struct SmallPoly {
+    std::array<ezgl::point2d, kMaxClipVerts> v;
+    int n = 0;
+    bool empty() const noexcept { return n == 0; }
+    const ezgl::point2d& back() const noexcept { return v[n - 1]; }
+    void push_back(const ezgl::point2d& p) noexcept { if (n < kMaxClipVerts) v[n++] = p; }
+};
+
+template<typename InsideFn, typename IntersectFn>
+static SmallPoly clip_polygon_edge_small(const SmallPoly& poly, InsideFn inside, IntersectFn intersect)
+{
+    SmallPoly out;
+    if (poly.n == 0) return out;
+    ezgl::point2d prev = poly.v[poly.n - 1];
+    bool prev_inside = inside(prev);
+    for (int i = 0; i < poly.n; ++i) {
+        const ezgl::point2d& cur = poly.v[i];
+        const bool cur_inside = inside(cur);
+        if (cur_inside != prev_inside)
+            out.push_back(intersect(prev, cur));
+        if (cur_inside)
+            out.push_back(cur);
+        prev = cur;
+        prev_inside = cur_inside;
+    }
+    return out;
+}
+
+// O(n) convexity test — returns true if pts form a convex polygon.
+static bool is_convex_polygon(const std::vector<ezgl::point2d>& pts)
+{
+    const std::size_t n = pts.size();
+    bool has_pos = false, has_neg = false;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double c = cross(pts[i], pts[(i + 1) % n], pts[(i + 2) % n]);
+        if (c > kPolygonEpsilon) has_pos = true;
+        else if (c < -kPolygonEpsilon) has_neg = true;
+        if (has_pos && has_neg) return false;
+    }
+    return true;
+}
+
+std::vector<Triangle> triangulate_simple_polygon(const std::vector<ezgl::point2d>& input)
+{
+    const std::vector<ezgl::point2d> polygon = normalized_polygon_points(input);
+    if (polygon.size() < 3)
+        return {};
+
+    const double area = signed_twice_area(polygon);
+    if (std::abs(area) <= kPolygonEpsilon)
+        return {};
+
+    const bool ccw = area > 0.0;
+    std::vector<std::size_t> remaining;
+    remaining.reserve(polygon.size());
+    for (std::size_t i = 0; i < polygon.size(); ++i)
+        remaining.push_back(i);
+
+    std::vector<Triangle> triangles;
+    triangles.reserve(polygon.size() - 2);
+
+    std::size_t guard = 0;
+    const std::size_t max_guard = polygon.size() * polygon.size();
+    while (remaining.size() > 3 && guard < max_guard) {
+        bool ear_found = false;
+        for (std::size_t i = 0; i < remaining.size(); ++i) {
+            const std::size_t prev = remaining[(i + remaining.size() - 1) % remaining.size()];
+            const std::size_t curr = remaining[i];
+            const std::size_t next = remaining[(i + 1) % remaining.size()];
+
+            const double corner_cross = cross(polygon[prev], polygon[curr], polygon[next]);
+            if ((ccw && corner_cross <= kPolygonEpsilon)
+                || (!ccw && corner_cross >= -kPolygonEpsilon)) {
+                continue;
+            }
+
+            bool contains_other_vertex = false;
+            for (std::size_t j = 0; j < remaining.size(); ++j) {
+                const std::size_t candidate = remaining[j];
+                if (candidate == prev || candidate == curr || candidate == next)
+                    continue;
+                if (point_in_triangle(polygon[candidate],
+                                      polygon[prev],
+                                      polygon[curr],
+                                      polygon[next])) {
+                    contains_other_vertex = true;
+                    break;
+                }
+            }
+            if (contains_other_vertex)
+                continue;
+
+            triangles.emplace_back(polygon[prev], polygon[curr], polygon[next]);
+            remaining.erase(remaining.begin() + std::ptrdiff_t(i));
+            ear_found = true;
+            break;
+        }
+
+        if (!ear_found)
+            break;
+        ++guard;
+    }
+
+    if (remaining.size() == 3) {
+        triangles.emplace_back(
+            polygon[remaining[0]],
+            polygon[remaining[1]],
+            polygon[remaining[2]]
+        );
+    }
+
+    if (triangles.size() != polygon.size() - 2)
+        return {};
+
+    return triangles;
+}
+
+ezgl::point2d intersect_vertical(const ezgl::point2d& a,
+                                 const ezgl::point2d& b,
+                                 double                x)
+{
+    const double dx = b.x - a.x;
+    if (std::abs(dx) <= kPolygonEpsilon)
+        return {x, a.y};
+
+    const double t = (x - a.x) / dx;
+    return {x, a.y + t * (b.y - a.y)};
+}
+
+ezgl::point2d intersect_horizontal(const ezgl::point2d& a,
+                                   const ezgl::point2d& b,
+                                   double                y)
+{
+    const double dy = b.y - a.y;
+    if (std::abs(dy) <= kPolygonEpsilon)
+        return {a.x, y};
+
+    const double t = (y - a.y) / dy;
+    return {a.x + t * (b.x - a.x), y};
+}
+
+// Clip a triangle to a rect with zero heap allocations.
+static SmallPoly clip_triangle_to_rect(const ezgl::point2d& a,
+                                       const ezgl::point2d& b,
+                                       const ezgl::point2d& c,
+                                       const ezgl::rectangle& clip)
+{
+    SmallPoly poly;
+    poly.v[0] = a; poly.v[1] = b; poly.v[2] = c; poly.n = 3;
+
+    poly = clip_polygon_edge_small(poly,
+        [&](const ezgl::point2d& p){ return p.x >= clip.left()   - kPolygonEpsilon; },
+        [&](const ezgl::point2d& u, const ezgl::point2d& v_){ return intersect_vertical(u, v_, clip.left()); });
+    if (poly.n < 3) return SmallPoly{};
+
+    poly = clip_polygon_edge_small(poly,
+        [&](const ezgl::point2d& p){ return p.x <= clip.right()  + kPolygonEpsilon; },
+        [&](const ezgl::point2d& u, const ezgl::point2d& v_){ return intersect_vertical(u, v_, clip.right()); });
+    if (poly.n < 3) return SmallPoly{};
+
+    poly = clip_polygon_edge_small(poly,
+        [&](const ezgl::point2d& p){ return p.y >= clip.bottom() - kPolygonEpsilon; },
+        [&](const ezgl::point2d& u, const ezgl::point2d& v_){ return intersect_horizontal(u, v_, clip.bottom()); });
+    if (poly.n < 3) return SmallPoly{};
+
+    poly = clip_polygon_edge_small(poly,
+        [&](const ezgl::point2d& p){ return p.y <= clip.top()    + kPolygonEpsilon; },
+        [&](const ezgl::point2d& u, const ezgl::point2d& v_){ return intersect_horizontal(u, v_, clip.top()); });
+    if (poly.n < 3) return SmallPoly{};
+
+    // Mirror normalized_polygon_points: remove adjacent duplicates + closing duplicate.
+    SmallPoly norm;
+    for (int i = 0; i < poly.n; ++i) {
+        if (norm.n > 0 && norm.back() == poly.v[i]) continue;
+        norm.push_back(poly.v[i]);
+    }
+    if (norm.n > 1 && norm.v[0] == norm.back()) norm.n--;
+    return norm;
+}
+
+template<typename InsideFn, typename IntersectFn>
+std::vector<ezgl::point2d> clip_polygon_edge(const std::vector<ezgl::point2d>& polygon,
+                                             InsideFn                           inside,
+                                             IntersectFn                        intersect)
+{
+    std::vector<ezgl::point2d> out;
+    if (polygon.empty())
+        return out;
+
+    ezgl::point2d previous = polygon.back();
+    bool previous_inside = inside(previous);
+    for (const ezgl::point2d& current : polygon) {
+        const bool current_inside = inside(current);
+        if (current_inside != previous_inside)
+            out.push_back(intersect(previous, current));
+        if (current_inside)
+            out.push_back(current);
+
+        previous = current;
+        previous_inside = current_inside;
+    }
+
+    return out;
+}
+
+std::vector<ezgl::point2d> clip_convex_polygon_to_rect(const std::vector<ezgl::point2d>& polygon,
+                                                       const ezgl::rectangle&             clip)
+{
+    std::vector<ezgl::point2d> clipped = polygon;
+    clipped = clip_polygon_edge(
+        clipped,
+        [&](const ezgl::point2d& p) { return p.x >= clip.left() - kPolygonEpsilon; },
+        [&](const ezgl::point2d& a, const ezgl::point2d& b) { return intersect_vertical(a, b, clip.left()); });
+    clipped = clip_polygon_edge(
+        clipped,
+        [&](const ezgl::point2d& p) { return p.x <= clip.right() + kPolygonEpsilon; },
+        [&](const ezgl::point2d& a, const ezgl::point2d& b) { return intersect_vertical(a, b, clip.right()); });
+    clipped = clip_polygon_edge(
+        clipped,
+        [&](const ezgl::point2d& p) { return p.y >= clip.bottom() - kPolygonEpsilon; },
+        [&](const ezgl::point2d& a, const ezgl::point2d& b) { return intersect_horizontal(a, b, clip.bottom()); });
+    clipped = clip_polygon_edge(
+        clipped,
+        [&](const ezgl::point2d& p) { return p.y <= clip.top() + kPolygonEpsilon; },
+        [&](const ezgl::point2d& a, const ezgl::point2d& b) { return intersect_horizontal(a, b, clip.top()); });
+
+    return normalized_polygon_points(clipped);
+}
+
+} // namespace
+
+namespace ezgl {
+
+// ---- construction ----------------------------------------------------------
+
+static QSize clamp_size(QSize s)
+{
+    return {std::max(1, s.width()), std::max(1, s.height())};
+}
+
+// Physical pixel size for an overlay QImage that pairs with a logical-size
+// `logical` framebuffer at device pixel ratio `dpr`. With this size + a
+// matching QImage::setDevicePixelRatio(dpr), QPainter accepts logical
+// coordinates as before but rasterizes glyphs at the framebuffer's physical
+// resolution, and the GPU blit to the framebuffer becomes 1:1 (no upscale).
+static QSize physical_overlay_size(QSize logical, qreal dpr)
+{
+    return {std::max(1, int(std::lround(logical.width()  * dpr))),
+            std::max(1, int(std::lround(logical.height() * dpr)))};
+}
+
+rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
+                             transform_fn     transform,
+                             camera*          cam,
+                             draw_callback_fn draw_callback,
+                             QColor           bg_color)
+    : irenderer(nullptr, transform, cam, nullptr)
+    , m_rhi_widget(widget)
+    , m_size(clamp_size({widget->width(), widget->height()}))
+    , m_overlay_dpr(widget->devicePixelRatioF())
+    , m_bg_color(bg_color)
+    , m_overlay(physical_overlay_size(m_size, m_overlay_dpr),
+                QImage::Format_ARGB32_Premultiplied)
+    , m_overlay_painter(&m_overlay)
+    , m_overlay_deferred(std::make_unique<deferred_renderer>(
+          &m_overlay_painter,
+          std::move(transform),   // move the second copy into overlay renderer
+          cam,
+          &m_overlay))
+{
+    (void)draw_callback;
+    // QImage::setDevicePixelRatio must be set BEFORE Painter begin() so the
+    // QPainter sees logical coordinates while rasterizing at physical
+    // resolution. We constructed m_overlay_painter on m_overlay in the
+    // initializer list, but the QImage carries DPR=1 by default; calling
+    // setDevicePixelRatio now is fine because no draws have happened yet.
+    m_overlay.setDevicePixelRatio(m_overlay_dpr);
+  //    m_n_bands       = 1;
+    m_n_bands       = int(std::max(1u, std::thread::hardware_concurrency()));
+    m_rows_per_band = (kTileGridDimension + m_n_bands - 1) / m_n_bands;
+    m_cmd_thin_lines.resize(m_n_bands);
+    m_cmd_fill_rects.resize(m_n_bands);
+    m_cmd_fill_tris.resize(m_n_bands);
+    m_cmd_thick_lines.resize(m_n_bands);
+    m_cmd_dashed_lines.resize(m_n_bands);
+    ensure_tile_grid();
+    clear_tile_geometry();
+    m_overlay_deferred->clear_overlay_and_batches();
+    m_overlay.fill(Qt::transparent);
+    update_painter(&m_overlay_painter, &m_overlay);
+    m_overlay_painter.setAntialias(false);
+    m_overlay_painter.setSmoothPixmap(false);
+}
+
+rhi_renderer::rhi_renderer(QSize            size,
+                             transform_fn     transform,
+                             camera*          cam,
+                             draw_callback_fn draw_callback,
+                             QColor           bg_color)
+    : irenderer(nullptr, transform, cam, nullptr)
+    , m_rhi_widget(nullptr)
+    , m_size(clamp_size(size))
+    , m_overlay_dpr(1.0) // headless: caller passes raw pixel size, no DPR scaling
+    , m_bg_color(bg_color)
+    , m_overlay(m_size, QImage::Format_ARGB32_Premultiplied)
+    , m_overlay_painter(&m_overlay)
+    , m_overlay_deferred(std::make_unique<deferred_renderer>(
+          &m_overlay_painter,
+          std::move(transform),
+          cam,
+          &m_overlay))
+{
+    (void)draw_callback;
+    m_n_bands       = int(std::max(1u, std::thread::hardware_concurrency()));
+    m_rows_per_band = (kTileGridDimension + m_n_bands - 1) / m_n_bands;
+    m_cmd_thin_lines.resize(m_n_bands);
+    m_cmd_fill_rects.resize(m_n_bands);
+    m_cmd_fill_tris.resize(m_n_bands);
+    m_cmd_thick_lines.resize(m_n_bands);
+    m_cmd_dashed_lines.resize(m_n_bands);
+    ensure_tile_grid();
+    clear_tile_geometry();
+    m_overlay_deferred->clear_overlay_and_batches();
+    m_overlay.fill(Qt::transparent);
+    update_painter(&m_overlay_painter, &m_overlay);
+    m_overlay_painter.setAntialias(false);
+    m_overlay_painter.setSmoothPixmap(false);
+}
+
+// ---- irenderer: coordinate system / viewport ------------------------------
+
+void rhi_renderer::set_coordinate_system(t_coordinate_system cs)
+{
+    irenderer::set_coordinate_system(cs);
+    m_overlay_deferred->set_coordinate_system(cs);
+}
+
+void rhi_renderer::set_visible_world(rectangle new_world)
+{
+    irenderer::set_visible_world(new_world);
+    m_overlay_deferred->set_visible_world(new_world);
+}
+
+rectangle rhi_renderer::get_visible_world()
+{
+    return irenderer::get_visible_world();
+}
+
+rectangle rhi_renderer::get_visible_screen() const
+{
+    return irenderer::get_visible_screen();
+}
+
+rectangle rhi_renderer::world_to_screen(const rectangle& box)
+{
+    return irenderer::world_to_screen(box);
+}
+
+// ---- irenderer: state setters ---------------------------------------------
+
+void rhi_renderer::set_color(color c)
+{
+    irenderer::set_color(c);
+    m_current_rgba = pack_color_rgba(current_color);
+    m_overlay_deferred->set_color(c);
+}
+
+void rhi_renderer::set_color(color c, uint_fast8_t alpha)
+{
+    irenderer::set_color(c, alpha);
+    m_current_rgba = pack_color_rgba(current_color);
+    m_overlay_deferred->set_color(c, alpha);
+}
+
+void rhi_renderer::set_color(uint_fast8_t r, uint_fast8_t g,
+                              uint_fast8_t b, uint_fast8_t a)
+{
+    irenderer::set_color(r, g, b, a);
+    m_current_rgba = pack_color_rgba(current_color);
+    m_overlay_deferred->set_color(r, g, b, a);
+}
+
+void rhi_renderer::set_line_cap(line_cap cap)
+{
+    irenderer::set_line_cap(cap);
+    m_overlay_deferred->set_line_cap(cap);
+}
+
+void rhi_renderer::set_line_dash(line_dash dash)
+{
+    irenderer::set_line_dash(dash);
+    m_overlay_deferred->set_line_dash(dash);
+}
+
+void rhi_renderer::set_line_width(int width)
+{
+    irenderer::set_line_width(width);
+    m_overlay_deferred->set_line_width(width);
+}
+
+void rhi_renderer::set_font_size(double size)
+{
+    irenderer::set_font_size(size);
+    m_overlay_deferred->set_font_size(size);
+}
+
+void rhi_renderer::format_font(std::string const& family,
+                                font_slant slant, font_weight weight)
+{
+    irenderer::format_font(family, slant, weight);
+    m_overlay_deferred->format_font(family, slant, weight);
+}
+
+void rhi_renderer::format_font(std::string const& family,
+                                font_slant slant, font_weight weight,
+                                double new_size)
+{
+    irenderer::format_font(family, slant, weight, new_size);
+    m_overlay_deferred->format_font(family, slant, weight, new_size);
+}
+
+void rhi_renderer::set_text_rotation(double degrees)
+{
+    irenderer::set_text_rotation(degrees);
+    m_overlay_deferred->set_text_rotation(degrees);
+}
+
+void rhi_renderer::set_horiz_justification(justification j)
+{
+    irenderer::set_horiz_justification(j);
+    m_overlay_deferred->set_horiz_justification(j);
+}
+
+void rhi_renderer::set_vert_justification(justification j)
+{
+    irenderer::set_vert_justification(j);
+    m_overlay_deferred->set_vert_justification(j);
+}
+
+void rhi_renderer::set_text_screen_offset(point2d offset_px)
+{
+    irenderer::set_text_screen_offset(offset_px);
+    m_overlay_deferred->set_text_screen_offset(offset_px);
+}
+
+// ---- irenderer: overlay draw calls ----------------------------------------
+
+void rhi_renderer::fill_poly(const std::vector<point2d>& points)
+{
+    if (current_coordinate_system != WORLD) {
+        m_overlay_deferred->fill_poly(points);
+        return;
+    }
+    if (m_skip_tile_writes)
+        return;
+
+    assert(points.size() > 3 && "if points.size() == 3 use fill_triangle method instead, it's much faster");
+
+    const StyleKey sk = current_style_key(PrimitiveType::FilledPoly);
+
+    auto push_tri = [&](const point2d& pa, const point2d& pb, const point2d& pc) {
+        const FillTriCmd cmd{sk,
+            float(pa.x), float(pa.y), float(pb.x), float(pb.y), float(pc.x), float(pc.y)};
+        const int b0 = band_for_tile_row(clamp_tile_y(std::min({pa.y, pb.y, pc.y})));
+        const int b1 = band_for_tile_row(clamp_tile_y(std::max({pa.y, pb.y, pc.y})));
+        for (int b = b0; b <= b1; ++b) m_cmd_fill_tris[b].push_back(cmd);
+    };
+
+    // Fast path: convex polygon — O(n) fan triangulation, zero intermediate allocs.
+    if (is_convex_polygon(points)) {
+        for (std::size_t i = 1; i + 1 < points.size(); ++i)
+            push_tri(points[0], points[i], points[i + 1]);
+        return;
+    }
+
+    // General case: O(n²) ear-clipping for non-convex polygons.
+    const std::vector<Triangle> triangles = triangulate_simple_polygon(points);
+    if (triangles.empty()) {
+        qWarning("rhi_renderer: failed to triangulate polygon with %llu points",
+                 static_cast<unsigned long long>(points.size()));
+        return;
+    }
+    for (const Triangle& t : triangles)
+        push_tri(t.a, t.b, t.c);
+}
+
+void rhi_renderer::fill_arrow_pointer_triangle(const point2d& anchor_world,
+                                                const point2d& dir_world,
+                                                float          arrow_size_px)
+{
+    // Push one GPU instance and let the arrow vertex shader synthesise the
+    // 3-vertex triangle at constant pixel size in screen space. The size
+    // is encoded in the style key's line-width slot (reused for arrows).
+    if (m_skip_tile_writes)
+        return;
+    const std::uint16_t size_packed =
+        std::uint16_t(std::clamp(int(std::lround(arrow_size_px)), 0, 65535));
+    const StyleKey sk = pack_style_key(PrimitiveType::Arrow,
+                                       m_current_rgba,
+                                       size_packed,
+                                       0 /* line_dash unused */);
+    m_cmd_arrows.push_back({sk,
+                            float(anchor_world.x), float(anchor_world.y),
+                            float(dir_world.x),    float(dir_world.y)});
+}
+
+void rhi_renderer::fill_triangle(const point2d& a, const point2d& b, const point2d& c)
+{
+    if (current_coordinate_system != WORLD) {
+        m_overlay_deferred->fill_triangle(a, b, c);
+        return;
+    }
+    if (m_skip_tile_writes)
+        return;
+    const FillTriCmd cmd{current_style_key(PrimitiveType::FilledPoly),
+        float(a.x), float(a.y), float(b.x), float(b.y), float(c.x), float(c.y)};
+    const int b0 = band_for_tile_row(clamp_tile_y(std::min({a.y, b.y, c.y})));
+    const int b1 = band_for_tile_row(clamp_tile_y(std::max({a.y, b.y, c.y})));
+    for (int band = b0; band <= b1; ++band) m_cmd_fill_tris[band].push_back(cmd);
+}
+
+void rhi_renderer::draw_elliptic_arc(const point2d& center, double radius_x, double radius_y,
+                                      double start_angle, double extent_angle)
+{
+    m_overlay_deferred->draw_elliptic_arc(center, radius_x, radius_y,
+                                          start_angle, extent_angle);
+}
+
+void rhi_renderer::draw_arc(const point2d& center, double radius,
+                             double start_angle, double extent_angle)
+{
+    m_overlay_deferred->draw_arc(center, radius, start_angle, extent_angle);
+}
+
+void rhi_renderer::fill_elliptic_arc(const point2d& center, double radius_x, double radius_y,
+                                      double start_angle, double extent_angle)
+{
+    m_overlay_deferred->fill_elliptic_arc(center, radius_x, radius_y,
+                                          start_angle, extent_angle);
+}
+
+void rhi_renderer::fill_arc(const point2d& center, double radius,
+                             double start_angle, double extent_angle)
+{
+    m_overlay_deferred->fill_arc(center, radius, start_angle, extent_angle);
+}
+
+void rhi_renderer::draw_text(const point2d& point, std::string const& text)
+{
+    m_overlay_deferred->draw_text(point, text);
+}
+
+void rhi_renderer::draw_text(const point2d& point, std::string const& text,
+                              double bound_x, double bound_y)
+{
+    m_overlay_deferred->draw_text(point, text, bound_x, bound_y);
+}
+
+void rhi_renderer::draw_surface(surface* p_surface, const point2d& anchor_point,
+                                 double scale_factor)
+{
+    m_overlay_deferred->draw_surface(p_surface, anchor_point, scale_factor);
+}
+
+// ---- frame lifecycle -------------------------------------------------------
+
+void rhi_renderer::begin_frame()
+{
+    ensure_tile_grid();
+    clear_tile_geometry();
+    m_overlay_deferred->clear_overlay_and_batches();
+    m_skip_tile_writes = false;
+
+    // End painter if still active (shouldn't normally happen).
+    if (m_overlay_painter.isActive())
+        m_overlay_painter.end();
+
+    // Refresh size + DPR from widget (it may have been resized since construction,
+    // and DPR may have changed too if the window crossed monitors with different
+    // display scaling).
+    if (m_rhi_widget) {
+        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
+        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
+    }
+
+    const QSize wanted_overlay_px = physical_overlay_size(m_size, m_overlay_dpr);
+    if (m_overlay.size() != wanted_overlay_px
+        || m_overlay.devicePixelRatio() != m_overlay_dpr) {
+        m_overlay = QImage(wanted_overlay_px, QImage::Format_ARGB32_Premultiplied);
+        m_overlay.setDevicePixelRatio(m_overlay_dpr);
+    }
+
+    m_overlay.fill(Qt::transparent);
+
+    // Restart the overlay painter on the (possibly resized) image.
+    m_overlay_painter.begin(&m_overlay);
+    m_overlay_painter.setAntialias(false);
+    m_overlay_painter.setSmoothPixmap(false);
+    update_painter(&m_overlay_painter, &m_overlay);
+    m_overlay_deferred->set_painter_surface(&m_overlay_painter, &m_overlay);
+
+    // Match the deferred path semantics: each redraw starts from the renderer
+    // defaults rather than inheriting state from the previous frame.
+    //
+    // Use the virtual setters here, NOT direct member writes: the rhi_renderer
+    // overrides propagate state to m_overlay_deferred. A direct write would
+    // leave m_overlay_deferred holding whatever state apply_painter_state()
+    // last applied during replay — typically the SCREEN coord of the final
+    // legend text command — and the next frame's WORLD-coord text (e.g. CLB
+    // labels in draw_place) would be silently captured as SCREEN, producing
+    // text at fixed screen positions that does not follow camera moves.
+    set_coordinate_system(WORLD);
+    set_text_rotation(0);
+    set_horiz_justification(justification::center);
+    set_vert_justification(justification::center);
+    current_color = {0, 0, 0, 255};
+    current_line_width = 0;
+    current_line_cap = line_cap::butt;
+    current_line_dash = line_dash::none;
+    set_color(current_color);
+    set_line_width(current_line_width);
+    set_line_cap(current_line_cap);
+    set_line_dash(current_line_dash);
+}
+
+void rhi_renderer::begin_overlay_frame()
+{
+    // End painter if still active from a previous pass.
+    if (m_overlay_painter.isActive())
+        m_overlay_painter.end();
+
+    const QSize wanted_overlay_px = physical_overlay_size(m_size, m_overlay_dpr);
+    if (m_overlay.size() != wanted_overlay_px
+        || m_overlay.devicePixelRatio() != m_overlay_dpr) {
+        m_overlay = QImage(wanted_overlay_px, QImage::Format_ARGB32_Premultiplied);
+        m_overlay.setDevicePixelRatio(m_overlay_dpr);
+    }
+
+    m_overlay.fill(Qt::transparent);
+
+    m_overlay_painter.begin(&m_overlay);
+    m_overlay_painter.setAntialias(false);
+    m_overlay_painter.setSmoothPixmap(false);
+    update_painter(&m_overlay_painter, &m_overlay);
+    m_overlay_deferred->set_painter_surface(&m_overlay_painter, &m_overlay);
+
+    m_skip_tile_writes = false;
+}
+
+void rhi_renderer::render_cached_overlay()
+{
+    begin_overlay_frame();
+    m_overlay_deferred->replay_overlay();
+
+    if (m_overlay_painter.isActive())
+        m_overlay_painter.end();
+}
+
+// ---- helpers ---------------------------------------------------------------
+
+
+StyleKey rhi_renderer::current_style_key(PrimitiveType primitive_type,
+                                         float         line_width_px) const
+{
+    const int rounded_width = int(std::lround(line_width_px));
+    const std::uint16_t packed_width = std::uint16_t(
+        std::clamp(rounded_width, 0, 65535));
+    const std::uint8_t packed_dash = primitive_type == PrimitiveType::DashedLine
+        ? std::uint8_t(current_line_dash)
+        : 0;
+    return pack_style_key(primitive_type,
+                          m_current_rgba,
+                          packed_width,
+                          packed_dash);
+}
+
+static bool matches_style_key(StyleKey lhs, StyleKey rhs)
+{
+    return lhs == rhs;
+}
+
+rhi_renderer::TileThinLineBatch& rhi_renderer::ensure_thin_line_batch(RhiTileBatch& tile,
+                                                                      StyleKey     style_key,
+                                                                      std::uint32_t rgba)
+{
+    auto it = std::find_if(tile.thin_line_batches.begin(),
+                           tile.thin_line_batches.end(),
+                           [style_key](const TileThinLineBatch& batch) {
+                               return matches_style_key(batch.style_key, style_key);
+                           });
+    if (it != tile.thin_line_batches.end())
+        return *it;
+
+    tile.thin_line_batches.emplace_back(style_key, rgba);
+    return tile.thin_line_batches.back();
+}
+
+rhi_renderer::TileFillRectBatch& rhi_renderer::ensure_fill_rect_batch(RhiTileBatch& tile,
+                                                                      StyleKey     style_key,
+                                                                      std::uint32_t rgba)
+{
+    auto it = std::find_if(tile.fill_rect_batches.begin(),
+                           tile.fill_rect_batches.end(),
+                           [style_key](const TileFillRectBatch& batch) {
+                               return matches_style_key(batch.style_key, style_key);
+                           });
+    if (it != tile.fill_rect_batches.end())
+        return *it;
+
+    tile.fill_rect_batches.emplace_back(style_key, rgba);
+    return tile.fill_rect_batches.back();
+}
+
+rhi_renderer::TileFillPolyBatch& rhi_renderer::ensure_fill_poly_batch(RhiTileBatch& tile,
+                                                                      StyleKey     style_key,
+                                                                      std::uint32_t rgba)
+{
+    auto it = std::find_if(tile.fill_poly_batches.begin(),
+                           tile.fill_poly_batches.end(),
+                           [style_key](const TileFillPolyBatch& batch) {
+                               return matches_style_key(batch.style_key, style_key);
+                           });
+    if (it != tile.fill_poly_batches.end())
+        return *it;
+
+    tile.fill_poly_batches.emplace_back(style_key, rgba);
+    return tile.fill_poly_batches.back();
+}
+
+rhi_renderer::TileThickLineBatch& rhi_renderer::ensure_thick_line_batch(RhiTileBatch& tile,
+                                                                        StyleKey     style_key,
+                                                                        std::uint32_t rgba)
+{
+    auto it = std::find_if(tile.thick_line_batches.begin(),
+                           tile.thick_line_batches.end(),
+                           [style_key](const TileThickLineBatch& batch) {
+                               return matches_style_key(batch.style_key, style_key);
+                           });
+    if (it != tile.thick_line_batches.end())
+        return *it;
+
+    tile.thick_line_batches.emplace_back(style_key, rgba);
+    return tile.thick_line_batches.back();
+}
+
+rhi_renderer::TileDashedLineBatch& rhi_renderer::ensure_dashed_line_batch(RhiTileBatch& tile,
+                                                                          StyleKey     style_key,
+                                                                          std::uint32_t rgba)
+{
+    auto it = std::find_if(tile.dashed_line_batches.begin(),
+                           tile.dashed_line_batches.end(),
+                           [style_key](const TileDashedLineBatch& batch) {
+                               return matches_style_key(batch.style_key, style_key);
+                           });
+    if (it != tile.dashed_line_batches.end())
+        return *it;
+
+    tile.dashed_line_batches.emplace_back(style_key, rgba);
+    return tile.dashed_line_batches.back();
+}
+
+void rhi_renderer::append_thin_line_segment(RhiTileBatch& tile,
+                                            const point2d& start,
+                                            const point2d& end,
+                                            StyleKey      style_key,
+                                            std::uint32_t rgba)
+{
+    TileThinLineBatch& batch = ensure_thin_line_batch(tile, style_key, rgba);
+    batch.verts.emplace_back(float(start.x), float(start.y));
+    batch.verts.emplace_back(float(end.x), float(end.y));
+}
+
+void rhi_renderer::append_fill_rect(RhiTileBatch& tile,
+                                    const point2d& p0,
+                                    const point2d& p1,
+                                    StyleKey      style_key,
+                                    std::uint32_t rgba)
+{
+    if (p1.x <= p0.x || p1.y <= p0.y)
+        return;
+
+    TileFillRectBatch& batch = ensure_fill_rect_batch(tile, style_key, rgba);
+    batch.instances.emplace_back(
+        float(p0.x), float(p0.y),
+        float(p1.x), float(p1.y)
+    );
+}
+
+void rhi_renderer::append_fill_triangle(RhiTileBatch& tile,
+                                        const point2d& a,
+                                        const point2d& b,
+                                        const point2d& c,
+                                        StyleKey      style_key,
+                                        std::uint32_t rgba)
+{
+    if (std::abs(cross(a, b, c)) <= kPolygonEpsilon)
+        return;
+
+    TileFillPolyBatch& batch = ensure_fill_poly_batch(tile, style_key, rgba);
+    batch.verts.emplace_back(float(a.x), float(a.y));
+    batch.verts.emplace_back(float(b.x), float(b.y));
+    batch.verts.emplace_back(float(c.x), float(c.y));
+}
+
+void rhi_renderer::ensure_tile_grid()
+{
+    const rectangle scene = m_camera->get_initial_world();
+    const double scene_width = std::max(scene.width(), std::numeric_limits<double>::epsilon());
+    const double scene_height = std::max(scene.height(), std::numeric_limits<double>::epsilon());
+    const rectangle normalized_scene{{scene.left(), scene.bottom()}, scene_width, scene_height};
+
+    if (m_tiles.size() == std::size_t(kTileGridDimension * kTileGridDimension)
+        && normalized_scene == m_scene_bounds) {
+        return;
+    }
+
+    m_scene_bounds = normalized_scene;
+    m_tile_width = m_scene_bounds.width() / double(kTileGridDimension);
+    m_tile_height = m_scene_bounds.height() / double(kTileGridDimension);
+    m_tiles.clear();
+    m_tiles.resize(std::size_t(kTileGridDimension * kTileGridDimension));
+
+    for (int ty = 0; ty < kTileGridDimension; ++ty) {
+        const double bottom = m_scene_bounds.bottom() + double(ty) * m_tile_height;
+        const double top = (ty + 1 == kTileGridDimension)
+            ? m_scene_bounds.top()
+            : (bottom + m_tile_height);
+
+        for (int tx = 0; tx < kTileGridDimension; ++tx) {
+            const double left = m_scene_bounds.left() + double(tx) * m_tile_width;
+            const double right = (tx + 1 == kTileGridDimension)
+                ? m_scene_bounds.right()
+                : (left + m_tile_width);
+            RhiTileBatch& tile = m_tiles[std::size_t(tile_index(tx, ty))];
+            tile.world_bounds = rectangle{{left, bottom}, {right, top}};
+            tile.tile_x = std::uint16_t(tx);
+            tile.tile_y = std::uint16_t(ty);
+        }
+    }
+}
+
+void rhi_renderer::clear_tile_geometry()
+{
+    for (RhiTileBatch& tile : m_tiles) {
+        tile.thin_line_batches.clear();
+        tile.fill_rect_batches.clear();
+        tile.fill_poly_batches.clear();
+        tile.thick_line_batches.clear();
+        tile.dashed_line_batches.clear();
+    }
+    clear_commands();
+}
+
+void rhi_renderer::clear_commands()
+{
+    for (int b = 0; b < m_n_bands; ++b) {
+        m_cmd_thin_lines[b].clear();
+        m_cmd_fill_rects[b].clear();
+        m_cmd_fill_tris[b].clear();
+        m_cmd_thick_lines[b].clear();
+        m_cmd_dashed_lines[b].clear();
+    }
+    // Note: m_cmd_arrows is NOT cleared here. The line/rect/etc. queues are
+    // safe to clear because dispatch_commands_to_tiles has already moved
+    // their contents into per-tile batches. Arrows are not tile-binned, so
+    // build_scene_buffers reads m_cmd_arrows directly and is responsible
+    // for clearing it. Clearing here would drop them before they're used.
+}
+
+int rhi_renderer::clamp_tile_x(double x) const
+{
+    const double normalized = (x - m_scene_bounds.left()) / m_tile_width;
+    return std::clamp(int(std::floor(normalized)), 0, kTileGridDimension - 1);
+}
+
+int rhi_renderer::clamp_tile_y(double y) const
+{
+    const double normalized = (y - m_scene_bounds.bottom()) / m_tile_height;
+    return std::clamp(int(std::floor(normalized)), 0, kTileGridDimension - 1);
+}
+
+int rhi_renderer::tile_index(int tile_x, int tile_y) const
+{
+    return tile_y * kTileGridDimension + tile_x;
+}
+
+rhi_renderer::RhiTileBatch& rhi_renderer::tile_at(int tile_x, int tile_y)
+{
+    return m_tiles[std::size_t(tile_index(tile_x, tile_y))];
+}
+
+void rhi_renderer::append_line_to_tiles(const point2d& start,
+                                        const point2d& end,
+                                        StyleKey style_key,
+                                        std::uint32_t rgba)
+{
+    const rectangle bounds{start, end};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            point2d clipped_start = start;
+            point2d clipped_end = end;
+            RhiTileBatch& tile = tile_at(tx, ty);
+            if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
+                continue;
+            append_thin_line_segment(tile,
+                                     clipped_start,
+                                     clipped_end,
+                                     style_key,
+                                     rgba);
+        }
+    }
+}
+
+void rhi_renderer::append_fill_rect_to_tiles(const point2d& p0,
+                                             const point2d& p1,
+                                             StyleKey style_key,
+                                             std::uint32_t rgba)
+{
+    const rectangle bounds{p0, p1};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            RhiTileBatch& tile = tile_at(tx, ty);
+            const double left = std::max(bounds.left(), tile.world_bounds.left());
+            const double right = std::min(bounds.right(), tile.world_bounds.right());
+            const double bottom = std::max(bounds.bottom(), tile.world_bounds.bottom());
+            const double top = std::min(bounds.top(), tile.world_bounds.top());
+            append_fill_rect(tile,
+                             {left, bottom},
+                             {right, top},
+                             style_key,
+                             rgba);
+        }
+    }
+}
+
+void rhi_renderer::append_fill_triangle_to_tiles(const point2d& a,
+                                                 const point2d& b,
+                                                 const point2d& c,
+                                                 StyleKey   style_key,
+                                                 std::uint32_t rgba)
+{
+    const double x_min = std::min({a.x, b.x, c.x});
+    const double x_max = std::max({a.x, b.x, c.x});
+    const double y_min = std::min({a.y, b.y, c.y});
+    const double y_max = std::max({a.y, b.y, c.y});
+    const rectangle bounds{{x_min, y_min}, {x_max, y_max}};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            RhiTileBatch& tile = tile_at(tx, ty);
+            const SmallPoly clipped = clip_triangle_to_rect(a, b, c, tile.world_bounds);
+            if (clipped.n < 3)
+                continue;
+
+            const point2d& anchor = clipped.v[0];
+            for (int i = 1; i + 1 < clipped.n; ++i) {
+                append_fill_triangle(tile, anchor, clipped.v[i], clipped.v[i + 1], style_key, rgba);
+            }
+        }
+    }
+}
+
+// ---- thick line helpers ----------------------------------------------------
+
+void rhi_renderer::append_thick_segment(RhiTileBatch& tile,
+                                        const point2d& start,
+                                        const point2d& end,
+                                        StyleKey      style_key,
+                                        std::uint32_t rgba)
+{
+    // One instance record (16 bytes) per segment.
+    // The vertex shader reconstructs all 4 quad corners from this record plus
+    // the constant 4-corner quad buffer — no per-vertex duplication of endpoints.
+    TileThickLineBatch& batch = ensure_thick_line_batch(tile, style_key, rgba);
+    batch.instances.emplace_back(float(start.x), float(start.y),
+                                 float(end.x),   float(end.y)
+    );
+}
+
+void rhi_renderer::append_thick_line_to_tiles(const point2d& start,
+                                              const point2d& end,
+                                              StyleKey   style_key,
+                                              std::uint32_t rgba)
+{
+    const rectangle bounds{start, end};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            point2d clipped_start = start;
+            point2d clipped_end   = end;
+            RhiTileBatch& tile = tile_at(tx, ty);
+            if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
+                continue;
+            append_thick_segment(tile,
+                                 clipped_start,
+                                 clipped_end,
+                                 style_key,
+                                 rgba);
+        }
+    }
+}
+
+void rhi_renderer::append_thick_draw_segment_to_tiles(const point2d& start,
+                                                      const point2d& end,
+                                                      StyleKey   style_key,
+                                                      std::uint32_t rgba)
+{
+    // Reuses the same geometry pool as thick draw_lines (same pipeline).
+    append_thick_line_to_tiles(start, end, style_key, rgba);
+}
+
+// ---- dashed line helpers ---------------------------------------------------
+
+void rhi_renderer::append_dashed_segment(RhiTileBatch& tile,
+                                         const point2d& start,
+                                         const point2d& end,
+                                         float         phase_world,
+                                         StyleKey      style_key,
+                                         std::uint32_t rgba)
+{
+    TileDashedLineBatch& batch = ensure_dashed_line_batch(tile, style_key, rgba);
+    batch.instances.emplace_back(
+        float(start.x), float(start.y),
+        float(end.x),   float(end.y),
+        phase_world
+    );
+}
+
+void rhi_renderer::append_dashed_line_to_tiles(const point2d& start,
+                                               const point2d& end,
+                                               StyleKey   style_key,
+                                               std::uint32_t rgba)
+{
+    const point2d original_start = start;
+    const rectangle bounds{start, end};
+    const int min_tx = clamp_tile_x(bounds.left());
+    const int max_tx = clamp_tile_x(bounds.right());
+    const int min_ty = clamp_tile_y(bounds.bottom());
+    const int max_ty = clamp_tile_y(bounds.top());
+
+    for (int ty = min_ty; ty <= max_ty; ++ty) {
+        for (int tx = min_tx; tx <= max_tx; ++tx) {
+            point2d clipped_start = start;
+            point2d clipped_end   = end;
+            RhiTileBatch& tile = tile_at(tx, ty);
+            if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
+                continue;
+            const double phase_dx = clipped_start.x - original_start.x;
+            const double phase_dy = clipped_start.y - original_start.y;
+            const float phase_world = float(std::sqrt(phase_dx * phase_dx
+                                                      + phase_dy * phase_dy));
+            append_dashed_segment(tile, clipped_start, clipped_end,
+                                  phase_world, style_key, rgba);
+        }
+    }
+}
+
+void rhi_renderer::append_dashed_draw_segment_to_tiles(const point2d& start,
+                                                       const point2d& end,
+                                                       StyleKey   style_key,
+                                                       std::uint32_t rgba)
+{
+    append_dashed_line_to_tiles(start, end, style_key, rgba);
+}
+
+// World→NDC matrix derived from camera state and widget dimensions.
+//
+// world_to_screen (affine):
+//   x_s =  sx * x_world + tx
+//   y_s = -sy * y_world + ty   (y-flip: world y-up → screen y-down)
+//
+//   sx = screen.width()  / world.width()
+//   sy = screen.height() / world.height()
+//   tx = screen.left()   - world.left()   * sx
+//   ty = screen.top()    + world.bottom() * sy
+//
+// screen_to_ndc (ortho, widget pixel coords):
+//   x_ndc = 2 * x_s / fw - 1
+//   y_ndc = 1 - 2 * y_s / fh
+//
+// Combined world→NDC (column-major QMatrix4x4):
+//   m(0,0) = 2*sx/fw,   m(0,3) = 2*tx/fw - 1
+//   m(1,1) = 2*sy/fh,   m(1,3) = 1 - 2*ty/fh
+QMatrix4x4 rhi_renderer::compute_mvp() const
+{
+    const float fw = float(m_size.width());
+    const float fh = float(m_size.height());
+
+    const rectangle world  = m_camera->get_world();
+    const rectangle screen = m_camera->get_screen();
+
+    const float sx = float(screen.width()  / world.width());
+    const float sy = float(screen.height() / world.height());
+    const float tx = float(screen.left()   - world.left()   * sx);
+    const float ty = float(screen.top()    + world.bottom() * sy);
+
+    QMatrix4x4 m;
+    m.setToIdentity();
+    m(0, 0) = 2.0f * sx / fw;
+    m(0, 3) = 2.0f * tx / fw - 1.0f;
+    m(1, 1) = 2.0f * sy / fh;
+    m(1, 3) = 1.0f - 2.0f * ty / fh;
+    return m;
+}
+
+void rhi_renderer::draw_line(const point2d& start, const point2d& end)
+{
+    if (current_coordinate_system != WORLD) {
+        m_overlay_deferred->draw_line(start, end);
+        return;
+    }
+    if (m_skip_tile_writes)
+        return;
+
+    const int b0 = band_for_tile_row(clamp_tile_y(std::min(start.y, end.y)));
+    const int b1 = band_for_tile_row(clamp_tile_y(std::max(start.y, end.y)));
+
+    if (current_line_dash != line_dash::none) {
+        const DashedLineCmd cmd{current_style_key(PrimitiveType::DashedLine, float(std::max(1, current_line_width))),
+            float(start.x), float(start.y), float(end.x), float(end.y)};
+        for (int b = b0; b <= b1; ++b) m_cmd_dashed_lines[b].push_back(cmd);
+        return;
+    }
+
+    if (current_line_width > 1) {
+        const ThickLineCmd cmd{current_style_key(PrimitiveType::ThickLine, float(current_line_width)),
+            float(start.x), float(start.y), float(end.x), float(end.y)};
+        for (int b = b0; b <= b1; ++b) m_cmd_thick_lines[b].push_back(cmd);
+        return;
+    }
+
+    const ThinLineCmd cmd{current_style_key(PrimitiveType::ThinLine),
+        float(start.x), float(start.y), float(end.x), float(end.y)};
+    for (int b = b0; b <= b1; ++b) m_cmd_thin_lines[b].push_back(cmd);
+}
+
+// ---- fill_rectangle overrides ----------------------------------------------
+
+void rhi_renderer::fill_rectangle(const point2d& start, const point2d& end)
+{
+    if (current_coordinate_system != WORLD) {
+        m_overlay_deferred->fill_rectangle(start, end);
+        return;
+    }
+    if (m_skip_tile_writes)
+        return;
+
+    const FillRectCmd cmd{current_style_key(PrimitiveType::FilledRect),
+        float(start.x), float(start.y), float(end.x), float(end.y)};
+    const int b0 = band_for_tile_row(clamp_tile_y(std::min(start.y, end.y)));
+    const int b1 = band_for_tile_row(clamp_tile_y(std::max(start.y, end.y)));
+    for (int b = b0; b <= b1; ++b) m_cmd_fill_rects[b].push_back(cmd);
+}
+
+void rhi_renderer::fill_rectangle(const point2d& start, double width, double height)
+{
+    fill_rectangle(start, {start.x + width, start.y + height});
+}
+
+void rhi_renderer::fill_rectangle(const rectangle& r)
+{
+    fill_rectangle({r.left(), r.bottom()}, {r.right(), r.top()});
+}
+
+// ---- draw_rectangle overrides ----------------------------------------------
+
+void rhi_renderer::draw_rectangle(const point2d& start, const point2d& end)
+{
+    if (current_coordinate_system != WORLD) {
+        m_overlay_deferred->draw_rectangle(start, end);
+        return;
+    }
+    if (m_skip_tile_writes)
+        return;
+
+    // Normalize corners so x_lo <= x_hi and y_lo <= y_hi. Without this the
+    // horizontal-side commands below would land in the wrong band when the
+    // caller passes points in (top-left, bottom-right) order: the band for a
+    // horizontal line at y=start.y must equal band(start.y), but b_bottom is
+    // computed from min(start.y, end.y). With the points swapped, b_bottom
+    // corresponds to end.y and the line at start.y is culled by tile-band
+    // visibility — only the vertical sides survive, producing the
+    // "two-vertical-dashes" zoom-select preview.
+    const float x_lo = float(std::min(start.x, end.x));
+    const float x_hi = float(std::max(start.x, end.x));
+    const float y_lo = float(std::min(start.y, end.y));
+    const float y_hi = float(std::max(start.y, end.y));
+
+    const int b_bottom = band_for_tile_row(clamp_tile_y(y_lo));
+    const int b_top    = band_for_tile_row(clamp_tile_y(y_hi));
+
+    if (current_line_dash != line_dash::none) {
+        const StyleKey sk = current_style_key(PrimitiveType::DashedLine, float(std::max(1, current_line_width)));
+        // Horizontal sides (single band each)
+        m_cmd_dashed_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+        m_cmd_dashed_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
+        // Vertical sides (may span multiple bands)
+        const DashedLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+        const DashedLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
+        for (int b = b_bottom; b <= b_top; ++b) {
+            m_cmd_dashed_lines[b].push_back(right);
+            m_cmd_dashed_lines[b].push_back(left);
+        }
+        return;
+    }
+
+    if (current_line_width > 1) {
+        const StyleKey sk = current_style_key(PrimitiveType::ThickLine, float(current_line_width));
+        m_cmd_thick_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+        m_cmd_thick_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
+        const ThickLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+        const ThickLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
+        for (int b = b_bottom; b <= b_top; ++b) {
+            m_cmd_thick_lines[b].push_back(right);
+            m_cmd_thick_lines[b].push_back(left);
+        }
+        return;
+    }
+
+    const StyleKey sk = current_style_key(PrimitiveType::ThinLine);
+    m_cmd_thin_lines[b_bottom].push_back({sk, x_lo, y_lo, x_hi, y_lo});
+    m_cmd_thin_lines[b_top   ].push_back({sk, x_lo, y_hi, x_hi, y_hi});
+    const ThinLineCmd left {sk, x_lo, y_lo, x_lo, y_hi};
+    const ThinLineCmd right{sk, x_hi, y_lo, x_hi, y_hi};
+    for (int b = b_bottom; b <= b_top; ++b) {
+        m_cmd_thin_lines[b].push_back(right);
+        m_cmd_thin_lines[b].push_back(left);
+    }
+}
+
+void rhi_renderer::draw_rectangle(const point2d& start, double width, double height)
+{
+    draw_rectangle(start, {start.x + width, start.y + height});
+}
+
+void rhi_renderer::draw_rectangle(const rectangle& r)
+{
+    draw_rectangle({r.left(), r.bottom()}, {r.right(), r.top()});
+}
+
+SceneBuffers rhi_renderer::build_scene_buffers() const
+{
+    SceneBuffers scene;
+
+    for (const RhiTileBatch& tile : m_tiles) {
+        if (tile.empty())
+            continue;
+
+        for (const TileThinLineBatch& batch : tile.thin_line_batches) {
+            if (batch.verts.empty())
+                continue;
+            ThinLineStyleBuffer& scene_buffer = scene.thin_lines[batch.style_key];
+            if (scene_buffer.chunks.empty()) {
+                scene_buffer.style_key = batch.style_key;
+                scene_buffer.rgba = batch.rgba;
+            }
+            const std::size_t offset = scene_buffer.verts.size();
+            scene_buffer.chunks.emplace_back(
+                tile.world_bounds,
+                std::uint32_t(offset),
+                std::uint32_t(batch.verts.size())
+            );
+            scene_buffer.verts.insert(scene_buffer.verts.end(),
+                                      batch.verts.begin(),
+                                      batch.verts.end());
+        }
+
+        for (const TileFillRectBatch& batch : tile.fill_rect_batches) {
+            if (batch.instances.empty())
+                continue;
+            FillRectStyleBuffer& scene_buffer = scene.fill_rects[batch.style_key];
+            if (scene_buffer.chunks.empty()) {
+                scene_buffer.style_key = batch.style_key;
+                scene_buffer.rgba = batch.rgba;
+            }
+            const std::size_t offset = scene_buffer.instances.size();
+            scene_buffer.chunks.emplace_back(
+                tile.world_bounds,
+                std::uint32_t(offset),
+                std::uint32_t(batch.instances.size())
+            );
+            scene_buffer.instances.insert(scene_buffer.instances.end(),
+                                          batch.instances.begin(),
+                                          batch.instances.end());
+        }
+
+        for (const TileFillPolyBatch& batch : tile.fill_poly_batches) {
+            if (batch.verts.empty())
+                continue;
+            FillPolyStyleBuffer& scene_buffer = scene.fill_polys[batch.style_key];
+            if (scene_buffer.chunks.empty()) {
+                scene_buffer.style_key = batch.style_key;
+                scene_buffer.rgba = batch.rgba;
+            }
+            const std::size_t offset = scene_buffer.verts.size();
+            scene_buffer.chunks.emplace_back(
+                tile.world_bounds,
+                std::uint32_t(offset),
+                std::uint32_t(batch.verts.size())
+            );
+            scene_buffer.verts.insert(scene_buffer.verts.end(),
+                                      batch.verts.begin(),
+                                      batch.verts.end());
+        }
+
+        for (const TileThickLineBatch& batch : tile.thick_line_batches) {
+            if (batch.instances.empty())
+                continue;
+            ThickLineStyleBuffer& scene_buffer = scene.thick_lines[batch.style_key];
+            if (scene_buffer.chunks.empty()) {
+                scene_buffer.style_key = batch.style_key;
+                scene_buffer.rgba = batch.rgba;
+            }
+            const std::size_t offset = scene_buffer.instances.size();
+            scene_buffer.chunks.emplace_back(
+                tile.world_bounds,
+                std::uint32_t(offset),
+                std::uint32_t(batch.instances.size())
+            );
+            scene_buffer.instances.insert(scene_buffer.instances.end(),
+                                          batch.instances.begin(),
+                                          batch.instances.end());
+        }
+
+        for (const TileDashedLineBatch& batch : tile.dashed_line_batches) {
+            if (batch.instances.empty())
+                continue;
+            DashedLineStyleBuffer& scene_buffer = scene.dashed_lines[batch.style_key];
+            if (scene_buffer.chunks.empty()) {
+                scene_buffer.style_key = batch.style_key;
+                scene_buffer.rgba = batch.rgba;
+            }
+            const std::size_t offset = scene_buffer.instances.size();
+            scene_buffer.chunks.emplace_back(
+                tile.world_bounds,
+                std::uint32_t(offset),
+                std::uint32_t(batch.instances.size())
+            );
+            scene_buffer.instances.insert(scene_buffer.instances.end(),
+                                          batch.instances.begin(),
+                                          batch.instances.end());
+        }
+    }
+
+    // Arrow instances are not tile-binned (see m_cmd_arrows comment in
+    // rhi_renderer.hpp). Group them by style key and emit a single chunk
+    // per group covering the entire scene world bounds — the rhi_scene_
+    // renderer's per-chunk visibility test then keeps every chunk visible
+    // because the bounds always intersect any visible_world rectangle.
+    for (const ArrowCmd& cmd : m_cmd_arrows) {
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        ArrowStyleBuffer& sb = scene.arrows[cmd.sk];
+        if (sb.instances.empty()) {
+            sb.style_key = cmd.sk;
+            sb.rgba      = rgba;
+        }
+        sb.instances.push_back({cmd.ax, cmd.ay, cmd.dx, cmd.dy});
+    }
+    for (auto& [sk, sb] : scene.arrows) {
+        if (sb.instances.empty())
+            continue;
+        sb.chunks.emplace_back(m_scene_bounds,
+                               std::uint32_t(0),
+                               std::uint32_t(sb.instances.size()));
+    }
+
+    return scene;
+}
+
+// ---- parallel command dispatch ---------------------------------------------
+
+void rhi_renderer::dispatch_commands_to_tiles(int band)
+{
+    const int ty_min = band_ty_min(band);
+    const int ty_max = band_ty_max(band);
+
+    for (const ThinLineCmd& cmd : m_cmd_thin_lines[band]) {
+        const point2d s{cmd.x0, cmd.y0}, e{cmd.x1, cmd.y1};
+        const rectangle bounds{s, e};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                point2d cs = s, ce = e;
+                RhiTileBatch& tile = tile_at(tx, ty);
+                if (!clip_line_world(tile.world_bounds, cs, ce)) continue;
+                append_thin_line_segment(tile, cs, ce, cmd.sk, rgba);
+            }
+        }
+    }
+
+    for (const FillRectCmd& cmd : m_cmd_fill_rects[band]) {
+        const point2d p0{cmd.x0, cmd.y0}, p1{cmd.x1, cmd.y1};
+        const rectangle bounds{p0, p1};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                RhiTileBatch& tile = tile_at(tx, ty);
+                const double left   = std::max(bounds.left(),   tile.world_bounds.left());
+                const double right  = std::min(bounds.right(),  tile.world_bounds.right());
+                const double bottom = std::max(bounds.bottom(), tile.world_bounds.bottom());
+                const double top    = std::min(bounds.top(),    tile.world_bounds.top());
+                append_fill_rect(tile, {left, bottom}, {right, top}, cmd.sk, rgba);
+            }
+        }
+    }
+
+    for (const FillTriCmd& cmd : m_cmd_fill_tris[band]) {
+        const point2d a{cmd.x0, cmd.y0}, b{cmd.x1, cmd.y1}, c{cmd.x2, cmd.y2};
+        const double x_min = std::min({cmd.x0, cmd.x1, cmd.x2});
+        const double x_max = std::max({cmd.x0, cmd.x1, cmd.x2});
+        const double y_min = std::min({cmd.y0, cmd.y1, cmd.y2});
+        const double y_max = std::max({cmd.y0, cmd.y1, cmd.y2});
+        const rectangle bounds{{x_min, y_min}, {x_max, y_max}};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                RhiTileBatch& tile = tile_at(tx, ty);
+                const SmallPoly clipped = clip_triangle_to_rect(a, b, c, tile.world_bounds);
+                if (clipped.n < 3) continue;
+                const point2d& anchor = clipped.v[0];
+                for (int i = 1; i + 1 < clipped.n; ++i)
+                        append_fill_triangle(tile, anchor, clipped.v[i], clipped.v[i + 1], cmd.sk, rgba);
+            }
+        }
+    }
+
+    for (const ThickLineCmd& cmd : m_cmd_thick_lines[band]) {
+        const point2d s{cmd.x0, cmd.y0}, e{cmd.x1, cmd.y1};
+        const rectangle bounds{s, e};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                point2d cs = s, ce = e;
+                RhiTileBatch& tile = tile_at(tx, ty);
+                if (!clip_line_world(tile.world_bounds, cs, ce)) continue;
+                append_thick_segment(tile, cs, ce, cmd.sk, rgba);
+            }
+        }
+    }
+
+    for (const DashedLineCmd& cmd : m_cmd_dashed_lines[band]) {
+        const point2d s{cmd.x0, cmd.y0}, e{cmd.x1, cmd.y1};
+        const rectangle bounds{s, e};
+        const int min_tx = clamp_tile_x(bounds.left());
+        const int max_tx = clamp_tile_x(bounds.right());
+        const int min_ty = std::max(clamp_tile_y(bounds.bottom()), ty_min);
+        const int max_ty = std::min(clamp_tile_y(bounds.top()),    ty_max);
+        const std::uint32_t rgba = std::uint32_t(cmd.sk);
+        for (int ty = min_ty; ty <= max_ty; ++ty) {
+            for (int tx = min_tx; tx <= max_tx; ++tx) {
+                point2d cs = s, ce = e;
+                RhiTileBatch& tile = tile_at(tx, ty);
+                if (!clip_line_world(tile.world_bounds, cs, ce)) continue;
+                const double dx = cs.x - double(cmd.x0);
+                const double dy = cs.y - double(cmd.y0);
+                const float phase_world = float(std::sqrt(dx * dx + dy * dy));
+                append_dashed_segment(tile, cs, ce, phase_world, cmd.sk, rgba);
+            }
+        }
+    }
+
+}
+
+// ---- flush -----------------------------------------------------------------
+
+void rhi_renderer::flush()
+{
+    render_cached_overlay();
+
+    // Dispatch recorded draw commands to tile batches in parallel.
+    // Each thread processes only its own band — commands were routed at record time.
+    {
+        std::vector<std::thread> workers;
+        workers.reserve(m_n_bands);
+        for (int b = 0; b < m_n_bands; ++b)
+            workers.emplace_back([this, b]() { dispatch_commands_to_tiles(b); });
+        for (auto& w : workers) w.join();
+    }
+    clear_commands();
+
+    constexpr double kBytesPerMb = 1024.0 * 1024.0;
+    SceneBuffers scene_buffers = build_scene_buffers();
+    m_cmd_arrows.clear();  // see clear_commands(): arrows live until after build
+
+#ifdef EZGL_RENDERER_DEBUG
+    double line_verts_mb          = 0.0;
+    double fill_rect_instances_mb = 0.0;
+    double fill_poly_verts_mb     = 0.0;
+    double thick_instances_mb     = 0.0;
+    double dashed_instances_mb    = 0.0;
+    double style_uniforms_mb      = 0.0;
+
+    for (const auto& [style_key, buffer] : scene_buffers.thin_lines) {
+        (void)style_key;
+        line_verts_mb += double(buffer.verts.size() * sizeof(PosVertex)) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
+    }
+    for (const auto& [style_key, buffer] : scene_buffers.fill_rects) {
+        (void)style_key;
+        fill_rect_instances_mb += double(buffer.instances.size() * sizeof(FillRectInstance)) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
+    }
+    for (const auto& [style_key, buffer] : scene_buffers.fill_polys) {
+        (void)style_key;
+        fill_poly_verts_mb += double(buffer.verts.size() * sizeof(PosVertex)) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
+    }
+    for (const auto& [style_key, buffer] : scene_buffers.thick_lines) {
+        (void)style_key;
+        thick_instances_mb += double(buffer.instances.size() * sizeof(ThickLineInstance)) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
+    }
+    for (const auto& [style_key, buffer] : scene_buffers.dashed_lines) {
+        (void)style_key;
+        dashed_instances_mb += double(buffer.instances.size() * sizeof(DashedLineInstance)) / kBytesPerMb;
+        style_uniforms_mb += 32.0 / kBytesPerMb;
+    }
+
+    const double total_mb =
+        line_verts_mb
+        + fill_rect_instances_mb
+        + fill_poly_verts_mb
+        + thick_instances_mb
+        + dashed_instances_mb
+        + style_uniforms_mb;
+
+    q_debug_stream()
+        << std::fixed << std::setprecision(3)
+        << "sending to GPU"
+        << " total=" << total_mb << " mb"
+        << " line_verts=" << line_verts_mb << " mb"
+        << " fill_rect_instances=" << fill_rect_instances_mb << " mb"
+        << " fill_poly_verts=" << fill_poly_verts_mb << " mb"
+        << " thick_instances=" << thick_instances_mb << " mb"
+        << " dashed_instances=" << dashed_instances_mb << " mb"
+        << " style_uniforms=" << style_uniforms_mb << " mb";
+#endif // EZGL_RENDERER_DEBUG
+
+    m_rhi_widget->set_frame_data(
+        std::move(scene_buffers),
+        compute_mvp(),
+        irenderer::get_visible_world(),
+        m_overlay,
+        m_bg_color);
+
+    m_rhi_widget->update();
+}
+
+// ---- flush_capture ---------------------------------------------------------
+
+rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
+{
+    render_cached_overlay();
+
+    {
+        std::vector<std::thread> workers;
+        workers.reserve(m_n_bands);
+        for (int b = 0; b < m_n_bands; ++b)
+            workers.emplace_back([this, b]() { dispatch_commands_to_tiles(b); });
+        for (auto& w : workers) w.join();
+    }
+    clear_commands();
+
+    if (m_overlay_painter.isActive())
+        m_overlay_painter.end();
+
+    HeadlessFrameData out{build_scene_buffers(),
+                          compute_mvp(),
+                          irenderer::get_visible_world(),
+                          m_overlay,
+                          bg};
+    m_cmd_arrows.clear();  // see clear_commands(): arrows live until after build
+    return out;
+}
+
+// ---- flush_mvp_only --------------------------------------------------------
+
+void rhi_renderer::flush_mvp_only()
+{
+    // Pick up the widget's current size before computing the MVP. The
+    // resize-only path skips begin_frame(), so without this refresh the
+    // camera reports the new screen rectangle while m_size still holds the
+    // pre-resize framebuffer dimensions — compute_mvp() divides by the old
+    // fw/fh and the next paint comes out skewed until a full redraw runs.
+    if (m_rhi_widget) {
+        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
+        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
+    }
+
+    render_cached_overlay();
+    m_rhi_widget->set_mvp_and_overlay(compute_mvp(), irenderer::get_visible_world(), m_overlay);
+    m_rhi_widget->update();
+}
+
+} // namespace ezgl

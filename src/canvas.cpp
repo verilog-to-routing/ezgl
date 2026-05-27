@@ -17,226 +17,150 @@
  */
 
 #include "ezgl/canvas.hpp"
+#include "ezgl/qt/deferred_backend.hpp"
+#include "ezgl/qt/drawingareawidget.hpp"
+#include "ezgl/qt/immediate_backend.hpp"
+#include "ezgl/qt/rhi_backend.hpp"
+#include "ezgl/qt/rhi_canvas_widget.hpp"
 
-#include "ezgl/graphics.hpp"
-
-#include <gtk/gtk.h>
+#include <QWidget>
+#include <QPainter>
+#include <QPdfWriter>
+#include <QPageSize>
+#include <QSvgGenerator>
+#include "ezgl/logutils.hpp"
+#include "ezgl/qt/painter.hpp"
 
 #include <cassert>
 #include <cmath>
-#include <functional>
+
+namespace {
+
+// Create the appropriate rendering backend for a given renderer type and
+// (optional) display widget.
+//
+// Probe logic lives here — called once per backend creation, cached by
+// probe_rhi(). Passing widget == nullptr produces a headless backend.
+// For a RhiCanvasWidget the cast inside rhi_backend selects the display path;
+// for a DrawingAreaWidget (or nullptr) the non-RHI path is used.
+//
+// If the requested type is rhi but no GPU is available, falls back to
+// immediate (QPainter) transparently.
+std::unique_ptr<ezgl::render_backend> make_backend(
+    ezgl::renderer_type  type,
+    QWidget*             widget,   // RhiCanvasWidget*, DrawingAreaWidget*, or nullptr
+    ezgl::draw_canvas_fn callback,
+    ezgl::camera*        cam,
+    ezgl::color          bg)
+{
+    ezgl::renderer_type effective = type;
+    if (effective == ezgl::renderer_type::rhi && !ezgl::probe_rhi()) {
+        ezgl::q_warning("canvas: no GPU backend available, falling back to immediate renderer.");
+        effective = ezgl::renderer_type::immediate;
+    }
+
+    if (effective == ezgl::renderer_type::rhi) {
+        // qobject_cast returns nullptr for non-RhiCanvasWidget widgets and for
+        // nullptr itself — rhi_backend interprets nullptr as headless mode.
+        return std::make_unique<ezgl::rhi_backend>(
+            qobject_cast<ezgl::RhiCanvasWidget*>(widget), callback, cam, bg);
+    }
+    if (effective == ezgl::renderer_type::immediate)
+        return std::make_unique<ezgl::immediate_backend>(widget, callback, cam, bg);
+    return std::make_unique<ezgl::deferred_backend>(widget, callback, cam, bg);
+}
+
+static std::pair<int,int> resolve_output_size(int req_w, int req_h,
+                                               QWidget* drawing_area)
+{
+    if (req_w > 0 && req_h > 0)
+        return {req_w, req_h};
+    if (drawing_area && drawing_area->width() > 0 && drawing_area->height() > 0)
+        return {drawing_area->width(), drawing_area->height()};
+    ezgl::q_warning("canvas: no output size and no drawing area; defaulting to 1024x768.");
+    return {1024, 768};
+}
+
+} // anonymous namespace
 
 namespace ezgl {
 
-static cairo_surface_t *create_surface(GtkWidget *widget)
+// Renders the canvas into an off-screen QImage of the given dimensions,
+// shared by print_pdf / print_svg / print_png / draw_offscreen.
+QImage canvas::render_to_image(int surface_width, int surface_height)
 {
-  GdkWindow *parent_window = gtk_widget_get_window(widget);
-  int const width = gtk_widget_get_allocated_width(widget);
-  int const height = gtk_widget_get_allocated_height(widget);
+  if (!m_backend)
+    m_backend = make_backend(m_renderer_type, nullptr, m_draw_callback, &m_camera, m_background_color);
 
-  // Cairo image surfaces are more efficient than normal Cairo surfaces
-  // However, you cannot use X11 functions to draw on image surfaces
-#ifdef EZGL_USE_X11
-  cairo_surface_t *p_surface = gdk_window_create_similar_surface(
-      parent_window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
-#else
-  cairo_surface_t *p_surface = gdk_window_create_similar_image_surface(
-      parent_window, CAIRO_FORMAT_ARGB32, width, height, 0);
-#endif
+  // Retarget the camera for the (w, h) framebuffer so compute_mvp produces
+  // the right world→NDC matrix; restore afterward so the next live paint
+  // doesn't render with the saved-image dimensions.
+  const rectangle saved_widget = m_camera.get_widget();
 
-  // On HiDPI displays, Cairos surfaces are scaled to 2x or more
-  // However, EZGL doesn't support scaling yet
-  // Force the scaling factor to 1 for both x and y
-  cairo_surface_set_device_scale(p_surface, 1, 1);
+  m_camera.update_widget(surface_width, surface_height);
+  QImage out = m_backend->render_to_image(surface_width, surface_height);
 
-  return p_surface;
-}
-
-static cairo_t *create_context(cairo_surface_t *p_surface)
-{
-  cairo_t *context = cairo_create(p_surface);
-
-  // Set the antialiasing mode of the rasterizer used for drawing shapes
-  // Set to CAIRO_ANTIALIAS_NONE for maximum speed
-  // See https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-antialias-t
-  cairo_set_antialias(context, CAIRO_ANTIALIAS_NONE);
-
-  return context;
+  m_camera.update_widget(int(saved_widget.width()), int(saved_widget.height()));
+  return out;
 }
 
 bool canvas::print_pdf(const char *file_name, int output_width, int output_height)
 {
-  cairo_surface_t *pdf_surface;
-  cairo_t *context;
-  int surface_width = 0;
-  int surface_height = 0;
-  
-  // create pdf surface based on canvas size
-  if(output_width == 0 && output_height == 0){
-    surface_width = gtk_widget_get_allocated_width(m_drawing_area);
-    surface_height = gtk_widget_get_allocated_height(m_drawing_area);
-  }else{
-      surface_width = output_width;
-      surface_height = output_height;
-  }
-  pdf_surface = cairo_pdf_surface_create(file_name, surface_width, surface_height);
+  const auto [w, h] = resolve_output_size(output_width, output_height, m_drawing_area);
 
-  if(pdf_surface == NULL)
-    return false; // failed to create due to errors such as out of memory
-  context = create_context(pdf_surface);
+  const QImage surface = render_to_image(w, h);
 
-  // draw on the newly created pdf surface & context
-  cairo_set_source_rgb(context, m_background_color.red / 255.0, m_background_color.green / 255.0,
-      m_background_color.blue / 255.0);
-  cairo_paint(context);
+  QPdfWriter writer(file_name);
+  writer.setResolution(72);
+  writer.setPageSize(QPageSize(QSizeF(w, h), QPageSize::Point));
+  writer.setPageMargins(QMarginsF(0, 0, 0, 0));
 
-  using namespace std::placeholders;
-  camera pdf_cam = m_camera;
-  pdf_cam.update_widget(surface_width, surface_height);
-  renderer g(context, std::bind(&camera::world_to_screen, pdf_cam, _1), &pdf_cam, pdf_surface);
-  m_draw_callback(&g);
-
-  // free surface & context
-  cairo_surface_destroy(pdf_surface);
-  cairo_destroy(context);
+  QPainter pdfPainter(&writer);
+  if (!pdfPainter.isActive())
+    return false;
+  pdfPainter.drawImage(pdfPainter.window(), surface);
+  pdfPainter.end();
 
   return true;
 }
 
 bool canvas::print_svg(const char *file_name, int output_width, int output_height)
 {
-  cairo_surface_t *svg_surface;
-  cairo_t *context;
-  int surface_width = 0;
-  int surface_height = 0;
-  
-  // create pdf surface based on canvas size
-  if(output_width == 0 && output_height == 0){
-    surface_width = gtk_widget_get_allocated_width(m_drawing_area);
-    surface_height = gtk_widget_get_allocated_height(m_drawing_area);
-  }else{
-      surface_width = output_width;
-      surface_height = output_height;
-  }
-  svg_surface = cairo_svg_surface_create(file_name, surface_width, surface_height);
+  const auto [w, h] = resolve_output_size(output_width, output_height, m_drawing_area);
 
-  if(svg_surface == NULL)
-    return false; // failed to create due to errors such as out of memory
-  context = create_context(svg_surface);
+  const QImage surface = render_to_image(w, h);
 
-  // draw on the newly created svg surface & context
-  cairo_set_source_rgb(context, m_background_color.red / 255.0, m_background_color.green / 255.0,
-      m_background_color.blue / 255.0);
-  cairo_paint(context);
+  QSvgGenerator generator;
+  generator.setFileName(file_name);
+  generator.setSize(QSize(w, h));
+  generator.setViewBox(QRect(0, 0, w, h));
 
-  using namespace std::placeholders;
-  camera svg_cam = m_camera;
-  svg_cam.update_widget(surface_width, surface_height);
-  renderer g(context, std::bind(&camera::world_to_screen, svg_cam, _1), &svg_cam, svg_surface);
-  m_draw_callback(&g);
-
-  // free surface & context
-  cairo_surface_destroy(svg_surface);
-  cairo_destroy(context);
+  QPainter svgPainter(&generator);
+  if (!svgPainter.isActive())
+    return false;
+  svgPainter.drawImage(0, 0, surface);
+  svgPainter.end();
 
   return true;
 }
 
 bool canvas::print_png(const char *file_name, int output_width, int output_height)
 {
-  cairo_surface_t *png_surface;
-  cairo_t *context;
-  int surface_width = 0;
-  int surface_height = 0;
-  
-  // create pdf surface based on canvas size
-  if(output_width == 0 && output_height == 0){
-    surface_width = gtk_widget_get_allocated_width(m_drawing_area);
-    surface_height = gtk_widget_get_allocated_height(m_drawing_area);
-  }else{
-      surface_width = output_width;
-      surface_height = output_height;
-  }
-  png_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, surface_width, surface_height);
+  const auto [w, h] = resolve_output_size(output_width, output_height, m_drawing_area);
 
-  if(png_surface == NULL)
-    return false; // failed to create due to errors such as out of memory
-  context = create_context(png_surface);
-
-  // draw on the newly created png surface & context
-  cairo_set_source_rgb(context, m_background_color.red / 255.0, m_background_color.green / 255.0,
-      m_background_color.blue / 255.0);
-  cairo_paint(context);
-
-  using namespace std::placeholders;
-  camera png_cam = m_camera;
-  png_cam.update_widget(surface_width, surface_height);
-  renderer g(context, std::bind(&camera::world_to_screen, png_cam, _1), &png_cam, png_surface);
-  m_draw_callback(&g);
-
-  // create png output file
-  cairo_surface_write_to_png(png_surface, file_name);
-
-  // free surface & context
-  cairo_surface_destroy(png_surface);
-  cairo_destroy(context);
-
-  return true;
+  const QImage surface = render_to_image(w, h);
+  return surface.save(file_name, "PNG");
 }
 
-gboolean canvas::configure_event(GtkWidget *widget, GdkEventConfigure *, gpointer data)
+void canvas::draw_offscreen(int output_width, int output_height)
 {
-  // User data should have been set during the signal connection.
-  g_return_val_if_fail(data != nullptr, FALSE);
-
-  auto ezgl_canvas = static_cast<canvas *>(data);
-  auto &p_surface = ezgl_canvas->m_surface;
-  auto &p_context = ezgl_canvas->m_context;
-
-  if(p_surface != nullptr) {
-    cairo_surface_destroy(p_surface);
-  }
-
-  if(p_context != nullptr) {
-    cairo_destroy(p_context);
-  }
-
-  // Something has changed, recreate the surface.
-  p_surface = create_surface(widget);
-
-  // Recreate the context
-  p_context = create_context(p_surface);
-
-  // The camera needs to be updated before we start drawing again.
-  ezgl_canvas->m_camera.update_widget(ezgl_canvas->width(), ezgl_canvas->height());
-
-  // Draw to the newly created surface.
-  ezgl_canvas->redraw();
-
-  // Update the animation renderer
-  if(ezgl_canvas->m_animation_renderer != nullptr)
-    ezgl_canvas->m_animation_renderer->update_renderer(p_context, p_surface);
-
-  g_info("canvas::configure_event has been handled.");
-  return TRUE; // the configure event was handled
-}
-
-gboolean canvas::draw_surface(GtkWidget *, cairo_t *context, gpointer data)
-{
-  // Assume context and data are non-null.
-  auto &p_surface = static_cast<canvas *>(data)->m_surface;
-
-  // Assume surface is non-null.
-  cairo_set_source_surface(context, p_surface, 0, 0);
-  cairo_paint(context);
-
-  return FALSE;
+  render_to_image(output_width, output_height);
 }
 
 canvas::canvas(std::string canvas_id,
-    draw_canvas_fn draw_callback,
-    rectangle coordinate_system,
-    color background_color)
+               draw_canvas_fn draw_callback,
+               rectangle coordinate_system,
+               color background_color)
     : m_canvas_id(std::move(canvas_id))
     , m_draw_callback(draw_callback)
     , m_camera(coordinate_system)
@@ -244,80 +168,94 @@ canvas::canvas(std::string canvas_id,
 {
 }
 
-canvas::~canvas()
+void canvas::initialize(QWidget *drawing_area)
 {
-  if(m_surface != nullptr) {
-    cairo_surface_destroy(m_surface);
+  return_if_fail("initialize drawing_area", drawing_area != nullptr);
+
+  m_drawing_area = drawing_area;
+  m_backend = make_backend(m_renderer_type, drawing_area, m_draw_callback, &m_camera, m_background_color);
+
+  // Wire up widget-specific signals after backend creation.
+  if (RhiCanvasWidget* rw = qobject_cast<RhiCanvasWidget*>(drawing_area)) {
+    if (dynamic_cast<rhi_backend*>(m_backend.get())) {
+      QObject::connect(rw, &QRhiWidget::renderFailed, [this]() {
+        q_warning("RHI render failed — disabling renderer.");
+        m_backend.reset();
+      });
+    }
+    QObject::connect(rw, &RhiCanvasWidget::resized, [this](int w, int h) {
+      m_camera.update_widget(w, h);
+      if (m_backend) m_backend->on_resize(w, h);
+    });
+    if (rw->width() > 0 && rw->height() > 0)
+      m_camera.update_widget(rw->width(), rw->height());
+  } else if (DrawingAreaWidget* daw = qobject_cast<DrawingAreaWidget*>(drawing_area)) {
+    QObject::connect(daw, &DrawingAreaWidget::resized, [this](int w, int h) {
+      m_camera.update_widget(w, h);
+      m_backend->on_resize(w, h);
+    });
+    if (width() > 0 && height() > 0) {
+      m_camera.update_widget(width(), height());
+      m_backend->redraw();
+    }
   }
 
-  if(m_context != nullptr) {
-    cairo_destroy(m_context);
-  }
-
-  if(m_animation_renderer != nullptr) {
-    delete m_animation_renderer;
-  }
+  q_debug("canvas::initialize successful.");
 }
 
 int canvas::width() const
 {
-  return gtk_widget_get_allocated_width(m_drawing_area);
+  // Headless mode (e.g. --disp off + save_graphics): the widget tree is
+  // never constructed so m_drawing_area is null. Fall back to the camera's
+  // widget rect, which render_to_image() updates to the output framebuffer
+  // size before invoking the draw callback.
+  if (m_drawing_area == nullptr) return (int)m_camera.get_widget().width();
+  return m_drawing_area->width();
 }
 
 int canvas::height() const
 {
-  return gtk_widget_get_allocated_height(m_drawing_area);
-}
-
-void canvas::initialize(GtkWidget *drawing_area)
-{
-  g_return_if_fail(drawing_area != nullptr);
-
-  m_drawing_area = drawing_area;
-  m_surface = create_surface(m_drawing_area);
-  m_context = create_context(m_surface);
-  m_camera.update_widget(width(), height());
-
-  // Draw to the newly created surface for the first time.
-  redraw();
-
-  // Connect to configure events in case our widget changes shape.
-  g_signal_connect(m_drawing_area, "configure-event", G_CALLBACK(configure_event), this);
-  // Connect to draw events so that we draw our surface to the drawing area.
-  g_signal_connect(m_drawing_area, "draw", G_CALLBACK(draw_surface), this);
-
-  // GtkDrawingArea objects need specific events enabled explicitly.
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_PRESS_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_BUTTON_RELEASE_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_POINTER_MOTION_MASK);
-  gtk_widget_add_events(GTK_WIDGET(m_drawing_area), GDK_SCROLL_MASK);
-
-  g_info("canvas::initialize successful.");
+  if (m_drawing_area == nullptr) return (int)m_camera.get_widget().height();
+  return m_drawing_area->height();
 }
 
 void canvas::redraw()
 {
-  // Clear the screen and set the background color
-  cairo_set_source_rgb(m_context, m_background_color.red / 255.0, m_background_color.green / 255.0,
-      m_background_color.blue / 255.0);
-  cairo_paint(m_context);
+  if (!m_backend)
+    return;
+  if (m_frame_timing_fn) {
+    const auto t0 = std::chrono::high_resolution_clock::now();
+    m_backend->redraw();
+    const auto t1 = std::chrono::high_resolution_clock::now();
+    m_frame_timing_fn(std::chrono::duration<double, std::milli>(t1 - t0).count());
+  } else {
+    m_backend->redraw();
+  }
+}
 
-  using namespace std::placeholders;
-  renderer g(m_context, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
-  m_draw_callback(&g);
-
-  gtk_widget_queue_draw(m_drawing_area);
-
-  g_info("The canvas will be redrawn.");
+void canvas::redraw_camera_only()
+{
+  if (m_backend)
+    m_backend->redraw_camera_only();
 }
 
 renderer *canvas::create_animation_renderer()
 {
-  if(m_animation_renderer == nullptr) {
-    using namespace std::placeholders;
-    m_animation_renderer = new renderer(m_context, std::bind(&camera::world_to_screen, &m_camera, _1), &m_camera, m_surface);
-  }
-
-  return m_animation_renderer;
+  if (m_backend)
+    return m_backend->create_animation_renderer();
+  return nullptr;
 }
+
+void canvas::begin_deferred_redraw_cycle()
+{
+  if (m_backend)
+    m_backend->begin_deferred_redraw_cycle();
+}
+
+void canvas::end_deferred_redraw_cycle()
+{
+  if (m_backend)
+    m_backend->end_deferred_redraw_cycle();
+}
+
 } // namespace ezgl

@@ -28,7 +28,7 @@ namespace ezgl {
  * Manages the transformations between coordinate systems.
  * Application code doesn't (and can't) call these functions; they are for ezgl internal use.
  *
- * The camera class manages transformations between a GTK widget, world, and "screen" coordinate system. A GTK widget
+ * The camera class manages transformations between the host widget, world, and "screen" coordinate system. The widget
  * has dimensions that change based on the user, and its aspect ratio may not match the world coordinate system. The
  * camera maintains a "screen" within the widget that keeps the same aspect ratio as the world coordinate system,
  * regardless of the dimensions of the widget.
