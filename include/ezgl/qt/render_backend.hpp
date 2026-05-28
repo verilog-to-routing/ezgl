@@ -36,9 +36,16 @@ enum class renderer_type { immediate, deferred, rhi };
 
 /// MSAA sample count for the rhi backend (both on-screen QRhiWidget and the
 /// offscreen render_to_image path use it; every QRhiGraphicsPipeline must
-/// match). 4x is the standard "free on modern GPUs" tier — good enough for
-/// thin diagonal lines without burning fillrate.
-inline constexpr int EZGL_RHI_SAMPLE_COUNT = 4;
+/// match). Valid Qt values are 1, 2, 4, 8, 16; 1 disables MSAA.
+///
+/// We default to 1 (MSAA off). With sample counts > 1, the multisample
+/// coverage resolve thickens 1-pixel-wide primitives: each pixel a thin
+/// diagonal line touches gets partial coverage from multiple subsamples
+/// and is blended toward the line color, so the line reads as ~2 px wide
+/// (and softer) instead of crisp 1 px. For VPR's dense net / route /
+/// channel rendering — which is dominated by 1 px strokes — that
+/// visible widening is worse than the aliasing MSAA was meant to fix.
+inline constexpr int EZGL_RHI_SAMPLE_COUNT = 1;
 
 /// Stable short name for a @ref renderer_type, suitable for log lines and
 /// test matrices.
