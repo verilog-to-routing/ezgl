@@ -154,7 +154,7 @@ public:
      * Create the settings structure with default values
      */
     settings()
-    : main_ui_resource(build_ui_from_file ? "main_ui" : "/ezgl/main.ui"), window_identifier("MainWindow"), canvas_identifier("MainCanvas"), application_identifier("ezgl.app"),
+    : main_ui_resource(build_ui_from_file ? "main_ui" : "/ezgl/main_glade.ui"), window_identifier("MainWindow"), canvas_identifier("MainCanvas"), application_identifier("ezgl.app"),
       setup_callbacks(nullptr)
     {
       // Uniquify the application_identifier by appending a time stamp,
@@ -207,7 +207,7 @@ public:
 
   /**
    * @note The following functions create UI Elements and add them to the grid "InnerGrid".
-   * The example main.ui file already includes a grid called "InnerGrid", as well as the Zoom and pan buttons.
+   * The example main_glade.ui file already includes a grid called "InnerGrid", as well as the Zoom and pan buttons.
    * As long as a grid called "InnerGrid" exists, the functions will work and add the UI elements to that grid.
    */
 
@@ -596,7 +596,7 @@ private:
   bool first_run;
 
   // Holds the most recent status-bar message pushed before the StatusBar
-  // widget existed (i.e. before run() loaded main.ui). Flushed in init()
+  // widget existed (i.e. before run() loaded main_glade.ui). Flushed in init()
   // once the widget tree is available. Only the latest message is kept,
   // mirroring update_message's "clear-then-show" semantics.
   QString m_pending_message;

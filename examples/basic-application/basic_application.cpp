@@ -118,13 +118,13 @@ int main(int argc, char **argv)
 
   ezgl::application::settings settings;
 
-  // Path to the "main.ui" file that contains an XML description of the UI.
+  // Path to the "main_glade.ui" file that contains an XML description of the UI.
   // Edit this file with Qt Designer if you want to change the UI layout.
-  settings.main_ui_resource = ":/main.ui";
-  // Note: the "main.ui" file has a top-level window called "MainWindow".
+  settings.main_ui_resource = ":/main_glade.ui";
+  // Note: the "main_glade.ui" file has a top-level window called "MainWindow".
   settings.window_identifier = "MainWindow";
 
-  // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas"
+  // Note: the "main_glade.ui" file has a GtkDrawingArea called "MainCanvas"
   // (materialised at runtime as DrawingAreaWidget or RhiCanvasWidget,
   // depending on the chosen renderer backend).
   settings.canvas_identifier = "MainCanvas";

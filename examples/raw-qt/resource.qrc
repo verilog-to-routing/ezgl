@@ -1,5 +1,5 @@
 <RCC>
   <qresource prefix="/">
-    <file>main.ui</file>
+    <file>main_glade.ui</file>
   </qresource>
 </RCC>

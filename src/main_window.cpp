@@ -8,7 +8,7 @@ namespace ezgl {
 
 namespace {
 
-constexpr const char* kDefaultUiPath = ":/ezgl/main.ui";
+constexpr const char* kDefaultUiPath = ":/ezgl/main_glade.ui";
 
 QMainWindow* loadWith(const QString& path, std::optional<renderer_type> renderer_kind)
 {

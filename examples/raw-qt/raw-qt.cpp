@@ -1,7 +1,7 @@
 /*
  * Minimal raw-Qt example.
  *
- * Loads main.ui via QtGladeLoader, shows the resulting QMainWindow, and runs
+ * Loads main_glade.ui via QtGladeLoader, shows the resulting QMainWindow, and runs
  * the Qt event loop. An event filter on the window logs key presses and mouse
  * button events to stdout.
  */
@@ -59,9 +59,9 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
 
     QtGladeLoader loader;
-    QMainWindow* window = loader.loadFile(":/main.ui");
+    QMainWindow* window = loader.loadFile(":/main_glade.ui");
     if (window == nullptr) {
-        std::cerr << "Error loading UI from resource :/main.ui\n";
+        std::cerr << "Error loading UI from resource :/main_glade.ui\n";
         return 1;
     }
 

@@ -27,7 +27,7 @@ namespace ezgl {
  */
 class MainWindow {
 public:
-  /// Load from the default Qt-resource path (":/ezgl/main.ui").
+  /// Load from the default Qt-resource path (":/ezgl/main_glade.ui").
   MainWindow();
 
   /// Load from an explicit path. If `renderer_kind` is set, every
