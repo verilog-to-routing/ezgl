@@ -25,6 +25,7 @@
 #include "ezgl/callback.hpp"
 #include "ezgl/graphics.hpp"
 #include "ezgl/color.hpp"
+#include "ezgl/main_window.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 
 #include <QApplication>
@@ -149,6 +150,15 @@ public:
      * "LeftButton", "RightButton", "ProceedButton"
      */
     connect_g_objects_fn setup_callbacks;
+
+    /**
+     * Which format main_ui_resource is written in.
+     *
+     * Defaults to ui_format::glade, so an application that says nothing keeps
+     * loading the Glade-format XML it always did. Set ui_format::qt once the
+     * form has been converted to a native Qt Designer form.
+     */
+    ui_format ui_resource_format = ui_format::glade;
 
     /**
      * Create the settings structure with default values
@@ -574,6 +584,9 @@ protected:
 private:
   // The package path to the XML file that describes the UI.
   std::string m_main_ui;
+
+  // Format of m_main_ui; selects which loader run() uses.
+  ui_format m_ui_format = ui_format::glade;
 
   // The ID of the main window in the .ui XML file.
   std::string m_window_id;

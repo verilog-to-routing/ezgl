@@ -1,6 +1,7 @@
 #include "ezgl/main_window.hpp"
 
 #include "ezgl/qt/qtgladeloader.hpp"
+#include "ezgl/qt/uiloader.hpp"
 
 #include <QMainWindow>
 
@@ -8,10 +9,28 @@ namespace ezgl {
 
 namespace {
 
-constexpr const char* kDefaultUiPath = ":/ezgl/main_glade.ui";
+// Resource paths of the UI descriptions loaded by a default-constructed
+// MainWindow, one per format.
+constexpr const char* kDefaultGladeUiPath = ":/ezgl/main_glade.ui";
+constexpr const char* kDefaultQtUiPath    = ":/ezgl/main.ui";
 
-QMainWindow* loadWith(const QString& path, std::optional<renderer_type> renderer_kind)
+constexpr const char* default_ui_path(ui_format format)
 {
+  return format == ui_format::qt ? kDefaultQtUiPath : kDefaultGladeUiPath;
+}
+
+QMainWindow* loadWith(const QString& path,
+    std::optional<renderer_type> renderer_kind,
+    ui_format format)
+{
+  if (format == ui_format::qt) {
+    UiLoader loader;
+    if (renderer_kind.has_value()) {
+      loader.setRendererType(*renderer_kind);
+    }
+    return loader.loadFile(path);
+  }
+
   QtGladeLoader loader;
   if (renderer_kind.has_value()) {
     loader.setRendererType(*renderer_kind);
@@ -21,13 +40,15 @@ QMainWindow* loadWith(const QString& path, std::optional<renderer_type> renderer
 
 } // namespace
 
-MainWindow::MainWindow()
-    : window_(loadWith(QString::fromLatin1(kDefaultUiPath), std::nullopt))
+MainWindow::MainWindow(ui_format format)
+    : window_(loadWith(QString::fromLatin1(default_ui_path(format)), std::nullopt, format))
 {
 }
 
-MainWindow::MainWindow(const QString& uiPath, std::optional<renderer_type> renderer_kind)
-    : window_(loadWith(uiPath, renderer_kind))
+MainWindow::MainWindow(const QString& uiPath,
+    std::optional<renderer_type> renderer_kind,
+    ui_format format)
+    : window_(loadWith(uiPath, renderer_kind, format))
 {
 }
 

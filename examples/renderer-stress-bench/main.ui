@@ -1,0 +1,141 @@
+<?xml version="1.0" ?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string notr="true">EZGL Example Application</string>
+  </property>
+  <widget class="QWidget" name="OuterGrid">
+   <layout class="QGridLayout" name="OuterGridLayout">
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <item row="0" column="0" rowspan="1" colspan="1">
+     <widget class="QWidget" name="MainCanvas">
+      <property name="ezglWidgetClass" stdset="0">
+       <string>DrawingAreaWidget</string>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1" rowspan="1" colspan="1">
+     <widget class="QWidget" name="InnerGrid">
+      <layout class="QGridLayout" name="InnerGridLayout">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <item row="0" column="1" rowspan="1" colspan="1">
+        <widget class="QPushButton" name="UpButton">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="ezglArrowType" stdset="0">
+          <string>UpArrow</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1" rowspan="1" colspan="1">
+        <widget class="QPushButton" name="DownButton">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="ezglArrowType" stdset="0">
+          <string>DownArrow</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0" rowspan="1" colspan="1">
+        <widget class="QPushButton" name="LeftButton">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="ezglArrowType" stdset="0">
+          <string>LeftArrow</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2" rowspan="1" colspan="1">
+        <widget class="QPushButton" name="RightButton">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="ezglArrowType" stdset="0">
+          <string>RightArrow</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0" rowspan="1" colspan="3">
+        <widget class="QPushButton" name="ZoomInButton">
+         <property name="text">
+          <string>Zoom In</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0" rowspan="1" colspan="3">
+        <widget class="QPushButton" name="ZoomOutButton">
+         <property name="text">
+          <string>Zoom Out</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0" rowspan="1" colspan="3">
+        <widget class="QPushButton" name="ZoomFitButton">
+         <property name="text">
+          <string>Zoom Fit</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0" rowspan="1" colspan="3">
+        <widget class="QPushButton" name="ProceedButton">
+         <property name="text">
+          <string>Proceed</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="StatusBar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

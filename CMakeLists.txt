@@ -19,7 +19,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Xml Svg)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Xml Svg UiTools)
 
 if(NOT Qt6_FOUND)
   message(FATAL_ERROR "EZGL: Failed to find required Qt library (on debian/ubuntu try 'sudo apt-get install qt6-base-dev' to install)")
@@ -59,6 +59,7 @@ add_library(
   include/ezgl/main_window.hpp
   include/ezgl/qt/qtutils.hpp
   include/ezgl/qt/qtgladeloader.hpp
+  include/ezgl/qt/uiloader.hpp
   include/ezgl/qt/switchbutton.hpp
   include/ezgl/qt/drawingareawidget.hpp
   include/ezgl/qt/painter.hpp
@@ -76,6 +77,7 @@ add_library(
   src/callback.cpp
   src/qt/qtutils.cpp
   src/qt/qtgladeloader.cpp
+  src/qt/uiloader.cpp
   src/qt/switchbutton.cpp
   src/qt/drawingareawidget.cpp
   src/qt/painter.cpp
@@ -98,7 +100,8 @@ target_link_libraries(
     Qt6::Gui
     Qt6::Widgets
     Qt6::Xml
-    Qt6::Svg)
+    Qt6::Svg
+    Qt6::UiTools)
 
 # ---- Qt RHI GPU renderer (always enabled, requires Qt >= 6.9.3) ----------
 
