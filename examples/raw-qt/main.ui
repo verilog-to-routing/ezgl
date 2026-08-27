@@ -1,9 +1,7 @@
 <?xml version="1.0" ?>
 <ui version="4.0">
  <!--
-   Native Qt Designer form, editable in `designer`. main_glade.ui is the
-   Glade-format equivalent; the two describe the same window and EZGL can load
-   either (see application::settings::ui_resource_format).
+   Qt Designer form, editable in `designer`.
 
    Two rules every EZGL form must follow:
      * a QMainWindow named MainWindow, and a QStatusBar named StatusBar
@@ -69,8 +67,8 @@
     </item>
    </layout>
   </widget>
-  <!-- Required: application::update_message writes here. The Glade loader
-       created a status bar implicitly; a native form must declare one. -->
+  <!-- Required: application::update_message writes here, and a form must
+       declare it explicitly. -->
   <widget class="QStatusBar" name="StatusBar"/>
  </widget>
  <resources/>

@@ -1,7 +1,7 @@
 /*
  * Minimal raw-Qt example.
  *
- * Loads main_glade.ui via QtGladeLoader, shows the resulting QMainWindow, and runs
+ * Loads main.ui via ezgl::UiLoader, shows the resulting QMainWindow, and runs
  * the Qt event loop. An event filter on the window logs key presses and mouse
  * button events to stdout.
  */
@@ -17,7 +17,6 @@
 #include <QMouseEvent>
 #include <QObject>
 
-#include <ezgl/qt/qtgladeloader.hpp>
 #include <ezgl/qt/uiloader.hpp>
 
 namespace {
@@ -60,21 +59,10 @@ protected:
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
 
-    // Pass --qt to build the window from the native Qt Designer form; the
-    // default is the Glade-format form. Both files describe the same window,
-    // so the two paths should be indistinguishable on screen.
-    const bool use_qt_form = (argc > 1 && std::string(argv[1]) == "--qt");
-    const char* resource = use_qt_form ? ":/main.ui" : ":/main_glade.ui";
+    const char* resource = ":/main.ui";
 
-    QMainWindow* window = nullptr;
-    if (use_qt_form) {
-        ezgl::UiLoader loader;
-        window = loader.loadFile(resource);
-    } else {
-        QtGladeLoader loader;
-        window = loader.loadFile(resource);
-    }
-
+    ezgl::UiLoader loader;
+    QMainWindow* window = loader.loadFile(resource);
     if (window == nullptr) {
         std::cerr << "Error loading UI from resource " << resource << "\n";
         return 1;

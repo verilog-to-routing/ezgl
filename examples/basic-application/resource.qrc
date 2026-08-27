@@ -1,6 +1,5 @@
 <RCC>
   <qresource prefix="/">
-    <file>main_glade.ui</file>
     <file>main.ui</file>
     <file>small_image.png</file>
   </qresource>

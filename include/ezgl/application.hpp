@@ -25,7 +25,6 @@
 #include "ezgl/callback.hpp"
 #include "ezgl/graphics.hpp"
 #include "ezgl/color.hpp"
-#include "ezgl/main_window.hpp"
 #include "ezgl/qt/switchbutton.hpp"
 
 #include <QApplication>
@@ -101,7 +100,7 @@ using dialog_callback_fn = void (*)(QDialog* self, int response_id, application*
 /**
  * The core application.
  *
- * The GUI of an application is created from a Glade-format .ui XML file (loaded via ezgl::QtGladeLoader, which
+ * The GUI of an application is created from a Qt Designer .ui XML file (loaded via ezgl::UiLoader, which
  * materialises the described widgets as Qt widgets). Widgets created in the .ui file can be retrieved from an
  * application object via find_widget(), but only after application::run() has loaded the .ui file (UI loading is
  * deferred from the constructor to run() so that Qt resources from .qrc are registered).
@@ -152,19 +151,10 @@ public:
     connect_g_objects_fn setup_callbacks;
 
     /**
-     * Which format main_ui_resource is written in.
-     *
-     * Defaults to ui_format::glade, so an application that says nothing keeps
-     * loading the Glade-format XML it always did. Set ui_format::qt once the
-     * form has been converted to a native Qt Designer form.
-     */
-    ui_format ui_resource_format = ui_format::glade;
-
-    /**
      * Create the settings structure with default values
      */
     settings()
-    : main_ui_resource(build_ui_from_file ? "main_ui" : "/ezgl/main_glade.ui"), window_identifier("MainWindow"), canvas_identifier("MainCanvas"), application_identifier("ezgl.app"),
+    : main_ui_resource(build_ui_from_file ? "main_ui" : "/ezgl/main.ui"), window_identifier("MainWindow"), canvas_identifier("MainCanvas"), application_identifier("ezgl.app"),
       setup_callbacks(nullptr)
     {
       // Uniquify the application_identifier by appending a time stamp,
@@ -217,7 +207,7 @@ public:
 
   /**
    * @note The following functions create UI Elements and add them to the grid "InnerGrid".
-   * The example main_glade.ui file already includes a grid called "InnerGrid", as well as the Zoom and pan buttons.
+   * The example main.ui file already includes a grid called "InnerGrid", as well as the Zoom and pan buttons.
    * As long as a grid called "InnerGrid" exists, the functions will work and add the UI elements to that grid.
    */
 
@@ -585,9 +575,6 @@ private:
   // The package path to the XML file that describes the UI.
   std::string m_main_ui;
 
-  // Format of m_main_ui; selects which loader run() uses.
-  ui_format m_ui_format = ui_format::glade;
-
   // The ID of the main window in the .ui XML file.
   std::string m_window_id;
 
@@ -609,7 +596,7 @@ private:
   bool first_run;
 
   // Holds the most recent status-bar message pushed before the StatusBar
-  // widget existed (i.e. before run() loaded main_glade.ui). Flushed in init()
+  // widget existed (i.e. before run() loaded main.ui). Flushed in init()
   // once the widget tree is available. Only the latest message is kept,
   // mirroring update_message's "clear-then-show" semantics.
   QString m_pending_message;

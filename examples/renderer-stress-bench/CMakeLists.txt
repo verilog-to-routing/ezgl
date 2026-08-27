@@ -6,7 +6,7 @@ project(
   LANGUAGES CXX
 )
 
-# Embed main_glade.ui as a Qt resource so :/main_glade.ui is accessible at runtime.
+# Embed main.ui as a Qt resource so :/main.ui is accessible at runtime.
 qt_add_resources(QT_RESOURCES resource.qrc)
 set(EXTRA_SOURCES ${QT_RESOURCES})
 

@@ -29,7 +29,7 @@ QWidget* make_ezgl_widget(const QString& class_name,
     QWidget* parent)
 {
   if (class_name == QLatin1String("DrawingAreaWidget")) {
-    // An unset renderer kind means rhi: that was QtGladeLoader's default.
+    // An unset renderer kind means rhi, which is the historical default.
     if (renderer_kind.value_or(renderer_type::rhi) == renderer_type::rhi) {
       return new RhiCanvasWidget(parent);
     }

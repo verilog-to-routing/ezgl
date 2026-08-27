@@ -554,7 +554,7 @@ static constexpr int N_TESTS = static_cast<int>(sizeof(TESTS) / sizeof(TESTS[0])
 static void run_headless(ezgl::renderer_type renderer)
 {
   ezgl::application::settings s;
-  s.main_ui_resource = ":/main_glade.ui";
+  s.main_ui_resource = ":/main.ui";
 
   static int   fake_argc    = 1;
   static char  fake_argv0[] = "renderer-stress-bench";
@@ -648,7 +648,7 @@ static void run_ui(int initial_test, ezgl::renderer_type renderer)
   g_current_test = initial_test;
 
   ezgl::application::settings s;
-  s.main_ui_resource = ":/main_glade.ui";
+  s.main_ui_resource = ":/main.ui";
   s.window_identifier = "MainWindow";
   s.canvas_identifier = "MainCanvas";
 

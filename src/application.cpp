@@ -151,7 +151,6 @@ void application::init()
 application::application(application::settings s, int& argc, char** argv)
     : QApplication(argc, argv)
     , m_main_ui(s.main_ui_resource)
-    , m_ui_format(s.ui_resource_format)
     , m_window_id(s.window_identifier)
     , m_canvas_id(s.canvas_identifier)
     , m_application_id(s.application_identifier)
@@ -349,7 +348,7 @@ int application::run(setup_callback_fn initial_setup_user_callback,
       auto it = m_canvases.find(m_canvas_id);
       if (it != m_canvases.end())
         rt = it->second->get_renderer_type();
-      MainWindow mw(QString::fromStdString(m_main_ui), rt, m_ui_format);
+      MainWindow mw(QString::fromStdString(m_main_ui), rt);
       // Take ownership of the loaded window; application::~application
       // deletes m_window during shutdown.
       m_window = mw.release();

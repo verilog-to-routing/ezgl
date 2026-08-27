@@ -2,13 +2,13 @@
 
 image:https://codedocs.xyz/mariobadr/ezgl.svg[link="https://codedocs.xyz/mariobadr/ezgl"]
 
-EZGL is a C++ graphics library that provides a thin wrapper around GTK and Cairo,
+EZGL is a C++ graphics library that provides a thin wrapper around Qt,
 making it easy to create GUI applications with 2D drawing support.
 It is used by the https://github.com/verilog-to-routing/vtr-verilog-to-routing[VTR project] and as a teaching tool in ECE297.
 
 == Dependencies
 
-The library currently depends on GTK 3 and cairo.
+The library depends on Qt 6.
 
 === Build-tool dependency: Qt 6.9.3 + qtshadertools (provides `qsb`)
 
@@ -19,35 +19,14 @@ The RHI renderer's shaders are baked from GLSL to `.qsb` at build time.
 
 == User interface forms
 
-The window layout is described by a `.ui` file that EZGL loads at run time.
-Two formats are understood, and an application chooses between them with
-`application::settings::ui_resource_format`:
-
-[cols="1,3"]
-|===
-| `ui_format::glade` | Glade-format XML (`<object class="GtkWindow">`). The historical format, and still the default.
-| `ui_format::qt`    | A native Qt Designer form (`<widget class="QMainWindow">`), editable in `designer`.
-|===
-
-Glade remains the default so that existing applications keep working untouched.
-New forms should use the Qt format; the Glade path will be removed once every
-consumer has migrated.
-
-=== Converting an existing form
-
-`scripts/glade2qtui.py` performs the translation:
-
-  python3 scripts/glade2qtui.py main_glade.ui main.ui
-
-The conversion reproduces what EZGL's Glade loader actually builds, not what
-Glade means, so properties the loader ignores are dropped rather than
-translated. The `examples/` directory ships both formats side by side if you
-want to compare.
+The window layout is described by a Qt Designer `.ui` file that EZGL loads at
+run time, named by `application::settings::main_ui_resource`. Edit it in
+`designer`.
 
 === Two things a `.ui` file cannot say
 
 A form can only set *properties*, which leaves two gaps. EZGL closes both with
-dynamic properties (`stdset="0"`), read after the tree is built:
+dynamic properties (`stdset="0"`), read after the widget tree is built:
 
 `ezglWidgetClass`:: A `.ui` file can only name widget classes Qt ships, so
 EZGL's own widgets are declared as a plain `QWidget` carrying this tag. The
@@ -59,8 +38,7 @@ its `objectName`. Neither the `Qt::Popup` window flag nor the button-to-popup
 link is a property, so neither can be written in the form directly.
 
 Every EZGL form must also contain a `QMainWindow`, a canvas placeholder, and a
-`QStatusBar` named `StatusBar`. The Glade loader created the status bar
-implicitly; a native form has to declare it.
+`QStatusBar` named `StatusBar`.
 
 == Compilation
 
