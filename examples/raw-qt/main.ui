@@ -1,5 +1,14 @@
 <?xml version="1.0" ?>
 <ui version="4.0">
+ <!--
+   Native Qt Designer form, editable in `designer`. main_glade.ui is the
+   Glade-format equivalent; the two describe the same window and EZGL can load
+   either (see application::settings::ui_resource_format).
+
+   Two rules every EZGL form must follow:
+     * a QMainWindow named MainWindow, and a QStatusBar named StatusBar
+     * a canvas placeholder (see MainCanvas below)
+ -->
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
@@ -31,6 +40,14 @@
      <number>0</number>
     </property>
     <item row="0" column="0" rowspan="1" colspan="1">
+     <!--
+       The canvas. A .ui file can only name widget classes that Qt ships, so
+       EZGL's drawing area is declared as a plain QWidget carrying the
+       ezglWidgetClass tag. ezgl::UiLoader swaps in the real widget when the
+       form loads: a DrawingAreaWidget, or an RhiCanvasWidget under the rhi
+       renderer. stdset="0" marks it a dynamic property, which is how a form
+       carries information Qt itself knows nothing about.
+     -->
      <widget class="QWidget" name="MainCanvas">
       <property name="ezglWidgetClass" stdset="0">
        <string>DrawingAreaWidget</string>
@@ -52,6 +69,8 @@
     </item>
    </layout>
   </widget>
+  <!-- Required: application::update_message writes here. The Glade loader
+       created a status bar implicitly; a native form must declare one. -->
   <widget class="QStatusBar" name="StatusBar"/>
  </widget>
  <resources/>

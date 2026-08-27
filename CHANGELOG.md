@@ -2,6 +2,24 @@
 
 All notable changes to EZGL will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Support for native Qt Designer `.ui` forms alongside the Glade format, selected with
+  `application::settings::ui_resource_format` (`ui_format::glade` or `ui_format::qt`)
+- `ezgl::UiLoader`, a thin facade over `QUiLoader` that loads a native Qt form
+- `ezglWidgetClass` and `ezglPopupFor` dynamic properties, letting a native form describe
+  an EZGL canvas, a switch, or a popup panel -- none of which a `.ui` file can express
+- `scripts/glade2qtui.py`, which converts a Glade form to the native Qt equivalent
+- A native `main.ui` beside the existing `main_glade.ui` in every example
+- `--qt` flag on the `raw-qt` example, to load the native form instead of the Glade one
+
+### Changed
+- The Glade forms shipped with the examples are now named `main_glade.ui`, freeing `main.ui`
+  for the native Qt form. Applications that referenced `main.ui` should update the path, or
+  set `ui_resource_format` and move to the native form.
+- Glade remains the default format, so applications that specify nothing are unaffected
+
 ## [v1.1.0] - 2026-05-22
 
 ### Added
