@@ -132,7 +132,7 @@ renderer* rhi_backend::create_animation_renderer()
     // The rhi_renderer is the live scene renderer and implements the full
     // irenderer interface. Draw calls route to one of two places:
     //   - world-space lines/rectangles/fills  → GPU tile batches (VBOs)
-    //   - text, arcs, polys, screen-space primitives → m_overlay_deferred
+    //   - text, arcs, polys, screen-space primitives → m_deferred_renderer
     //     → overlay QImage composited above the GPU scene as a texture
     // Unlike the immediate/deferred backends — which paint synchronously
     // into a live QImage — animation draws here are recorded and only

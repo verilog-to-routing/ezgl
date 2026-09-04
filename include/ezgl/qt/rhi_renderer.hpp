@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ezgl/irenderer.hpp"
+#include "ezgl/qt/immediate_renderer.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/rhi_types.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
@@ -62,8 +63,8 @@ namespace ezgl {
  * @c fill_arrow_pointer_triangle. All other primitives — @c draw_text,
  * @c draw_arc / @c fill_arc (and their elliptic variants), @c draw_surface,
  * SCREEN-coordinate-system overrides — forward to an owned
- * @ref deferred_renderer (@ref m_overlay_deferred) painting into the
- * @ref m_overlay QImage. That QImage is uploaded as a GPU texture and
+ * @ref deferred_renderer (@ref m_deferred_renderer) painting into the
+ * @ref m_persistent_overlay QImage. That QImage is uploaded as a GPU texture and
  * composited on top of the GPU layers by the overlay pipeline.
  *
  * @par Parallel record
@@ -603,13 +604,17 @@ private:
     std::vector<ArrowCmd>                   m_cmd_arrows;
 
     // QPainter overlay — overlay commands (text, arcs, …) are stored in
-    // m_overlay_deferred and replayed into this image.
-    QImage   m_overlay;
-    Painter  m_overlay_painter;   // must be declared AFTER m_overlay
+    // m_deferred_renderer and replayed into this image.
+    QImage   m_persistent_overlay;
+    Painter  m_persistent_overlay_painter;   // must be declared AFTER m_persistent_overlay
 
     // Overlay command storage and replay — independent deferred renderer
-    // painted into m_overlay_painter / m_overlay.
-    std::unique_ptr<deferred_renderer> m_overlay_deferred;
+    // painted into m_persistent_overlay_painter / m_persistent_overlay.
+    std::unique_ptr<deferred_renderer> m_deferred_renderer;
+
+    //QImage m_immediate_overlay;
+    //Painter m_immediate_overlay_painter;
+    //std::unique_ptr<immediate_renderer> m_immediate_renderer;
 };
 
 } // namespace ezgl
