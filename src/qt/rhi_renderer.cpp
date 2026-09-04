@@ -352,6 +352,12 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
     , m_deferred_renderer(std::make_unique<deferred_renderer>(
           &m_persistent_overlay_painter,
           cam))
+    , m_immediate_overlay(physical_overlay_size(m_size, m_overlay_dpr),
+                QImage::Format_ARGB32_Premultiplied)
+    , m_immediate_overlay_painter(&m_immediate_overlay)
+    , m_immediate_renderer(std::make_unique<immediate_renderer>(
+          &m_immediate_overlay_painter,
+          cam))
 {
     (void)draw_callback;
     // QImage::setDevicePixelRatio must be set BEFORE Painter begin() so the
@@ -390,6 +396,11 @@ rhi_renderer::rhi_renderer(QSize            size,
     , m_persistent_overlay_painter(&m_persistent_overlay)
     , m_deferred_renderer(std::make_unique<deferred_renderer>(
           &m_persistent_overlay_painter,
+          cam))
+    , m_immediate_overlay(m_size, QImage::Format_ARGB32_Premultiplied)
+    , m_immediate_overlay_painter(&m_immediate_overlay)
+    , m_immediate_renderer(std::make_unique<immediate_renderer>(
+          &m_immediate_overlay_painter,
           cam))
 {
     (void)draw_callback;

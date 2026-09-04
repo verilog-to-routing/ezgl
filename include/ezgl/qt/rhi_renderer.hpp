@@ -612,9 +612,9 @@ private:
     // painted into m_persistent_overlay_painter / m_persistent_overlay.
     std::unique_ptr<deferred_renderer> m_deferred_renderer;
 
-    //QImage m_immediate_overlay;
-    //Painter m_immediate_overlay_painter;
-    //std::unique_ptr<immediate_renderer> m_immediate_renderer;
+    QImage m_immediate_overlay;
+    Painter m_immediate_overlay_painter;
+    std::unique_ptr<immediate_renderer> m_immediate_renderer;
 };
 
 } // namespace ezgl
