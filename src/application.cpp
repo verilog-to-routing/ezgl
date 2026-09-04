@@ -264,7 +264,7 @@ canvas *application::add_canvas(std::string const &canvas_id,
     rectangle coordinate_system,
     color background_color)
 {
-  if(draw_persistent_callback == nullptr) {
+  if(!draw_persistent_callback) {
     // A NULL draw callback means the canvas will never render anything to the screen.
     q_warning("Canvas %s's draw callback is NULL.", canvas_id.c_str());
   }
