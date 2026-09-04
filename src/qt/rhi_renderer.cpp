@@ -339,7 +339,6 @@ static QSize physical_overlay_size(QSize logical, qreal dpr)
 
 rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
                              camera*          cam,
-                             draw_callback_fn draw_persistent_callback,
                              QColor           bg_color)
     : irenderer(nullptr, cam)
     , m_rhi_widget(widget)
@@ -359,7 +358,6 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
           &m_immediate_overlay_painter,
           cam))
 {
-    (void)draw_persistent_callback;
     // QImage::setDevicePixelRatio must be set BEFORE Painter begin() so the
     // QPainter sees logical coordinates while rasterizing at physical
     // resolution. We constructed m_persistent_overlay_painter on m_persistent_overlay in the
@@ -385,7 +383,6 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
 
 rhi_renderer::rhi_renderer(QSize            size,
                              camera*          cam,
-                             draw_callback_fn draw_persistent_callback,
                              QColor           bg_color)
     : irenderer(nullptr, cam)
     , m_rhi_widget(nullptr)
@@ -403,7 +400,6 @@ rhi_renderer::rhi_renderer(QSize            size,
           &m_immediate_overlay_painter,
           cam))
 {
-    (void)draw_persistent_callback;
     m_n_bands       = int(std::max(1u, std::thread::hardware_concurrency()));
     m_rows_per_band = (kTileGridDimension + m_n_bands - 1) / m_n_bands;
     m_cmd_thin_lines.resize(m_n_bands);

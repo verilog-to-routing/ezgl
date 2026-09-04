@@ -35,7 +35,6 @@ void rhi_backend::redraw()
         m_renderer = std::make_unique<rhi_renderer>(
             m_widget,
             m_camera,
-            m_draw_persistent_callback,
             m_bg_color);
     } else {
         m_renderer->begin_frame();
@@ -145,7 +144,6 @@ renderer* rhi_backend::create_animation_renderer()
         m_renderer = std::make_unique<rhi_renderer>(
             m_widget,
             m_camera,
-            m_draw_persistent_callback,
             m_bg_color);
     }
     return m_renderer.get();
@@ -165,7 +163,6 @@ QImage rhi_backend::render_to_image(int w, int h)
     // live widget and live renderer are not touched at all.
     rhi_renderer renderer(QSize(w, h),
                           m_camera,
-                          m_draw_persistent_callback,
                           m_bg_color);
     renderer.begin_frame();
     m_draw_persistent_callback(&renderer);
