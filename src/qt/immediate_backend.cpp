@@ -10,10 +10,12 @@ namespace ezgl {
 
 immediate_backend::immediate_backend(QWidget*       drawing_area,
                                      draw_canvas_persistent_fn draw_persistent_callback,
-                                     camera*        cam,
-                                     color          background_color)
+                                     draw_canvas_immediate_fn  draw_immediate_callback,
+                                     camera*                  cam,
+                                     color                    background_color)
     : m_drawing_area(drawing_area)
     , m_draw_persistent_callback(draw_persistent_callback)
+    , m_draw_immediate_callback(draw_immediate_callback)
     , m_camera(cam)
     , m_background_color(background_color)
 {

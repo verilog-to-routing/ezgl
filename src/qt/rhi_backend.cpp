@@ -11,12 +11,14 @@ namespace ezgl {
 rhi_backend::~rhi_backend() = default;
 
 rhi_backend::rhi_backend(RhiCanvasWidget*         widget,
-                         draw_canvas_persistent_fn           draw_persistent_callback,
+                         draw_canvas_persistent_fn draw_persistent_callback,
+                         draw_canvas_immediate_fn  draw_immediate_callback,
                          decide_reuse_geometry_fn decide_reuse_geometry_callback,
                          camera*                  cam,
                          color                    background_color)
     : m_widget(widget)
     , m_draw_persistent_callback(draw_persistent_callback)
+    , m_draw_immediate_callback(draw_immediate_callback)
     , m_decide_reuse_geometry_callback(decide_reuse_geometry_callback)
     , m_camera(cam)
     , m_bg_color(background_color.red,

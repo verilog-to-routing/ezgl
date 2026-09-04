@@ -120,6 +120,11 @@ public:
     m_decide_reuse_geometry_callback = cbk;
   }
 
+  void set_draw_immediate_callback(draw_canvas_immediate_fn cbk)
+  {
+    m_draw_immediate_callback = cbk;
+  }
+
   /**
    * Get the currently selected rendering backend type.
    *
@@ -192,6 +197,8 @@ private:
 
   // The function to call when the widget needs to be redrawn.
   draw_canvas_persistent_fn m_draw_persistent_callback;
+
+  draw_canvas_immediate_fn m_draw_immediate_callback = nullptr;
 
   // A callback used before a camera-only redraw to determine if the cached geometry can be reused.
   // Only used on the RHI path.
