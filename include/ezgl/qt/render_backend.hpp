@@ -40,7 +40,7 @@ enum class view_change_reason {
 };
 
 /// Application-supplied scene-drawing callback.
-using draw_canvas_fn = void (*)(renderer*);
+using draw_canvas_persistent_fn = void (*)(renderer*);
 
 /**
  * @brief Ask the client to decide whether cached scene geometry can be reused for the new view.

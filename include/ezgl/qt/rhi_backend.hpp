@@ -62,7 +62,7 @@ public:
     /// clear color. The owned @ref rhi_renderer is created lazily on the first
     /// @ref redraw(); none of the arguments are owned by this backend.
     rhi_backend(RhiCanvasWidget*         widget,
-                draw_canvas_fn           draw_callback,
+                draw_canvas_persistent_fn           draw_persistent_callback,
                 decide_reuse_geometry_fn decide_reuse_geometry_callback,
                 camera*                  cam,
                 color                    background_color);
@@ -129,7 +129,7 @@ public:
 
 private:
     RhiCanvasWidget*              m_widget;                         ///< Non-owning on-screen canvas this backend presents into.
-    draw_canvas_fn                m_draw_callback;                  ///< User draw routine re-run on every full redraw.
+    draw_canvas_persistent_fn                m_draw_persistent_callback;                  ///< User draw routine re-run on every full redraw.
     decide_reuse_geometry_fn      m_decide_reuse_geometry_callback; ///< Callback used to determine if the cached geometry can be reused for a camera-only redraw.
     camera*                       m_camera;                         ///< Non-owning camera supplying the world→screen MVP.
     QColor                        m_bg_color;                       ///< Frame clear color.

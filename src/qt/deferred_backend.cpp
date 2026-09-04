@@ -10,11 +10,11 @@
 namespace ezgl {
 
 deferred_backend::deferred_backend(QWidget*       drawing_area,
-                                   draw_canvas_fn draw_callback,
+                                   draw_canvas_persistent_fn draw_persistent_callback,
                                    camera*        cam,
                                    color          background_color)
     : m_drawing_area(drawing_area)
-    , m_draw_callback(draw_callback)
+    , m_draw_persistent_callback(draw_persistent_callback)
     , m_camera(cam)
     , m_background_color(background_color)
 {
@@ -54,7 +54,7 @@ void deferred_backend::redraw()
     m_painter->paint();
 
     deferred_renderer g(m_painter, m_camera);
-    m_draw_callback(&g);
+    m_draw_persistent_callback(&g);
     g.flush();
 
     m_drawing_area->update();
@@ -98,7 +98,7 @@ QImage deferred_backend::render_to_image(int w, int h)
     painter.paint();
 
     deferred_renderer g(&painter, m_camera);
-    m_draw_callback(&g);
+    m_draw_persistent_callback(&g);
     g.flush();
     return surface;
 }

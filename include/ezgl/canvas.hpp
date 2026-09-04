@@ -41,7 +41,7 @@ namespace ezgl {
  * The backing widget is selected at runtime via @ref render_backend (one of immediate / deferred / rhi); the canvas
  * connects to the widget's resize and paint events to remain responsive.
  *
- * Each canvas is double-buffered. A draw callback (see: ezgl::draw_canvas_fn) is invoked each time the canvas needs to
+ * Each canvas is double-buffered. A draw callback (see: ezgl::draw_canvas_persistent_fn) is invoked each time the canvas needs to
  * be redrawn. This may be caused by the user (e.g., resizing the screen), but can also be forced by the programmer.
  */
 class canvas {
@@ -72,7 +72,7 @@ public:
   /**
    * Force the canvas to redraw itself.
    *
-   * This will invoke the ezgl::draw_canvas_fn callback and queue a redraw of the QWidget.
+   * This will invoke the ezgl::draw_canvas_persistent_fn callback and queue a redraw of the QWidget.
    */
   void redraw();
 
@@ -174,7 +174,7 @@ protected:
   /**
    * Create a canvas that can be drawn to.
    */
-  canvas(std::string canvas_id, draw_canvas_fn draw_callback, rectangle coordinate_system, color background_color);
+  canvas(std::string canvas_id, draw_canvas_persistent_fn draw_persistent_callback, rectangle coordinate_system, color background_color);
 
   /**
    * Lazy initialization of the canvas class.
@@ -191,7 +191,7 @@ private:
   std::string m_canvas_id;
 
   // The function to call when the widget needs to be redrawn.
-  draw_canvas_fn m_draw_callback;
+  draw_canvas_persistent_fn m_draw_persistent_callback;
 
   // A callback used before a camera-only redraw to determine if the cached geometry can be reused.
   // Only used on the RHI path.

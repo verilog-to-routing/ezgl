@@ -493,7 +493,7 @@ void fpga_complex_scene(ezgl::renderer *g)
 
 struct TestCase {
   const char          *label;
-  ezgl::draw_canvas_fn fn;
+  ezgl::draw_canvas_persistent_fn fn;
   int                  count;
 };
 

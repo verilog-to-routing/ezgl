@@ -121,7 +121,7 @@ public:
      */
     rhi_renderer(RhiCanvasWidget* widget,
                  camera*          cam,
-                 draw_callback_fn draw_callback,
+                 draw_callback_fn draw_persistent_callback,
                  QColor           bg_color);
 
     /**
@@ -132,7 +132,7 @@ public:
      */
     rhi_renderer(QSize            size,
                  camera*          cam,
-                 draw_callback_fn draw_callback,
+                 draw_callback_fn draw_persistent_callback,
                  QColor           bg_color);
 
     /// Default: the owned overlay deferred renderer and GPU scene state are

@@ -9,11 +9,11 @@
 namespace ezgl {
 
 immediate_backend::immediate_backend(QWidget*       drawing_area,
-                                     draw_canvas_fn draw_callback,
+                                     draw_canvas_persistent_fn draw_persistent_callback,
                                      camera*        cam,
                                      color          background_color)
     : m_drawing_area(drawing_area)
-    , m_draw_callback(draw_callback)
+    , m_draw_persistent_callback(draw_persistent_callback)
     , m_camera(cam)
     , m_background_color(background_color)
 {
@@ -57,7 +57,7 @@ void immediate_backend::redraw()
                               m_background_color.blue  / 255.0);
     m_painter->paint();
 
-    m_draw_callback(m_renderer);
+    m_draw_persistent_callback(m_renderer);
 
     m_drawing_area->update();
     q_debug("The canvas will be redrawn (immediate path).");
@@ -97,7 +97,7 @@ QImage immediate_backend::render_to_image(int w, int h)
     painter.paint();
 
     immediate_renderer g(&painter, m_camera);
-    m_draw_callback(&g);
+    m_draw_persistent_callback(&g);
     return surface;
 }
 
