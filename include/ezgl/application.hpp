@@ -493,6 +493,18 @@ public:
       key_callback_fn key_press_user_callback);
 
   /**
+   * Build the GUI from the XML resource given in the constructor without showing it.
+   *
+   * Loads the .ui file, initializes the canvases added so far and connects the setup_callbacks (or the default button
+   * callbacks), but does not show the main window, call the initial setup callback or enter the event loop. Widgets can
+   * then be found and used before the first run(). run() calls this itself if it has not been called yet; later calls
+   * are no-ops.
+   *
+   * Add canvases and set their renderer type before calling this: the renderer type selects the canvas widget class.
+   */
+  void build_ui();
+
+  /**
    * Destructor.
    */
   ~application();
@@ -666,6 +678,9 @@ private:
 
   // A flag that indicates if the run() was called before or not to allow multiple reruns
   bool first_run;
+
+  // Whether build_ui() has loaded the .ui file and initialized the canvases
+  bool m_ui_built{false};
 
   // Holds the most recent status-bar message pushed before the StatusBar
   // widget existed (i.e. before run() loaded main.ui). Flushed in init()

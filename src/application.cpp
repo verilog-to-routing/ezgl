@@ -111,28 +111,34 @@ void insert_grid_row(QGridLayout* layout, int insert_row)
 
 } // namespace
 
-// Finish bringing up the GUI after the .ui file has been loaded by run().
-//
-// Initializes every registered canvas against its drawing-area widget, shows
-// the main window, and wires up callbacks: the user-supplied setup_callbacks if
-// one was provided, otherwise the default button callbacks. The user's
-// initial_setup_callback is then invoked. Canvas redrawing is suspended across
-// this routine (suspend_redraw()/resume_redraw()) so the scene is built once and
-// painted a single time. Finally, any status-bar message queued before the
-// StatusBar widget existed is flushed.
-void application::init()
+// Load the .ui file, initialize every registered canvas against its
+// drawing-area widget and wire up callbacks: the user-supplied setup_callbacks
+// if one was provided, otherwise the default button callbacks. The window stays
+// hidden. Runs once; later calls are no-ops.
+void application::build_ui()
 {
+  if (m_ui_built)
+    return;
+
+  // Load the UI file here, not in the constructor.  The constructor runs as a
+  // static initializer before main(), so Qt resources are not yet registered
+  // at that point (static initialization order fiasco).  By the time build_ui()
+  // is called from main(), all .qrc static initializers have completed.
+  if (!m_window) {
+    std::optional<renderer_type> rt;
+    auto it = m_canvases.find(m_canvas_id);
+    if (it != m_canvases.end())
+      rt = it->second->get_renderer_type();
+    MainWindow mw(QString::fromStdString(m_main_ui), rt);
+    // Take ownership of the loaded window; application::~application
+    // deletes m_window during shutdown.
+    m_window = mw.release();
+  }
+
   for(auto &c_pair : m_canvases) {
     QWidget *drawing_area = find_widget(c_pair.second->id());
     c_pair.second->initialize(drawing_area);
   }
-
-  for (auto &c_pair : m_canvases)
-    c_pair.second->suspend_redraw();
-
-  // Resolve the main parent window by id.
-  QWidget *window = find_widget(m_window_id.c_str());
-  window->show();
 
   if(m_register_callbacks != nullptr) {
     m_register_callbacks(this);
@@ -140,6 +146,27 @@ void application::init()
     // Setup the default callbacks for the prebuilt buttons
     register_default_buttons_callbacks(this);
   }
+
+  m_ui_built = true;
+}
+
+// Finish bringing up the GUI on the first run().
+//
+// Builds the UI if build_ui() has not already done so, shows the main window
+// and invokes the user's initial_setup_callback. Canvas redrawing is suspended
+// across this routine (suspend_redraw()/resume_redraw()) so the scene is built
+// once and painted a single time. Finally, any status-bar message queued before
+// the StatusBar widget existed is flushed.
+void application::init()
+{
+  build_ui();
+
+  for (auto &c_pair : m_canvases)
+    c_pair.second->suspend_redraw();
+
+  // Resolve the main parent window by id.
+  QWidget *window = find_widget(m_window_id.c_str());
+  window->show();
 
   if(initial_setup_callback != nullptr)
     initial_setup_callback(this, true);
@@ -360,20 +387,6 @@ int application::run(setup_callback_fn initial_setup_user_callback,
   // across all stages.  The window is loaded once on the first run and reused
   // (reshown) for every subsequent stage.
   if (first_run) {
-    // Load the UI file here, not in the constructor.  The constructor runs as a
-    // static initializer before main(), so Qt resources are not yet registered
-    // at that point (static initialization order fiasco).  By the time run() is
-    // called from main(), all .qrc static initializers have completed.
-    if (!m_window) {
-      std::optional<renderer_type> rt;
-      auto it = m_canvases.find(m_canvas_id);
-      if (it != m_canvases.end())
-        rt = it->second->get_renderer_type();
-      MainWindow mw(QString::fromStdString(m_main_ui), rt);
-      // Take ownership of the loaded window; application::~application
-      // deletes m_window during shutdown.
-      m_window = mw.release();
-    }
     init();
     first_run = false;
     q_debug("The event loop is now starting.");
