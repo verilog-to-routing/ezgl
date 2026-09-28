@@ -367,15 +367,15 @@ bool deferred_renderer::screen_text_visible(const point2d& point,
                                       clip_height));
 }
 
-bool deferred_renderer::screen_surface_visible(surface *p_surface,
+bool deferred_renderer::screen_surface_visible(const surface& image,
                                                const point2d& point,
                                                double scale_factor) const
 {
-    if (p_surface == nullptr || p_surface->isNull())
+    if (image.isNull())
         return false;
 
-    const double s_width = double(p_surface->width()) * scale_factor;
-    const double s_height = double(p_surface->height()) * scale_factor;
+    const double s_width = double(image.width()) * scale_factor;
+    const double s_height = double(image.height()) * scale_factor;
 
     point2d top_left = point;
     if (horiz_justification == justification::center)
@@ -621,13 +621,13 @@ void deferred_renderer::draw_text(const point2d& point, std::string const& text,
     }
 }
 
-void deferred_renderer::draw_surface(surface *p_surface, const point2d& point,
+void deferred_renderer::draw_surface(const surface& image, const point2d& point,
                                      double scale_factor)
 {
     const std::uint32_t command_index = std::uint32_t(m_commands.size());
     m_commands.emplace_back(DeferredSurfaceCommand{
         capture_painter_state(),
-        p_surface,
+        image,
         point,
         scale_factor
     });
@@ -704,14 +704,14 @@ bool deferred_renderer::world_text_visible(const point2d& point, const std::stri
          clip_width, clip_height});
 }
 
-bool deferred_renderer::world_surface_visible(surface* p_surface, const point2d& point,
+bool deferred_renderer::world_surface_visible(const surface& image, const point2d& point,
                                               double scale_factor)
 {
-    if (p_surface == nullptr || p_surface->isNull())
+    if (image.isNull())
         return false;
 
-    double s_width = double(p_surface->width()) * scale_factor;
-    double s_height = double(p_surface->height()) * scale_factor;
+    double s_width = double(image.width()) * scale_factor;
+    double s_height = double(image.height()) * scale_factor;
     s_width *= m_camera->get_world_scale_factor().x;
     s_height *= m_camera->get_world_scale_factor().y;
 
@@ -888,8 +888,8 @@ void deferred_renderer::select_visible_commands(
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
                 apply_painter_state(cmd.state);
                 return cmd.state.coordinate_system == SCREEN
-                    ? screen_surface_visible(cmd.p_surface, cmd.anchor_point, cmd.scale_factor)
-                    : world_surface_visible(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
+                    ? screen_surface_visible(cmd.image, cmd.anchor_point, cmd.scale_factor)
+                    : world_surface_visible(cmd.image, cmd.anchor_point, cmd.scale_factor);
             } else if constexpr (std::is_same_v<T, DeferredArrowTriangleCommand>) {
                 apply_painter_state(cmd.state);
                 // Always visible — the on-screen extent is a few pixels and a
@@ -958,7 +958,7 @@ void deferred_renderer::draw_visible_commands(
                 text_screen_offset_px = cmd.screen_offset_px;
                 paint_text(cmd.point, cmd.text, cmd.bound_x, cmd.bound_y);
             } else if constexpr (std::is_same_v<T, DeferredSurfaceCommand>) {
-                paint_surface(cmd.p_surface, cmd.anchor_point, cmd.scale_factor);
+                paint_surface(cmd.image, cmd.anchor_point, cmd.scale_factor);
             } else if constexpr (std::is_same_v<T, DeferredArrowTriangleCommand>) {
                 // Project anchor with the CURRENT camera, then add the
                 // recorded pixel offsets. Net effect: the triangle's

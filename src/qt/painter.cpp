@@ -118,9 +118,9 @@ void Painter::paint()
   fillRect(viewport(), m_color);
 }
 
-void Painter::set_source_surface(QImage* surface, double x, double y)
+void Painter::set_source_surface(const QImage& surface, double x, double y)
 {
-  drawImage(QPointF(x, y), *surface);
+  drawImage(QPointF(x, y), surface);
 }
 
 void Painter::text_extents(const char* utf8, text_extents_t* extents)

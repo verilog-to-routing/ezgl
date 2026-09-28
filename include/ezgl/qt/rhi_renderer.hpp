@@ -243,7 +243,7 @@ public:
                    double bound_x, double bound_y) override;
     /// @}
     /// Forward an image blit to the overlay renderer.
-    void draw_surface(surface* p_surface, const point2d& anchor_point,
+    void draw_surface(const surface& image, const point2d& anchor_point,
                       double scale_factor = 1) override;
 
     // ---- Frame lifecycle ---------------------------------------------------
