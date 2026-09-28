@@ -51,9 +51,8 @@ static bool clip_line(const rectangle& w, point2d& p1, point2d& p2)
 
 // ---- Construction ------------------------------------------------------------
 
-irenderer::irenderer(Painter* painter, transform_fn transform, camera* cam, QImage*)
+irenderer::irenderer(Painter* painter, camera* cam)
     : m_painter(painter)
-    , m_transform(std::move(transform))
     , m_camera(cam)
 {
     if (m_painter != nullptr)
@@ -62,7 +61,7 @@ irenderer::irenderer(Painter* painter, transform_fn transform, camera* cam, QIma
 
 // ---- Painter / camera utilities ----------------------------------------------
 
-void irenderer::update_painter(Painter* painter, QImage*)
+void irenderer::set_painter(Painter* painter)
 {
     m_painter = painter;
     if (m_painter != nullptr) {
@@ -106,13 +105,18 @@ rectangle irenderer::get_visible_screen() const
 
 rectangle irenderer::world_to_screen(const rectangle& box)
 {
-    return rectangle(m_transform(box.bottom_left()), m_transform(box.top_right()));
+    return rectangle(m_camera->world_to_screen(box.bottom_left()), m_camera->world_to_screen(box.top_right()));
 }
 
-ezgl::t_text_dimension irenderer::get_text_dimension(const std::string& text) {
+double irenderer::world_units_per_pixel() {
+    point2d world_scale_factor = m_camera->get_world_scale_factor();
+    return world_scale_factor.x;
+}
+
+text_dimension_t irenderer::get_text_dimension(const std::string& text) {
     text_extents_t text_extents{0, 0, 0, 0, 0, 0};
     m_painter->text_extents(text.c_str(), &text_extents);
-    return ezgl::t_text_dimension{text_extents.width, text_extents.height};
+    return text_dimension_t{text_extents.width, text_extents.height};
 }
 
 // ---- State-setter implementations -------------------------------------------
@@ -272,8 +276,8 @@ void irenderer::paint_line(const point2d& start, const point2d& end)
         rectangle clip = irenderer::get_visible_world();
         if (!clip_line(clip, draw_start, draw_end))
             return;
-        draw_start = m_transform(draw_start);
-        draw_end   = m_transform(draw_end);
+        draw_start = m_camera->world_to_screen(draw_start);
+        draw_end   = m_camera->world_to_screen(draw_end);
     }
 
     m_painter->move_to(draw_start.x, draw_start.y);
@@ -286,8 +290,8 @@ void irenderer::paint_rectangle_path(const point2d& start, const point2d& end, b
     point2d draw_start = start;
     point2d draw_end = end;
     if (current_coordinate_system == WORLD) {
-        draw_start = m_transform(draw_start);
-        draw_end   = m_transform(draw_end);
+        draw_start = m_camera->world_to_screen(draw_start);
+        draw_end   = m_camera->world_to_screen(draw_end);
     }
     m_painter->move_to(draw_start.x, draw_start.y);
     m_painter->line_to(draw_start.x, draw_end.y);
@@ -313,10 +317,10 @@ void irenderer::paint_poly(const std::vector<point2d>& points)
     if (rectangle_off_screen({{x_min, y_min}, {x_max, y_max}}))
         return;
 
-    point2d first = (current_coordinate_system == WORLD) ? m_transform(points[0]) : points[0];
+    point2d first = (current_coordinate_system == WORLD) ? m_camera->world_to_screen(points[0]) : points[0];
     m_painter->move_to(first.x, first.y);
     for (std::size_t i = 1; i < points.size(); ++i) {
-        point2d p = (current_coordinate_system == WORLD) ? m_transform(points[i]) : points[i];
+        point2d p = (current_coordinate_system == WORLD) ? m_camera->world_to_screen(points[i]) : points[i];
         m_painter->line_to(p.x, p.y);
     }
     m_painter->close_path();
@@ -329,8 +333,8 @@ void irenderer::paint_arc_path(const point2d& center, double radius, double star
     point2d draw_center = center;
     point2d point_x = {draw_center.x + radius, draw_center.y};
     if (current_coordinate_system == WORLD) {
-        draw_center  = m_transform(draw_center);
-        point_x = m_transform(point_x);
+        draw_center  = m_camera->world_to_screen(draw_center);
+        point_x = m_camera->world_to_screen(point_x);
     }
     radius = point_x.x - draw_center.x;
 
@@ -348,16 +352,12 @@ void irenderer::paint_arc_path(const point2d& center, double radius, double star
                            draw_center.y + radius * std::sin(a0_rad));
     }
 
+    // arc() takes a signed sweep (end - start), so it draws either direction;
+    // the sign of extent_angle is already carried by end_angle.
     double end_angle = start_angle + extent_angle;
-    if (extent_angle >= 0) {
-        m_painter->arc_negative(draw_center.x, draw_center.y, radius,
-                                -start_angle * std::numbers::pi / 180.0,
-                                -end_angle   * std::numbers::pi / 180.0);
-    } else {
-        m_painter->arc(draw_center.x, draw_center.y, radius,
-                       -start_angle * std::numbers::pi / 180.0,
-                       -end_angle   * std::numbers::pi / 180.0);
-    }
+    m_painter->arc(draw_center.x, draw_center.y, radius,
+                   -start_angle * std::numbers::pi / 180.0,
+                   -end_angle   * std::numbers::pi / 180.0);
 
     if (fill) m_painter->close_path();
     if (fill) m_painter->fill();
@@ -390,6 +390,13 @@ void irenderer::paint_text(const point2d& point, const std::string& text,
         (bounded_y && scaled_height > bound_y))
         return;
 
+    // Skip WORLD text whose vertical bound shrinks below the readable pixel
+    // threshold at the current zoom, matching the cull deferred_renderer
+    // applies in world_text_visible so both backends drop tiny labels alike.
+    if (current_coordinate_system == WORLD && bounded_y
+        && bound_y / world_scale.y < MINIMAL_VISIBLE_TEXT_BOUND_Y_IN_PX)
+        return;
+
     point2d center = point;
     if (horiz_justification == justification::left)  center.x += clip_w / 2.0;
     else if (horiz_justification == justification::right) center.x -= clip_w / 2.0;
@@ -410,7 +417,7 @@ void irenderer::paint_text(const point2d& point, const std::string& text,
         return -extent / 2.0;
     };
 
-    point2d draw_center = (current_coordinate_system == WORLD) ? m_transform(point) : point;
+    point2d draw_center = (current_coordinate_system == WORLD) ? m_camera->world_to_screen(point) : point;
     // Apply (and consume) any one-shot screen-pixel offset. This stays in
     // pixel units regardless of zoom — the caller uses it when they want a
     // label "just off" a world-coord line at a constant visual distance.
@@ -478,7 +485,7 @@ void irenderer::paint_surface(surface* p_surface, const point2d& anchor, double 
         return;
 
     if (current_coordinate_system == WORLD)
-        top_left = m_transform(top_left);
+        top_left = m_camera->world_to_screen(top_left);
 
     if (scale_factor != 1.0) {
         m_painter->save();

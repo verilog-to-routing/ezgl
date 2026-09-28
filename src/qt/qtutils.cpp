@@ -181,8 +181,13 @@ void box_pack_start(QBoxLayout* box,
     return;
   }
 
+  // Map GTK gtk_box_pack_start() semantics onto QBoxLayout::addWidget():
+  //  - GTK "expand": whether the child shares the box's extra space
+  //    -> Qt stretch factor (1 = share, 0 = keep natural size).
   int stretch = expand ? 1 : 0;
 
+  //  - GTK "fill": whether the child fills the space given to it. Qt fills by
+  //    default, so emulate fill=false by left-aligning the child instead.
   Qt::Alignment align = Qt::Alignment();
   if (!fill) {
     align = Qt::AlignLeft;
@@ -190,6 +195,8 @@ void box_pack_start(QBoxLayout* box,
 
   box->addWidget(widget, stretch, align);
 
+  //  - GTK "padding": per-child spacing around the widget. Qt has no per-child
+  //    padding here, so apply it as the layout's overall item spacing.
   if (padding > 0) {
     box->setSpacing(padding);
   }

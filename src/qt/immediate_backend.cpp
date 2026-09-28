@@ -44,12 +44,7 @@ void immediate_backend::recreate_surface()
     m_painter->setAntialias(false);
     m_painter->setSmoothPixmap(false);
 
-    using namespace std::placeholders;
-    m_renderer = new immediate_renderer(
-        m_painter,
-        std::bind(&camera::world_to_screen, m_camera, _1),
-        m_camera,
-        m_surface);
+    m_renderer = new immediate_renderer(m_painter, m_camera);
 }
 
 void immediate_backend::redraw()
@@ -68,7 +63,7 @@ void immediate_backend::redraw()
     q_debug("The canvas will be redrawn (immediate path).");
 }
 
-void immediate_backend::redraw_camera_only()
+void immediate_backend::redraw_at_view_change(view_change_reason /*reason*/)
 {
     redraw();
 }
@@ -101,8 +96,7 @@ QImage immediate_backend::render_to_image(int w, int h)
                            m_background_color.blue  / 255.0);
     painter.paint();
 
-    using namespace std::placeholders;
-    immediate_renderer g(&painter, std::bind(&camera::world_to_screen, *m_camera, _1), m_camera, &surface);
+    immediate_renderer g(&painter, m_camera);
     m_draw_callback(&g);
     return surface;
 }

@@ -50,6 +50,9 @@ bool disable_event_loop = false;
 
 namespace {
 
+// Return the QGridLayout of the UI's "InnerGrid" widget, where dynamically
+// created buttons are placed. Returns nullptr if the widget is missing or its
+// layout is not a QGridLayout.
 QGridLayout* inner_grid_layout(application const* app)
 {
   QWidget* inner_grid = app->find_widget("InnerGrid");
@@ -60,6 +63,9 @@ QGridLayout* inner_grid_layout(application const* app)
   return layout;
 }
 
+// Make room for a new row at insert_row by shifting every widget at or below
+// that row down by one. Widgets above insert_row are left in place. Used to
+// open a slot before inserting a dynamically created button.
 void insert_grid_row(QGridLayout* layout, int insert_row)
 {
   return_if_fail("insert_grid_row layout", layout != nullptr);
@@ -105,6 +111,15 @@ void insert_grid_row(QGridLayout* layout, int insert_row)
 
 } // namespace
 
+// Finish bringing up the GUI after the .ui file has been loaded by run().
+//
+// Initializes every registered canvas against its drawing-area widget, shows
+// the main window, and wires up callbacks: the user-supplied setup_callbacks if
+// one was provided, otherwise the default button callbacks. The user's
+// initial_setup_callback is then invoked. Canvas redrawing is suspended across
+// this routine (suspend_redraw()/resume_redraw()) so the scene is built once and
+// painted a single time. Finally, any status-bar message queued before the
+// StatusBar widget existed is flushed.
 void application::init()
 {
   for(auto &c_pair : m_canvases) {
@@ -113,14 +128,11 @@ void application::init()
   }
 
   for (auto &c_pair : m_canvases)
-    c_pair.second->begin_deferred_redraw_cycle();
+    c_pair.second->suspend_redraw();
 
   // Resolve the main parent window by id.
   QWidget *window = find_widget(m_window_id.c_str());
   window->show();
-
-  // Setup the default callbacks for the mouse and key events
-  register_default_events_callbacks(this);
 
   if(m_register_callbacks != nullptr) {
     m_register_callbacks(this);
@@ -133,7 +145,7 @@ void application::init()
     initial_setup_callback(this, true);
 
   for (auto &c_pair : m_canvases)
-    c_pair.second->end_deferred_redraw_cycle();
+    c_pair.second->resume_redraw();
 
   // Flush any status-bar message pushed before the StatusBar widget existed.
   // See update_message() for the deferral logic.
@@ -148,6 +160,11 @@ void application::init()
   q_debug("application::init successful.");
 }
 
+// Construct the application from its settings, storing the UI resource path and
+// the window/canvas/application identifiers and setting the Qt application name.
+// The UI file is deliberately NOT loaded here (see the note below): the
+// constructor may run as a static initializer, before .qrc resources are
+// registered, so loading is deferred to run().
 application::application(application::settings s, int& argc, char** argv)
     : QApplication(argc, argv)
     , m_main_ui(s.main_ui_resource)
@@ -169,6 +186,10 @@ application::application(application::settings s, int& argc, char** argv)
   first_run = true;
 }
 
+// Tear down the application in an order that is safe against Qt's deferred event
+// delivery: block signals, destroy the canvases (ending active Painters) while
+// the window still exists, then delete the main window before the base-class
+// destructor runs. See the inline notes for the rationale of each step.
 application::~application()
 {
   // Block signal delivery so lastWindowClosed (and any other signal) cannot
@@ -203,19 +224,19 @@ bool application::notify(QObject* obj, QEvent* event)
 
     switch (event->type()) {
     case QEvent::KeyPress:
-        consumed = press_key(w, static_cast<QKeyEvent*>(event), this);
+        consumed = press_key(static_cast<QKeyEvent*>(event), this, w);
         break;
     case QEvent::MouseButtonPress:
-        consumed = press_mouse(w, static_cast<QMouseEvent*>(event), this);
+        consumed = press_mouse(static_cast<QMouseEvent*>(event), this, w);
         break;
     case QEvent::MouseButtonRelease:
-        consumed = release_mouse(w, static_cast<QMouseEvent*>(event), this);
+        consumed = release_mouse(static_cast<QMouseEvent*>(event), this, w);
         break;
     case QEvent::MouseMove:
-        consumed = move_mouse(w, static_cast<QMouseEvent*>(event), this);
+        consumed = move_mouse(static_cast<QMouseEvent*>(event), this, w);
         break;
     case QEvent::Wheel:
-        consumed = scroll_mouse(w, static_cast<QWheelEvent*>(event), this);
+        consumed = scroll_mouse(static_cast<QWheelEvent*>(event), this, w);
         break;
     default:
         break;
@@ -360,12 +381,12 @@ int application::run(setup_callback_fn initial_setup_user_callback,
   } else {
     // Subsequent stage: reuse the existing window.
     for (auto &c_pair : m_canvases)
-      c_pair.second->begin_deferred_redraw_cycle();
+      c_pair.second->suspend_redraw();
     m_window->show();
     if (initial_setup_callback != nullptr)
       initial_setup_callback(this, false);
     for (auto &c_pair : m_canvases)
-      c_pair.second->end_deferred_redraw_cycle();
+      c_pair.second->resume_redraw();
     q_debug("The event loop is now resuming.");
     return exec();
   }
@@ -384,17 +405,6 @@ void application::schedule_initial_callback(std::function<void()> callback)
   QMetaObject::invokeMethod(this, std::move(callback), Qt::QueuedConnection);
 }
 
-void application::register_default_events_callbacks(ezgl::application *application)
-{
-  // Get a pointer to the main window GUI object by using its name.
-  std::string main_window_id = application->get_main_window_id();
-  QWidget *window = application->find_widget(main_window_id.c_str());
-
-  // Get a pointer to the main canvas GUI object by using its name.
-  std::string main_canvas_id = application->get_main_canvas_id();
-  QWidget *main_canvas = application->find_widget(main_canvas_id.c_str());
-}
-
 void application::register_default_buttons_callbacks(ezgl::application *application)
 {
   // Helper: only connect if the button exists in this UI (some applications
@@ -407,14 +417,14 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
   };
 
   const bool skip_notfound_report = true;
-  connect_if_present("ZoomFitButton", [application](){ press_zoom_fit(nullptr, application); });
-  connect_if_present("ZoomInButton",  [application](){ press_zoom_in(nullptr, application); }, skip_notfound_report);
-  connect_if_present("ZoomOutButton", [application](){ press_zoom_out(nullptr, application); }, skip_notfound_report);
-  connect_if_present("UpButton",      [application](){ press_up(nullptr, application); }, skip_notfound_report);
-  connect_if_present("DownButton",    [application](){ press_down(nullptr, application); }, skip_notfound_report);
-  connect_if_present("LeftButton",    [application](){ press_left(nullptr, application); }, skip_notfound_report);
-  connect_if_present("RightButton",   [application](){ press_right(nullptr, application); }, skip_notfound_report);
-  connect_if_present("ProceedButton", [application](){ press_proceed(nullptr, application); });
+  connect_if_present("ZoomFitButton", [application](){ press_zoom_fit(application); });
+  connect_if_present("ZoomInButton",  [application](){ press_zoom_in(application); }, skip_notfound_report);
+  connect_if_present("ZoomOutButton", [application](){ press_zoom_out(application); }, skip_notfound_report);
+  connect_if_present("UpButton",      [application](){ press_up(application); }, skip_notfound_report);
+  connect_if_present("DownButton",    [application](){ press_down(application); }, skip_notfound_report);
+  connect_if_present("LeftButton",    [application](){ press_left(application); }, skip_notfound_report);
+  connect_if_present("RightButton",   [application](){ press_right(application); }, skip_notfound_report);
+  connect_if_present("ProceedButton", [application](){ press_proceed(application); });
 
   // Connect the window's close (X button) to press_proceed so that closing
   // the window exits the event loop. Qt quits the event loop automatically
@@ -429,7 +439,7 @@ void application::register_default_buttons_callbacks(ezgl::application *applicat
 
     QObject::connect(application, &QApplication::lastWindowClosed,
                      application, [application](){
-      press_proceed(nullptr, application);
+      press_proceed(application);
     });
   }
 }

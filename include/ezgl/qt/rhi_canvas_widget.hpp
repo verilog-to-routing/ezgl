@@ -46,11 +46,21 @@ namespace ezgl {
  * Callers that need that combination should detect it before
  * instantiating @ref RhiCanvasWidget and fall back to a non-rhi
  * backend.
+ *
+ * @note New to the graphics acronyms here (QRhi, MSAA, MVP, QPA, …)? They are
+ *       defined once in the glossary at the top of @ref rhi_types.hpp.
  */
 class RhiCanvasWidget : public QRhiWidget {
     Q_OBJECT
 public:
+    /// Construct the widget and request MSAA via
+    /// @c setSampleCount(EZGL_RHI_SAMPLE_COUNT). The @ref RhiSceneRenderer and
+    /// all GPU objects are created lazily later in @ref initialize(), once Qt
+    /// has a live @c QRhi, so no graphics context is required here.
     explicit RhiCanvasWidget(QWidget* parent = nullptr);
+    /// Destroy the widget. GPU resources are torn down by @ref releaseResources()
+    /// (invoked by the @c QRhiWidget teardown), so the destructor only cleans up
+    /// the owned @ref RhiSceneRenderer and pending-frame state.
     ~RhiCanvasWidget() override;
 
     // ---- Frame data API (thread-safe, called from rhi_renderer) -------------
@@ -114,28 +124,44 @@ public:
                                    QColor            bg);
 
 signals:
+    /// Emitted from @ref resizeEvent() with the new widget size (device-
+    /// independent pixels) so the backend can rebuild its camera / MVP.
     void resized(int w, int h);
 
 protected:
+    /// @c QRhiWidget hook (render thread): lazily create the
+    /// @ref RhiSceneRenderer and its GPU pipelines against the now-available
+    /// @c QRhi and render-pass descriptor. Called once when the QRhi becomes
+    /// ready, and again after a device loss / re-initialization.
     void initialize(QRhiCommandBuffer* cb) override;
+    /// @c QRhiWidget hook (render thread): snapshot the pending frame state
+    /// under @c m_frame_mutex, then delegate the actual GPU draw to
+    /// @ref RhiSceneRenderer::render(). Called by Qt for every frame.
     void render(QRhiCommandBuffer* cb) override;
+    /// @c QRhiWidget hook (render thread): release all GPU objects before the
+    /// @c QRhi is destroyed, by forwarding to @ref RhiSceneRenderer::release().
     void releaseResources() override;
+    /// Run the base @c QRhiWidget handler, then emit @ref resized() with the new
+    /// size (when non-empty) so the backend updates its camera / MVP.
     void resizeEvent(QResizeEvent* e) override;
+    /// Run the base @c QRhiWidget handler, then emit @ref resized() with the
+    /// current size (when non-empty) to drive the initial camera sizing on first
+    /// show, before any resize event has fired.
     void showEvent(QShowEvent* e) override;
 
 private:
     // ---- GPU rendering (all pipeline/frame-resource state lives here) -------
-    std::unique_ptr<RhiSceneRenderer> m_scene_renderer;
+    std::unique_ptr<RhiSceneRenderer> m_scene_renderer; ///< Owns all GPU pipelines/buffers; created lazily in initialize().
 
     // ---- Pending frame state (written by rhi_renderer, read by render()) ----
-    mutable QMutex                       m_frame_mutex;
-    std::shared_ptr<const SceneBuffers>  m_pending_scene_buffers;
-    QMatrix4x4                           m_pending_mvp;
-    rectangle                            m_pending_visible_world;
-    QImage                               m_pending_overlay;
-    QColor                               m_pending_bg  { Qt::white };
-    bool                                 m_frame_dirty = false;
-    bool                                 m_mvp_dirty   = false;
+    mutable QMutex                       m_frame_mutex;           ///< Guards every m_pending_* field and the dirty flags below.
+    std::shared_ptr<const SceneBuffers>  m_pending_scene_buffers; ///< Next scene to draw; shared (not copied) with the main thread.
+    QMatrix4x4                           m_pending_mvp;            ///< Next model-view-projection (MVP) matrix: the world→NDC transform.
+    rectangle                            m_pending_visible_world;  ///< Next visible-world rect, used for per-chunk culling.
+    QImage                               m_pending_overlay;        ///< Next QPainter overlay image (text/arcs).
+    QColor                               m_pending_bg  { Qt::white }; ///< Next background clear colour.
+    bool                                 m_frame_dirty = false;    ///< Set by set_frame_data(): geometry (and MVP) changed.
+    bool                                 m_mvp_dirty   = false;    ///< Set by the MVP-only paths: transform/overlay changed, geometry not.
 };
 
 /**

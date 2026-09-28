@@ -1,8 +1,10 @@
 # ezgl Renderer Backends
 
-ezgl ships three backends behind the `ezgl::renderer` API. They are
-selected at runtime via VPR's `--renderer {immediate|deferred|rhi}` flag
-(VPR sets the canvas via `canvas::set_renderer_type(...)`; see
+ezgl ships three backends behind the `ezgl::renderer` API. An application
+picks one with `canvas::set_renderer_type(...)`; the
+[`basic_application`](../examples/basic-application/basic_application.cpp)
+example in this repo puts that behind a `--renderer {immediate|deferred|rhi}`
+command-line flag, so the same drawing can be run through all three (see
 [`include/ezgl/qt/render_backend.hpp`](../include/ezgl/qt/render_backend.hpp)).
 The **default is `rhi`**; the other two are available for compatibility
 and fallback. All three render the same scenes; they differ only in
@@ -92,10 +94,10 @@ rasterization bottleneck of the QPainter-based paths.
 - Pan/zoom is a single MVP-matrix upload, not a re-rasterization.
 
 **Cons**
-- `QRhiWidget` cannot acquire a QRhi under `QT_QPA_PLATFORM=offscreen`,
-  so VPR auto-falls back to `immediate` when `--disp on` is combined
-  with offscreen QPA (see `EZGL: active renderer backend: ...` log line
-  for what actually got installed). Headless `--disp off` is fine —
+- `QRhiWidget` cannot acquire a QRhi under `QT_QPA_PLATFORM=offscreen`.
+  When no GPU backend is available, the canvas falls back to `immediate`
+  as it is created and logs `canvas: no GPU backend available, falling
+  back to immediate renderer.` Headless rendering is fine —
   `render_to_image()` creates an offscreen QRhi directly.
 - Some QPainter-only primitives (text, arcs, surfaces) still route
   through a CPU-rendered overlay layer (an internal `deferred_renderer`

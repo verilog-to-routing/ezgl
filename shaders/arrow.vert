@@ -24,8 +24,8 @@ layout(std140, binding = 1) uniform style_buf {
 //
 // Because tip/base offsets are computed in PIXEL space and then mapped
 // to NDC (offset_px * 2 / viewport), the visual size of every arrow is
-// constant at every zoom level. The shape is the same as VPR's
-// historic CPU triangle:
+// constant at every zoom level. The shape is the same as the historic
+// CPU triangle:
 //   tip  = anchor + dir_unit_px * r
 //   base = anchor - dir_unit_px * r ± perp_unit_px * r
 // where r = arrow_size_px / 2.

@@ -2,13 +2,26 @@
 
 image:https://codedocs.xyz/mariobadr/ezgl.svg[link="https://codedocs.xyz/mariobadr/ezgl"]
 
-EZGL is a C++ graphics library that provides a thin wrapper around Qt,
+EZGL is a C++ graphics library that provides a thin wrapper around Qt 6,
 making it easy to create GUI applications with 2D drawing support.
 It is used by the https://github.com/verilog-to-routing/vtr-verilog-to-routing[VTR project] and as a teaching tool in ECE297.
 
+Drawing goes through one of three interchangeable backends, all of which
+render the same scene and differ only in how the primitives reach the screen:
+
+* `immediate` paints every draw call straight away with QPainter.
+* `deferred` records the draw calls and replays them in batches.
+* `rhi` (the default) uploads geometry to the GPU through Qt's RHI.
+
+A canvas picks one with `canvas::set_renderer_type()`; see
+link:doc/renderers.md[doc/renderers.md] for the trade-offs, and the
+`basic-application` example for a `--renderer` flag that switches between them.
+
 == Dependencies
 
-The library depends on Qt 6.
+The library requires Qt 6.9.3 or newer: the Core, Gui, Widgets, Svg, and UiTools
+modules, plus Qt's private GUI headers (`Qt6::GuiPrivate`), which is where the
+QRhi classes used by the `rhi` backend live.
 
 === Build-tool dependency: Qt 6.9.3 + qtshadertools (provides `qsb`)
 

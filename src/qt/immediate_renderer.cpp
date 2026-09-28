@@ -6,23 +6,10 @@
 
 namespace ezgl {
 
-// ---- construction ----------------------------------------------------------
-
 immediate_renderer::immediate_renderer(Painter* painter,
-                                       transform_fn transform,
-                                       camera* cam,
-                                       QImage* surface)
-    : irenderer(painter, std::move(transform), cam, surface)
+                                       camera* cam)
+    : irenderer(painter, cam)
 {}
-
-// ---- painter update --------------------------------------------------------
-
-void immediate_renderer::update_renderer(Painter* painter, QImage* surface)
-{
-    update_painter(painter, surface);
-}
-
-// ---- draw calls ------------------------------------------------------------
 
 void immediate_renderer::draw_line(const point2d& start, const point2d& end)
 {

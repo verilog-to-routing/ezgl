@@ -3,14 +3,14 @@
 ezgl supports three render paths covered by this test: immediate, deferred, and
 RHI.
 
-This test compares ezgl render backend performance on a complex VPR-like scene.
+This test compares ezgl render backend performance on a complex FPGA-layout scene.
 
 ## Test Scenario
 
 - Build configuration: `RelWithDebInfo`
-- Benchmark target: ezgl headless rendering of a complex VPR-like scene
+- Benchmark target: ezgl headless rendering of a complex FPGA-layout scene
 - Measured time: full headless render call, including geometry loading
-- Primitive counts: extracted from VPR runtime debug information and recreated in
+- Primitive counts: extracted from a mid-size FPGA design at runtime and recreated in
   the ezgl renderer stress benchmark
 
 | Primitive set | Count | Notes |

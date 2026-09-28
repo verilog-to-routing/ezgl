@@ -338,11 +338,10 @@ static QSize physical_overlay_size(QSize logical, qreal dpr)
 }
 
 rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
-                             transform_fn     transform,
                              camera*          cam,
                              draw_callback_fn draw_callback,
                              QColor           bg_color)
-    : irenderer(nullptr, transform, cam, nullptr)
+    : irenderer(nullptr, cam)
     , m_rhi_widget(widget)
     , m_size(clamp_size({widget->width(), widget->height()}))
     , m_overlay_dpr(widget->devicePixelRatioF())
@@ -352,9 +351,7 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
     , m_overlay_painter(&m_overlay)
     , m_overlay_deferred(std::make_unique<deferred_renderer>(
           &m_overlay_painter,
-          std::move(transform),   // move the second copy into overlay renderer
-          cam,
-          &m_overlay))
+          cam))
 {
     (void)draw_callback;
     // QImage::setDevicePixelRatio must be set BEFORE Painter begin() so the
@@ -373,19 +370,18 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
     m_cmd_dashed_lines.resize(m_n_bands);
     ensure_tile_grid();
     clear_tile_geometry();
-    m_overlay_deferred->clear_overlay_and_batches();
+    m_overlay_deferred->reset();
     m_overlay.fill(Qt::transparent);
-    update_painter(&m_overlay_painter, &m_overlay);
+    set_painter(&m_overlay_painter);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
 }
 
 rhi_renderer::rhi_renderer(QSize            size,
-                             transform_fn     transform,
                              camera*          cam,
                              draw_callback_fn draw_callback,
                              QColor           bg_color)
-    : irenderer(nullptr, transform, cam, nullptr)
+    : irenderer(nullptr, cam)
     , m_rhi_widget(nullptr)
     , m_size(clamp_size(size))
     , m_overlay_dpr(1.0) // headless: caller passes raw pixel size, no DPR scaling
@@ -394,9 +390,7 @@ rhi_renderer::rhi_renderer(QSize            size,
     , m_overlay_painter(&m_overlay)
     , m_overlay_deferred(std::make_unique<deferred_renderer>(
           &m_overlay_painter,
-          std::move(transform),
-          cam,
-          &m_overlay))
+          cam))
 {
     (void)draw_callback;
     m_n_bands       = int(std::max(1u, std::thread::hardware_concurrency()));
@@ -408,9 +402,9 @@ rhi_renderer::rhi_renderer(QSize            size,
     m_cmd_dashed_lines.resize(m_n_bands);
     ensure_tile_grid();
     clear_tile_geometry();
-    m_overlay_deferred->clear_overlay_and_batches();
+    m_overlay_deferred->reset();
     m_overlay.fill(Qt::transparent);
-    update_painter(&m_overlay_painter, &m_overlay);
+    set_painter(&m_overlay_painter);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
 }
@@ -656,7 +650,7 @@ void rhi_renderer::begin_frame()
 {
     ensure_tile_grid();
     clear_tile_geometry();
-    m_overlay_deferred->clear_overlay_and_batches();
+    m_overlay_deferred->reset();
     m_skip_tile_writes = false;
 
     // End painter if still active (shouldn't normally happen).
@@ -684,8 +678,8 @@ void rhi_renderer::begin_frame()
     m_overlay_painter.begin(&m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
-    update_painter(&m_overlay_painter, &m_overlay);
-    m_overlay_deferred->set_painter_surface(&m_overlay_painter, &m_overlay);
+    set_painter(&m_overlay_painter);
+    m_overlay_deferred->set_painter(&m_overlay_painter);
 
     // Match the deferred path semantics: each redraw starts from the renderer
     // defaults rather than inheriting state from the previous frame.
@@ -729,8 +723,8 @@ void rhi_renderer::begin_overlay_frame()
     m_overlay_painter.begin(&m_overlay);
     m_overlay_painter.setAntialias(false);
     m_overlay_painter.setSmoothPixmap(false);
-    update_painter(&m_overlay_painter, &m_overlay);
-    m_overlay_deferred->set_painter_surface(&m_overlay_painter, &m_overlay);
+    set_painter(&m_overlay_painter);
+    m_overlay_deferred->set_painter(&m_overlay_painter);
 
     m_skip_tile_writes = false;
 }
@@ -738,7 +732,7 @@ void rhi_renderer::begin_overlay_frame()
 void rhi_renderer::render_cached_overlay()
 {
     begin_overlay_frame();
-    m_overlay_deferred->replay_overlay();
+    m_overlay_deferred->replay();
 
     if (m_overlay_painter.isActive())
         m_overlay_painter.end();
@@ -1063,11 +1057,11 @@ void rhi_renderer::append_fill_triangle_to_tiles(const point2d& a,
 
 // ---- thick line helpers ----------------------------------------------------
 
-void rhi_renderer::append_thick_segment(RhiTileBatch& tile,
-                                        const point2d& start,
-                                        const point2d& end,
-                                        StyleKey      style_key,
-                                        std::uint32_t rgba)
+void rhi_renderer::append_thick_line_segment(RhiTileBatch& tile,
+                                             const point2d& start,
+                                             const point2d& end,
+                                             StyleKey      style_key,
+                                             std::uint32_t rgba)
 {
     // One instance record (16 bytes) per segment.
     // The vertex shader reconstructs all 4 quad corners from this record plus
@@ -1096,11 +1090,11 @@ void rhi_renderer::append_thick_line_to_tiles(const point2d& start,
             RhiTileBatch& tile = tile_at(tx, ty);
             if (!clip_line_world(tile.world_bounds, clipped_start, clipped_end))
                 continue;
-            append_thick_segment(tile,
-                                 clipped_start,
-                                 clipped_end,
-                                 style_key,
-                                 rgba);
+            append_thick_line_segment(tile,
+                                      clipped_start,
+                                      clipped_end,
+                                      style_key,
+                                      rgba);
         }
     }
 }
@@ -1554,7 +1548,7 @@ void rhi_renderer::dispatch_commands_to_tiles(int band)
                 point2d cs = s, ce = e;
                 RhiTileBatch& tile = tile_at(tx, ty);
                 if (!clip_line_world(tile.world_bounds, cs, ce)) continue;
-                append_thick_segment(tile, cs, ce, cmd.sk, rgba);
+                append_thick_line_segment(tile, cs, ce, cmd.sk, rgba);
             }
         }
     }

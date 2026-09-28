@@ -51,7 +51,7 @@ void zoom_in(canvas *cnv, double zoom_factor)
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_in_world(zoom_point, world, zoom_factor));
-  cnv->redraw_camera_only();
+  cnv->redraw_at_view_change(view_change_reason::zoom_in);
 }
 
 void zoom_in(canvas *cnv, point2d zoom_point, double zoom_factor)
@@ -60,7 +60,8 @@ void zoom_in(canvas *cnv, point2d zoom_point, double zoom_factor)
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_in_world(zoom_point, world, zoom_factor));
-  cnv->redraw_camera_only();
+  // The camera is centered to the new zoom point, so this will most likely invoke panning.
+  cnv->redraw_at_view_change(view_change_reason::pan_zoom_in);
 }
 
 void zoom_out(canvas *cnv, double zoom_factor)
@@ -69,7 +70,7 @@ void zoom_out(canvas *cnv, double zoom_factor)
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_out_world(zoom_point, world, zoom_factor));
-  cnv->redraw_camera_only();
+  cnv->redraw_at_view_change(view_change_reason::zoom_out);
 }
 
 void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor)
@@ -78,13 +79,22 @@ void zoom_out(canvas *cnv, point2d zoom_point, double zoom_factor)
   rectangle const world = cnv->get_camera().get_world();
 
   cnv->get_camera().set_world(zoom_out_world(zoom_point, world, zoom_factor));
-  cnv->redraw_camera_only();
+  // The camera is centered to the new zoom point, so this will most likely invoke panning.
+  cnv->redraw_at_view_change(view_change_reason::pan_zoom_out);
 }
 
 void zoom_fit(canvas *cnv, rectangle region)
 {
+  view_change_reason reason;
+  // Infer the zoom direction by comparing the world area before/after.
+  if (region.area() > cnv->get_camera().get_world().area()) {
+    // The camera is calibrated to the center of the new region, so this will most likely involve a pan.
+    reason = view_change_reason::pan_zoom_out;
+  } else {
+    reason = view_change_reason::pan_zoom_in;
+  }
   cnv->get_camera().set_world(region);
-  cnv->redraw_camera_only();
+  cnv->redraw_at_view_change(reason);
 }
 
 void translate(canvas *cnv, double dx, double dy)
@@ -93,7 +103,7 @@ void translate(canvas *cnv, double dx, double dy)
   new_world += ezgl::point2d(dx, dy);
 
   cnv->get_camera().set_world(new_world);
-  cnv->redraw_camera_only();
+  cnv->redraw_at_view_change(view_change_reason::pan);
 }
 
 void translate_up(canvas *cnv, double translate_factor)

@@ -20,11 +20,16 @@
  * @file
  *
  * This example shows you how to create an application using the EZGL library.
+ *
+ * Run it with `--renderer immediate|deferred|rhi` to pick the backend the
+ * canvas draws through. If no renderer is specified, rhi is used: it is
+ * ezgl's own default, so the example simply leaves the canvas on it.
  */
 
 #include <chrono>
 #include <cfloat>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -93,6 +98,19 @@ static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
  *
  * This function initializes an ezgl application and runs it.
  *
+ * Usage: `basic-application [--renderer immediate|deferred|rhi]`
+ *
+ * @c --renderer selects the backend the main canvas draws through:
+ *  - @c immediate sends every draw call straight to a QPainter;
+ *  - @c deferred records the calls and replays them in batches;
+ *  - @c rhi draws on the GPU. This is ezgl's own default, so omitting the
+ *    flag leaves the canvas on it.
+ *
+ * All three draw the same scene, so the flag is mainly for comparing their
+ * output and speed, or for running without a GPU. An unknown renderer name,
+ * a @c --renderer with no value after it, and any unrecognised argument are
+ * all errors: a message is printed and the program exits with status 1.
+ *
  * @param argc The number of arguments provided.
  * @param argv The arguments as an array of c-strings.
  *
@@ -100,11 +118,20 @@ static ezgl::rectangle initial_world{{0, 0}, 1100, 1150};
  */
 int main(int argc, char **argv)
 {
-  ezgl::renderer_type renderer = ezgl::renderer_type::rhi;
+  // Stays empty unless --renderer asks for a specific backend. A canvas
+  // already starts on rhi, so there is nothing to set in the default case.
+  std::optional<ezgl::renderer_type> renderer;
+
+  const std::string usage =
+      std::string("Usage: ") + argv[0] + " [--renderer immediate|deferred|rhi]\n";
 
   for (int i = 1; i < argc; ++i) {
     std::string arg(argv[i]);
-    if (arg == "--renderer" && i + 1 < argc) {
+    if (arg == "--renderer") {
+      if (i + 1 >= argc) {
+        std::cerr << "Missing value for --renderer.\n" << usage;
+        return 1;
+      }
       std::string val(argv[++i]);
       if      (val == "immediate") renderer = ezgl::renderer_type::immediate;
       else if (val == "deferred")  renderer = ezgl::renderer_type::deferred;
@@ -113,6 +140,10 @@ int main(int argc, char **argv)
         std::cerr << "Unknown renderer '" << val << "'. Use: immediate | deferred | rhi\n";
         return 1;
       }
+    } else {
+      // Abort on unsupported argument.
+      std::cerr << "Unknown argument '" << arg << "'.\n" << usage;
+      return 1;
     }
   }
 
@@ -133,11 +164,12 @@ int main(int argc, char **argv)
   // Create our EZGL application.
   ezgl::application application(settings, argc, argv);
   // Set some parameters for the main sub-window (MainCanvas), where
-  // visualization graphics are draw. Set the callback function that will be
+  // visualization graphics are drawn. Set the callback function that will be
   // called when the main window needs redrawing, and define the (world)
   // coordinate system we want to draw in.
   ezgl::canvas *c = application.add_canvas("MainCanvas", draw_main_canvas, initial_world);
-  c->set_renderer_type(renderer);
+  if (renderer.has_value())
+    c->set_renderer_type(*renderer);
 
   // Run the application until the user quits.
   // This hands over all control to the Qt event loop---after this point

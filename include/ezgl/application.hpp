@@ -62,11 +62,14 @@ const bool build_ui_from_file = true;
 class application;
 
 /**
- * The signature of a function that connects QObject to functions via signals.
+ * The signature of a function that connects UI widgets to user-defined callbacks.
  *
- * @see application::get_object.
+ * The function receives the running application, from which named widgets can be
+ * retrieved and wired to Qt signals via QObject::connect.
+ *
+ * @see application::find_widget
  */
-using connect_g_objects_fn = void (*)(application *app);
+using connect_widgets_fn = void (*)(application *app);
 
 /**
  * The signature of a setup callback function
@@ -139,16 +142,16 @@ public:
     std::string application_identifier;
 
     /**
-     * Specify the function that will connect GUI objects to user-defined callbacks.
+     * Specify the function that will connect UI widgets to user-defined callbacks.
      *
-     * GUI objects (QObject instances) can be retrieved from this application object. These objects can then be
-     * connected to specific Qt signals via QObject::connect.
+     * Named widgets can be retrieved from this application object (via find_widget or the typed find_* helpers) and
+     * then connected to specific Qt signals via QObject::connect.
      *
      * If not provided, application::register_default_buttons_callbacks function will be used, which assumes that the
      * UI has QPushButton widgets named "ZoomFitButton", "ZoomInButton", "ZoomOutButton", "UpButton", "DownButton",
      * "LeftButton", "RightButton", "ProceedButton"
      */
-    connect_g_objects_fn setup_callbacks;
+    connect_widgets_fn setup_callbacks;
 
     /**
      * Create the settings structure with default values
@@ -167,7 +170,7 @@ public:
      * Create the settings structure with user-defined values
      */
     settings(std::string m_resource, std::string w_identifier, std::string c_identifier, std::string a_identifier = "ezgl.app",
-        connect_g_objects_fn s_callbacks = nullptr)
+        connect_widgets_fn s_callbacks = nullptr)
     : main_ui_resource(m_resource), window_identifier(w_identifier), canvas_identifier(c_identifier), application_identifier(a_identifier),
       setup_callbacks(s_callbacks)
     {
@@ -247,7 +250,7 @@ public:
   /**
    * Deletes a button by its label (displayed text)
    * 
-   * @param the text of the button to delete
+   * @param button_text_to_destroy the text of the button to delete
    * @return whether the button was found and deleted
    *
    * The function assumes that the UI has a grid named "InnerGrid"
@@ -527,14 +530,69 @@ public:
    */
   canvas *get_canvas(std::string const &canvas_id) const;
 
+  /**
+   * Find a named QPushButton in the loaded UI.
+   *
+   * @param name The objectName of the widget to look up.
+   * @param skip_notfound_report If true, suppress the warning emitted when no
+   *        matching widget is found.
+   * @return The button, or nullptr if no widget of that name and type exists.
+   */
   QPushButton* find_push_button(const char *name, bool skip_notfound_report = false) const;
+  /**
+   * Find a named QLineEdit in the loaded UI.
+   *
+   * @param name The objectName of the widget to look up.
+   * @return The line edit, or nullptr if no widget of that name and type exists.
+   */
   QLineEdit* find_line_edit(const char *name) const;
+  /**
+   * Find a named QComboBox in the loaded UI.
+   *
+   * @param name The objectName of the widget to look up.
+   * @return The combo box, or nullptr if no widget of that name and type exists.
+   */
   QComboBox* find_combo_box(const char *name) const;
+  /**
+   * Find a named QSpinBox in the loaded UI.
+   *
+   * @param name The objectName of the widget to look up.
+   * @return The spin box, or nullptr if no widget of that name and type exists.
+   */
   QSpinBox* find_spin_box(const char *name) const;
+
+  /**
+   * Find a named QCheckBox in the loaded UI.
+   *
+   * @param name The objectName of the widget to look up.
+   * @return The check box, or nullptr if no widget of that name and type exists.
+   */
   QCheckBox* find_check_box(const char *name) const;
+
+  /**
+   * Find a named SwitchButton in the loaded UI.
+   *
+   * @param name The objectName of the widget to look up.
+   * @return The switch button, or nullptr if no widget of that name and type exists.
+   */
   SwitchButton* find_switch_button(const char *name) const;
 
+  /**
+   * Hide a named widget in the loaded UI.
+   *
+   * Does nothing if no widget with that name exists.
+   *
+   * @param widgetName The objectName of the widget to hide.
+   */
   void hide_widget(const std::string& widgetName);
+
+  /**
+   * Show a named widget in the loaded UI.
+   *
+   * Does nothing if no widget with that name exists.
+   *
+   * @param widgetName The objectName of the widget to show.
+   */
   void show_widget(const std::string& widgetName);
 
   /**
@@ -569,6 +627,20 @@ public:
   void schedule_initial_callback(std::function<void()> callback);
 
 protected:
+  /**
+   * Intercept event delivery to route canvas input to the ezgl callbacks.
+   *
+   * When the receiver is an ezgl canvas widget (DrawingAreaWidget or
+   * RhiCanvasWidget), key, mouse, and wheel events are dispatched to the
+   * corresponding ezgl handlers (press_key, press_mouse, etc.). If a handler
+   * consumes the event, delivery stops and true is returned; otherwise, and for
+   * all other receivers, the event falls through to QApplication::notify.
+   *
+   * @param receiver The object the event is being delivered to.
+   * @param event The event being delivered.
+   * @return True if the event was consumed by an ezgl handler, otherwise the
+   *         result of the base-class implementation.
+   */
   bool notify(QObject* receiver, QEvent* event) override;
 
 private:
@@ -587,7 +659,7 @@ private:
   QWidget* m_window{nullptr};
 
   // The function to call when the application is starting up.
-  connect_g_objects_fn m_register_callbacks{nullptr};
+  connect_widgets_fn m_register_callbacks{nullptr};
 
   // The collection of canvases added to the application.
   std::map<std::string, std::unique_ptr<canvas>> m_canvases;
@@ -606,9 +678,6 @@ private:
 
   // Called during application activation to setup the default callbacks for the prebuilt buttons
   static void register_default_buttons_callbacks(application *application);
-
-  // Called during application activation to setup the default callbacks for the mouse and key events
-  static void register_default_events_callbacks(application *application);
 
 public:
   // The user-defined initial setup callback function

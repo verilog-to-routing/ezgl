@@ -30,7 +30,9 @@ void Pen::setSolid() {
   }
 }
 
-bool Pen::isSolid() const { // in some reason QPen::isSolid() doesn't return valid value
+bool Pen::isSolid() const {
+  // QPen exposes no reliable "is this a solid line?" query, so test the style
+  // explicitly rather than trusting QPen's own state.
   return (style() == Qt::SolidLine);
 }
 
@@ -186,22 +188,6 @@ void Painter::arc(double xc, double yc,
   double endDeg   = -angle2 * 180.0 / std::numbers::pi;
 
   double spanDeg = endDeg - startDeg;
-
-  double d = radius * 2.0;
-  QRectF rect(xc - radius, yc - radius, d, d);
-
-  m_path.arcTo(rect, startDeg, spanDeg);
-}
-
-void Painter::arc_negative(double xc, double yc,
-    double radius,
-    double angle1, double angle2)
-{
-  // radians → degrees
-  double startDeg = -angle1 * 180.0 / std::numbers::pi;
-  double endDeg   = -angle2 * 180.0 / std::numbers::pi;
-
-  double spanDeg = endDeg - startDeg; // negative sweep
 
   double d = radius * 2.0;
   QRectF rect(xc - radius, yc - radius, d, d);

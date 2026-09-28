@@ -36,6 +36,50 @@
  * @see ezgl::rhi_renderer for the recording side (tile binning + style
  *      bucket assignment).
  * @see ezgl::RhiSceneRenderer for the GPU upload side.
+ *
+ * @par Graphics terms used across the rhi/* files (glossary)
+ * This is a student-oriented cheat sheet for the acronyms that recur in the
+ * comments of every @c rhi_* file. Definitions are deliberately short; the
+ * point is to make the other comments readable, not to be exhaustive.
+ *
+ *  - **GPU**   the graphics card/chip that draws pixels in parallel.
+ *  - **CPU**   the main processor that runs our C++ and prepares data for the GPU.
+ *  - **Qt RHI** Qt's "Rendering Hardware Interface": one API that Qt maps onto
+ *              whatever the machine actually has (Vulkan, Metal, Direct3D, OpenGL).
+ *              @c QRhi is the object representing that GPU connection.
+ *  - **shader** a small program that runs on the GPU. A *vertex* shader positions
+ *              each point; a *fragment* shader colors each pixel.
+ *  - **vertex** one point of geometry (here: an @c (x,y) corner of a line/shape).
+ *  - **VBO**   Vertex Buffer Object: a GPU array holding per-vertex (or, when
+ *              *instanced*, per-shape) data.
+ *  - **UBO**   Uniform Buffer Object: a small block of constants shared by every
+ *              shader run in one draw (here it holds the color and the MVP matrix).
+ *  - **SRB**   Shader Resource Bindings (Qt's @c QRhiShaderResourceBindings): the
+ *              object that says "this UBO/texture is visible to the shader here."
+ *  - **PSO**   Pipeline State Object (@c QRhiGraphicsPipeline): a bundle of fixed
+ *              GPU settings + shader pair for one kind of primitive. Switching PSOs
+ *              is costly, so we bind each one once per frame.
+ *  - **instancing** drawing many copies of the same small shape (a line quad, an
+ *              arrow triangle) from one set of vertices plus a per-copy record.
+ *  - **MVP**   Model-View-Projection matrix: the transform that maps our world
+ *              coordinates into what the GPU draws (see NDC).
+ *  - **NDC**   Normalized Device Coordinates: the fixed square the GPU draws into,
+ *              running -1..+1 in x and y regardless of window size.
+ *  - **AABB**  Axis-Aligned Bounding Box: a rectangle (not rotated) around some
+ *              geometry, used for cheap "is this visible?" tests.
+ *  - **RGBA**  a color as red/green/blue/alpha (alpha = opacity), packed into 32 bits.
+ *  - **VRAM**  the GPU's own memory. Plentiful, but slow to fill from the CPU...
+ *  - **PCIe**  ...because CPU→GPU uploads travel over this bus, which is the
+ *              expensive step we try to avoid re-doing every frame.
+ *  - **MSAA**  Multi-Sample Anti-Aliasing: the GPU samples each pixel several times
+ *              to smooth jagged edges, then averages ("resolves") them.
+ *  - **DPR**   Device Pixel Ratio: physical pixels per logical pixel on hi-DPI
+ *              screens (e.g. 2.0 on a "retina" display).
+ *  - **swap chain** the small set of window-sized images the GPU rotates through:
+ *              it draws the next frame into one while the screen shows another,
+ *              then they swap. Being window-sized, it is rebuilt on every resize.
+ *  - **QPA**   Qt Platform Abstraction: Qt's backend for a given platform. The
+ *              special @c offscreen QPA has no window, used by headless tests.
  */
 
 namespace ezgl {
@@ -115,12 +159,17 @@ static_assert(sizeof(ArrowInstance) == 16, "ArrowInstance must be 16 bytes");
 /// and one GPU draw call per chunk.
 using StyleKey = std::uint64_t;
 
+/// Render-state discriminator stored in the high byte (bits 56–63) of a
+/// @ref StyleKey. Selects which GPU pipeline draws a primitive and which
+/// per-type bucket of @ref SceneBuffers its geometry lands in; each
+/// enumerator has a matching `*StyleBuffer` map there. The packed @c uint8_t
+/// width keeps the key compact (see @ref pack_style_key).
 enum class PrimitiveType : std::uint8_t {
-    ThinLine,
-    FilledRect,
-    FilledPoly,
-    ThickLine,
-    DashedLine,
+    ThinLine,         ///< 1-pixel line; @ref PosVertex stream (@ref ThinLineStyleBuffer).
+    FilledRect,       ///< Axis-aligned filled rectangle, GPU-instanced (@ref FillRectStyleBuffer).
+    FilledPoly,       ///< Triangulated filled polygon; @ref PosVertex stream (@ref FillPolyStyleBuffer).
+    ThickLine,        ///< Screen-width line expanded to a quad in the vertex shader (@ref ThickLineStyleBuffer).
+    DashedLine,       ///< Thick line with a dash pattern; carries @c phase_world (@ref DashedLineStyleBuffer).
     Arrow,            ///< GPU-instanced arrow head; line_width field reused as arrow_size_px.
 };
 
@@ -136,11 +185,17 @@ inline constexpr StyleKey pack_style_key(PrimitiveType primitive_type,
         | (StyleKey(std::uint8_t(primitive_type)) << 56);
 }
 
+/// Extract the line width (bits 32–47) from a @ref StyleKey, in pixels.
+/// Zero for fill primitives; for @ref PrimitiveType::Arrow this field holds
+/// the arrow size in pixels. Inverse of the @c line_width_px argument to
+/// @ref pack_style_key.
 inline constexpr std::uint16_t style_key_line_width(StyleKey key) noexcept
 {
     return std::uint16_t((key >> 32) & 0xFFFFu);
 }
 
+/// Extract the dash style (bits 48–55) from a @ref StyleKey; 0 means solid.
+/// Inverse of the @c line_dash argument to @ref pack_style_key.
 inline constexpr std::uint8_t style_key_line_dash(StyleKey key) noexcept
 {
     return std::uint8_t((key >> 48) & 0xFFu);
@@ -163,42 +218,60 @@ struct Chunk {
     std::uint32_t count  = 0;     ///< Number of vertices/instances belonging to this tile cell.
 };
 
+/// Fields shared by every per-style buffer: the @ref StyleKey that uniquely
+/// identifies this batch, the unpacked @c rgba used to fill the style UBO at
+/// upload time (cached here so the GPU side need not re-decode the key), and
+/// the per-tile @ref Chunk list that lets the draw loop cull non-visible
+/// geometry. The concrete geometry array lives in each derived struct.
 struct StyleBufferCommon {
     StyleKey           style_key = 0;
     std::uint32_t      rgba      = 0;
     std::vector<Chunk> chunks;
 };
 
+/// All thin (1-pixel) lines sharing one @ref StyleKey. Geometry is a flat
+/// @ref PosVertex array (two verts per segment). @c chunks index sub-ranges
+/// of @c verts. See @ref PrimitiveType::ThinLine.
 struct ThinLineStyleBuffer : StyleBufferCommon {
     std::vector<PosVertex> verts;
     bool empty()  const noexcept { return verts.empty(); }
     void clear()        noexcept { chunks.clear(); verts.clear(); }
 };
 
+/// All filled rectangles sharing one @ref StyleKey, one @ref FillRectInstance
+/// per rect (GPU-instanced). See @ref PrimitiveType::FilledRect.
 struct FillRectStyleBuffer : StyleBufferCommon {
     std::vector<FillRectInstance> instances;
     bool empty()  const noexcept { return instances.empty(); }
     void clear()        noexcept { chunks.clear(); instances.clear(); }
 };
 
+/// All filled polygons sharing one @ref StyleKey, stored as a flat triangle
+/// list of @ref PosVertex (CPU-triangulated). See @ref PrimitiveType::FilledPoly.
 struct FillPolyStyleBuffer : StyleBufferCommon {
     std::vector<PosVertex> verts;
     bool empty()  const noexcept { return verts.empty(); }
     void clear()        noexcept { chunks.clear(); verts.clear(); }
 };
 
+/// All thick (screen-width) lines sharing one @ref StyleKey, one
+/// @ref ThickLineInstance per segment. See @ref PrimitiveType::ThickLine.
 struct ThickLineStyleBuffer : StyleBufferCommon {
     std::vector<ThickLineInstance> instances;
     bool empty()  const noexcept { return instances.empty(); }
     void clear()        noexcept { chunks.clear(); instances.clear(); }
 };
 
+/// All dashed lines sharing one @ref StyleKey, one @ref DashedLineInstance per
+/// segment (each carries its @c phase_world). See @ref PrimitiveType::DashedLine.
 struct DashedLineStyleBuffer : StyleBufferCommon {
     std::vector<DashedLineInstance> instances;
     bool empty()  const noexcept { return instances.empty(); }
     void clear()        noexcept { chunks.clear(); instances.clear(); }
 };
 
+/// All arrow heads sharing one @ref StyleKey, one @ref ArrowInstance per arrow
+/// (GPU-instanced). See @ref PrimitiveType::Arrow.
 struct ArrowStyleBuffer : StyleBufferCommon {
     std::vector<ArrowInstance> instances;
     bool empty()  const noexcept { return instances.empty(); }
@@ -219,12 +292,16 @@ struct SceneBuffers {
     std::unordered_map<StyleKey, DashedLineStyleBuffer> dashed_lines;
     std::unordered_map<StyleKey, ArrowStyleBuffer>      arrows;
 
+    /// True when no primitive type holds any style batch — i.e. nothing to
+    /// upload or draw this frame.
     bool empty() const noexcept
     {
         return thin_lines.empty() && fill_rects.empty() && fill_polys.empty()
             && thick_lines.empty() && dashed_lines.empty() && arrows.empty();
     }
 
+    /// Drop every style batch of every type, leaving an empty scene ready to
+    /// be refilled by the next @ref rhi_renderer flush.
     void clear() noexcept
     {
         thin_lines.clear(); fill_rects.clear(); fill_polys.clear();

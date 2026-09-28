@@ -53,11 +53,7 @@ void deferred_backend::redraw()
                               m_background_color.blue  / 255.0);
     m_painter->paint();
 
-    using namespace std::placeholders;
-    deferred_renderer g(m_painter,
-                        std::bind(&camera::world_to_screen, m_camera, _1),
-                        m_camera,
-                        m_surface);
+    deferred_renderer g(m_painter, m_camera);
     m_draw_callback(&g);
     g.flush();
 
@@ -65,7 +61,7 @@ void deferred_backend::redraw()
     q_debug("The canvas will be redrawn (deferred path).");
 }
 
-void deferred_backend::redraw_camera_only()
+void deferred_backend::redraw_at_view_change(view_change_reason /*reason*/)
 {
     redraw();
 }
@@ -81,19 +77,13 @@ void deferred_backend::on_resize(int /*w*/, int /*h*/)
         return;
     redraw();
     if (m_animation_renderer)
-        static_cast<immediate_renderer*>(m_animation_renderer)
-            ->update_renderer(m_painter, m_surface);
+        m_animation_renderer->set_painter(m_painter);
 }
 
 renderer* deferred_backend::create_animation_renderer()
 {
     if (!m_animation_renderer) {
-        using namespace std::placeholders;
-        m_animation_renderer = new immediate_renderer(
-            m_painter,
-            std::bind(&camera::world_to_screen, m_camera, _1),
-            m_camera,
-            m_surface);
+        m_animation_renderer = new immediate_renderer(m_painter, m_camera);
     }
     return m_animation_renderer;
 }
@@ -107,8 +97,7 @@ QImage deferred_backend::render_to_image(int w, int h)
                            m_background_color.blue  / 255.0);
     painter.paint();
 
-    using namespace std::placeholders;
-    deferred_renderer g(&painter, std::bind(&camera::world_to_screen, *m_camera, _1), m_camera, &surface);
+    deferred_renderer g(&painter, m_camera);
     m_draw_callback(&g);
     g.flush();
     return surface;

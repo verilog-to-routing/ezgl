@@ -23,11 +23,6 @@ SwitchButton::SwitchButton(QWidget* parent)
     });
 }
 
-QSize SwitchButton::sizeHint() const
-{
-    return {58, 26};
-}
-
 void SwitchButton::setPosition(qreal pos)
 {
     m_position = pos;

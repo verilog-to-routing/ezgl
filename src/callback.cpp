@@ -16,9 +16,8 @@
  * Authors: Mario Badr, Sameh Attia, Tanner Young-Schultz and Vaughn Betz
  */
 
+#include "ezgl/application.hpp"
 #include "ezgl/callback.hpp"
-#include "ezgl/qt/switchbutton.hpp"
-#include "ezgl/qt/qtutils.hpp"
 
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -52,28 +51,25 @@ struct mouse_pan {
   bool has_panned = false; 
 } g_mouse_pan;
 
-bool press_key(QWidget*, QKeyEvent* event, void* data)
+bool press_key(QKeyEvent* event, application* app, QWidget* /*sender*/)
 {
-  auto application = static_cast<ezgl::application*>(data);
-
   // Call the user-defined key press callback if defined
-  if(application->key_press_callback != nullptr) {
+  if(app->key_press_callback != nullptr) {
     QString keyName = QKeySequence(event->key()).toString();
-    application->key_press_callback(application, event, keyName.toStdString());
+    app->key_press_callback(app, event, keyName.toStdString());
   }
 
-  // Return false (not handled) so the event propagates to other Qt
+  // Returns false (not handled) so the event propagates to other Qt
   // widgets. This is important since we grab keyboard events for the
   // whole main window. It can have unexpected effects though, such as
-  // Enter/Space being treated as a press on any focused button. Return
-  // true (event consumed) if you want to avoid that and don't have any
-  // widgets that need keyboard events.
+  // Enter/Space being treated as a press on any focused button. To avoid
+  // that, change this to return true (consuming the event) -- but only if
+  // no other widgets need keyboard events.
   return false;
 }
 
-bool press_mouse(QWidget*, QMouseEvent* event, void* data)
+bool press_mouse(QMouseEvent* event, application* app, QWidget* /*sender*/)
 {
-  auto application = static_cast<ezgl::application *>(data);
   const QPointF pos = event->position();
 
   if(event->type() == QEvent::MouseButtonPress) {
@@ -89,27 +85,26 @@ bool press_mouse(QWidget*, QMouseEvent* event, void* data)
     // The user-defined callback is called for mouse buttons other than
     // the PANNING_MOUSE_BUTTON button. If the user pressed the PANNING_MOUSE_BUTTON button,
     // the callback will be called at mouse release only if no panning occurs
-    else if(application->mouse_press_callback != nullptr) {
+    else if(app->mouse_press_callback != nullptr) {
       ezgl::point2d const widget_coordinates(pos.x(), pos.y());
 
-      std::string main_canvas_id = application->get_main_canvas_id();
-      ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+      std::string main_canvas_id = app->get_main_canvas_id();
+      ezgl::canvas *canvas = app->get_canvas(main_canvas_id);
       if (canvas == nullptr) {
         event->accept();
         return true;
       }
 
       ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
-      application->mouse_press_callback(application, event, world.x, world.y);
+      app->mouse_press_callback(app, event, world.x, world.y);
     }
   }
   event->accept();
   return true; // consume the event
 }
 
-bool release_mouse(QWidget*, QMouseEvent* event, void* data)
+bool release_mouse(QMouseEvent* event, application* app, QWidget* /*sender*/)
 {
-  auto application = static_cast<ezgl::application*>(data);
   const QPointF pos = event->position();
 
   if(event->type() == QEvent::MouseButtonRelease) {
@@ -120,11 +115,11 @@ bool release_mouse(QWidget*, QMouseEvent* event, void* data)
       // Call the user-defined mouse press callback for the PANNING_MOUSE_BUTTON button only if no panning occurs.
       // This lets the user use one mouse button for both click-and-drag
       // panning and simple clicking.
-      if (!g_mouse_pan.has_panned && application->mouse_press_callback != nullptr) {
+      if (!g_mouse_pan.has_panned && app->mouse_press_callback != nullptr) {
         ezgl::point2d const widget_coordinates(pos.x(), pos.y());
 
-        std::string main_canvas_id = application->get_main_canvas_id();
-        ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+        std::string main_canvas_id = app->get_main_canvas_id();
+        ezgl::canvas *canvas = app->get_canvas(main_canvas_id);
         if (canvas == nullptr) {
           g_mouse_pan.has_panned = false;
           event->accept();
@@ -132,7 +127,7 @@ bool release_mouse(QWidget*, QMouseEvent* event, void* data)
         }
 
         ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
-        application->mouse_press_callback(application, event, world.x, world.y);
+        app->mouse_press_callback(app, event, world.x, world.y);
       }
       g_mouse_pan.has_panned = false;  /* Done pan; reset for next time */
     }
@@ -141,9 +136,8 @@ bool release_mouse(QWidget*, QMouseEvent* event, void* data)
   return true; // consume the event
 }
 
-bool move_mouse(QWidget*, QMouseEvent* event, void* data)
+bool move_mouse(QMouseEvent* event, application* app, QWidget* /*sender*/)
 {
-  auto application = static_cast<ezgl::application *>(data);
   const QPointF pos = event->position();
 
   if(event->type() == QEvent::MouseMove) {
@@ -153,8 +147,8 @@ bool move_mouse(QWidget*, QMouseEvent* event, void* data)
 
       g_mouse_pan.last_panning_event_time = event->timestamp();
 
-      std::string main_canvas_id = application->get_main_canvas_id();
-      auto canvas = application->get_canvas(main_canvas_id);
+      std::string main_canvas_id = app->get_main_canvas_id();
+      auto canvas = app->get_canvas(main_canvas_id);
       if (canvas == nullptr) {
         event->accept();
         return true;
@@ -174,30 +168,28 @@ bool move_mouse(QWidget*, QMouseEvent* event, void* data)
       g_mouse_pan.has_panned = true;
     }
     // Else call the user-defined mouse move callback if defined
-    else if(application->mouse_move_callback != nullptr) {
+    else if(app->mouse_move_callback != nullptr) {
       ezgl::point2d const widget_coordinates(pos.x(), pos.y());
 
-      std::string main_canvas_id = application->get_main_canvas_id();
-      ezgl::canvas *canvas = application->get_canvas(main_canvas_id);
+      std::string main_canvas_id = app->get_main_canvas_id();
+      ezgl::canvas *canvas = app->get_canvas(main_canvas_id);
       if (canvas == nullptr) {
         event->accept();
         return true;
       }
 
       ezgl::point2d const world = canvas->get_camera().widget_to_world(widget_coordinates);
-      application->mouse_move_callback(application, event, world.x, world.y);
+      app->mouse_move_callback(app, event, world.x, world.y);
     }
   }
   event->accept();
   return true; // consume the event
 }
 
-bool scroll_mouse(QWidget*, QWheelEvent* event, void* data)
+bool scroll_mouse(QWheelEvent* event, application* app, QWidget* /*sender*/)
 {
-  auto application = static_cast<ezgl::application*>(data);
-
-  std::string main_canvas_id = application->get_main_canvas_id();
-  auto canvas = application->get_canvas(main_canvas_id);
+  std::string main_canvas_id = app->get_main_canvas_id();
+  auto canvas = app->get_canvas(main_canvas_id);
 
   const QPointF pos = event->position();
 
@@ -228,101 +220,79 @@ bool scroll_mouse(QWidget*, QWheelEvent* event, void* data)
   return true;
 }
 
-bool press_zoom_fit(QWidget *, void* data)
+bool press_zoom_fit(application* app, QWidget* /*sender*/)
 {
-
-  auto application = static_cast<ezgl::application *>(data);
-
-  std::string main_canvas_id = application->get_main_canvas_id();
-  auto canvas = application->get_canvas(main_canvas_id);
+  std::string main_canvas_id = app->get_main_canvas_id();
+  auto canvas = app->get_canvas(main_canvas_id);
 
   ezgl::zoom_fit(canvas, canvas->get_camera().get_initial_world());
 
   return true;
 }
 
-bool press_zoom_in(QWidget *, void* data)
+bool press_zoom_in(application* app, QWidget* /*sender*/)
 {
-
-  auto application = static_cast<ezgl::application *>(data);
-
-  std::string main_canvas_id = application->get_main_canvas_id();
-  auto canvas = application->get_canvas(main_canvas_id);
+  std::string main_canvas_id = app->get_main_canvas_id();
+  auto canvas = app->get_canvas(main_canvas_id);
 
   ezgl::zoom_in(canvas, 5.0 / 3.0);
 
   return true;
 }
 
-bool press_zoom_out(QWidget *, void* data)
+bool press_zoom_out(application* app, QWidget* /*sender*/)
 {
-
-  auto application = static_cast<ezgl::application *>(data);
-
-  std::string main_canvas_id = application->get_main_canvas_id();
-  auto canvas = application->get_canvas(main_canvas_id);
+  std::string main_canvas_id = app->get_main_canvas_id();
+  auto canvas = app->get_canvas(main_canvas_id);
 
   ezgl::zoom_out(canvas, 5.0 / 3.0);
 
   return true;
 }
 
-bool press_up(QWidget *, void* data)
+bool press_up(application* app, QWidget* /*sender*/)
 {
-
-  auto application = static_cast<ezgl::application *>(data);
-
-  std::string main_canvas_id = application->get_main_canvas_id();
-  auto canvas = application->get_canvas(main_canvas_id);
+  std::string main_canvas_id = app->get_main_canvas_id();
+  auto canvas = app->get_canvas(main_canvas_id);
 
   ezgl::translate_up(canvas, 5.0);
 
   return true;
 }
 
-bool press_down(QWidget *, void* data)
+bool press_down(application* app, QWidget* /*sender*/)
 {
-
-  auto application = static_cast<ezgl::application *>(data);
-
-  std::string main_canvas_id = application->get_main_canvas_id();
-  auto canvas = application->get_canvas(main_canvas_id);
+  std::string main_canvas_id = app->get_main_canvas_id();
+  auto canvas = app->get_canvas(main_canvas_id);
 
   ezgl::translate_down(canvas, 5.0);
 
   return true;
 }
 
-bool press_left(QWidget *, void* data)
+bool press_left(application* app, QWidget* /*sender*/)
 {
-
-  auto application = static_cast<ezgl::application *>(data);
-
-  std::string main_canvas_id = application->get_main_canvas_id();
-  auto canvas = application->get_canvas(main_canvas_id);
+  std::string main_canvas_id = app->get_main_canvas_id();
+  auto canvas = app->get_canvas(main_canvas_id);
 
   ezgl::translate_left(canvas, 5.0);
 
   return true;
 }
 
-bool press_right(QWidget *, void* data)
+bool press_right(application* app, QWidget* /*sender*/)
 {
-
-  auto application = static_cast<ezgl::application *>(data);
-
-  std::string main_canvas_id = application->get_main_canvas_id();
-  auto canvas = application->get_canvas(main_canvas_id);
+  std::string main_canvas_id = app->get_main_canvas_id();
+  auto canvas = app->get_canvas(main_canvas_id);
 
   ezgl::translate_right(canvas, 5.0);
 
   return true;
 }
 
-bool press_proceed(QWidget *, void* data)
+bool press_proceed(application* app, QWidget* /*sender*/)
 {
-  auto ezgl_app = static_cast<ezgl::application *>(data);
-  ezgl_app->quit();
+  app->quit();
 
   return true;
 }

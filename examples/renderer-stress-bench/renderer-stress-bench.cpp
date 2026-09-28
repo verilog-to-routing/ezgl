@@ -92,12 +92,12 @@ static constexpr int    CLB_TILE_ROWS = CLB_TILE_COLS;
 static constexpr int    CLB_TILE_COUNT = CLB_TILE_COLS * CLB_TILE_ROWS;
 static constexpr double CLB_TILE_GAP_RATIO = 0.3;
 
-// Approximate VPR scene counts (profiled from a mid-size design).
-static constexpr int VPR_N_RATE = 1;
-static constexpr int VPR_N_THIN_LINES   = 71'554'146/VPR_N_RATE;  // thin_verts / 2
-static constexpr int VPR_N_FILL_RECTS   = 115'482/VPR_N_RATE;
-static constexpr int VPR_N_FILL_POLYS   = 34'943'940/VPR_N_RATE;  // routing arrowheads (3-pt triangle)
-static constexpr int VPR_N_DASHED_LINES = 443'724/VPR_N_RATE;
+// Approximate FPGA-layout scene counts (profiled from a mid-size design).
+static constexpr int FPGA_N_RATE = 1;
+static constexpr int FPGA_N_THIN_LINES   = 71'554'146/FPGA_N_RATE;  // thin_verts / 2
+static constexpr int FPGA_N_FILL_RECTS   = 115'482/FPGA_N_RATE;
+static constexpr int FPGA_N_FILL_POLYS   = 34'943'940/FPGA_N_RATE;  // routing arrowheads (3-pt triangle)
+static constexpr int FPGA_N_DASHED_LINES = 443'724/FPGA_N_RATE;
 
 struct GridLayout {
   int    cols;
@@ -404,18 +404,18 @@ void draw_clb_tile_scene(ezgl::renderer *g)
 }
 
 
-void vpr_complex_scene(ezgl::renderer *g)
+void fpga_complex_scene(ezgl::renderer *g)
 {
   // ---- CLB tiles: fill + outline (like draw_clb_tile_scene but smaller grid) ----
   {
-    ezgl::scope_timer t("build CLB tiles " + std::to_string(VPR_N_FILL_RECTS));
-    const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_FILL_RECTS))));
+    ezgl::scope_timer t("build CLB tiles " + std::to_string(FPGA_N_FILL_RECTS));
+    const int cols = static_cast<int>(std::ceil(std::sqrt(double(FPGA_N_FILL_RECTS))));
     const double cell_w = WORLD.width()  / cols;
     const double cell_h = WORLD.height() / cols;
     const double pad    = cell_w * 0.05;
 
     g->set_color(ezgl::color(180, 180, 220));
-    for (int i = 0; i < VPR_N_FILL_RECTS; ++i) {
+    for (int i = 0; i < FPGA_N_FILL_RECTS; ++i) {
       const double x0 = WORLD.left()   + (i % cols) * cell_w + pad;
       const double y0 = WORLD.bottom() + (i / cols) * cell_h + pad;
       g->fill_rectangle({x0, y0}, {x0 + cell_w - 2*pad, y0 + cell_h - 2*pad});
@@ -424,7 +424,7 @@ void vpr_complex_scene(ezgl::renderer *g)
     g->set_color(ezgl::BLACK);
     g->set_line_width(1);
     g->set_line_dash(ezgl::line_dash::asymmetric_5_3);
-    for (int i = 0; i < VPR_N_FILL_RECTS; ++i) {
+    for (int i = 0; i < FPGA_N_FILL_RECTS; ++i) {
       const double x0 = WORLD.left()   + (i % cols) * cell_w + pad;
       const double y0 = WORLD.bottom() + (i / cols) * cell_h + pad;
       g->draw_rectangle({x0, y0}, {x0 + cell_w - 2*pad, y0 + cell_h - 2*pad});
@@ -433,17 +433,17 @@ void vpr_complex_scene(ezgl::renderer *g)
 
   // ---- Thin routing wires (alternating horizontal/vertical, 4 colours) ----
   {
-    ezgl::scope_timer t("build Thin routing wires " + std::to_string(VPR_N_THIN_LINES));
+    ezgl::scope_timer t("build Thin routing wires " + std::to_string(FPGA_N_THIN_LINES));
     static const ezgl::color WIRE_COLORS[] = {
       ezgl::BLUE, ezgl::RED, ezgl::color(0,160,0), ezgl::color(200,100,0)
     };
-    const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_THIN_LINES))));
+    const int cols = static_cast<int>(std::ceil(std::sqrt(double(FPGA_N_THIN_LINES))));
     const double cell_w = WORLD.width()  / cols;
     const double cell_h = WORLD.height() / cols;
 
     g->set_line_width(1);
     g->set_line_dash(ezgl::line_dash::none);
-    for (int i = 0; i < VPR_N_THIN_LINES; ++i) {
+    for (int i = 0; i < FPGA_N_THIN_LINES; ++i) {
       g->set_color(WIRE_COLORS[i & 3]);
       const double x0 = WORLD.left()   + (i % cols) * cell_w;
       const double y0 = WORLD.bottom() + (i / cols) * cell_h;
@@ -456,15 +456,15 @@ void vpr_complex_scene(ezgl::renderer *g)
 
   // ---- Routing direction arrowheads (3-point triangle) ----
   {
-    ezgl::scope_timer t("build Routing direction arrowheads " + std::to_string(VPR_N_FILL_POLYS));
-    const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_FILL_POLYS))));
+    ezgl::scope_timer t("build Routing direction arrowheads " + std::to_string(FPGA_N_FILL_POLYS));
+    const int cols = static_cast<int>(std::ceil(std::sqrt(double(FPGA_N_FILL_POLYS))));
     const double cell_w = WORLD.width()  / cols;
     const double cell_h = WORLD.height() / cols;
     const double hw = cell_w * 0.45;
     const double hh = cell_h * 0.45;
 
     g->set_color(ezgl::color(0, 120, 255, 180));
-    for (int i = 0; i < VPR_N_FILL_POLYS; ++i) {
+    for (int i = 0; i < FPGA_N_FILL_POLYS; ++i) {
       const double cx = WORLD.left()   + ((i % cols) + 0.5) * cell_w;
       const double cy = WORLD.bottom() + ((i / cols) + 0.5) * cell_h;
       g->fill_triangle({cx - hw, cy}, {cx + hw, cy - hh}, {cx + hw, cy + hh});
@@ -473,15 +473,15 @@ void vpr_complex_scene(ezgl::renderer *g)
 
   // ---- Critical-path dashed arcs ----
   {
-    ezgl::scope_timer t("build Critical-path dashed arcs " + std::to_string(VPR_N_DASHED_LINES));
-    const int cols = static_cast<int>(std::ceil(std::sqrt(double(VPR_N_DASHED_LINES))));
+    ezgl::scope_timer t("build Critical-path dashed arcs " + std::to_string(FPGA_N_DASHED_LINES));
+    const int cols = static_cast<int>(std::ceil(std::sqrt(double(FPGA_N_DASHED_LINES))));
     const double cell_w = WORLD.width()  / cols;
     const double cell_h = WORLD.height() / cols;
 
     g->set_color(ezgl::color(220, 40, 40));
     g->set_line_width(2);
     g->set_line_dash(ezgl::line_dash::asymmetric_5_3);
-    for (int i = 0; i < VPR_N_DASHED_LINES; ++i) {
+    for (int i = 0; i < FPGA_N_DASHED_LINES; ++i) {
       const double x0 = WORLD.left()   + (i % cols) * cell_w;
       const double y0 = WORLD.bottom() + (i / cols) * cell_h;
       g->draw_line({x0, y0}, {x0 + cell_w, y0 + cell_h});
@@ -509,7 +509,7 @@ static std::string label_to_filename(const char *label, const char *renderer_nam
 }
 
 static const TestCase TESTS[] = {
-    { "vpr complex scene",  vpr_complex_scene,  VPR_N_FILL_RECTS },
+    { "fpga complex scene",  fpga_complex_scene,  FPGA_N_FILL_RECTS },
     //{ "clb tile grid",      draw_clb_tile_scene,            CLB_TILE_COUNT },
     // { "variadic rects",    draw_rectangles_variadic,         1'000 },
     //{ "variadic lines",    draw_lines_variadic,         1'000'000 },

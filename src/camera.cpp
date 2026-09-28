@@ -87,6 +87,12 @@ point2d camera::widget_to_world(point2d widget_coordinates) const
  * Some X11 implementations overflow with sufficiently large pixel
  * coordinates and start drawing strangely. We will clip all pixels
  * to lie in the range below.
+ *
+ * Note: this is left over from the previous (X11) implementation; for Qt
+ * this is probably no longer the case, but that has not been verified.
+ *
+ * TODO: verify whether Qt's painters suffer from this; if not, remove the
+ * clamp (and the MAXPIXEL/MINPIXEL macros) entirely.
  */
 #define MAXPIXEL 10000.0
 #define MINPIXEL -10000.0
