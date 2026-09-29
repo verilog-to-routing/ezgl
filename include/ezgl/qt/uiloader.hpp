@@ -76,9 +76,10 @@ extern const char* const kEzglPopupForProperty;
  * Replace placeholder widgets by the real ezgl widget types.
  *
  * Walks @p root looking for widgets tagged with kEzglWidgetClassProperty. Each
- * one is destroyed and a real widget put in its place, keeping the objectName
- * (so application::find_widget still resolves it), its position in the parent
- * layout, its stacking order, and any size policy the form set explicitly.
+ * one is destroyed and a real widget put in its layout cell, keeping the
+ * objectName (so application::find_widget still resolves it) and any size
+ * policy the form set explicitly. A placeholder must be in a layout; one that
+ * is not is reported as an error and left alone.
  *
  * A canvas placeholder becomes an RhiCanvasWidget when @p renderer_kind is
  * renderer_type::rhi, and a DrawingAreaWidget otherwise. An unset

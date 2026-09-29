@@ -6,9 +6,7 @@
 #include "ezgl/qt/switchbutton.hpp"
 
 #include <QAbstractButton>
-#include <QDir>
 #include <QFile>
-#include <QFileInfo>
 #include <QLayout>
 #include <QMainWindow>
 #include <QUiLoader>
@@ -43,85 +41,22 @@ QWidget* make_ezgl_widget(const QString& class_name,
   return nullptr;
 }
 
-// Carry across the state the real widget cannot rediscover for itself.
+// Put `real` in `placeholder`'s cell of `layout`, keeping its name.
 //
-// Deliberately short: focus policy and mouse tracking are set by the canvas
-// constructors, so only what the *form* owns needs copying. Every addition
-// here is a property that would otherwise be silently lost, so keep the list
-// honest rather than convenient.
-void adopt_placeholder_state(QWidget* real, const QWidget* placeholder)
+// The size policy is copied only when the form set one. A placeholder left at
+// QWidget's default (Preferred, Preferred) means the form said nothing, and
+// copying it would clobber a policy the widget sets for itself -- SwitchButton,
+// for instance, is deliberately Fixed, and would come out stretchable.
+void replace_placeholder(QWidget* real, QWidget* placeholder, QLayout* layout)
 {
   real->setObjectName(placeholder->objectName());
-  real->setEnabled(placeholder->isEnabled());
 
-  // Only override the real widget's own size policy when the form actually
-  // asked for one. A placeholder left at QWidget's default (Preferred,
-  // Preferred) means the form said nothing, and copying it would clobber a
-  // policy the widget sets for itself -- SwitchButton, for instance, is
-  // deliberately Fixed, and would come out stretchable.
   const QSizePolicy declared = placeholder->sizePolicy();
-  const QSizePolicy widget_default(QSizePolicy::Preferred, QSizePolicy::Preferred);
-  if (declared != widget_default) {
+  if (declared != QSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred)) {
     real->setSizePolicy(declared);
   }
 
-  if (placeholder->minimumSize() != QSize(0, 0)) {
-    real->setMinimumSize(placeholder->minimumSize());
-  }
-  if (placeholder->maximumSize() != QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)) {
-    real->setMaximumSize(placeholder->maximumSize());
-  }
-}
-
-// The widget that sits directly above `w` in its parent's stacking order, or
-// nullptr if `w` is topmost. Qt derives z-order from the parent's child list,
-// so this is simply the next QWidget sibling.
-QWidget* next_in_stacking_order(QWidget* w)
-{
-  QWidget* parent = w->parentWidget();
-  if (!parent) {
-    return nullptr;
-  }
-
-  const QObjectList& siblings = parent->children();
-  for (int i = siblings.indexOf(w) + 1; i > 0 && i < siblings.size(); ++i) {
-    if (QWidget* sibling = qobject_cast<QWidget*>(siblings.at(i))) {
-      return sibling;
-    }
-  }
-  return nullptr;
-}
-
-// Put `real` where `placeholder` sat. Widgets in a layout keep their cell and
-// span via QLayout::replaceWidget; a widget positioned absolutely (legal in
-// Designer, though none of our forms do it) falls back to copying geometry.
-void take_placeholder_position(QWidget* real, QWidget* placeholder)
-{
-  QWidget* parent = placeholder->parentWidget();
-  QLayout* layout = parent ? parent->layout() : nullptr;
-
-  // Capture this before the swap: a newly constructed widget is appended to
-  // the parent's child list, which puts it at the *top* of the z-order rather
-  // than where the placeholder was. That is invisible until two widgets
-  // overlap, at which point it silently decides which one the user sees.
-  QWidget* stacked_above = next_in_stacking_order(placeholder);
-
-  if (layout) {
-    delete layout->replaceWidget(placeholder, real);
-  } else {
-    q_warning("widget %s is not in a layout; copying geometry instead",
-        qPrintable(placeholder->objectName()));
-    real->setGeometry(placeholder->geometry());
-  }
-
-  if (stacked_above) {
-    real->stackUnder(stacked_above);
-  }
-
-  // isHidden(), not isVisible(): before the window is shown every widget
-  // reports isVisible() == false, so copying that would explicitly hide the
-  // real widget and it would never appear.
-  real->setHidden(placeholder->isHidden());
+  delete layout->replaceWidget(placeholder, real);
 }
 
 } // namespace
@@ -139,8 +74,16 @@ void resolve_ezgl_widgets(QWidget* root, std::optional<renderer_type> renderer_k
       continue;
     }
 
+    QWidget* parent = placeholder->parentWidget();
+    QLayout* layout = parent ? parent->layout() : nullptr;
+    if (!layout) {
+      q_error("widget %s is not in a layout; ezgl placeholders must be; leaving it in place",
+          qPrintable(placeholder->objectName()));
+      continue;
+    }
+
     const QString class_name = marker.toString();
-    QWidget* real = make_ezgl_widget(class_name, renderer_kind, placeholder->parentWidget());
+    QWidget* real = make_ezgl_widget(class_name, renderer_kind, parent);
     if (!real) {
       q_error("unknown %s value \"%s\" on widget %s; leaving the placeholder in place",
           kEzglWidgetClassProperty,
@@ -149,8 +92,7 @@ void resolve_ezgl_widgets(QWidget* root, std::optional<renderer_type> renderer_k
       continue;
     }
 
-    adopt_placeholder_state(real, placeholder);
-    take_placeholder_position(real, placeholder);
+    replace_placeholder(real, placeholder, layout);
 
     placeholder->setParent(nullptr);
     delete placeholder;
@@ -218,9 +160,6 @@ QMainWindow* UiLoader::loadFile(const QString& uiPath)
   // widget text depend on the host locale, which breaks text assertions in
   // tests for reasons that have nothing to do with the form.
   loader.setTranslationEnabled(false);
-
-  // Relative <iconset resource="..."> paths resolve against this directory.
-  loader.setWorkingDirectory(QFileInfo(uiPath).absoluteDir());
 
   QWidget* root = loader.load(&file);
   if (!root) {
