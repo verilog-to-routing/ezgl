@@ -7,6 +7,24 @@
 
 #include <optional>
 
+/**
+ * @file uiloader.hpp
+ *
+ * @brief Builds an application's window from a Qt Designer `.ui` form at run time.
+ *
+ * Applications normally reach this through ezgl::MainWindow, not directly.
+ *
+ * Loading happens in two stages. Stock QUiLoader first builds the entire
+ * widget tree from the form. The helpers declared here then handle what a
+ * form cannot express: resolve_ezgl_widgets() replaces each placeholder
+ * tagged with kEzglWidgetClassProperty by the real ezgl widget, and
+ * apply_non_declarable_properties() makes each panel tagged with
+ * kEzglPopupForProperty a popup.
+ *
+ * Why forms use these tags, and how to write a form: README.adoc, section
+ * "EZGL widgets in a form".
+ */
+
 class QMainWindow;
 class QWidget;
 
