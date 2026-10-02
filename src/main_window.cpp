@@ -1,6 +1,6 @@
 #include "ezgl/main_window.hpp"
 
-#include "ezgl/qt/qtgladeloader.hpp"
+#include "ezgl/qt/uiloader.hpp"
 
 #include <QMainWindow>
 
@@ -11,12 +11,12 @@ namespace {
 // Resource path of the UI description loaded by the default-constructed MainWindow.
 constexpr const char* kDefaultUiPath = ":/ezgl/main.ui";
 
-// Build a QMainWindow from the UI file at path using QtGladeLoader. When a
+// Build a QMainWindow from the UI file at path using UiLoader. When a
 // renderer kind is given, it is applied to the loader (selecting the canvas
 // backend) before the file is parsed. Returns the loaded top-level window.
 QMainWindow* loadWith(const QString& path, std::optional<renderer_type> renderer_kind)
 {
-  QtGladeLoader loader;
+  UiLoader loader;
   if (renderer_kind.has_value()) {
     loader.setRendererType(*renderer_kind);
   }

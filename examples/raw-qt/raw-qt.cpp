@@ -1,12 +1,13 @@
 /*
  * Minimal raw-Qt example.
  *
- * Loads main.ui via QtGladeLoader, shows the resulting QMainWindow, and runs
+ * Loads main.ui via ezgl::UiLoader, shows the resulting QMainWindow, and runs
  * the Qt event loop. An event filter on the window logs key presses and mouse
  * button events to stdout.
  */
 
 #include <iostream>
+#include <string>
 
 #include <QApplication>
 #include <QEvent>
@@ -16,7 +17,7 @@
 #include <QMouseEvent>
 #include <QObject>
 
-#include <ezgl/qt/qtgladeloader.hpp>
+#include <ezgl/qt/uiloader.hpp>
 
 namespace {
 
@@ -58,10 +59,12 @@ protected:
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
 
-    QtGladeLoader loader;
-    QMainWindow* window = loader.loadFile(":/main.ui");
+    const char* resource = ":/main.ui";
+
+    ezgl::UiLoader loader;
+    QMainWindow* window = loader.loadFile(resource);
     if (window == nullptr) {
-        std::cerr << "Error loading UI from resource :/main.ui\n";
+        std::cerr << "Error loading UI from resource " << resource << "\n";
         return 1;
     }
 

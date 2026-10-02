@@ -103,7 +103,7 @@ using dialog_callback_fn = void (*)(QDialog* self, int response_id, application*
 /**
  * The core application.
  *
- * The GUI of an application is created from a Glade-format .ui XML file (loaded via ezgl::QtGladeLoader, which
+ * The GUI of an application is created from a Qt Designer .ui XML file (loaded via ezgl::UiLoader, which
  * materialises the described widgets as Qt widgets). Widgets created in the .ui file can be retrieved from an
  * application object via find_widget(), but only after application::run() has loaded the .ui file (UI loading is
  * deferred from the constructor to run() so that Qt resources from .qrc are registered).
