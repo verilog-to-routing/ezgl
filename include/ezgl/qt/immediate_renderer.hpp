@@ -77,7 +77,7 @@ public:
 
     /// @name Paint a surface (image) blit immediately to the QPainter.
     /// @{
-    void draw_surface(surface* p_surface, const point2d& anchor_point,
+    void draw_surface(const surface& image, const point2d& anchor_point,
                       double scale_factor = 1) override;
     /// @}
 

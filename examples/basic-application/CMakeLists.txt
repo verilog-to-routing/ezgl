@@ -24,3 +24,12 @@ target_link_libraries(
   ${PROJECT_NAME}
   PRIVATE ezgl
 )
+
+# basic_application.cpp loads small_image.png by relative path; copy it next to
+# the executable so running from the build directory finds it.
+add_custom_command(
+  TARGET ${PROJECT_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${CMAKE_CURRENT_SOURCE_DIR}/small_image.png
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>
+)

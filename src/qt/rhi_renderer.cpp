@@ -638,10 +638,10 @@ void rhi_renderer::draw_text(const point2d& point, std::string const& text,
     m_overlay_deferred->draw_text(point, text, bound_x, bound_y);
 }
 
-void rhi_renderer::draw_surface(surface* p_surface, const point2d& anchor_point,
+void rhi_renderer::draw_surface(const surface& image, const point2d& anchor_point,
                                  double scale_factor)
 {
-    m_overlay_deferred->draw_surface(p_surface, anchor_point, scale_factor);
+    m_overlay_deferred->draw_surface(image, anchor_point, scale_factor);
 }
 
 // ---- frame lifecycle -------------------------------------------------------
