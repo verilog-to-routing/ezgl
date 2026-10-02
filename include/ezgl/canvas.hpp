@@ -104,7 +104,7 @@ public:
   }
 
   /**
-   * Set the rendering backend type. Must be called before application::run().
+   * Set the rendering backend type. Must be called before application::build_ui() or the first application::run().
    */
   void set_renderer_type(renderer_type t)
   {
