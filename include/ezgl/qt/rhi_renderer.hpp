@@ -286,6 +286,10 @@ public:
     /// without rebuilding any geometry.
     void flush_mvp_only();
 
+    inline immediate_renderer* get_immediate_renderer() {
+        return m_immediate_renderer.get();
+    }
+
 private:
     /// Side length, in tiles, of the square screen-space tiling grid. The scene
     /// is binned into @c kTileGridDimension × @c kTileGridDimension tiles so that

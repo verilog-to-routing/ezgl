@@ -85,6 +85,13 @@ public:
      */
     void redraw_at_view_change(view_change_reason reason) override;
 
+    /// Camera-only redraw: performs a MVP transformation via @ref rhi_renderer::flush_mvp_only() instead of
+    /// calling the expensive @ref redraw(). Always flushes immediately; it is not deferred
+    /// while redrawing is suspended (@ref suspend_redraw / @ref resume_redraw) — only @ref on_resize defers.
+    void redraw_camera_only();
+
+    void redraw_immediate_only() override;
+
     /**
      * @brief Determine if the cached geometry is valid to reuse for a camera-only redraw after a view change.
      * 
@@ -93,11 +100,6 @@ public:
      * @return Return true to indicate the geometry can be reused. Return false otherwise.
      */
     bool valid_to_reuse_geometry(view_change_reason reason);
-
-    /// Camera-only redraw: performs a MVP transformation via @ref rhi_renderer::flush_mvp_only() instead of
-    /// calling the expensive @ref redraw(). Always flushes immediately; it is not deferred
-    /// while redrawing is suspended (@ref suspend_redraw / @ref resume_redraw) — only @ref on_resize defers.
-    void redraw_camera_only();
 
     /// Suspend redrawing. While suspended, @ref on_resize records a pending
     /// redraw instead of flushing, so a burst of show/resize events during

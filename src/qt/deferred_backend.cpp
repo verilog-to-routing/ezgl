@@ -43,6 +43,9 @@ void deferred_backend::recreate_surface()
     m_painter = new Painter(m_surface);
     m_painter->setAntialias(false);
     m_painter->setSmoothPixmap(false);
+    if (m_renderer) {
+        m_renderer->set_painter(m_painter);
+    }
 }
 
 void deferred_backend::redraw()
@@ -55,9 +58,12 @@ void deferred_backend::redraw()
                               m_background_color.blue  / 255.0);
     m_painter->paint();
 
-    deferred_renderer g(m_painter, m_camera);
-    m_draw_persistent_callback(&g);
-    g.flush();
+    if(!m_renderer) {
+        m_renderer = std::make_unique<deferred_renderer>(m_painter, m_camera);
+    }
+    m_draw_persistent_callback(m_renderer.get());
+    redraw_immediate_only();
+    m_renderer->flush();
 
     m_drawing_area->update();
     q_debug("The canvas will be redrawn (deferred path).");
@@ -70,16 +76,19 @@ void deferred_backend::redraw_at_view_change(view_change_reason /*reason*/)
 
 void deferred_backend::on_resize(int /*w*/, int /*h*/)
 {
-    if (m_painter) {
-        delete m_painter;
-        m_painter = nullptr;
-    }
     recreate_surface();
     if (!m_painter)
         return;
     redraw();
     if (m_animation_renderer)
         m_animation_renderer->set_painter(m_painter);
+}
+
+void deferred_backend::redraw_immediate_only()
+{
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer.get());
+    }
 }
 
 renderer* deferred_backend::create_animation_renderer()

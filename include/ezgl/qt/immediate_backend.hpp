@@ -49,6 +49,7 @@ public:
     /// @name The immediate path holds no scene cache, so fall through to a full redraw.
     /// @{
     void redraw_at_view_change(view_change_reason /*reason*/) override;
+    void redraw_immediate_only() override;
     /// @}
     /// @name Tear down the Painter and renderer, pull a fresh surface from the DrawingAreaWidget, and redraw (w / h unused — the widget supplies the resized surface).
     /// @{

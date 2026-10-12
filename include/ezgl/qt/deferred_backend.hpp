@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ezgl/qt/render_backend.hpp"
+#include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/camera.hpp"
 #include "ezgl/color.hpp"
 
@@ -51,6 +52,8 @@ public:
     /// and rebinds the animation renderer's painter. @see render_backend::on_resize
     void on_resize(int w, int h) override;
 
+    void redraw_immediate_only() override;
+
     /// Lazily creates an immediate_renderer (sharing this backend's Painter and
     /// camera) for animation overlays, reusing it on later calls.
     /// @see render_backend::create_animation_renderer
@@ -73,6 +76,7 @@ private:
 
     QImage*   m_surface            = nullptr; ///< Off-screen render target; owned by the DrawingAreaWidget, not freed here.
     Painter*  m_painter            = nullptr; ///< Painter wrapping m_surface; owned, recreated on resize, deleted in dtor.
+    std::unique_ptr<deferred_renderer> m_renderer = nullptr; ///< Deferred renderer; owned, recreated on resize.
     renderer* m_animation_renderer = nullptr; ///< Lazily created overlay renderer; owned, deleted in dtor.
 };
 

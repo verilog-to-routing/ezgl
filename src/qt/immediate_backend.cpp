@@ -84,6 +84,13 @@ void immediate_backend::on_resize(int /*w*/, int /*h*/)
     redraw();
 }
 
+void immediate_backend::redraw_immediate_only()
+{
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer);
+    }
+}
+
 renderer* immediate_backend::create_animation_renderer()
 {
     return m_renderer;
