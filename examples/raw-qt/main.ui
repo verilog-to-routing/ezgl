@@ -1,50 +1,76 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" ?>
+<ui version="4.0">
+ <!--
+   Qt Designer form, editable in `designer`.
 
-<interface>
-    <!-- IMPORTANT: EZGL applications must have a GtkWindow with the id MainWindow. -->
-    <object id="MainWindow" class="GtkWindow">
-        <!-- A GtkWindow can be customized with many properties.
-        To see all of them, check out Property Details at https://developer.gnome.org/gtk3/stable/GtkWindow.html -->
-
-        <!-- Give the window a title. -->
-        <property name="title">EZGL Example Application</property>
-
-        <!-- True to make the window visible on launch, false otherwise. -->
-        <property name="visible">True</property>
-
-        <!-- The width of the window when it is initially created. -->
-        <property name="default-width">800</property>
-        <!-- The height of the window when it is initially created. -->
-        <property name="default-height">600</property>
-
-        <!-- A GtkWindow can only have one child, so we need to use GtkGrid or GtkBox to manage multiple children. -->
-        <child>
-            <object class="GtkGrid" id="OuterGrid">
-                <property name="visible">True</property>
-
-                <!-- IMPORTANT: EZGL Applications must have a GtkDrawingArea with the id MainCanvas. -->
-                <child>
-                    <object id="MainCanvas" class="GtkDrawingArea">
-                        <property name="visible">True</property>
-
-                        <!-- Expand the size of the canvas to match what the GtkGrid gives us. -->
-                        <property name="hexpand">True</property>
-                        <property name="vexpand">True</property>
-                    </object>
-                </child>
-                <child>
-                    <object id="MyButton" class="GtkButton">
-                        <property name="label" translatable="yes">Hello, World!</property>
-                        <property name="use_action_appearance">False</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="use_action_appearance">False</property>
-                    </object>
-                </child>
-            </object>
-        </child>
-
-
-    </object>
-</interface>
+   Two rules every EZGL form must follow:
+     * a QMainWindow named MainWindow, and a QStatusBar named StatusBar
+     * a canvas placeholder (see MainCanvas below)
+ -->
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string notr="true">EZGL Example Application</string>
+  </property>
+  <widget class="QWidget" name="OuterGrid">
+   <layout class="QGridLayout" name="OuterGridLayout">
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <item row="0" column="0" rowspan="1" colspan="1">
+     <!--
+       The canvas. A .ui file can only name widget classes that Qt ships, so
+       EZGL's drawing area is declared as a plain QWidget carrying the
+       ezglWidgetClass tag. ezgl::UiLoader swaps in the real widget when the
+       form loads: a DrawingAreaWidget, or an RhiCanvasWidget under the rhi
+       renderer. stdset="0" marks it a dynamic property, which is how a form
+       carries information Qt itself knows nothing about.
+     -->
+     <widget class="QWidget" name="MainCanvas">
+      <property name="ezglWidgetClass" stdset="0">
+       <string>DrawingAreaWidget</string>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="0" rowspan="1" colspan="1">
+     <widget class="QPushButton" name="MyButton">
+      <property name="text">
+       <string>Hello, World!</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <!-- Required: application::update_message writes here, and a form must
+       declare it explicitly. -->
+  <widget class="QStatusBar" name="StatusBar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

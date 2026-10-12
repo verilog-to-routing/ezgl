@@ -127,7 +127,7 @@ struct DeferredTextCommand {
 /// A deferred image-surface blit, replayed during flush.
 struct DeferredSurfaceCommand {
     DeferredPainterState state;             ///< Painter state captured at record time.
-    surface*             p_surface = nullptr;///< Image to draw (not owned).
+    surface              image;              ///< Copy of the image to draw (QImage is implicitly shared, so copying is cheap).
     point2d              anchor_point;       ///< Anchor position, placed per the state's justification.
     double               scale_factor = 1.0; ///< Uniform scale applied to the surface.
 };
@@ -321,7 +321,7 @@ public:
     /// @}
     /// @name Record a surface (image) blit as a deferred command.
     /// @{
-    void draw_surface(surface* p_surface, const point2d& anchor_point,
+    void draw_surface(const surface& image, const point2d& anchor_point,
                       double scale_factor = 1) override;
     /// @}
 
@@ -369,7 +369,7 @@ private:
                              const std::string& text,
                              double bound_x,
                              double bound_y) const;
-    bool screen_surface_visible(surface *p_surface,
+    bool screen_surface_visible(const surface& image,
                                 const point2d& point,
                                 double scale_factor) const;
     /// @}
@@ -444,7 +444,7 @@ private:
     bool world_arc_visible(const point2d& center, double radius_x, double radius_y);
     bool world_text_visible(const point2d& point, const std::string& text,
                             double bound_x, double bound_y);
-    bool world_surface_visible(surface* p_surface, const point2d& point, double scale_factor);
+    bool world_surface_visible(const surface& image, const point2d& point, double scale_factor);
 
     /// @name Build the batch lookup key for the current line / fill state.
     /// @{

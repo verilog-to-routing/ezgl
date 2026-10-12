@@ -155,9 +155,10 @@ int main(int argc, char **argv)
   // Note: the "main.ui" file has a top-level window called "MainWindow".
   settings.window_identifier = "MainWindow";
 
-  // Note: the "main.ui" file has a GtkDrawingArea called "MainCanvas"
-  // (materialised at runtime as DrawingAreaWidget or RhiCanvasWidget,
-  // depending on the chosen renderer backend).
+  // Note: the "main.ui" file has a canvas placeholder called "MainCanvas".
+  // The form declares it as a plain QWidget tagged with the ezglWidgetClass
+  // property; ezgl::UiLoader replaces it at load time with a
+  // DrawingAreaWidget, or an RhiCanvasWidget under the rhi renderer.
   settings.canvas_identifier = "MainCanvas";
 
   // Create our EZGL application.
@@ -581,9 +582,8 @@ void screen_coordinates_example(ezgl::renderer *g)
  */
 void draw_png_example(ezgl::renderer *g)
 {
-  ezgl::surface *png_surface = ezgl::renderer::load_png("small_image.png");
+  ezgl::surface png_surface = ezgl::renderer::load_png("small_image.png");
   g->draw_surface(png_surface, {50, 200});
-  ezgl::renderer::free_surface(png_surface);
 
   g->set_font_size(10);
   g->set_color(ezgl::BLACK);

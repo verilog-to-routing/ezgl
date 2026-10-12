@@ -19,7 +19,7 @@ link:doc/renderers.md[doc/renderers.md] for the trade-offs, and the
 
 == Dependencies
 
-The library requires Qt 6.9.3 or newer: the Core, Gui, Widgets, Xml, and Svg
+The library requires Qt 6.9.3 or newer: the Core, Gui, Widgets, Svg, and UiTools
 modules, plus Qt's private GUI headers (`Qt6::GuiPrivate`), which is where the
 QRhi classes used by the `rhi` backend live.
 
@@ -29,6 +29,50 @@ The RHI renderer's shaders are baked from GLSL to `.qsb` at build time.
 
   pip install aqtinstall==3.3.0
   aqt install-qt linux desktop 6.9.3 linux_gcc_64 -m qtshadertools --outputdir $HOME/qt6
+
+== User interface forms
+
+The window layout is described by a Qt Designer `.ui` file that EZGL loads at
+run time, named by `application::settings::main_ui_resource`. Edit it in
+`designer`.
+
+=== EZGL widgets in a form
+
+Some widgets cannot be written into the form directly:
+
+* The canvas widget class depends on the renderer chosen when the application
+  starts (see the table below). A `.ui` file names one fixed class, so it
+  cannot pick the right one in advance.
+* Qt Designer, and the `QUiLoader` that builds the window from the form, only
+  create Qt's own widget classes; EZGL registers no Designer plugins for its
+  own. So EZGL's `DrawingAreaWidget` and `SwitchButton` cannot be named there.
+* A popup panel needs a popup window flag and a link to the button that opens
+  it. A form can store neither.
+
+So the form declares a placeholder widget and marks it with a tag, and EZGL
+creates or sets up the real widget right after loading the form. A tag is a dynamic
+property: add it in Designer's Property Editor with *+ > String...* (the `.ui`
+file records it as `stdset="0"`).
+
+`ezglWidgetClass`:: Set on a plain `QWidget` placeholder that EZGL replaces
+with its own widget. The tag value names the widget; for the canvas, the widget
+EZGL creates also depends on the renderer, set with `canvas::set_renderer_type`
+before the window is built:
++
+[cols="1,2,1",options="header"]
+|===
+| Tag value | Renderer | Widget created
+| `DrawingAreaWidget` | `immediate` | `DrawingAreaWidget`
+| `DrawingAreaWidget` | `deferred` | `DrawingAreaWidget`
+| `DrawingAreaWidget` | `rhi`, or not set (the default) | `RhiCanvasWidget`
+| `SwitchButton` | any | `SwitchButton`
+|===
+
+`ezglPopupFor`:: Set on a panel to make it a popup opened by a button. The
+value is that button's `objectName`.
+
+Every EZGL form must also contain a `QMainWindow`, a canvas placeholder, and a
+`QStatusBar` named `StatusBar`.
 
 == Compilation
 

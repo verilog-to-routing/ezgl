@@ -459,15 +459,15 @@ void irenderer::paint_text(const point2d& point, const std::string& text,
     m_painter->restore();
 }
 
-void irenderer::paint_surface(surface* p_surface, const point2d& anchor, double scale_factor)
+void irenderer::paint_surface(const surface& image, const point2d& anchor, double scale_factor)
 {
-    if (p_surface == nullptr || p_surface->isNull()) {
-        q_warning("draw_surface: null/invalid surface at %p", (void*)p_surface);
+    if (image.isNull()) {
+        q_warning("draw_surface: null/invalid surface");
         return;
     }
 
-    double s_width  = double(p_surface->width())  * scale_factor;
-    double s_height = double(p_surface->height()) * scale_factor;
+    double s_width  = double(image.width())  * scale_factor;
+    double s_height = double(image.height()) * scale_factor;
     if (current_coordinate_system == WORLD) {
         s_width  *= m_camera->get_world_scale_factor().x;
         s_height *= m_camera->get_world_scale_factor().y;
@@ -493,27 +493,21 @@ void irenderer::paint_surface(surface* p_surface, const point2d& anchor, double 
         top_left.x /= scale_factor;
         top_left.y /= scale_factor;
     }
-    m_painter->set_source_surface(p_surface, top_left.x, top_left.y);
-    m_painter->paint();
+    m_painter->set_source_surface(image, top_left.x, top_left.y);
     if (scale_factor != 1.0)
         m_painter->restore();
 }
 
 // ---- Static utility methods (irenderer) -------------------------------------
 
-surface* irenderer::load_png(const char* file_path)
+surface irenderer::load_png(const char* file_path)
 {
-    QImage* image = new QImage;
+    surface image;
     if (!QFile::exists(QString::fromLatin1(file_path)))
         q_warning("load_png: file %s not found", file_path);
-    if (!image->load(QString::fromLatin1(file_path)))
+    if (!image.load(QString::fromLatin1(file_path)))
         q_warning("load_png: error loading %s", file_path);
     return image;
-}
-
-void irenderer::free_surface(surface* p_surface)
-{
-    delete p_surface;
 }
 
 } // namespace ezgl

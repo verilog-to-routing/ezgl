@@ -402,32 +402,24 @@ public:
      * Draw a previously loaded image surface, anchored at a point according to
      * the current justification.
      *
-     * @param p_surface    The surface to draw (see load_png).
+     * @param image        The surface to draw (see load_png); a null image is
+     *                     skipped with a warning.
      * @param anchor_point Position the surface is anchored to.
      * @param scale_factor Uniform scale applied to the surface; 1 draws it at
      *                     its native size.
      */
-    virtual void draw_surface(surface* p_surface, const point2d& anchor_point,
+    virtual void draw_surface(const surface& image, const point2d& anchor_point,
                               double scale_factor = 1) = 0;
 
     /**
      * Load a PNG image from disk into a surface that can be drawn with
-     * draw_surface. The caller owns the returned surface and must release it
-     * with free_surface.
+     * draw_surface.
      *
      * @param file_path Path to the PNG file.
-     * @return A newly allocated surface; never null, but the load is only
-     *         logged (not signalled) on failure, so a missing or invalid file
-     *         yields an empty surface.
+     * @return The loaded surface. A missing or invalid file is only logged
+     *         (not signalled), and yields a null surface.
      */
-    static surface* load_png(const char* file_path);
-
-    /**
-     * Free a surface previously returned by load_png.
-     *
-     * @param p_surface The surface to release.
-     */
-    static void free_surface(surface* p_surface);
+    static surface load_png(const char* file_path);
 
     /**
      * Rebind this renderer to a (possibly new) painter and re-apply the cached
@@ -549,11 +541,11 @@ protected:
     /**
      * Draw an image surface, applying justification and scaling.
      *
-     * @param p_surface   The surface to draw.
+     * @param image       The surface to draw; a null image is skipped with a warning.
      * @param anchor      Anchor position for the surface.
      * @param scale_factor Uniform scale applied to the surface.
      */
-    void paint_surface(surface* p_surface, const point2d& anchor, double scale_factor);
+    void paint_surface(const surface& image, const point2d& anchor, double scale_factor);
 };
 
 /**

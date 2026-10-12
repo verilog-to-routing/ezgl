@@ -173,10 +173,10 @@ public:
   /// Blits @p surface onto the target image at (@p x, @p y). Mirrors Cairo's
   /// @c cairo_set_source_surface (the image is painted immediately, not stored
   /// as a deferred source).
-  /// @param surface Image to draw (not owned).
+  /// @param surface Image to draw.
   /// @param x       Destination x in device pixels.
   /// @param y       Destination y in device pixels.
-  void set_source_surface(QImage* surface, double x, double y);
+  void set_source_surface(const QImage& surface, double x, double y);
 
   /// Discards the current path, starting a fresh empty one.
   void new_path();
