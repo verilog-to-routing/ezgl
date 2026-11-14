@@ -90,7 +90,7 @@ public:
     /// while redrawing is suspended (@ref suspend_redraw / @ref resume_redraw) — only @ref on_resize defers.
     void redraw_camera_only();
 
-    void redraw_immediate_only() override;
+    void draw_immediate_elements() override;
 
     /**
      * @brief Determine if the cached geometry is valid to reuse for a camera-only redraw after a view change.

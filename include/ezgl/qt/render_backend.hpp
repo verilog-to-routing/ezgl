@@ -131,7 +131,7 @@ public:
      */
     virtual void redraw_at_view_change(view_change_reason reason) = 0;
 
-    virtual void redraw_immediate_only() = 0;
+    virtual void draw_immediate_elements() = 0;
 
     /// Suspend redrawing around scene setup (optional; honoured only by RHI).
     ///

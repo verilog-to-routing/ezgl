@@ -43,7 +43,7 @@ void rhi_backend::redraw()
     }
 
     m_draw_persistent_callback(m_renderer.get());
-    redraw_immediate_only();
+    draw_immediate_elements();
     m_renderer->flush();
 
     m_is_redraw_suspended        = false;
@@ -79,7 +79,7 @@ bool rhi_backend::valid_to_reuse_geometry(view_change_reason reason)
 
 void rhi_backend::redraw_camera_only() {
     if (m_renderer && m_has_drawn_frame) {
-        redraw_immediate_only();
+        draw_immediate_elements();
         m_renderer->flush_mvp_only();
         m_is_redraw_requested        = false;
         m_is_camera_update_requested = false;
@@ -89,7 +89,7 @@ void rhi_backend::redraw_camera_only() {
     }
 }
 
-void rhi_backend::redraw_immediate_only()
+void rhi_backend::draw_immediate_elements()
 {
     if (m_draw_immediate_callback) {
         m_draw_immediate_callback(m_renderer->get_immediate_renderer());

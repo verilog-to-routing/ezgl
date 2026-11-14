@@ -52,7 +52,7 @@ public:
     /// and rebinds the animation renderer's painter. @see render_backend::on_resize
     void on_resize(int w, int h) override;
 
-    void redraw_immediate_only() override;
+    void draw_immediate_elements() override;
 
     /// Lazily creates an immediate_renderer (sharing this backend's Painter and
     /// camera) for animation overlays, reusing it on later calls.

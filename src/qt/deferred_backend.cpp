@@ -62,7 +62,7 @@ void deferred_backend::redraw()
         m_renderer = std::make_unique<deferred_renderer>(m_painter, m_camera);
     }
     m_draw_persistent_callback(m_renderer.get());
-    redraw_immediate_only();
+    draw_immediate_elements();
     m_renderer->flush();
 
     m_drawing_area->update();
@@ -84,7 +84,7 @@ void deferred_backend::on_resize(int /*w*/, int /*h*/)
         m_animation_renderer->set_painter(m_painter);
 }
 
-void deferred_backend::redraw_immediate_only()
+void deferred_backend::draw_immediate_elements()
 {
     if (m_draw_immediate_callback) {
         m_draw_immediate_callback(m_renderer.get());
