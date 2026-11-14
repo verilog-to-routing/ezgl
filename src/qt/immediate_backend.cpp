@@ -84,7 +84,7 @@ void immediate_backend::on_resize(int /*w*/, int /*h*/)
     redraw();
 }
 
-void immediate_backend::draw_immediate_elements()
+void immediate_backend::draw_immediate_overlay()
 {
     if (m_draw_immediate_callback) {
         m_draw_immediate_callback(m_renderer);

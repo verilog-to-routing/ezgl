@@ -379,6 +379,11 @@ rhi_renderer::rhi_renderer(RhiCanvasWidget* widget,
     set_painter(&m_persistent_overlay_painter);
     m_persistent_overlay_painter.setAntialias(false);
     m_persistent_overlay_painter.setSmoothPixmap(false);
+
+    m_immediate_overlay.setDevicePixelRatio(m_overlay_dpr);
+    m_immediate_overlay.fill(Qt::transparent);
+    m_immediate_overlay_painter.setAntialias(false);
+    m_immediate_overlay_painter.setSmoothPixmap(false);
 }
 
 rhi_renderer::rhi_renderer(QSize            size,
@@ -414,6 +419,10 @@ rhi_renderer::rhi_renderer(QSize            size,
     set_painter(&m_persistent_overlay_painter);
     m_persistent_overlay_painter.setAntialias(false);
     m_persistent_overlay_painter.setSmoothPixmap(false);
+
+    m_immediate_overlay.fill(Qt::transparent);
+    m_immediate_overlay_painter.setAntialias(false);
+    m_immediate_overlay_painter.setSmoothPixmap(false);
 }
 
 // ---- irenderer: coordinate system / viewport ------------------------------

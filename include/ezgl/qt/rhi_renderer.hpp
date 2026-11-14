@@ -286,7 +286,7 @@ public:
     /// without rebuilding any geometry.
     void flush_mvp_only();
 
-    inline immediate_renderer* get_immediate_renderer() {
+    immediate_renderer* get_immediate_renderer() {
         return m_immediate_renderer.get();
     }
 
