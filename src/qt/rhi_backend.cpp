@@ -43,7 +43,9 @@ void rhi_backend::redraw()
     }
 
     m_draw_persistent_callback(m_renderer.get());
-    draw_immediate_overlay();
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer->get_immediate_renderer());
+    }
     m_renderer->flush();
 
     m_is_redraw_suspended        = false;
@@ -79,18 +81,13 @@ bool rhi_backend::valid_to_reuse_geometry(view_change_reason reason)
 
 void rhi_backend::redraw_camera_only() {
     m_renderer->begin_overlays_frames();
-    draw_immediate_overlay();
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer->get_immediate_renderer());
+    }
     m_renderer->flush_mvp_only();
     m_is_redraw_requested        = false;
     m_is_camera_update_requested = false;
     q_debug("The canvas overlay+MVP are updated (camera-only RHI path).");
-}
-
-void rhi_backend::draw_immediate_overlay()
-{
-    if (m_draw_immediate_callback) {
-        m_draw_immediate_callback(m_renderer->get_immediate_renderer());
-    }
 }
 
 void rhi_backend::suspend_redraw()

@@ -167,7 +167,7 @@ int main(int argc, char **argv)
   // visualization graphics are drawn. Set the callback function that will be
   // called when the main window needs redrawing, and define the (world)
   // coordinate system we want to draw in.
-  ezgl::canvas *c = application.add_canvas("MainCanvas", draw_main_canvas, initial_world);
+  ezgl::canvas *c = application.add_canvas("MainCanvas", draw_main_canvas, [](ezgl::renderer*) noexcept {}, initial_world);
   if (renderer.has_value())
     c->set_renderer_type(*renderer);
 

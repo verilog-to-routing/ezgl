@@ -60,6 +60,9 @@ void immediate_backend::redraw()
     m_painter->paint();
 
     m_draw_persistent_callback(m_renderer);
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer);
+    }
 
     m_drawing_area->update();
     q_debug("The canvas will be redrawn (immediate path).");
@@ -84,13 +87,6 @@ void immediate_backend::on_resize(int /*w*/, int /*h*/)
     redraw();
 }
 
-void immediate_backend::draw_immediate_overlay()
-{
-    if (m_draw_immediate_callback) {
-        m_draw_immediate_callback(m_renderer);
-    }
-}
-
 renderer* immediate_backend::create_animation_renderer()
 {
     return m_renderer;
@@ -107,6 +103,9 @@ QImage immediate_backend::render_to_image(int w, int h)
 
     immediate_renderer g(&painter, m_camera);
     m_draw_persistent_callback(&g);
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(&g);
+    }
     return surface;
 }
 

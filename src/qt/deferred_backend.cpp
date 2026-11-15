@@ -62,7 +62,9 @@ void deferred_backend::redraw()
         m_renderer = std::make_unique<deferred_renderer>(m_painter, m_camera);
     }
     m_draw_persistent_callback(m_renderer.get());
-    draw_immediate_overlay();
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer.get());
+    }
     m_renderer->flush();
 
     m_drawing_area->update();
@@ -84,13 +86,6 @@ void deferred_backend::on_resize(int /*w*/, int /*h*/)
         m_animation_renderer->set_painter(m_painter);
 }
 
-void deferred_backend::draw_immediate_overlay()
-{
-    if (m_draw_immediate_callback) {
-        m_draw_immediate_callback(m_renderer.get());
-    }
-}
-
 renderer* deferred_backend::create_animation_renderer()
 {
     if (!m_animation_renderer) {
@@ -110,6 +105,9 @@ QImage deferred_backend::render_to_image(int w, int h)
 
     deferred_renderer g(&painter, m_camera);
     m_draw_persistent_callback(&g);
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(&g);
+    }
     g.flush();
     return surface;
 }
