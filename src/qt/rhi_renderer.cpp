@@ -660,14 +660,6 @@ void rhi_renderer::draw_surface(const surface& image, const point2d& anchor_poin
     m_deferred_renderer->draw_surface(image, anchor_point, scale_factor);
 }
 
-/*
-void rhi_renderer::refresh_overlay_dim() {
-    if (m_rhi_widget) {
-        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
-        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
-    }
-}
-*/
 // ---- frame lifecycle -------------------------------------------------------
 
 void rhi_renderer::begin_frame()
