@@ -179,7 +179,11 @@ protected:
   /**
    * Create a canvas that can be drawn to.
    */
-  canvas(std::string canvas_id, draw_canvas_persistent_fn draw_persistent_callback, rectangle coordinate_system, color background_color);
+  canvas(std::string canvas_id,
+        draw_canvas_persistent_fn draw_persistent_callback,
+        draw_canvas_immediate_fn draw_immediate_callback,
+        rectangle coordinate_system,
+        color background_color);
 
   /**
    * Lazy initialization of the canvas class.

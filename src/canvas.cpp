@@ -161,10 +161,12 @@ void canvas::draw_offscreen(int output_width, int output_height)
 
 canvas::canvas(std::string canvas_id,
                draw_canvas_persistent_fn draw_persistent_callback,
+               draw_canvas_immediate_fn draw_immediate_callback,
                rectangle coordinate_system,
                color background_color)
     : m_canvas_id(std::move(canvas_id))
     , m_draw_persistent_callback(draw_persistent_callback)
+    , m_draw_immediate_callback(draw_immediate_callback)
     , m_camera(coordinate_system)
     , m_background_color(background_color)
 {
