@@ -103,7 +103,8 @@ public:
         SceneBuffers scene;         ///< CPU-side geometry to upload and draw on the offscreen GPU.
         QMatrix4x4   mvp;           ///< World→clip transform for this frame.
         rectangle    visible_world; ///< Visible world rect, used for chunk culling during the offscreen draw.
-        QImage       overlay;       ///< Pre-rendered text/surface overlay composited over the GPU frame.
+        QImage       persistent_overlay;       ///< Pre-rendered text/surface persistent overlay composited over the GPU frame.
+        QImage       immediate_overlay;
         QColor       bg;            ///< Background clear color.
     };
 
@@ -505,11 +506,11 @@ private:
 
     /// (Re)create the overlay QImage at the current size/DPR, clear it to
     /// transparent, and begin its painter so overlay draw calls can paint.
-    void begin_overlay_frame();
+    void begin_persistent_overlay_frame();
     /// Rebuild the overlay layer by replaying the cached deferred overlay
     /// commands (text/arcs/surfaces) without re-running the draw callback;
     /// used by the camera-only redraw path.
-    void render_cached_overlay();
+    void render_cached_persistent_overlay();
     /// Allocate/resize the tile grid and recompute each tile's world bounds
     /// for the current visible world.
     void ensure_tile_grid();
@@ -547,7 +548,7 @@ private:
 
     RhiCanvasWidget*         m_rhi_widget; ///< null in headless mode
     QSize                    m_size;       ///< logical (device-independent) framebuffer size
-    qreal                    m_overlay_dpr = 1.0; ///< overlay QImage device pixel ratio (matches widget DPR; 1.0 headless)
+    qreal                    m_overlay_dpr = 1.0; ///< Overlay QImage device pixel ratio (matches widget DPR; 1.0 headless)
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
     std::uint32_t            m_current_rgba = 0;

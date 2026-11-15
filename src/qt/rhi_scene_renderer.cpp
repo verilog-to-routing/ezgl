@@ -416,8 +416,8 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
             int(std::max<std::size_t>(kInitialStyleUniformBufferBytes,
                                       std::size_t(rhi->ubufAlignment())))));
         fr.style_ubuf->create();
-        fr.overlay_tex.reset(rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1)));
-        fr.overlay_tex->create();
+        fr.persistent_overlay_tex.reset(rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1)));
+        fr.persistent_overlay_tex->create();
         fr.thin_line_vbufs.clear();
         fr.fill_rect_instance_vbufs.clear();
         fr.fill_poly_vbufs.clear();
@@ -450,19 +450,19 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
         });
         fr.srb->create();
 
-        fr.overlay_srb.reset(rhi->newShaderResourceBindings());
-        fr.overlay_srb->setBindings({
+        fr.persistent_overlay_srb.reset(rhi->newShaderResourceBindings());
+        fr.persistent_overlay_srb->setBindings({
             QRhiShaderResourceBinding::sampledTexture(
                 0, QRhiShaderResourceBinding::FragmentStage,
-                fr.overlay_tex.get(), m_overlay_sampler.get())
+                fr.persistent_overlay_tex.get(), m_overlay_sampler.get())
         });
-        fr.overlay_srb->create();
+        fr.persistent_overlay_srb->create();
     }
 
     // Build pipelines — use the first frame's SRBs as the template.
     // Qt RHI clones the layout so per-frame SRBs can be swapped in at draw time.
     auto* geom_srb    = m_frame_resources.front().srb.get();
-    auto* over_srb    = m_frame_resources.front().overlay_srb.get();
+    auto* persistent_overlay_srb    = m_frame_resources.front().persistent_overlay_srb.get();
     buildPipeline(rhi, m_line_pso, QRhiGraphicsPipeline::Lines,
                   base_vs, base_fs, geom_srb, rp_desc);
     buildFillRectPipeline(rhi, m_fill_rect_pso,
@@ -476,7 +476,7 @@ void RhiSceneRenderer::initialize(QRhi* rhi, QRhiRenderPassDescriptor* rp_desc)
     buildArrowPipeline(rhi, m_arrow_pso,
                        arrow_vs, base_fs, geom_srb, rp_desc);
     buildOverlayPipeline(rhi, m_overlay_pso,
-                         overlay_vs, overlay_fs, over_srb, rp_desc);
+                         overlay_vs, overlay_fs, persistent_overlay_srb, rp_desc);
 
     m_initialized = true;
 }
@@ -489,7 +489,8 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
                                const std::shared_ptr<const SceneBuffers>& scene,
                                const QMatrix4x4&                          mvp,
                                const rectangle&                           visible_world,
-                               const QImage&                              overlay_in,
+                               const QImage&                              persistent_overlay_in,
+                               const QImage&                              immediate_overlay_in,
                                QColor                                     bg)
 {
     if (!m_initialized || m_frame_resources.empty())
@@ -512,10 +513,15 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
 
     FrameResources& fr = m_frame_resources[std::size_t(frame_slot)];
 
-    QImage overlay = overlay_in;
-    const bool has_overlay = !overlay.isNull();
-    if (has_overlay)
-        overlay = overlay.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
+    QImage persistent_overlay = persistent_overlay_in;
+    const bool has_persistent_overlay = !persistent_overlay.isNull();
+    if (has_persistent_overlay)
+        persistent_overlay = persistent_overlay.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
+
+    QImage immediate_overlay = immediate_overlay_in;
+    const bool has_immediate_overlay = !immediate_overlay.isNull();
+    if (has_immediate_overlay)
+        immediate_overlay = immediate_overlay.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
 
     // ---- Upload -------------------------------------------------------------
     QRhiResourceUpdateBatch* u = m_rhi->nextResourceUpdateBatch();
@@ -545,21 +551,39 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
     }
 
     // Overlay texture
-    if (has_overlay) {
-        const QSize overlay_size = overlay.size();
-        if (!fr.overlay_tex || fr.overlay_tex->pixelSize() != overlay_size) {
-            fr.overlay_srb.reset();
-            fr.overlay_tex.reset(m_rhi->newTexture(QRhiTexture::RGBA8, overlay_size));
-            fr.overlay_tex->create();
-            fr.overlay_srb.reset(m_rhi->newShaderResourceBindings());
-            fr.overlay_srb->setBindings({
+    if (has_persistent_overlay) {
+        const QSize persistent_overlay_size = persistent_overlay.size();
+        if (!fr.persistent_overlay_tex || fr.persistent_overlay_tex->pixelSize() != persistent_overlay_size) {
+            fr.persistent_overlay_srb.reset();
+            fr.persistent_overlay_tex.reset(m_rhi->newTexture(QRhiTexture::RGBA8, persistent_overlay_size));
+            fr.persistent_overlay_tex->create();
+            fr.persistent_overlay_srb.reset(m_rhi->newShaderResourceBindings());
+            fr.persistent_overlay_srb->setBindings({
                 QRhiShaderResourceBinding::sampledTexture(
                     0, QRhiShaderResourceBinding::FragmentStage,
-                    fr.overlay_tex.get(), m_overlay_sampler.get())
+                    fr.persistent_overlay_tex.get(), m_overlay_sampler.get())
             });
-            fr.overlay_srb->create();
+            fr.persistent_overlay_srb->create();
         }
-        u->uploadTexture(fr.overlay_tex.get(), overlay);
+        u->uploadTexture(fr.persistent_overlay_tex.get(), persistent_overlay);
+    }
+
+    // Immediate overlay texture
+    if (has_immediate_overlay) {
+        const QSize immediate_overlay_size = immediate_overlay.size();
+        if (!fr.immediate_overlay_tex || fr.immediate_overlay_tex->pixelSize() != immediate_overlay_size) {
+            fr.immediate_overlay_srb.reset();
+            fr.immediate_overlay_tex.reset(m_rhi->newTexture(QRhiTexture::RGBA8, immediate_overlay_size));
+            fr.immediate_overlay_tex->create();
+            fr.immediate_overlay_srb.reset(m_rhi->newShaderResourceBindings());
+            fr.immediate_overlay_srb->setBindings({
+                QRhiShaderResourceBinding::sampledTexture(
+                    0, QRhiShaderResourceBinding::FragmentStage,
+                    fr.immediate_overlay_tex.get(), m_overlay_sampler.get())
+            });
+            fr.immediate_overlay_srb->create();
+        }
+        u->uploadTexture(fr.immediate_overlay_tex.get(), immediate_overlay);
     }
 
     // Geometry: style UBO + vertex buffers
@@ -807,9 +831,17 @@ void RhiSceneRenderer::render(QRhiCommandBuffer*                         cb,
         }
     }
 
-    if (has_overlay && fr.overlay_tex) {
+    if (has_immediate_overlay && fr.immediate_overlay_tex) {
         cb->setGraphicsPipeline(m_overlay_pso.get());
-        cb->setShaderResources(fr.overlay_srb.get());
+        cb->setShaderResources(fr.immediate_overlay_srb.get());
+        const QRhiCommandBuffer::VertexInput vi{m_overlay_quad_vbuf.get(), 0};
+        cb->setVertexInput(0, 1, &vi);
+        cb->draw(4);
+    }
+
+    if (has_persistent_overlay && fr.persistent_overlay_tex) {
+        cb->setGraphicsPipeline(m_overlay_pso.get());
+        cb->setShaderResources(fr.persistent_overlay_srb.get());
         const QRhiCommandBuffer::VertexInput vi{m_overlay_quad_vbuf.get(), 0};
         cb->setVertexInput(0, 1, &vi);
         cb->draw(4);
@@ -832,8 +864,10 @@ void RhiSceneRenderer::release()
     m_thick_line_corner_vbuf.reset();
 
     for (FrameResources& fr : m_frame_resources) {
-        fr.overlay_srb.reset();
-        fr.overlay_tex.reset();
+        fr.persistent_overlay_srb.reset();
+        fr.persistent_overlay_tex.reset();
+        fr.immediate_overlay_srb.reset();
+        fr.immediate_overlay_tex.reset();
         fr.srb.reset();
         fr.arrow_instance_vbufs.clear();
         fr.dashed_line_instance_vbufs.clear();

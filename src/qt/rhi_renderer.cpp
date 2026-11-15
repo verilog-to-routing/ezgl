@@ -721,7 +721,7 @@ void rhi_renderer::begin_frame()
     set_line_dash(current_line_dash);
 }
 
-void rhi_renderer::begin_overlay_frame()
+void rhi_renderer::begin_persistent_overlay_frame()
 {
     // End painter if still active from a previous pass.
     if (m_persistent_overlay_painter.isActive())
@@ -745,9 +745,9 @@ void rhi_renderer::begin_overlay_frame()
     m_skip_tile_writes = false;
 }
 
-void rhi_renderer::render_cached_overlay()
+void rhi_renderer::render_cached_persistent_overlay()
 {
-    begin_overlay_frame();
+    begin_persistent_overlay_frame();
     m_deferred_renderer->replay();
 
     if (m_persistent_overlay_painter.isActive())
@@ -1596,7 +1596,10 @@ void rhi_renderer::dispatch_commands_to_tiles(int band)
 
 void rhi_renderer::flush()
 {
-    render_cached_overlay();
+    render_cached_persistent_overlay();
+
+    if (m_immediate_overlay_painter.isActive())
+        m_immediate_overlay_painter.end();
 
     // Dispatch recorded draw commands to tile batches in parallel.
     // Each thread processes only its own band — commands were routed at record time.
@@ -1672,6 +1675,7 @@ void rhi_renderer::flush()
         compute_mvp(),
         irenderer::get_visible_world(),
         m_persistent_overlay,
+        m_immediate_overlay,
         m_bg_color);
 
     m_rhi_widget->update();
@@ -1681,8 +1685,11 @@ void rhi_renderer::flush()
 
 rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
 {
-    render_cached_overlay();
+    render_cached_persistent_overlay();
 
+    if (m_immediate_overlay_painter.isActive())
+        m_immediate_overlay_painter.end();
+        
     {
         std::vector<std::thread> workers;
         workers.reserve(m_n_bands);
@@ -1699,6 +1706,7 @@ rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
                           compute_mvp(),
                           irenderer::get_visible_world(),
                           m_persistent_overlay,
+                          m_immediate_overlay,
                           bg};
     m_cmd_arrows.clear();  // see clear_commands(): arrows live until after build
     return out;
@@ -1718,8 +1726,16 @@ void rhi_renderer::flush_mvp_only()
         m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
     }
 
-    render_cached_overlay();
-    m_rhi_widget->set_mvp_and_overlay(compute_mvp(), irenderer::get_visible_world(), m_persistent_overlay);
+    render_cached_persistent_overlay();
+
+    if (m_immediate_overlay_painter.isActive())
+        m_immediate_overlay_painter.end();
+
+    m_rhi_widget->set_mvp_and_overlay(compute_mvp(),
+                                    irenderer::get_visible_world(),
+                                    m_persistent_overlay,
+                                    m_immediate_overlay);
+
     m_rhi_widget->update();
 }
 

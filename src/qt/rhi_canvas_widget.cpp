@@ -53,7 +53,8 @@ RhiCanvasWidget::~RhiCanvasWidget() = default;
 void RhiCanvasWidget::set_frame_data(SceneBuffers       scene_buffers,
                                      const QMatrix4x4& world_to_ndc,
                                      const rectangle&  visible_world,
-                                     const QImage&     overlay,
+                                     const QImage&     persistent_overlay,
+                                     const QImage&     immediate_overlay,
                                      QColor            bg_color)
 {
     QMutexLocker lock(&m_frame_mutex);
@@ -61,7 +62,8 @@ void RhiCanvasWidget::set_frame_data(SceneBuffers       scene_buffers,
     m_pending_scene_buffers = scene_ptr;
     m_pending_mvp           = world_to_ndc;
     m_pending_visible_world = visible_world;
-    m_pending_overlay       = overlay;
+    m_pending_persistent_overlay       = persistent_overlay;
+    m_pending_immediate_overlay = immediate_overlay;
     m_pending_bg            = bg_color;
     m_frame_dirty           = true;
     m_mvp_dirty             = false;
@@ -70,22 +72,26 @@ void RhiCanvasWidget::set_frame_data(SceneBuffers       scene_buffers,
 }
 
 void RhiCanvasWidget::set_mvp_only(const QMatrix4x4& world_to_ndc,
-                                   const rectangle&  visible_world)
+                                   const rectangle&  visible_world,
+                                   const QImage&     immediate_overlay)
 {
     QMutexLocker lock(&m_frame_mutex);
     m_pending_mvp           = world_to_ndc;
     m_pending_visible_world = visible_world;
+    m_pending_immediate_overlay = immediate_overlay;
     m_mvp_dirty             = true;
 }
 
 void RhiCanvasWidget::set_mvp_and_overlay(const QMatrix4x4& world_to_ndc,
                                           const rectangle&  visible_world,
-                                          const QImage&     overlay)
+                                          const QImage&     persistent_overlay,
+                                          const QImage&     immediate_overlay)
 {
     QMutexLocker lock(&m_frame_mutex);
     m_pending_mvp           = world_to_ndc;
     m_pending_visible_world = visible_world;
-    m_pending_overlay       = overlay;
+    m_pending_persistent_overlay       = persistent_overlay;
+    m_pending_immediate_overlay = immediate_overlay;
     m_mvp_dirty             = true;
 }
 
@@ -109,7 +115,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     std::shared_ptr<const SceneBuffers> scene;
     QMatrix4x4 mvp;
     rectangle   visible_world;
-    QImage      overlay;
+    QImage      persistent_overlay;
+    QImage      immediate_overlay;
     QColor      bg;
     bool        geom_dirty;
 
@@ -121,7 +128,8 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
         scene           = m_pending_scene_buffers;
         mvp             = m_pending_mvp;
         visible_world   = m_pending_visible_world;
-        overlay         = m_pending_overlay;
+        persistent_overlay         = m_pending_persistent_overlay;
+        immediate_overlay          = m_pending_immediate_overlay;
         bg              = m_pending_bg;
         m_frame_dirty   = false;
         m_mvp_dirty     = false;
@@ -131,7 +139,7 @@ void RhiCanvasWidget::render(QRhiCommandBuffer* cb)
     const int frame_slot = rhi()->currentFrameSlot();
     m_scene_renderer->render(cb, renderTarget(), renderTarget()->pixelSize(),
                               frame_slot, geom_dirty, scene,
-                              mvp, visible_world, overlay, bg);
+                              mvp, visible_world, persistent_overlay, immediate_overlay, bg);
 }
 
 void RhiCanvasWidget::releaseResources()
@@ -231,7 +239,8 @@ QImage RhiCanvasWidget::render_offscreen(int               w,
                                          SceneBuffers      scene,
                                          const QMatrix4x4& mvp,
                                          const rectangle&  visible_world,
-                                         const QImage&     overlay,
+                                         const QImage&     persistent_overlay,
+                                         const QImage&     immediate_overlay,
                                          QColor            bg)
 {
     // Create a standalone QRhi using the best available backend for this
@@ -279,7 +288,7 @@ QImage RhiCanvasWidget::render_offscreen(int               w,
     auto scene_ptr = std::make_shared<const SceneBuffers>(std::move(scene));
     renderer.render(cb, rt.get(), QSize(w, h),
                     /*frame_slot=*/0, /*geom_dirty=*/true,
-                    scene_ptr, mvp, visible_world, overlay, bg);
+                    scene_ptr, mvp, visible_world, persistent_overlay, immediate_overlay, bg);
 
     // Pixel readback — from the resolved (single-sample) texture, not the MSAA one.
     QRhiReadbackResult readback;

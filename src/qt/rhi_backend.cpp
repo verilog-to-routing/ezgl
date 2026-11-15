@@ -171,13 +171,20 @@ QImage rhi_backend::render_to_image(int w, int h)
                           m_camera,
                           m_bg_color);
     renderer.begin_frame();
+
     m_draw_persistent_callback(&renderer);
+    
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(renderer.get_immediate_renderer());
+    }
+
     auto frame = renderer.flush_capture(m_bg_color);
     return RhiCanvasWidget::render_offscreen(w, h,
                                              std::move(frame.scene),
                                              frame.mvp,
                                              frame.visible_world,
-                                             frame.overlay,
+                                             frame.persistent_overlay,
+                                             frame.immediate_overlay,
                                              frame.bg);
 }
 
