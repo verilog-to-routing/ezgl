@@ -104,6 +104,7 @@ QImage immediate_backend::render_to_image(int w, int h)
 
     immediate_renderer g(&painter, m_camera);
    
+    g.reset_attributes();
     m_draw_persistent_callback(&g);
     if (m_draw_immediate_callback) {
         m_draw_immediate_callback(&g);
