@@ -163,10 +163,10 @@ private:
     QMatrix4x4                           m_pending_mvp;            ///< Next model-view-projection (MVP) matrix: the world→NDC transform.
     rectangle                            m_pending_visible_world;  ///< Next visible-world rect, used for per-chunk culling.
     QImage                               m_pending_persistent_overlay; ///< Next persistent QPainter persistent_overlay image (text/arcs).
-    QImage                               m_pending_immediate_overlay;  ///< Next immediate QPainter persistent_overlay image.
+    QImage                               m_pending_immediate_overlay;  ///< Next immediate QPainter immediate_overlay image.
     QColor                               m_pending_bg  { Qt::white }; ///< Next background clear colour.
     bool                                 m_frame_dirty = false;    ///< Set by set_frame_data(): geometry (and MVP) changed.
-    bool                                 m_mvp_dirty   = false;    ///< Set by the MVP-only paths: transform/persistent_overlay changed, geometry not.
+    bool                                 m_mvp_dirty   = false;    ///< Set by the MVP-only paths: transform/overlay changed, geometry not.
 };
 
 /**

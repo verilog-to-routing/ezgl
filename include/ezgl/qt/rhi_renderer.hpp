@@ -256,6 +256,8 @@ public:
     //   auto data = flush_capture(bg);   // returns by value, no widget
     //   QImage png = RhiCanvasWidget::render_offscreen(w, h, ...data...);
 
+    void begin_overlays_frames();
+
     /// Reset per-frame state (tile batches, command vectors, overlay)
     /// ready for a fresh recording pass.
     void begin_frame();
@@ -504,13 +506,15 @@ private:
                                              StyleKey   style_key,
                                              std::uint32_t rgba);
 
+    void end_overlays_painters();
     /// (Re)create the overlay QImage at the current size/DPR, clear it to
     /// transparent, and begin its painter so overlay draw calls can paint.
     void begin_persistent_overlay_frame();
-    /// Rebuild the overlay layer by replaying the cached deferred overlay
-    /// commands (text/arcs/surfaces) without re-running the draw callback;
-    /// used by the camera-only redraw path.
-    void render_cached_persistent_overlay();
+    
+    /**
+     * @brief Prepare a cleared immediate overlay and reset its drawing state.
+     */
+    void begin_immediate_overlay_frame();
     /// Allocate/resize the tile grid and recompute each tile's world bounds
     /// for the current visible world.
     void ensure_tile_grid();

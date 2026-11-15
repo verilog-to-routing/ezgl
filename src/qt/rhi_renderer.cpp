@@ -660,6 +660,14 @@ void rhi_renderer::draw_surface(const surface& image, const point2d& anchor_poin
     m_deferred_renderer->draw_surface(image, anchor_point, scale_factor);
 }
 
+/*
+void rhi_renderer::refresh_overlay_dim() {
+    if (m_rhi_widget) {
+        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
+        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
+    }
+}
+*/
 // ---- frame lifecycle -------------------------------------------------------
 
 void rhi_renderer::begin_frame()
@@ -667,35 +675,8 @@ void rhi_renderer::begin_frame()
     ensure_tile_grid();
     clear_tile_geometry();
     m_deferred_renderer->reset();
-    m_skip_tile_writes = false;
-
-    // End painter if still active (shouldn't normally happen).
-    if (m_persistent_overlay_painter.isActive())
-        m_persistent_overlay_painter.end();
-
-    // Refresh size + DPR from widget (it may have been resized since construction,
-    // and DPR may have changed too if the window crossed monitors with different
-    // display scaling).
-    if (m_rhi_widget) {
-        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
-        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
-    }
-
-    const QSize wanted_overlay_px = physical_overlay_size(m_size, m_overlay_dpr);
-    if (m_persistent_overlay.size() != wanted_overlay_px
-        || m_persistent_overlay.devicePixelRatio() != m_overlay_dpr) {
-        m_persistent_overlay = QImage(wanted_overlay_px, QImage::Format_ARGB32_Premultiplied);
-        m_persistent_overlay.setDevicePixelRatio(m_overlay_dpr);
-    }
-
-    m_persistent_overlay.fill(Qt::transparent);
-
-    // Restart the overlay painter on the (possibly resized) image.
-    m_persistent_overlay_painter.begin(&m_persistent_overlay);
-    m_persistent_overlay_painter.setAntialias(false);
-    m_persistent_overlay_painter.setSmoothPixmap(false);
-    set_painter(&m_persistent_overlay_painter);
-    m_deferred_renderer->set_painter(&m_persistent_overlay_painter);
+   
+    begin_overlays_frames();
 
     // Match the deferred path semantics: each redraw starts from the renderer
     // defaults rather than inheriting state from the previous frame.
@@ -721,12 +702,31 @@ void rhi_renderer::begin_frame()
     set_line_dash(current_line_dash);
 }
 
-void rhi_renderer::begin_persistent_overlay_frame()
-{
-    // End painter if still active from a previous pass.
+void rhi_renderer::end_overlays_painters() {
     if (m_persistent_overlay_painter.isActive())
         m_persistent_overlay_painter.end();
 
+    if (m_immediate_overlay_painter.isActive())
+        m_immediate_overlay_painter.end();
+}
+
+void rhi_renderer::begin_overlays_frames() {
+    if (m_rhi_widget) {
+        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
+        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
+    }
+    end_overlays_painters();
+    begin_persistent_overlay_frame();
+    begin_immediate_overlay_frame();
+}
+
+void rhi_renderer::begin_persistent_overlay_frame()
+{
+    // End painter if still active from a previous pass.
+    /*
+    if (m_persistent_overlay_painter.isActive())
+        m_persistent_overlay_painter.end();
+    */
     const QSize wanted_overlay_px = physical_overlay_size(m_size, m_overlay_dpr);
     if (m_persistent_overlay.size() != wanted_overlay_px
         || m_persistent_overlay.devicePixelRatio() != m_overlay_dpr) {
@@ -745,15 +745,23 @@ void rhi_renderer::begin_persistent_overlay_frame()
     m_skip_tile_writes = false;
 }
 
-void rhi_renderer::render_cached_persistent_overlay()
+void rhi_renderer::begin_immediate_overlay_frame()
 {
-    begin_persistent_overlay_frame();
-    m_deferred_renderer->replay();
+    const QSize wanted_overlay_px = physical_overlay_size(m_size, m_overlay_dpr);
+    if (m_immediate_overlay.size() != wanted_overlay_px
+        || m_immediate_overlay.devicePixelRatio() != m_overlay_dpr) {
+        m_immediate_overlay = QImage(
+            wanted_overlay_px, QImage::Format_ARGB32_Premultiplied);
+        m_immediate_overlay.setDevicePixelRatio(m_overlay_dpr);
+    }
 
-    if (m_persistent_overlay_painter.isActive())
-        m_persistent_overlay_painter.end();
+    m_immediate_overlay.fill(Qt::transparent);
+
+    m_immediate_overlay_painter.begin(&m_immediate_overlay);
+    m_immediate_overlay_painter.setAntialias(false);
+    m_immediate_overlay_painter.setSmoothPixmap(false);
+    m_immediate_renderer->set_painter(&m_immediate_overlay_painter);
 }
-
 // ---- helpers ---------------------------------------------------------------
 
 
@@ -1596,10 +1604,9 @@ void rhi_renderer::dispatch_commands_to_tiles(int band)
 
 void rhi_renderer::flush()
 {
-    render_cached_persistent_overlay();
+    m_deferred_renderer->replay();
 
-    if (m_immediate_overlay_painter.isActive())
-        m_immediate_overlay_painter.end();
+    end_overlays_painters();
 
     // Dispatch recorded draw commands to tile batches in parallel.
     // Each thread processes only its own band — commands were routed at record time.
@@ -1685,11 +1692,10 @@ void rhi_renderer::flush()
 
 rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
 {
-    render_cached_persistent_overlay();
+    m_deferred_renderer->replay();
 
-    if (m_immediate_overlay_painter.isActive())
-        m_immediate_overlay_painter.end();
-        
+    end_overlays_painters();
+
     {
         std::vector<std::thread> workers;
         workers.reserve(m_n_bands);
@@ -1698,9 +1704,6 @@ rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
         for (auto& w : workers) w.join();
     }
     clear_commands();
-
-    if (m_persistent_overlay_painter.isActive())
-        m_persistent_overlay_painter.end();
 
     HeadlessFrameData out{build_scene_buffers(),
                           compute_mvp(),
@@ -1716,20 +1719,9 @@ rhi_renderer::HeadlessFrameData rhi_renderer::flush_capture(const QColor& bg)
 
 void rhi_renderer::flush_mvp_only()
 {
-    // Pick up the widget's current size before computing the MVP. The
-    // resize-only path skips begin_frame(), so without this refresh the
-    // camera reports the new screen rectangle while m_size still holds the
-    // pre-resize framebuffer dimensions — compute_mvp() divides by the old
-    // fw/fh and the next paint comes out skewed until a full redraw runs.
-    if (m_rhi_widget) {
-        m_size = clamp_size({m_rhi_widget->width(), m_rhi_widget->height()});
-        m_overlay_dpr = m_rhi_widget->devicePixelRatioF();
-    }
+    m_deferred_renderer->replay();
 
-    render_cached_persistent_overlay();
-
-    if (m_immediate_overlay_painter.isActive())
-        m_immediate_overlay_painter.end();
+    end_overlays_painters();
 
     m_rhi_widget->set_mvp_and_overlay(compute_mvp(),
                                     irenderer::get_visible_world(),

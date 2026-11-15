@@ -78,6 +78,9 @@ bool rhi_backend::valid_to_reuse_geometry(view_change_reason reason)
 }
 
 void rhi_backend::redraw_camera_only() {
+    // Refresh dimensions before drawing.
+    //m_renderer->refresh_overlay_dim();
+    m_renderer->begin_overlays_frames();
     draw_immediate_overlay();
     m_renderer->flush_mvp_only();
     m_is_redraw_requested        = false;
