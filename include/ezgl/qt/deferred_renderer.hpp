@@ -335,6 +335,8 @@ public:
     // Discard all recorded batches and commands.
     void reset();
 
+    void reset_attributes();
+
     // Replay, then reset.
     void flush();
 

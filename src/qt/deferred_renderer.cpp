@@ -987,6 +987,7 @@ void deferred_renderer::flush()
 {
     replay();
     reset();
+    reset_attributes();
 }
 
 void deferred_renderer::reset()
@@ -1008,6 +1009,21 @@ void deferred_renderer::reset()
     // Drop the replay scratch (esp. the command pointers, which would dangle
     // once m_commands is cleared); clear() keeps the heap capacity.
     m_replay_cache.clear();
+}
+
+void deferred_renderer::reset_attributes() {
+    set_coordinate_system(WORLD);
+    set_text_rotation(0);
+    set_horiz_justification(justification::center);
+    set_vert_justification(justification::center);
+    current_color = {0, 0, 0, 255};
+    current_line_width = 0;
+    current_line_cap = line_cap::butt;
+    current_line_dash = line_dash::none;
+    set_color(current_color);
+    set_line_width(current_line_width);
+    set_line_cap(current_line_cap);
+    set_line_dash(current_line_dash);
 }
 
 } // namespace ezgl

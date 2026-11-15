@@ -46,6 +46,8 @@ void deferred_backend::recreate_surface()
     if (m_renderer) {
         m_renderer->set_painter(m_painter);
     }
+    if (m_animation_renderer)
+        m_animation_renderer->set_painter(m_painter);
 }
 
 void deferred_backend::redraw()
@@ -78,12 +80,14 @@ void deferred_backend::redraw_at_view_change(view_change_reason /*reason*/)
 
 void deferred_backend::on_resize(int /*w*/, int /*h*/)
 {
+    if(m_painter) {
+        delete m_painter;
+        m_painter = nullptr;
+    }
     recreate_surface();
     if (!m_painter)
         return;
     redraw();
-    if (m_animation_renderer)
-        m_animation_renderer->set_painter(m_painter);
 }
 
 renderer* deferred_backend::create_animation_renderer()
