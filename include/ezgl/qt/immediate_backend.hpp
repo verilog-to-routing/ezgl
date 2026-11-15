@@ -24,16 +24,17 @@ public:
     /**
      * @param drawing_area     Qt widget to render into (a DrawingAreaWidget,
      *                         which supplies the off-screen surface).
-     * @param draw_callback    Application scene-drawing callback, invoked each
+     * @param draw_persistent_callback    Application scene-drawing callback, invoked each
      *                         redraw.
      * @param cam              Camera supplying the view and world→screen
      *                         transform.
      * @param background_color Color the surface is cleared to before each frame.
      */
     immediate_backend(QWidget*       drawing_area,
-                      draw_canvas_fn draw_callback,
-                      camera*        cam,
-                      color          background_color);
+                      draw_canvas_persistent_fn draw_persistent_callback,
+                      draw_canvas_immediate_fn  draw_immediate_callback,
+                      camera*                  cam,
+                      color                    background_color);
 
     /// Destroys the owned Painter and renderer. The surface is owned by the
     /// DrawingAreaWidget, so it is not freed here.
@@ -68,7 +69,8 @@ private:
     void recreate_surface();
 
     QWidget*            m_drawing_area;     ///< Target Qt widget (not owned); the DrawingAreaWidget supplying the surface.
-    draw_canvas_fn      m_draw_callback;    ///< Application scene-drawing callback, invoked each redraw.
+    draw_canvas_persistent_fn      m_draw_persistent_callback;    ///< Application scene-drawing callback, invoked each redraw.
+    draw_canvas_immediate_fn       m_draw_immediate_callback = nullptr;
     camera*             m_camera;           ///< Camera providing the view and world→screen transform (not owned).
     color               m_background_color; ///< Color the surface is cleared to before each frame.
 

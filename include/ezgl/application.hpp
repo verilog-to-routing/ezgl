@@ -195,7 +195,7 @@ public:
    * If the canvas has already been added, it will not be overwritten and a warning will be displayed.
    *
    * @param canvas_id The id of the DrawingAreaWidget (or RhiCanvasWidget under the rhi backend) in the .ui XML file.
-   * @param draw_callback The function to call that draws to this canvas.
+   * @param draw_persistent_callback The function to call that draws to this canvas.
    * @param coordinate_system The initial coordinate system of this canvas. 
    *            coordinate_system.first gives the (x,y) world coordinates of the lower left corner, 
    *            and coordinate_system.second gives the (x,y) coordinates of the upper right corner.
@@ -204,7 +204,8 @@ public:
    * @return A pointer to the newly created canvas.
    */
   canvas *add_canvas(std::string const &canvas_id,
-      draw_canvas_fn draw_callback,
+      draw_canvas_persistent_fn draw_persistent_callback,
+      draw_canvas_immediate_fn draw_immediate_callback,
       rectangle coordinate_system,
       color background_color = WHITE);
 

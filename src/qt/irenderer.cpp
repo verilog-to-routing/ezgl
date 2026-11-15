@@ -121,6 +121,19 @@ text_dimension_t irenderer::get_text_dimension(const std::string& text) {
 
 // ---- State-setter implementations -------------------------------------------
 
+void irenderer::reset_attributes()
+{
+    set_coordinate_system(WORLD);
+    set_text_rotation(0);
+    set_text_screen_offset({0, 0});
+    set_horiz_justification(justification::center);
+    set_vert_justification(justification::center);
+    set_color(color{0, 0, 0, 255});
+    set_line_width(0);
+    set_line_cap(line_cap::butt);
+    set_line_dash(line_dash::none);
+}
+
 void irenderer::set_color(color c)
 {
     irenderer::set_color(c.red, c.green, c.blue, c.alpha);

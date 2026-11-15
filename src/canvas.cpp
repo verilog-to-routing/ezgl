@@ -49,7 +49,8 @@ namespace {
 std::unique_ptr<ezgl::render_backend> make_backend(
     ezgl::renderer_type            type,
     QWidget*                       widget, // RhiCanvasWidget*, DrawingAreaWidget*, or nullptr
-    ezgl::draw_canvas_fn           draw_callback,
+    ezgl::draw_canvas_persistent_fn           draw_persistent_callback,
+    ezgl::draw_canvas_immediate_fn            draw_immediate_callback,
     ezgl::decide_reuse_geometry_fn decide_reuse_geometry_callback, // Only meaningful when the rhi renderer is used.
     ezgl::camera*                  cam,
     ezgl::color                    bg)
@@ -64,11 +65,11 @@ std::unique_ptr<ezgl::render_backend> make_backend(
         // qobject_cast returns nullptr for non-RhiCanvasWidget widgets and for
         // nullptr itself — rhi_backend interprets nullptr as headless mode.
         return std::make_unique<ezgl::rhi_backend>(
-            qobject_cast<ezgl::RhiCanvasWidget*>(widget), draw_callback, decide_reuse_geometry_callback, cam, bg);
+            qobject_cast<ezgl::RhiCanvasWidget*>(widget), draw_persistent_callback, draw_immediate_callback, decide_reuse_geometry_callback, cam, bg);
     }
     if (effective == ezgl::renderer_type::immediate)
-        return std::make_unique<ezgl::immediate_backend>(widget, draw_callback, cam, bg);
-    return std::make_unique<ezgl::deferred_backend>(widget, draw_callback, cam, bg);
+        return std::make_unique<ezgl::immediate_backend>(widget, draw_persistent_callback, draw_immediate_callback, cam, bg);
+    return std::make_unique<ezgl::deferred_backend>(widget, draw_persistent_callback, draw_immediate_callback, cam, bg);
 }
 
 static std::pair<int,int> resolve_output_size(int req_w, int req_h,
@@ -91,7 +92,7 @@ namespace ezgl {
 QImage canvas::render_to_image(int surface_width, int surface_height)
 {
   if (!m_backend)
-    m_backend = make_backend(m_renderer_type, nullptr, m_draw_callback, m_decide_reuse_geometry_callback, &m_camera, m_background_color);
+    m_backend = make_backend(m_renderer_type, nullptr, m_draw_persistent_callback, m_draw_immediate_callback, m_decide_reuse_geometry_callback, &m_camera, m_background_color);
 
   // Retarget the camera for the (w, h) framebuffer so compute_mvp produces
   // the right world→NDC matrix; restore afterward so the next live paint
@@ -159,11 +160,13 @@ void canvas::draw_offscreen(int output_width, int output_height)
 }
 
 canvas::canvas(std::string canvas_id,
-               draw_canvas_fn draw_callback,
+               draw_canvas_persistent_fn draw_persistent_callback,
+               draw_canvas_immediate_fn draw_immediate_callback,
                rectangle coordinate_system,
                color background_color)
     : m_canvas_id(std::move(canvas_id))
-    , m_draw_callback(draw_callback)
+    , m_draw_persistent_callback(draw_persistent_callback)
+    , m_draw_immediate_callback(draw_immediate_callback)
     , m_camera(coordinate_system)
     , m_background_color(background_color)
 {
@@ -174,7 +177,7 @@ void canvas::initialize(QWidget *drawing_area)
   return_if_fail("initialize drawing_area", drawing_area != nullptr);
 
   m_drawing_area = drawing_area;
-  m_backend = make_backend(m_renderer_type, drawing_area, m_draw_callback, m_decide_reuse_geometry_callback, &m_camera, m_background_color);
+  m_backend = make_backend(m_renderer_type, drawing_area, m_draw_persistent_callback, m_draw_immediate_callback, m_decide_reuse_geometry_callback, &m_camera, m_background_color);
 
   // Wire up widget-specific signals after backend creation.
   if (RhiCanvasWidget* rw = qobject_cast<RhiCanvasWidget*>(drawing_area)) {

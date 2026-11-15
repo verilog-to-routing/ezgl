@@ -287,18 +287,20 @@ canvas *application::get_canvas(const std::string &canvas_id) const
 }
 
 canvas *application::add_canvas(std::string const &canvas_id,
-    draw_canvas_fn draw_callback,
+    draw_canvas_persistent_fn draw_persistent_callback,
+    draw_canvas_immediate_fn draw_immediate_callback,
     rectangle coordinate_system,
     color background_color)
 {
-  if(draw_callback == nullptr) {
+  if(!draw_persistent_callback) {
     // A NULL draw callback means the canvas will never render anything to the screen.
     q_warning("Canvas %s's draw callback is NULL.", canvas_id.c_str());
   }
 
   // Can't use make_unique with protected constructor without fancy code that will confuse students, so we use new
   // instead.
-  std::unique_ptr<canvas> canvas_ptr(new canvas(canvas_id, draw_callback, coordinate_system, background_color));
+  std::unique_ptr<canvas> canvas_ptr(new canvas(canvas_id, draw_persistent_callback, draw_immediate_callback,
+                                                coordinate_system, background_color));
   auto it = m_canvases.emplace(canvas_id, std::move(canvas_ptr));
 
   if(!it.second) {

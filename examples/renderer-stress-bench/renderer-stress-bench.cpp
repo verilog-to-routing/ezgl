@@ -493,7 +493,7 @@ void fpga_complex_scene(ezgl::renderer *g)
 
 struct TestCase {
   const char          *label;
-  ezgl::draw_canvas_fn fn;
+  ezgl::draw_canvas_persistent_fn fn;
   int                  count;
 };
 
@@ -566,7 +566,7 @@ static void run_headless(ezgl::renderer_type renderer)
     TESTS[g_headless_t].fn(g);
   };
 
-  app.add_canvas("headless_canvas", headless_dispatch, WORLD, ezgl::WHITE);
+  app.add_canvas("headless_canvas", headless_dispatch, [](ezgl::renderer*) noexcept {}, WORLD, ezgl::WHITE);
   ezgl::canvas *c = app.get_canvas("headless_canvas");
   c->set_renderer_type(renderer);
 
@@ -657,7 +657,7 @@ static void run_ui(int initial_test, ezgl::renderer_type renderer)
   static char *fake_argv[]  = {fake_argv0, nullptr};
   ezgl::application app(s, fake_argc, fake_argv);
 
-  ezgl::canvas *c = app.add_canvas("MainCanvas", draw_dispatch, WORLD, ezgl::WHITE);
+  ezgl::canvas *c = app.add_canvas("MainCanvas", draw_dispatch, [](ezgl::renderer*) noexcept {}, WORLD, ezgl::WHITE);
   c->set_renderer_type(renderer);
   c->set_frame_timing_callback(on_frame_complete);
   app.run(ui_setup, nullptr, nullptr, nullptr);

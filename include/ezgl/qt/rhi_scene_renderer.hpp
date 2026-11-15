@@ -122,7 +122,7 @@ public:
      * @param scene         Geometry to render (may be nullptr if !geom_dirty).
      * @param mvp           World-to-NDC matrix.
      * @param visible_world Current visible world rectangle (for tile culling).
-     * @param overlay       QPainter overlay image (text, arcs, …).
+     * @param persistent_overlay       QPainter overlay image (text, arcs, …).
      * @param bg            Background clear colour.
      */
     void render(QRhiCommandBuffer*                         cb,
@@ -133,7 +133,8 @@ public:
                 const std::shared_ptr<const SceneBuffers>& scene,
                 const QMatrix4x4&                          mvp,
                 const rectangle&                           visible_world,
-                const QImage&                              overlay,
+                const QImage&                              persistent_overlay,
+                const QImage&                              immediate_overlay_in,
                 QColor                                     bg);
 
     /** Destroy all GPU objects. Safe to call multiple times. */
@@ -221,8 +222,10 @@ private:
         std::vector<std::unique_ptr<QRhiBuffer>>    thick_line_instance_vbufs;  ///< Thick-line instance buffers.
         std::vector<std::unique_ptr<QRhiBuffer>>    dashed_line_instance_vbufs; ///< Dashed-line instance buffers.
         std::vector<std::unique_ptr<QRhiBuffer>>    arrow_instance_vbufs;       ///< Arrow instance buffers.
-        std::unique_ptr<QRhiTexture>                overlay_tex; ///< This slot's copy of the QPainter overlay image.
-        std::unique_ptr<QRhiShaderResourceBindings> overlay_srb; ///< SRB binding @c overlay_tex + sampler for the overlay pass.
+        std::unique_ptr<QRhiTexture>                persistent_overlay_tex; ///< This slot's copy of the persistent QPainter overlay image.
+        std::unique_ptr<QRhiShaderResourceBindings> persistent_overlay_srb; ///< SRB binding @c persistent_overlay_tex + sampler for the overlay pass.
+        std::unique_ptr<QRhiTexture>                immediate_overlay_tex; ///< Immediate overlay texture.
+        std::unique_ptr<QRhiShaderResourceBindings> immediate_overlay_srb; ///< Immediate texture bindings.
         std::unique_ptr<QRhiShaderResourceBindings> srb;         ///< SRB for scene draws (mvp UBO + dynamic-offset style UBO).
         GpuSceneBuffers                             gpu_scene;   ///< This slot's uploaded draw plan.
     };

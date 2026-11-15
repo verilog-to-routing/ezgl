@@ -11,12 +11,14 @@ namespace ezgl {
 rhi_backend::~rhi_backend() = default;
 
 rhi_backend::rhi_backend(RhiCanvasWidget*         widget,
-                         draw_canvas_fn           draw_callback,
+                         draw_canvas_persistent_fn draw_persistent_callback,
+                         draw_canvas_immediate_fn  draw_immediate_callback,
                          decide_reuse_geometry_fn decide_reuse_geometry_callback,
                          camera*                  cam,
                          color                    background_color)
     : m_widget(widget)
-    , m_draw_callback(draw_callback)
+    , m_draw_persistent_callback(draw_persistent_callback)
+    , m_draw_immediate_callback(draw_immediate_callback)
     , m_decide_reuse_geometry_callback(decide_reuse_geometry_callback)
     , m_camera(cam)
     , m_bg_color(background_color.red,
@@ -35,13 +37,15 @@ void rhi_backend::redraw()
         m_renderer = std::make_unique<rhi_renderer>(
             m_widget,
             m_camera,
-            m_draw_callback,
             m_bg_color);
     } else {
         m_renderer->begin_frame();
     }
 
-    m_draw_callback(m_renderer.get());
+    m_draw_persistent_callback(m_renderer.get());
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer->get_immediate_renderer());
+    }
     m_renderer->flush();
 
     m_is_redraw_suspended        = false;
@@ -76,14 +80,14 @@ bool rhi_backend::valid_to_reuse_geometry(view_change_reason reason)
 }
 
 void rhi_backend::redraw_camera_only() {
-    if (m_renderer && m_has_drawn_frame) {
-        m_renderer->flush_mvp_only();
-        m_is_redraw_requested        = false;
-        m_is_camera_update_requested = false;
-        q_debug("The canvas overlay+MVP are updated (camera-only RHI path).");
-    } else {
-        redraw();
+    m_renderer->begin_overlays_frames();
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer->get_immediate_renderer());
     }
+    m_renderer->flush_mvp_only();
+    m_is_redraw_requested        = false;
+    m_is_camera_update_requested = false;
+    q_debug("The canvas overlay+MVP are updated (camera-only RHI path).");
 }
 
 void rhi_backend::suspend_redraw()
@@ -98,9 +102,8 @@ void rhi_backend::resume_redraw()
     if (!m_is_redraw_suspended)
         return;
     m_is_redraw_suspended = false;
-    if (m_is_redraw_requested || !m_has_drawn_frame)
-        redraw();
-    else if (m_is_camera_update_requested)
+
+    if (m_is_camera_update_requested && !m_is_redraw_requested && m_renderer && m_has_drawn_frame)
         redraw_camera_only();
     else
         redraw();
@@ -132,7 +135,7 @@ renderer* rhi_backend::create_animation_renderer()
     // The rhi_renderer is the live scene renderer and implements the full
     // irenderer interface. Draw calls route to one of two places:
     //   - world-space lines/rectangles/fills  → GPU tile batches (VBOs)
-    //   - text, arcs, polys, screen-space primitives → m_overlay_deferred
+    //   - text, arcs, polys, screen-space primitives → m_deferred_renderer
     //     → overlay QImage composited above the GPU scene as a texture
     // Unlike the immediate/deferred backends — which paint synchronously
     // into a live QImage — animation draws here are recorded and only
@@ -145,7 +148,6 @@ renderer* rhi_backend::create_animation_renderer()
         m_renderer = std::make_unique<rhi_renderer>(
             m_widget,
             m_camera,
-            m_draw_callback,
             m_bg_color);
     }
     return m_renderer.get();
@@ -165,16 +167,22 @@ QImage rhi_backend::render_to_image(int w, int h)
     // live widget and live renderer are not touched at all.
     rhi_renderer renderer(QSize(w, h),
                           m_camera,
-                          m_draw_callback,
                           m_bg_color);
     renderer.begin_frame();
-    m_draw_callback(&renderer);
+
+    m_draw_persistent_callback(&renderer);
+    
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(renderer.get_immediate_renderer());
+    }
+
     auto frame = renderer.flush_capture(m_bg_color);
     return RhiCanvasWidget::render_offscreen(w, h,
                                              std::move(frame.scene),
                                              frame.mvp,
                                              frame.visible_world,
-                                             frame.overlay,
+                                             frame.persistent_overlay,
+                                             frame.immediate_overlay,
                                              frame.bg);
 }
 

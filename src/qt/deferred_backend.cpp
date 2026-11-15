@@ -10,11 +10,13 @@
 namespace ezgl {
 
 deferred_backend::deferred_backend(QWidget*       drawing_area,
-                                   draw_canvas_fn draw_callback,
-                                   camera*        cam,
-                                   color          background_color)
+                                   draw_canvas_persistent_fn draw_persistent_callback,
+                                   draw_canvas_immediate_fn  draw_immediate_callback,
+                                   camera*                  cam,
+                                   color                    background_color)
     : m_drawing_area(drawing_area)
-    , m_draw_callback(draw_callback)
+    , m_draw_persistent_callback(draw_persistent_callback)
+    , m_draw_immediate_callback(draw_immediate_callback)
     , m_camera(cam)
     , m_background_color(background_color)
 {
@@ -41,6 +43,11 @@ void deferred_backend::recreate_surface()
     m_painter = new Painter(m_surface);
     m_painter->setAntialias(false);
     m_painter->setSmoothPixmap(false);
+    if (m_renderer) {
+        m_renderer->set_painter(m_painter);
+    }
+    if (m_animation_renderer)
+        m_animation_renderer->set_painter(m_painter);
 }
 
 void deferred_backend::redraw()
@@ -53,9 +60,15 @@ void deferred_backend::redraw()
                               m_background_color.blue  / 255.0);
     m_painter->paint();
 
-    deferred_renderer g(m_painter, m_camera);
-    m_draw_callback(&g);
-    g.flush();
+    if(!m_renderer) {
+        m_renderer = std::make_unique<deferred_renderer>(m_painter, m_camera);
+    }
+    m_renderer->reset_attributes();
+    m_draw_persistent_callback(m_renderer.get());
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(m_renderer.get());
+    }
+    m_renderer->flush();
 
     m_drawing_area->update();
     q_debug("The canvas will be redrawn (deferred path).");
@@ -68,7 +81,7 @@ void deferred_backend::redraw_at_view_change(view_change_reason /*reason*/)
 
 void deferred_backend::on_resize(int /*w*/, int /*h*/)
 {
-    if (m_painter) {
+    if(m_painter) {
         delete m_painter;
         m_painter = nullptr;
     }
@@ -76,8 +89,6 @@ void deferred_backend::on_resize(int /*w*/, int /*h*/)
     if (!m_painter)
         return;
     redraw();
-    if (m_animation_renderer)
-        m_animation_renderer->set_painter(m_painter);
 }
 
 renderer* deferred_backend::create_animation_renderer()
@@ -98,7 +109,12 @@ QImage deferred_backend::render_to_image(int w, int h)
     painter.paint();
 
     deferred_renderer g(&painter, m_camera);
-    m_draw_callback(&g);
+    
+    g.reset_attributes();
+    m_draw_persistent_callback(&g);
+    if (m_draw_immediate_callback) {
+        m_draw_immediate_callback(&g);
+    }
     g.flush();
     return surface;
 }

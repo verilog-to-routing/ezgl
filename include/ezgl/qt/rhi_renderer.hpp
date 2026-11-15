@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ezgl/irenderer.hpp"
+#include "ezgl/qt/immediate_renderer.hpp"
 #include "ezgl/qt/deferred_renderer.hpp"
 #include "ezgl/qt/rhi_types.hpp"
 #include "ezgl/qt/rhi_canvas_widget.hpp"
@@ -62,8 +63,8 @@ namespace ezgl {
  * @c fill_arrow_pointer_triangle. All other primitives — @c draw_text,
  * @c draw_arc / @c fill_arc (and their elliptic variants), @c draw_surface,
  * SCREEN-coordinate-system overrides — forward to an owned
- * @ref deferred_renderer (@ref m_overlay_deferred) painting into the
- * @ref m_overlay QImage. That QImage is uploaded as a GPU texture and
+ * @ref deferred_renderer (@ref m_deferred_renderer) painting into the
+ * @ref m_persistent_overlay QImage. That QImage is uploaded as a GPU texture and
  * composited on top of the GPU layers by the overlay pipeline.
  *
  * @par Parallel record
@@ -95,12 +96,6 @@ namespace ezgl {
  */
 class rhi_renderer : public irenderer {
 public:
-    /// User draw routine invoked once per full flush. It receives this
-    /// renderer (as the base @ref renderer interface) and issues @c draw_* /
-    /// @c fill_* calls, which the renderer records into @ref SceneBuffers for
-    /// GPU upload rather than painting immediately.
-    using draw_callback_fn = void (*)(renderer*);
-
     /// Data captured from a single headless frame — returned by flush_capture()
     /// so the caller can render it via RhiCanvasWidget::render_offscreen() without
     /// needing a live QRhiWidget or QRhiWidget::grab().
@@ -108,7 +103,8 @@ public:
         SceneBuffers scene;         ///< CPU-side geometry to upload and draw on the offscreen GPU.
         QMatrix4x4   mvp;           ///< World→clip transform for this frame.
         rectangle    visible_world; ///< Visible world rect, used for chunk culling during the offscreen draw.
-        QImage       overlay;       ///< Pre-rendered text/surface overlay composited over the GPU frame.
+        QImage       persistent_overlay;       ///< Pre-rendered text/surface persistent overlay composited over the GPU frame.
+        QImage       immediate_overlay;
         QColor       bg;            ///< Background clear color.
     };
 
@@ -120,7 +116,6 @@ public:
      */
     rhi_renderer(RhiCanvasWidget* widget,
                  camera*          cam,
-                 draw_callback_fn draw_callback,
                  QColor           bg_color);
 
     /**
@@ -131,7 +126,6 @@ public:
      */
     rhi_renderer(QSize            size,
                  camera*          cam,
-                 draw_callback_fn draw_callback,
                  QColor           bg_color);
 
     /// Default: the owned overlay deferred renderer and GPU scene state are
@@ -262,6 +256,8 @@ public:
     //   auto data = flush_capture(bg);   // returns by value, no widget
     //   QImage png = RhiCanvasWidget::render_offscreen(w, h, ...data...);
 
+    void begin_overlays_frames();
+
     /// Reset per-frame state (tile batches, command vectors, overlay)
     /// ready for a fresh recording pass.
     void begin_frame();
@@ -292,6 +288,10 @@ public:
     /// the freshly-pannned viewport's draw call set is recomputed
     /// without rebuilding any geometry.
     void flush_mvp_only();
+
+    immediate_renderer* get_immediate_renderer() {
+        return m_immediate_renderer.get();
+    }
 
 private:
     /// Side length, in tiles, of the square screen-space tiling grid. The scene
@@ -506,13 +506,15 @@ private:
                                              StyleKey   style_key,
                                              std::uint32_t rgba);
 
+    void end_overlays_painters();
     /// (Re)create the overlay QImage at the current size/DPR, clear it to
     /// transparent, and begin its painter so overlay draw calls can paint.
-    void begin_overlay_frame();
-    /// Rebuild the overlay layer by replaying the cached deferred overlay
-    /// commands (text/arcs/surfaces) without re-running the draw callback;
-    /// used by the camera-only redraw path.
-    void render_cached_overlay();
+    void begin_persistent_overlay_frame();
+    
+    /**
+     * @brief Prepare a cleared immediate overlay and reset its drawing state.
+     */
+    void begin_immediate_overlay_frame();
     /// Allocate/resize the tile grid and recompute each tile's world bounds
     /// for the current visible world.
     void ensure_tile_grid();
@@ -550,7 +552,7 @@ private:
 
     RhiCanvasWidget*         m_rhi_widget; ///< null in headless mode
     QSize                    m_size;       ///< logical (device-independent) framebuffer size
-    qreal                    m_overlay_dpr = 1.0; ///< overlay QImage device pixel ratio (matches widget DPR; 1.0 headless)
+    qreal                    m_overlay_dpr = 1.0; ///< Overlay QImage device pixel ratio (matches widget DPR; 1.0 headless)
     QColor                   m_bg_color;
     bool                     m_skip_tile_writes = false;
     std::uint32_t            m_current_rgba = 0;
@@ -603,13 +605,17 @@ private:
     std::vector<ArrowCmd>                   m_cmd_arrows;
 
     // QPainter overlay — overlay commands (text, arcs, …) are stored in
-    // m_overlay_deferred and replayed into this image.
-    QImage   m_overlay;
-    Painter  m_overlay_painter;   // must be declared AFTER m_overlay
+    // m_deferred_renderer and replayed into this image.
+    QImage   m_persistent_overlay;
+    Painter  m_persistent_overlay_painter;   // must be declared AFTER m_persistent_overlay
 
     // Overlay command storage and replay — independent deferred renderer
-    // painted into m_overlay_painter / m_overlay.
-    std::unique_ptr<deferred_renderer> m_overlay_deferred;
+    // painted into m_persistent_overlay_painter / m_persistent_overlay.
+    std::unique_ptr<deferred_renderer> m_deferred_renderer;
+
+    QImage m_immediate_overlay;
+    Painter m_immediate_overlay_painter;
+    std::unique_ptr<immediate_renderer> m_immediate_renderer;
 };
 
 } // namespace ezgl
