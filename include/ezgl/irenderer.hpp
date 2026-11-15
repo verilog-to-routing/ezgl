@@ -72,6 +72,8 @@ class irenderer {
 public:
     virtual ~irenderer() = default;
 
+    void reset_attributes();
+
     /**
      * Select whether subsequent draw calls interpret coordinates as WORLD
      * units or SCREEN pixels.

@@ -63,6 +63,7 @@ void deferred_backend::redraw()
     if(!m_renderer) {
         m_renderer = std::make_unique<deferred_renderer>(m_painter, m_camera);
     }
+    m_renderer->reset_attributes();
     m_draw_persistent_callback(m_renderer.get());
     if (m_draw_immediate_callback) {
         m_draw_immediate_callback(m_renderer.get());
@@ -108,6 +109,7 @@ QImage deferred_backend::render_to_image(int w, int h)
     painter.paint();
 
     deferred_renderer g(&painter, m_camera);
+    
     m_draw_persistent_callback(&g);
     if (m_draw_immediate_callback) {
         m_draw_immediate_callback(&g);

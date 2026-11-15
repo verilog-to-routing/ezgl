@@ -678,28 +678,7 @@ void rhi_renderer::begin_frame()
    
     begin_overlays_frames();
 
-    // Match the deferred path semantics: each redraw starts from the renderer
-    // defaults rather than inheriting state from the previous frame.
-    //
-    // Use the virtual setters here, NOT direct member writes: the rhi_renderer
-    // overrides propagate state to m_deferred_renderer. A direct write would
-    // leave m_deferred_renderer holding whatever state apply_painter_state()
-    // last applied during replay — typically the SCREEN coord of the final
-    // legend text command — and the next frame's WORLD-coord text (e.g. CLB
-    // labels in draw_place) would be silently captured as SCREEN, producing
-    // text at fixed screen positions that does not follow camera moves.
-    set_coordinate_system(WORLD);
-    set_text_rotation(0);
-    set_horiz_justification(justification::center);
-    set_vert_justification(justification::center);
-    current_color = {0, 0, 0, 255};
-    current_line_width = 0;
-    current_line_cap = line_cap::butt;
-    current_line_dash = line_dash::none;
-    set_color(current_color);
-    set_line_width(current_line_width);
-    set_line_cap(current_line_cap);
-    set_line_dash(current_line_dash);
+    reset_attributes();
 }
 
 void rhi_renderer::end_overlays_painters() {
@@ -722,11 +701,6 @@ void rhi_renderer::begin_overlays_frames() {
 
 void rhi_renderer::begin_persistent_overlay_frame()
 {
-    // End painter if still active from a previous pass.
-    /*
-    if (m_persistent_overlay_painter.isActive())
-        m_persistent_overlay_painter.end();
-    */
     const QSize wanted_overlay_px = physical_overlay_size(m_size, m_overlay_dpr);
     if (m_persistent_overlay.size() != wanted_overlay_px
         || m_persistent_overlay.devicePixelRatio() != m_overlay_dpr) {
@@ -761,6 +735,7 @@ void rhi_renderer::begin_immediate_overlay_frame()
     m_immediate_overlay_painter.setAntialias(false);
     m_immediate_overlay_painter.setSmoothPixmap(false);
     m_immediate_renderer->set_painter(&m_immediate_overlay_painter);
+    m_immediate_renderer->reset_attributes();
 }
 // ---- helpers ---------------------------------------------------------------
 

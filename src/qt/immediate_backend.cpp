@@ -59,6 +59,7 @@ void immediate_backend::redraw()
                               m_background_color.blue  / 255.0);
     m_painter->paint();
 
+    m_renderer->reset_attributes();
     m_draw_persistent_callback(m_renderer);
     if (m_draw_immediate_callback) {
         m_draw_immediate_callback(m_renderer);
@@ -102,6 +103,7 @@ QImage immediate_backend::render_to_image(int w, int h)
     painter.paint();
 
     immediate_renderer g(&painter, m_camera);
+   
     m_draw_persistent_callback(&g);
     if (m_draw_immediate_callback) {
         m_draw_immediate_callback(&g);
